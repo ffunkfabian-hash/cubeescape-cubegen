@@ -58,9 +58,9 @@ Weitere Regeln:
   Head). Die Hierarchie aus "parent" übernehmen.
 - Rotatable.target = Lösungsstellung in Schritten ab der Ruhelage, interactive = der Spieler darf drehen.
   pipe_fitting: Stellung 0-3, welche Kanten das Stück in Ruhe verbindet, steht im "note" des Eintrags.
-- Rotator dreht endlos. Für antenna/radar und Lüfter ist das richtig; bei camera und service_robot.Head
-  (Kopf) würde ein Dauer-Dreh durch die Wand schwenken - solange es kein Schwenk-Script gibt, dort den
-  Rotator deaktiviert lassen (speed 0) und im Log darauf hinweisen.
+- Rotator dreht endlos. Für antenna/radar und Lüfter ist das richtig; camera hat deshalb standardmäßig
+  speed 0 (steht), service_robot bekommt für den Kopf nur mit head_speed > 0 einen Rotator. Einen Rotator
+  mit speed 0 trotzdem anlegen (deaktiviert), damit ein späteres Schwenk-Script ihn ersetzen kann.
 - Collider: statische Modelle bekommen über AssetRegistry eine BoxCollider-Hülle. Für begehbare Typen
   (stairs, catwalk, floor_tile, platform, floating_island) ist das falsch (Treppe als Block, Steg mit
   Geländer-Hülle): prüfe, wie AssetRegistry das macht, und schlage MeshCollider bzw. Box-Collider aus den
@@ -136,7 +136,8 @@ Mechaniken:
    M_GlowCyan) und Signal. Optional "Fluss": nur Fittings leuchten, die von einer Quelle aus verbunden
    sind (Anschlüsse aus "note", gedreht um die aktuelle Stellung).
 5. Schwenken (camera "Rotor", service_robot "Head"): Hin- und Herschwenken um Unity up statt Dauer-Drehung,
-   ±60° (Kamera) bzw. ±40° (Kopf), Tempo aus dem Rotator-Feld speed. Kamera optional mit Sichtkegel:
+   ±60° (Kamera) bzw. ±40° (Kopf), Tempo als eigenes Feld (Standard 20 °/s); den Rotator der Kamera
+   (speed 0) dafür ersetzen. Kamera optional mit Sichtkegel:
    sieht sie den Spieler -> Glow-LED auf Dauerlicht, Signal (Alarm).
 6. Leiter (ladder): Trigger-Volumen vor der Leiter (Front = Unity +Z), Spieler klettert hoch/runter;
    Höhe aus bounds. Nur wenn der Spieler-Controller sich dafür erweitern lässt - sonst vorschlagen.

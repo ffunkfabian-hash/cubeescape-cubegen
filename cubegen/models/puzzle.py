@@ -554,7 +554,8 @@ def keypad(rng, a):
        params=[
            Param("mount_height", "float", "Höhe über Boden (m)", lo=1.0, hi=4.0),
            Param("style", "choice", "Bauform", choices=("box", "dome")),
-           Param("speed", "float", "Schwenk-Tempo (°/s)", lo=0, hi=180, unity=True, default=20),
+           Param("speed", "float", "Dreh-Tempo (°/s, 0 = steht)", lo=0, hi=180, unity=True, default=0,
+                 description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
            Param("mode", "choice", "LED-Modus", choices=("Steady", "Blink", "Pulse"), unity=True, default="Blink"),
        ])
 def camera(rng, a):
@@ -584,7 +585,7 @@ def camera(rng, a):
         cyl(head, 0.13 * 0.98, 0.05, (cx, cy, cz - 0.245), "M_Glass", sides=10, radius_top=0.06)
         cube(lights, (0.03, 0.03, 0.02), (cx, cy - 0.1, cz - 0.05), "M_GlowRed")
     a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "up", "speed": p.option("speed")},
-                note="pans the head around Unity up")
+                note="head turns around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep)")
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 
 

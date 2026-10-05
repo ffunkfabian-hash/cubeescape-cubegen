@@ -82,7 +82,20 @@ Das Add-on legt nur die Collections „CubeEscape Vorschau“ und „CubeEscape 
 `M_…`-Materialien. Bestehende Materialien (z. B. in `CubeEscape_Assets.blend`) bleiben unverändert. **Aufräumen**
 entfernt beides wieder.
 
+## Herunterladen (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
+```
+
+Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),
+legt den Befehl `cubegen` in `~/.local/bin` an, baut das Blender-Add-on (`~/cubegen/dist/cubegen_blender_addon.zip`)
+und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen: `--dir ORDNER`, `--branch BRANCH`,
+`--no-link` (als `… | bash -s -- --dir ~/tools/cubegen`).
+
 ## Schnellstart (Kommandozeile)
+
+Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
 
 ```bash
 # alle 69 Typen je 2x, Seed 42 -> output/seed_42/
@@ -173,7 +186,7 @@ Felder. Der Generator liefert deshalb keine Keyframes, sondern neben jeder FBX e
 | `pipe_fitting` | `Rotatable` | `Fitting` dreht um `up` in 90°-Schritten, Ziel `target`; die Anschlüsse in Ruhe stehen in `note` |
 | `laser_mirror` | `Rotatable` | `Mirror` ruht auf 45°, dreht um `up` in 45°/90°-Schritten |
 | `laser_emitter` | `SignalLight` | leeres Objekt `Beam` = Startpunkt des Strahls (Richtung Unity-forward) |
-| `camera`, `antenna` | `Rotator` + `SignalLight` | Kopf `Rotor` schwenkt um `up`; LED blinkt bzw. pulsiert |
+| `camera`, `antenna` | `Rotator` + `SignalLight` | Kopf `Rotor` dreht um `up` (Kamera standardmäßig `speed` 0 = steht, weil `Rotator` endlos dreht); LED blinkt bzw. pulsiert |
 | `ceiling_panel` | `SignalLight` (Licht) bzw. `Rotator` (Lüfter) | Lüfter um `up`; `plain` ist statisch |
 | `lift` | `Door` | `Deck` fährt beim „Öffnen“ um `travel` nach oben (`openOffset` = (0, Hub, 0)) |
 | `conveyor` | je Rolle ein `Rotator` | `Roller_<n>` drehen um `forward` |
@@ -266,7 +279,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `socket` | `kind` (energy_cell / battery), `height` (0.3–1.6), `cables` (ja/nein), `stripes` (ja/nein), `status` (off / on) |
 | `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8) 🔗, `speed` (10–1000) 🔗 |
 | `antenna` | `style` (mast / radar / dish), `height` (0.8–6), `speed` (0–360) 🔗 |
-| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180) 🔗, `mode` (Steady / Blink / Pulse) 🔗 |
+| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse) 🔗 |
 | `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
 | `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein) |
 | `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6), `fan_speed` (0–2000) 🔗 |
