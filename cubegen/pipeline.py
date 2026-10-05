@@ -12,7 +12,8 @@ from typing import Callable, Dict, List, Optional, Union
 from . import __version__
 from .blender import BlenderError, find_blender, resolve_engine, run_job
 from .imagemagick import ImageMagick, ImageMagickError
-from .models import asset_name, generate_asset, model_types
+from .asset import to_unity
+from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
 from .seeds import model_seed
 
@@ -28,6 +29,7 @@ class BatchConfig:
     prefix: str = ""
     scale: float = 1.0
     blend: bool = True
+    rig_data: bool = True  # write <Name>.cubegen.json (parts, pivots, script wiring) next to the models
     use_blender: bool = True
     render: bool = True
     engine: str = "auto"
@@ -68,6 +70,42 @@ def plan_models(config: BatchConfig) -> List[Dict]:
                 "scale": config.scale,
             })
     return specs
+
+
+def rig_data(asset, spec: Dict, master_seed: int) -> Dict:
+    """Everything a Unity prefab builder needs besides the FBX, in Unity coordinates.
+
+    Animations are not baked into the FBX: the game's scripts move parts with
+    fields set by the prefab builders, so this file carries those values.
+    """
+    entry = REGISTRY[spec["type"]]
+    parts = []
+    for o in asset.objects:
+        parent = asset.get(o.parent) if o.parent else None
+        local = tuple(o.pivot[i] - (parent.pivot[i] if parent else 0.0) for i in range(3))
+        parts.append({
+            "name": o.name,
+            "parent": o.parent,
+            "localPosition": list(to_unity(local)),
+            "empty": o.is_empty,
+            "materials": [] if o.is_empty else sorted(set(o.mesh.roles)),
+        })
+    lo, hi = asset.bbox()
+    center = to_unity(tuple((lo[i] + hi[i]) / 2 for i in range(3)))
+    size = to_unity(tuple(hi[i] - lo[i] for i in range(3)))
+    return {
+        "generator": f"cubegen {__version__}",
+        "model": asset.name,
+        "type": spec["type"],
+        "category": entry.category,
+        "pivot": entry.pivot,
+        "seed": spec["seed"],
+        "masterSeed": master_seed,
+        "static": not asset.behaviours,
+        "bounds": {"center": list(center), "size": [abs(c) for c in size]},
+        "parts": parts,
+        "behaviours": asset.behaviours,
+    }
 
 
 def _rel(path: Optional[str], base: str) -> Optional[str]:
@@ -147,11 +185,16 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                                  title=f"Cube Escape - seed {config.seed}")
         log(f"contact sheet -> {sheet}")
 
-    # --- manifest -----------------------------------------------------------
+    # --- manifest + rig data ----------------------------------------------------
     entries = []
     for spec in specs:
         asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
         res = results.get(spec["name"], {})
+        if config.rig_data:
+            rig_path = os.path.join(dirs["models"], f"{spec['name']}.cubegen.json")
+            with open(rig_path, "w", encoding="utf-8") as fh:
+                json.dump(rig_data(asset, spec, config.seed), fh, indent=2)
+            res.setdefault("files", {})["rig"] = rig_path
         entries.append({
             "name": spec["name"],
             "type": spec["type"],
@@ -161,6 +204,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "preview": _rel(res.get("preview"), out),
             "icon": _rel(res.get("icon"), out),
             "pivots": {o.name: [round(c, 4) for c in o.pivot] for o in asset.objects if any(o.pivot)},
+            "behaviours": asset.behaviours,
             "stats": asset.stats(),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
         })

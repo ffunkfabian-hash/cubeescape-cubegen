@@ -31,11 +31,39 @@ class AssetObject:
         return [v_sub(v, self.pivot) for v in self.mesh.verts] if self.mesh else []
 
 
+# Blender (Z up, front -Y) -> Unity (Y up, front +Z), as produced by the FBX export
+# with axis_forward="-Z", axis_up="Y", bake_space_transform=True.
+def to_unity(v: Vec3) -> Tuple[float, float, float]:
+    return (round(-v[0], 4) + 0.0, round(v[2], 4) + 0.0, round(-v[1], 4) + 0.0)
+
+
+#: rotation axes in the names the game's scripts use (Vector3.right / up / forward)
+UNITY_AXES = {"right": (1, 0, 0), "up": (0, 1, 0), "forward": (0, 0, 1)}
+
+
 class Asset:
     def __init__(self, name: str):
         self.name = name
         self.objects: List[AssetObject] = []
         self.meta: Dict[str, object] = {}
+        #: which existing Unity scripts drive which parts, with field values in Unity units
+        self.behaviours: List[Dict[str, object]] = []
+
+    def behaviour(self, script: str, parts: Dict[str, object], fields: Optional[Dict[str, object]] = None,
+                  note: str = "") -> None:
+        """Describe how a game script should be wired to this asset (written to <Name>.cubegen.json).
+
+        ``parts`` maps the script's reference fields to part names, ``fields``
+        holds the script parameters (Unity units: m, m/s, deg/s, axes by name).
+        """
+        for value in parts.values():
+            for name in value if isinstance(value, list) else [value]:
+                if self.get(name) is None:
+                    raise ValueError(f"behaviour {script}: part {name!r} does not exist")
+        entry: Dict[str, object] = {"script": script, "parts": parts, "fields": fields or {}}
+        if note:
+            entry["note"] = note
+        self.behaviours.append(entry)
 
     # -- building -------------------------------------------------------------
     def part(self, name: str, pivot: Vec3 = (0.0, 0.0, 0.0), parent: Optional[str] = None) -> Mesh:
@@ -71,6 +99,13 @@ class Asset:
                 obj.mesh.translate(offset)
 
     def scale(self, factor: float) -> None:
+        for entry in self.behaviours:  # distances scale with the model, speeds/angles don't
+            fields = entry["fields"]
+            for key in ("openOffset", "distance", "travel"):
+                if key in fields:
+                    value = fields[key]
+                    fields[key] = [round(c * factor, 4) for c in value] if isinstance(value, list) \
+                        else round(value * factor, 4)
         for obj in self.objects:
             obj.pivot = v_scale(obj.pivot, factor)
             if obj.mesh:

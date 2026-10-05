@@ -142,6 +142,37 @@ class ModelTests(unittest.TestCase):
                             self.assertTrue(lo[i] - 0.05 <= obj.pivot[i] <= hi[i] + 0.05,
                                             f"{model_type} {seed} {obj.name}")
 
+    def test_status_parts_have_one_material(self):
+        # the game swaps renderer.sharedMaterial (slot 0 only) on these parts
+        status = ("Glow", "Indicator", "StatusLight_Front", "StatusLight_Back", "Screen", "Plate_Light")
+        for model_type in model_types():
+            for seed in range(SEEDS_PER_TYPE):
+                for obj in generate_asset(model_type, seed).meshes():
+                    if obj.name in status:
+                        self.assertEqual(len(set(obj.mesh.roles)), 1, f"{model_type} {seed} {obj.name}")
+
+    def test_door_offsets_match_game_recipes(self):
+        from cubegen.models.environment import _door_offset
+        self.assertEqual(_door_offset("sliding", 2.0, 2.6, None), [2.05, 0.0, 0.0])
+        self.assertEqual(_door_offset("heavy", 3.0, 3.0, None), [0.0, -3.1, 0.0])
+        self.assertEqual(_door_offset("security", 2.0, 2.6, None), [0.0, -2.7, 0.0])
+        self.assertEqual(_door_offset("elevator", 2.4, 2.8, "x"), [1.25, 0.0, 0.0])
+        self.assertEqual(_door_offset("airlock", 2.4, 2.8, "z"), [0.0, 1.45, 0.0])
+        self.assertEqual(_door_offset("blast", 4.0, 3.4, None), [0.0, 3.5, 0.0])
+
+    def test_behaviours(self):
+        for seed in range(SEEDS_PER_TYPE):
+            door = generate_asset("door", seed)
+            self.assertEqual([b["script"] for b in door.behaviours], ["Door"])
+            machine = generate_asset("machine", seed)
+            scripts = {b["script"]: b for b in machine.behaviours}
+            self.assertIn("Machine", scripts)
+            self.assertEqual("Rotor" in scripts["Machine"]["parts"].values(), machine.get("Rotor") is not None)
+        self.assertFalse(generate_asset("crate", 1).behaviours)  # static decoration
+        scaled = generate_asset("door", 3, scale=2.0).behaviours[0]["fields"]["openOffset"]
+        base = generate_asset("door", 3).behaviours[0]["fields"]["openOffset"]
+        self.assertEqual(scaled, [round(c * 2, 4) for c in base])
+
     def test_doors_have_game_part_names(self):
         for seed in range(20):
             names = {o.name for o in generate_asset("door", seed).objects}

@@ -85,6 +85,13 @@ def pipe(rng, a):
         center = (0, -r * 1.3 - 0.22, z)
         valve_wheel(a.part("Wheel", pivot=center), center, radius=max(0.18, r * 1.5))
         a.meta["valve"] = True
+        # like the game's Valve / Pipe_Valve: turns in 90 degree steps around Unity forward (Blender -Y)
+        a.behaviour("Rotatable", {"target": "Wheel", "glow": "Glow"},
+                    {"axis": "forward", "step": 90, "speed": 180, "target": 2, "interactive": True})
+    else:
+        a.behaviour("SignalIndicator", {"renderers": ["Glow"]},
+                    {"offMaterial": "M_RobotDark", "onMaterial": "M_GlowCyan"},
+                    note="glow rings show whether the line carries a signal")
 
 
 @model("machine", "Machine", "industrial", "Machine block: front screen, vents, pistons or stack, optional flywheel (Rotor)")
@@ -93,7 +100,7 @@ def machine(rng, a):
     d = rng.uniform(0.8, 1.6)
     h = rng.uniform(0.9, 1.6)
     mat = rng.choice(["M_Wall", "M_Metal", "M_Wall"])
-    glow = glow_material(rng, weights=(0.5, 0.3, 0.2))
+    glow = "M_GlowRed"  # status part, Machine swaps it: red = off, cyan = running, orange = broken
     body, lights = a.part("Body"), a.part("Glow")
 
     cube(body, (w + 0.1, d + 0.1, 0.15), (0, 0, 0.075), "M_RobotDark", bevel=0.02)
@@ -134,13 +141,29 @@ def machine(rng, a):
                  rot=(math.pi * i / spokes, 0, 0))
         a.meta["rotor"] = True
 
+    # Damage: loose panel + broken box, only shown while the machine is broken
+    dmg = a.part("Damage")
+    cube(dmg, (pw * 0.5, 0.05, h * 0.3), (w * 0.2, -d / 2 - 0.12, 0.15 + h * 0.25), mat,
+         rot=(deg(-25), deg(8), deg(rng.uniform(-25, 25))))
+    cube(dmg, (0.25, 0.25, 0.18), (-w * 0.35, -d / 2 - 0.25, 0.09), "M_RobotDark",
+         rot=(deg(10), deg(15), rng.uniform(0, math.pi)))
+
+    parts = {"body": "Body", "glow": "Glow", "damage": "Damage"}
+    if a.get("Rotor"):
+        parts["rotor"] = "Rotor"
+        # like Machine_Small / _Large: flywheel along Blender X = Unity right, smaller turns faster
+        a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "right", "speed": int(round(min(300, 80 / fr) / 10) * 10)},
+                    note="enabled by Machine while it runs")
+    a.behaviour("Machine", parts, {"needsPower": True},
+                note="Glow: M_GlowRed off / M_GlowCyan running / M_GlowOrange broken")
+
 
 @model("generator", "Generator", "industrial", "Generator drum with glow rings, side boxes, floor pipes and a fan (Rotor)")
 def generator(rng, a):
     r = rng.uniform(0.5, 1.2)
     h = rng.uniform(1.0, 2.2)
     sides = rng.choice([8, 10, 12])
-    glow = glow_material(rng, weights=(0.5, 0.4, 0.1))
+    glow = "M_GlowRed"  # status part (see machine)
     body, lights = a.part("Body"), a.part("Glow")
 
     cyl(body, r * 1.35, 0.2, (0, 0, 0.1), "M_RobotDark", sides=8, bevel=0.03)
@@ -159,6 +182,10 @@ def generator(rng, a):
         a.meta["floor_pipes"] = True
     center = (0, 0, 0.2 + h + 0.12)
     fan(a.part("Rotor", pivot=center), center, r * 0.8, rng.choice([4, 5, 6]), "M_Platform")
+    # like Generator_Small (260) / Generator (140): fan around Unity up, bigger = slower
+    a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "up", "speed": int(round(min(300, 150 / r) / 10) * 10)},
+                note="enabled by Machine while it runs")
+    a.behaviour("Machine", {"body": "Body", "glow": "Glow", "rotor": "Rotor"}, {"needsPower": True})
 
 
 @model("vent", "Vent", "industrial", "Wall vent (back side on the wall at y = +0.1) with slats and an optional fan (Rotor)",
@@ -174,6 +201,8 @@ def vent(rng, a):
         cube(body, (w - 0.12, 0.04, h - 0.12), (0, -0.1, z), "M_Wall")
         center = (0, -0.13, z)
         fan(a.part("Rotor", pivot=center), center, min(w, h) * 0.4, 5, "M_Metal", axis="y")
+        # like Vent_Large: fan turns around Unity forward (Blender -Y)
+        a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "forward", "speed": 160})
     else:
         n = max(2, int(h / 0.12))
         for i in range(n):

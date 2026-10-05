@@ -220,7 +220,7 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     grid_start: IntProperty(name="Ab Variante", default=0, min=0, max=9999)
 
     export_dir: StringProperty(name="Modelle", subtype="DIR_PATH",
-                               description="z. B. <Unity-Projekt>/Assets/Art/Models/Generated")
+                               description="Mit Script: <Unity>/Assets/Art/Models · statische Deko: <Unity>/Assets/Art/Models/Library/<Kategorie>")
     icons_dir: StringProperty(name="Icons", subtype="DIR_PATH",
                               description="Leer = Icons landen im Ausgabeordner")
     out_dir: StringProperty(name="Ausgabe", subtype="DIR_PATH",

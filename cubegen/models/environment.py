@@ -28,6 +28,29 @@ DOOR_STYLES = {
 }
 
 
+# How the game's Door recipes move the leaves (ModularBlocks.cs): direction, speed (m/s).
+# The distance follows the generated size the same way: leaf width + 0.05 sideways,
+# leaf height + 0.1 for single vertical leaves, leaf height + 0.05 for split vertical leaves.
+DOOR_MOTION = {
+    "sliding":  ("side", 3.0),     # Door_Sliding 2.05 for a 2.0 m opening
+    "heavy":    ("down", 0.9),     # Door_Heavy -3.1 for 3.0 m
+    "security": ("down", 4.0),     # Door_Security -2.7 for 2.6 m
+    "elevator": ("side", 1.8),     # Door_Elevator 1.25 per leaf for 2.4 m, split
+    "airlock":  ("vertical", 1.2),  # Door_Airlock 1.45 per leaf for 2.8 m, split
+    "blast":    ("up", 0.6),       # Door_Blast 3.5 for 3.4 m
+}
+
+
+def _door_offset(style: str, width: float, height: float, split) -> list:
+    direction, _ = DOOR_MOTION[style]
+    if direction == "side":
+        leaf = width / 2 if split == "x" else width
+        return [round(leaf + 0.05, 4), 0.0, 0.0]
+    if direction == "vertical":  # split up/down - each leaf moves away from the centre (sign of its position)
+        return [0.0, round(height / 2 + 0.05, 4), 0.0]
+    return [0.0, round((height + 0.1) * (-1 if direction == "down" else 1), 4), 0.0]
+
+
 @model("door", "Door", "environment", "Door with frame, status lights and one or two moving leaves (6 styles)")
 def door(rng, a):
     style = rng.choice(sorted(DOOR_STYLES))
@@ -70,6 +93,13 @@ def door(rng, a):
         leaf("Panel_B", width, height / 2, (0, 0, height * 3 / 4))
     else:
         leaf("Panel", width, height, (0, 0, height / 2))
+
+    panels = ["Panel", "Panel_B"] if split else ["Panel"]
+    a.behaviour("Door", {"panels": panels, "statusLights": ["StatusLight_Front", "StatusLight_Back"],
+                         "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Frame_Top"]},
+                {"openOffset": _door_offset(style, width, height, split), "speed": DOOR_MOTION[style][1]},
+                note="openOffset in Unity units relative to the leaf's rest position; split leaves move by the "
+                     "sign of their localPosition")
 
 
 @model("platform", "Platform", "environment", "Floating platform (walkable top at z = 0): square or octagonal, "

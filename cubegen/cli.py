@@ -16,7 +16,7 @@ from .pipeline import FORMATS, BatchConfig, generate_batch, plan_models
 from .seeds import parse_seed
 
 # recipe keys that map 1:1 onto BatchConfig fields
-_RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "render", "engine", "render_size", "samples", "icon_size",
+_RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples", "icon_size",
                   "icon_background", "models_dir", "icons_dir")
 
 
@@ -66,6 +66,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["render"] = False
     if args.no_blend:
         values["blend"] = False
+    if args.no_rig_data:
+        values["rig_data"] = False
     out = args.out or recipe.get("out") or os.path.join("output", f"seed_{seed}")
     return BatchConfig(seed=seed, models=models, out_dir=out, use_blender=not args.no_blender,
                        blender=args.blender, magick=args.magick, verbose=args.verbose, **values)
@@ -146,12 +148,14 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--count", type=int, help="assets per type (default 1)")
     g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")
-    g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models/Generated")
+    g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models")
     g.add_argument("--icons-dir", help="write the icons here instead")
     g.add_argument("--formats", type=_csv, help=f"export formats: {', '.join(FORMATS)} (default fbx)")
     g.add_argument("--prefix", help="prefix for asset names, e.g. 'Gen_' -> Gen_Crate_000")
     g.add_argument("--scale", type=float, help="uniform scale factor (default 1.0 = metres)")
     g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
+    g.add_argument("--no-rig-data", action="store_true",
+                   help="don't write <Name>.cubegen.json (parts, pivots, script wiring for Unity)")
     g.add_argument("--no-blender", action="store_true", help="pure-Python OBJ export, no Blender needed")
     g.add_argument("--no-render", action="store_true", help="skip previews, icons and contact sheet")
     g.add_argument("--engine", choices=["auto", "workbench", "eevee", "cycles"], help="preview render engine")

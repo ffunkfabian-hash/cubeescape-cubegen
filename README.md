@@ -23,7 +23,7 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 | Objekte haben nur eine Location | Rotation 0 / Skalierung 1, alles ist ins Mesh gebacken |
 | Materialnamen = Unity-Materialien | exakt die `M_…`-Tabelle (`M_Wall`, `M_RobotDark`, `M_GlowCyan`, …) → Unity remappt automatisch |
 | FBX-Exporteinstellungen | identisch zu `export_fbx()` (`bake_space_transform`, `axis_forward=-Z`, `axis_up=Y`, `FBX_SCALE_ALL`, …) |
-| Teilenamen für Unity-Skripte | `Body`, `Glow` (wird umgefärbt), `Rotor` (dreht), `Wheel` (Ventilrad), `Screen`, `Deck`, `Rail`; Türen: `Frame_Left/Right/Top`, `StatusLight_Front/Back`, `Panel` (+ `Panel_B`) – mit Pivot im Dreh-/Bewegungspunkt |
+| Teilenamen für Unity-Skripte | `Body`, `Glow` (wird umgefärbt, genau ein Material), `Rotor` (dreht), `Wheel` (Ventilrad), `Damage` (Maschine defekt), `Screen`, `Deck`, `Rail`, `Lights` (Deko-LEDs); Türen: `Frame_Left/Right/Top`, `StatusLight_Front/Back`, `Panel` (+ `Panel_B`) – mit Pivot im Dreh-/Bewegungspunkt |
 | Icons | `Icon_<Name>.png`, 256 × 256, transparenter Hintergrund |
 
 ![Materialien](docs/materials.png)
@@ -80,10 +80,13 @@ entfernt beides wieder.
 # alle 18 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
-# nur bestimmte Typen, direkt ins Unity-Projekt
-python -m cubegen generate --seed 7 --types crate,machine,door --count 3 --prefix Gen_ \
-    --models-dir ../CubeEscape/Assets/Art/Models/Generated \
-    --icons-dir  ../CubeEscape/Assets/Art/Icons/Generated
+# Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
+python -m cubegen generate --seed 7 --types machine,door --count 3 --prefix Gen_ \
+    --models-dir ../CubeEscape/Assets/Art/Models
+
+# reine Deko in die Bibliothek (wird automatisch als statisches Modell registriert)
+python -m cubegen generate --seed 7 --types crate,debris --count 4 --prefix Gen_ \
+    --models-dir ../CubeEscape/Assets/Art/Models/Library/Props
 
 # Batch aus einem Rezept
 python -m cubegen generate --recipe recipes/station_props.json
@@ -104,7 +107,7 @@ Geometrie und Materialien, aber ohne Pivots, Previews und Icons.
 
 ```
 output/seed_42/
-├── models/                       Gen_Crate_000.fbx, ...   (eine Datei pro Asset)
+├── models/                       Gen_Crate_000.fbx + Gen_Crate_000.cubegen.json (Teile, Pivots, Script-Werte)
 ├── icons/                        Icon_Gen_Crate_000.png   (ImageMagick: getrimmt, zentriert, Schatten)
 ├── previews/                     Rohe Blender-Renders
 ├── contact_sheet.png             alle Previews mit Namen
@@ -112,6 +115,51 @@ output/seed_42/
 ├── CubeEscape_Generated_42.blend Übersichtsdatei: alle Assets im Raster, Teile heißen <Asset>.<Teil>
 └── manifest.json                 Seeds, Dateien, Pivots, Teilenamen, Maße, Dreiecke, Varianten-Infos
 ```
+
+## Wohin im Unity-Projekt?
+
+| Asset | Ordner | Warum |
+|---|---|---|
+| bewegt sich / hat Zustände (Tür, Maschine, Generator, Ventil-Rohr, Lampe, Terminal, Lüfter, Item) | `Assets/Art/Models` | `AddModel` lädt `Assets/Art/Models/<Name>.fbx`; der Prefab-Builder braucht eine Rezeptzeile in `ModularBlocks.cs` (Werte stehen in `<Name>.cubegen.json`) |
+| reine Deko (`"static": true` in der JSON) | `Assets/Art/Models/Library/<Kategorie>` | `AssetRegistry` registriert sie automatisch als statische Hülle mit BoxCollider |
+
+Das Präfix (`--prefix Gen_`) verhindert Namenskollisionen mit den handgebauten Modellen. Unity-Importeinstellungen
+gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselben Namen behält sie also.
+
+## Animation & Unity-Scripts
+
+Im Spiel gibt es **keine Animation-Clips**: Animationsimport ist abgeschaltet, alles läuft prozedural über Scripts
+(`Door`, `Machine`, `Rotator`, `Rotatable`, `SignalLight`, `SignalIndicator` …). Die Prefab-Builder setzen deren
+Felder. Der Generator liefert deshalb keine Keyframes, sondern neben jeder FBX eine **`<Name>.cubegen.json`**:
+
+* `parts`: Teile mit Parent, `localPosition` **in Unity-Koordinaten** und Materialien
+* `behaviours`: welches vorhandene Script welche Teile steuert, mit den Feldwerten in Unity-Einheiten
+* `bounds`, `category`, `pivot`, `seed`; `"static": true` heißt reine Deko
+
+```json
+{ "script": "Door",
+  "parts":  { "panels": ["Panel", "Panel_B"], "statusLights": ["StatusLight_Front", "StatusLight_Back"],
+              "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Frame_Top"] },
+  "fields": { "openOffset": [1.25, 0.0, 0.0], "speed": 1.8 } }
+```
+
+| Typ | Script(s) | Werte (wie in `ModularBlocks.cs`) |
+|---|---|---|
+| `door` | `Door` | Weg nach Stil und **generierter Größe**: Sliding/Elevator seitlich Blattbreite + 0,05; Heavy/Security −(Höhe + 0,1); Blast +(Höhe + 0,1); Airlock geteilt Blatthöhe + 0,05. Tempo: 3 / 0,9 / 4 / 1,8 / 1,2 / 0,6 m/s |
+| `machine` | `Machine` (+ `Rotator` am `Rotor`) | `Glow` startet `M_GlowRed`; `Damage` (nur bei Defekt sichtbar); Rotor-Achse `right`, Tempo nach Größe |
+| `generator` | `Machine` + `Rotator` | Rotor-Achse `up`, größere Lüfter drehen langsamer (wie Generator 140 / Generator_Small 260) |
+| `pipe` | `Rotatable` (mit Ventil) bzw. `SignalIndicator` | Ventilrad: Achse `forward`, Schritt 90°, 180 °/s, Ziel 2; Glow-Ringe: `M_RobotDark` ↔ `M_GlowCyan` |
+| `vent` (mit Lüfter) | `Rotator` | Achse `forward`, 160 °/s (wie Vent_Large) |
+| `light` | `SignalLight` | Mast `Steady`, Poller `Pulse`, Rundumleuchte `Rotate` (`Rotor` um Unity-Y) |
+| `terminal` | `SignalIndicator` | `M_GlowRed` ↔ `M_GlowCyan` |
+| `item` | `ItemPickup` | Pivot in der Mitte, dreht um Welt-Y |
+
+Achsen: Unity = (−Blender-X, Blender-Z, −Blender-Y). Also ist Blender X → `right`, Blender Z → `up` und Blender −Y →
+`forward`. Teile, deren Material das Spiel tauscht (`Glow`, `StatusLight_*`, `Screen`), haben genau **ein**
+Material, weil `renderer.sharedMaterial` nur Slot 0 ersetzt. Mehrfarbige Deko-LEDs heißen `Lights`.
+
+Für den Unity-Import liegt in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md) ein Prompt, mit dem eine KI
+im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann.
 
 ## Seeds & Reproduzierbarkeit
 

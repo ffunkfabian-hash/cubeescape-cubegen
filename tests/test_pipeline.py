@@ -46,6 +46,11 @@ class OBJFallbackTest(unittest.TestCase):
             self.assertIn("o Frame_Left", obj)
             self.assertIn("usemtl M_GlowRed", obj)
             self.assertIn("newmtl M_GlowCyan", read(os.path.join(out, "models", "CubeEscape_Materials.mtl")))
+            rig = json.loads(read(os.path.join(out, "models", "Door_000.cubegen.json")))
+            self.assertEqual(rig["behaviours"][0]["script"], "Door")
+            panel = next(p for p in rig["parts"] if p["name"] == "Panel")
+            self.assertGreater(panel["localPosition"][1], 0.5)  # Unity Y = up
+            self.assertTrue(json.loads(read(os.path.join(out, "models", "Crate_000.cubegen.json")))["static"])
 
     def test_same_seed_same_files(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:

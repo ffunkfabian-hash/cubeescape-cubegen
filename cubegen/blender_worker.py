@@ -57,7 +57,10 @@ def build_asset(spec):
     asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0))
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
-    build_collection(asset, collection, tags={"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])})
+    objects = build_collection(asset, collection,
+                               tags={"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])})
+    if "Damage" in objects:  # in the game only visible while the machine is broken
+        objects["Damage"].hide_render = True
     return asset, collection
 
 

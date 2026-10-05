@@ -22,7 +22,9 @@ def console(rng, a):
     d = rng.uniform(0.7, 0.9)
     h = rng.uniform(0.8, 0.9)
     glow = glow_material(rng, weights=(0.85, 0.05, 0.1))
-    body, screen, lights = a.part("Body"), a.part("Screen"), a.part("Glow")
+    # multi-coloured buttons are decoration -> "Lights"; "Glow" parts must keep ONE material
+    # because the game swaps renderer.sharedMaterial (= slot 0 only)
+    body, screen, lights = a.part("Body"), a.part("Screen"), a.part("Lights")
 
     cube(body, (w, d, h - 0.04), (0, 0.05, (h - 0.04) / 2), "M_RobotDark", bevel=0.03)
     cube(body, (w, d + 0.1, 0.08), (0, 0, h), "M_Wall", bevel=0.02)
@@ -60,11 +62,13 @@ def terminal(rng, a):
                 cube(body, (0.05, 0.03, 0.04), (-0.06 + col * 0.06, -0.165, col_h - 0.35 + row * 0.06), "M_Metal")
     elif extra == "slot":
         cube(body, (0.2, 0.04, 0.04), (0, -0.16, col_h - 0.25), "M_Platform")
-    cube(lights, (0.06, 0.02, 0.06), (0.12, -0.16, col_h - 0.12), "M_GlowRed" if rng.random() < 0.5 else glow)
+    status = "M_GlowRed"  # one material per Glow part (SignalIndicator swaps it)
+    cube(lights, (0.06, 0.02, 0.06), (0.12, -0.16, col_h - 0.12), status)
     if rng.random() < 0.4:  # antenna with a tip light
         cyl(body, 0.012, 0.25, (sw * 0.35, 0.05, col_h + sh + 0.15), "M_RobotDark", sides=6)
-        cube(lights, (0.04, 0.04, 0.04), (sw * 0.35, 0.05, col_h + sh + 0.29), glow)
+        cube(lights, (0.04, 0.04, 0.04), (sw * 0.35, 0.05, col_h + sh + 0.29), status)
     a.meta["extra"] = extra
+    a.behaviour("SignalIndicator", {"renderers": ["Glow"]}, {"offMaterial": "M_GlowRed", "onMaterial": "M_GlowCyan"})
 
 
 @model("server_rack", "ServerRack", "tech", "Server rack with panel rows and a seeded pattern of status LEDs")
@@ -72,7 +76,7 @@ def server_rack(rng, a):
     w = rng.uniform(0.6, 1.2)
     d = rng.uniform(0.6, 1.0)
     h = rng.uniform(1.8, 2.4)
-    body, lights = a.part("Body"), a.part("Glow")
+    body, lights = a.part("Body"), a.part("Lights")  # mixed LED colours: decoration like Rack_Lights
     cube(body, (w, d, h), (0, 0, h / 2), "M_RobotDark", bevel=0.03)
     for z in (0.04, h - 0.04):  # 1 cm proud of the body: no shared (z-fighting) planes
         cube(body, (w + 0.04, d + 0.04, 0.1), (0, 0, z), "M_Wall", bevel=0.02)
@@ -118,6 +122,10 @@ def light(rng, a):
         cyl(lights, 0.18, 0.28, (0, 0, 0.3), rng.choice(["M_GlowRed", "M_GlowOrange"]), sides=10, radius_top=0.12)
         center = (0.0, 0.0, 0.3)
         cube(a.part("Rotor", pivot=center), (0.3, 0.04, 0.2), (0, 0.04, 0.3), "M_Metal")
+    mode = {"post": "Steady", "bollard": "Pulse", "beacon": "Rotate"}[style]
+    parts = {"glow": "Glow", "rotor": "Rotor"} if style == "beacon" else {"glow": "Glow"}
+    a.behaviour("SignalLight", parts, {"mode": mode},
+                note="Rotate spins Rotor around Unity up (Blender Z), as in EmergencyLight")
 
 
 @model("crystal_cluster", "CrystalCluster", "tech", "Energy crystals growing out of a dark base")
