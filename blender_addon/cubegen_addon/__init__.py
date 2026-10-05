@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 3, 0),
+    "version": (0, 3, 1),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
@@ -34,7 +34,21 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty, PointerProperty, StringProperty
 
 
+def _purge_stale_modules():
+    """Drop cached cubegen modules before importing.
+
+    When a newer add-on version is installed over an enabled older one,
+    Blender re-runs this file but keeps the old submodules in sys.modules -
+    the new code would then run against the old ``cubegen`` package.
+    """
+    prefixes = (f"{__name__}.cubegen", "cubegen")
+    for name in list(sys.modules):
+        if any(name == p or name.startswith(p + ".") for p in prefixes):
+            del sys.modules[name]
+
+
 def _load_cubegen():
+    _purge_stale_modules()
     try:
         from . import cubegen as pkg  # copy bundled into the add-on zip
     except ImportError:

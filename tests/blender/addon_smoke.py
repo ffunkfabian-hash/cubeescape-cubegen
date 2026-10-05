@@ -16,6 +16,9 @@ import bpy
 zip_path, out = sys.argv[sys.argv.index("--") + 1:][:2]
 bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
 bpy.ops.preferences.addon_enable(module="cubegen_addon")
+bpy.context.scene.cubegen.model_type = "wall"  # an enabled add-on with a preview, then install again
+bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
+bpy.ops.preferences.addon_enable(module="cubegen_addon")
 import cubegen_addon as addon  # noqa: E402
 
 scene = bpy.context.scene

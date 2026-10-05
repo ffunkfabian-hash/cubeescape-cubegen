@@ -109,10 +109,13 @@ def setup_render(scene, engine, size, samples):
             pass
 
     world = bpy.data.worlds.new("cubegen_world")
-    world.use_nodes = True
-    bg = world.node_tree.nodes.get("Background")
-    bg.inputs["Color"].default_value = (0.75, 0.78, 0.85, 1.0)
-    bg.inputs["Strength"].default_value = 0.8
+    if world.node_tree is None:  # Blender < 5 (use_nodes is deprecated in 5.x, nodes always exist there)
+        world.use_nodes = True
+    bg = world.node_tree.nodes.get("Background") if world.node_tree else None
+    if bg is not None:
+        bg.inputs["Color"].default_value = (0.75, 0.78, 0.85, 1.0)
+        bg.inputs["Strength"].default_value = 0.8
+    world.color = (0.75, 0.78, 0.85)
     scene.world = world
 
     cam_data = bpy.data.cameras.new("cubegen_camera")

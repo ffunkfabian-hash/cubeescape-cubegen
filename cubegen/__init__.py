@@ -1,3 +1,3 @@
 """cubegen - seeded low-poly model generator for Cube Escape (Blender CLI + ImageMagick)."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
