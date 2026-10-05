@@ -2,7 +2,10 @@
 
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,
-Server-Racks, Lampen, Kristalle, Trümmer, Türen, Plattformen, Wände, Säulen, Lüftungen und Inventar-Items.
+Server-Racks, Lampen, Kristalle, Trümmer, Türen, Plattformen, Wände, Säulen, Lüftungen und Inventar-Items, dazu
+Rätsel-Elemente (Sockel, Sicherungskasten, Ventil, Hebel, Rohr-Puzzle, Laser, Druckplatte, Keypad), ein modulares
+Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband …), Einrichtung, Roboter und Natur –
+69 Typen in 8 Kategorien.
 
 * **Blender CLI** baut die Meshes, exportiert **FBX für Unity** (optional GLB/glTF/OBJ), rendert Previews und
   speichert eine Übersichts-`.blend`.
@@ -45,7 +48,7 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 
 * **Typ, Master-Seed, Variante**: Pfeile ◀ ▶ blättern, 🔄 würfelt. Die Vorschau entsteht live am Ursprung, mit
   Dreiecken, Maßen und Teilenamen im Panel.
-* **Von jedem Typ**: baut alle 18 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+* **Von jedem Typ**: baut alle 69 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
@@ -79,10 +82,23 @@ Das Add-on legt nur die Collections „CubeEscape Vorschau“ und „CubeEscape 
 `M_…`-Materialien. Bestehende Materialien (z. B. in `CubeEscape_Assets.blend`) bleiben unverändert. **Aufräumen**
 entfernt beides wieder.
 
-## Schnellstart (Kommandozeile)
+## Herunterladen (macOS / Linux)
 
 ```bash
-# alle 18 Typen je 2x, Seed 42 -> output/seed_42/
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
+```
+
+Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),
+legt den Befehl `cubegen` in `~/.local/bin` an, baut das Blender-Add-on (`~/cubegen/dist/cubegen_blender_addon.zip`)
+und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen: `--dir ORDNER`, `--branch BRANCH`,
+`--no-link` (als `… | bash -s -- --dir ~/tools/cubegen`).
+
+## Schnellstart (Kommandozeile)
+
+Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
+
+```bash
+# alle 69 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
 # Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
@@ -126,11 +142,11 @@ output/seed_42/
 
 | Asset | Ordner | Warum |
 |---|---|---|
-| bewegt sich / hat Zustände (Tür, Maschine, Generator, Ventil-Rohr, Lampe, Terminal, Lüfter, Item) | `Assets/Art/Models` | `AddModel` lädt `Assets/Art/Models/<Name>.fbx`; der Prefab-Builder braucht eine Rezeptzeile in `ModularBlocks.cs` (Werte stehen in `<Name>.cubegen.json`) |
+| bewegt sich / hat Zustände (Tür, Maschine, Generator, Ventil, Lampe, Terminal, Lüfter, Item, Rätsel-Elemente, Lift, Förderband, Roboter …) | `Assets/Art/Models` | `AddModel` lädt `Assets/Art/Models/<Name>.fbx`; der Prefab-Builder braucht eine Rezeptzeile in `ModularBlocks.cs` (Werte stehen in `<Name>.cubegen.json`) |
 | reine Deko (`"static": true` in der JSON) | `Assets/Art/Models/Library/<Kategorie>` | `AssetRegistry` registriert sie automatisch als statische Hülle mit BoxCollider |
 
 Mit `--library-dir` (im Add-on: Feld „Bibliothek“) sortiert der Generator das selbst: Modelle ohne Script landen in
-`<Bibliothek>/<Kategorie>` (Props, Industrial, Tech, Environment), alle anderen im Modell-Ordner.
+`<Bibliothek>/<Kategorie>` (Props, Industrial, Tech, Environment, Ruins, Nature …), alle anderen im Modell-Ordner.
 
 Das Präfix (`--prefix Gen_`) verhindert Namenskollisionen mit den handgebauten Modellen. Unity-Importeinstellungen
 gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselben Namen behält sie also.
@@ -162,13 +178,32 @@ Felder. Der Generator liefert deshalb keine Keyframes, sondern neben jeder FBX e
 | `light` | `SignalLight` | Mast `Steady`, Poller `Pulse`, Rundumleuchte `Rotate` (`Rotor` um Unity-Y) |
 | `terminal` | `SignalIndicator` | `M_GlowRed` ↔ `M_GlowCyan` |
 | `item` | `ItemPickup` | Pivot in der Mitte, dreht um Welt-Y |
+| `keycard` | `ItemPickup` | wie `item` (Karte, Anhänger, Schlüssel) |
+| `socket`, `chip_reader`, `battery_bank`, `keypad`, `laser_receiver`, `pressure_plate` | `SignalIndicator` | `Glow` `M_GlowRed` ↔ `M_GlowCyan`; leere Objekte `Slot` / `Slot_<n>` markieren, wo ein eingesetztes Item sitzt |
+| `fuse_box` | `Rotatable` + `SignalIndicator` | Deckel `Panel` schwenkt um sein Scharnier (Achse `up`, Schritt `lid_angle`, Ziel 1); `Slot_<n>` = Sicherungen |
+| `valve` | `Rotatable` | Rad `Wheel`: Achse `forward`, Schritt 90°, Ziel `steps` (wie das Ventil am Rohr) |
+| `lever` | `Rotatable` | Hebel: Achse `right`, 90° auf `positions` Stellungen verteilt; Drehschalter: Achse `forward`, 360° / `positions` |
+| `pipe_fitting` | `Rotatable` | `Fitting` dreht um `up` in 90°-Schritten, Ziel `target`; die Anschlüsse in Ruhe stehen in `note` |
+| `laser_mirror` | `Rotatable` | `Mirror` ruht auf 45°, dreht um `up` in 45°/90°-Schritten |
+| `laser_emitter` | `SignalLight` | leeres Objekt `Beam` = Startpunkt des Strahls (Richtung Unity-forward) |
+| `camera`, `antenna` | `Rotator` + `SignalLight` | Kopf `Rotor` dreht um `up` (Kamera standardmäßig `speed` 0 = steht, weil `Rotator` endlos dreht); LED blinkt bzw. pulsiert |
+| `ceiling_panel` | `SignalLight` (Licht) bzw. `Rotator` (Lüfter) | Lüfter um `up`; `plain` ist statisch |
+| `lift` | `Door` | `Deck` fährt beim „Öffnen“ um `travel` nach oben (`openOffset` = (0, Hub, 0)) |
+| `conveyor` | je Rolle ein `Rotator` | `Roller_<n>` drehen um `forward` |
+| `pad` | `SignalLight` (+ `Rotator` beim Teleporter) | Teleporter-Ring `Rotor` um `up` |
+| `drone` | je Propeller ein `Rotator` + `SignalLight` | `Rotor_<n>` um `up`, benachbarte gegenläufig; Pivot in der Mitte |
+| `service_robot` | `SignalLight` (+ `Rotator` für `Head`, wenn `head_speed` > 0) | Augen `Glow` sind Kinder von `Head` |
+| `robot_arm` | `SignalIndicator` (+ `Rotator` für `Turret`, wenn `turret_speed` > 0) | Gelenkkette `Turret` → `Arm_Lower` → `Arm_Upper` → `Gripper`, Pivots in den Gelenken |
 
 Achsen: Unity = (−Blender-X, Blender-Z, −Blender-Y). Also ist Blender X → `right`, Blender Z → `up` und Blender −Y →
 `forward`. Teile, deren Material das Spiel tauscht (`Glow`, `StatusLight_*`, `Screen`), haben genau **ein**
 Material, weil `renderer.sharedMaterial` nur Slot 0 ersetzt. Mehrfarbige Deko-LEDs heißen `Lights`.
 
 Für den Unity-Import liegt in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md) ein Prompt, mit dem eine KI
-im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann.
+im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann. Ein
+zweiter Prompt dort ergänzt die Mechanik, für die das Spiel noch kein Script hat: Item-Sockel, Laser mit Spiegeln,
+Druckplatte, Rohr-Puzzle, Kamera-Schwenk, Leiter, Sprung-/Teleporter-Pad, Förderband, Lift-Knöpfe und
+Leerlauf-Animationen für Drohne und Roboterarm.
 
 ## Parameter & Stil
 
@@ -231,6 +266,50 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
 | `server_rack` | `width` (0.3–3), `depth` (0.3–3), `height` (0.8–4), `double_sided` (ja/nein), `red_ratio` (0–1) |
 | `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on) |
+| `battery_bank` | `bays` (1–8), `height` (0.6–3), `filled` (0–8), `status` (off / on) |
+| `chip_reader` | `mount_height` (0.5–2.5), `screen` (ja/nein), `keys` (ja/nein), `status` (off / on) |
+| `fuse_box` | `slots` (1–6), `mount_height` (0.5–2.5), `lid_angle` (30–180) 🔗, `warning` (ja/nein), `status` (off / on) |
+| `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on) |
+| `laser_emitter` | `height` (0.3–2), `style` (stand / box), `mode` (Steady / Blink / Pulse) 🔗 |
+| `laser_mirror` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7) 🔗 |
+| `laser_receiver` | `height` (0.3–2.5), `mount` (stand / pillar), `status` (off / on) |
+| `lever` | `style` (lever / dial), `mount_height` (0.4–2.5), `positions` (2–8), `speed` (10–1000) 🔗 |
+| `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3) 🔗, `speed` (10–1000) 🔗 |
+| `pressure_plate` | `size` (0.4–3), `shape` (square / round), `stripes` (ja/nein), `status` (off / on) |
+| `socket` | `kind` (energy_cell / battery), `height` (0.3–1.6), `cables` (ja/nein), `stripes` (ja/nein), `status` (off / on) |
+| `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8) 🔗, `speed` (10–1000) 🔗 |
+| `antenna` | `style` (mast / radar / dish), `height` (0.8–6), `speed` (0–360) 🔗 |
+| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse) 🔗 |
+| `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
+| `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein) |
+| `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6), `fan_speed` (0–2000) 🔗 |
+| `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein) |
+| `ladder` | `height` (1–6), `width` (0.3–1), `cage` (ja/nein), `hoops` (ja/nein) |
+| `lift` | `size` (1–3), `travel` (0.5–4) 🔗, `speed` (0.1–5) 🔗, `rail` (ja/nein) |
+| `pad` | `kind` (jump / teleport), `radius` (0.4–2), `mode` (Steady / Pulse / Blink) 🔗, `speed` (0–720) 🔗 |
+| `stairs` | `style` (stairs / ramp), `width` (0.6–4), `rise` (0.4–3), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein) |
+| `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein) |
+| `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–1.5), `glow` (ja/nein) |
+| `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000) 🔗 |
+| `barrier` | `style` (gate / jersey / cones), `width` (0.8–4), `lights` (ja/nein) |
+| `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180 bis 180) |
+| `cryo_pod` | `pose` (standing / lying), `length` (1.6–3), `occupied` (ja/nein), `frost` (ja/nein) |
+| `extinguisher` | `height` (0.3–1), `holder` (none / stand / cabinet) |
+| `gas_rack` | `bottles` (1–6), `height` (0.6–1.8), `cage` (ja/nein) |
+| `keycard` | `kind` (card / fob / key), `spin` (0–360) 🔗 |
+| `locker` | `count` (1–4), `height` (1.2–2.4), `open` (ja/nein), `bench` (ja/nein) |
+| `medkit` | `style` (box / cabinet), `mount_height` (0.5–2.5), `cross` (red / cyan / white) |
+| `pallet` | `size` (euro / square), `load` (none / crates / sacks / canisters), `straps` (ja/nein) |
+| `shelf` | `width` (0.6–3), `height` (0.8–3), `levels` (2–5), `fill` (0–1) |
+| `sign` | `symbol` (warning / arrow / exit / electric / number), `size` (0.2–1.5), `mount_height` (0.5–3.5), `lit` (ja/nein) |
+| `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
+| `workbench` | `width` (1–3), `pegboard` (ja/nein), `vise` (ja/nein), `lamp` (ja/nein) |
+| `drone` | `rotors` (2 / 3 / 4), `size` (0.3–1.5), `tool` (none / claw / spotlight), `rotor_speed` (0–3000) 🔗, `mode` (Steady / Pulse / Blink) 🔗 |
+| `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180) 🔗 |
+| `service_robot` | `drive` (wheels / treads / hover), `height` (0.5–2.2), `arms` (0 / 1 / 2), `antenna` (ja/nein), `head_speed` (0–180) 🔗 |
+| `floating_island` | `radius` (0.8–3.5), `depth` (0.6–4), `crystals` (0–10), `glow` (ja/nein) |
+| `hanging_crystals` | `mount_height` (2–6), `crystals` (1–12), `length` (0.3–1.8) |
+| `rock` | `size` (0.3–4), `boulders` (1–8), `spire` (ja/nein), `crystals` (0–8) |
 
 Bedingte Parameter wirken nur, wenn das Teil existiert (z. B. `machine.rotor_speed` nur mit Schwungrad; mit
 `machine.flywheel=true` erzwingst du es). In Rezepten stehen sie unter `"params"` und `"style"`:
@@ -244,6 +323,35 @@ Bedingte Parameter wirken nur, wenn das Teil existiert (z. B. `machine.rotor_spe
 Die festgelegten und gewürfelten Werte stehen in `manifest.json` und in der `<Name>.cubegen.json` (`params`,
 `style`). Im Add-on gibt es dafür die Bereiche **Parameter** (Häkchen = festlegen; rechts steht, was der Seed gewählt
 hat) und **Stil (alle Typen)**.
+
+## Rätsel, Bau-Kit, Einrichtung, Roboter & Natur
+
+![Je eine Variante der 44 neuen Typen (Seed 7)](docs/example_new_types.png)
+
+| Kategorie | Typen |
+|---|---|
+| `puzzle` – Gegenstücke zu den Items und Rätsel-Mechanik | `socket` (Sockel / Ladestation für Energiezelle oder Batterie), `fuse_box` (Sicherungskasten mit Klappdeckel), `chip_reader`, `battery_bank`, `valve` (Wandventil), `lever` (Hebel oder Drehschalter), `pipe_fitting` (Rohr-Puzzle: gerade, Bogen, T, Kreuz, Ende auf 1-m-Kachel), `laser_emitter`, `laser_mirror`, `laser_receiver`, `pressure_plate`, `keypad` |
+| `props` | `keycard` (Inventar-Item: Karte, Anhänger, Schlüssel), `locker`, `shelf` (gefülltes Regal), `workbench`, `tool_cart`, `cryo_pod`, `chair`, `gas_rack`, `extinguisher`, `medkit`, `barrier` (Schranke, Betonbarriere, Pylonen), `pallet`, `sign` (Warnung, Pfeil, Exit, Hochspannung, Sektornummer) |
+| `environment` – Bau-Kit im Raster der Wandmodule | `stairs` (Treppe / Rampe), `ladder`, `catwalk` (Steg / Brücke), `floor_tile`, `ceiling_panel`, `wall_corner` (Ecke, Ende, T-Stück), `window_wall`, `cable_tray`, `lift`, `pad` (Sprung- / Teleporter-Pad) |
+| `industrial`, `tech` | `conveyor` (Rollenbahn / Förderband), `camera` (Überwachungskamera), `antenna` (Mast, Radar, Satellitenschüssel) |
+| `robots` | `drone`, `service_robot`, `robot_arm` |
+| `nature` | `rock`, `floating_island` (begehbare Oberseite bei z = 0), `hanging_crystals` |
+
+* **Wandmontiert** (`fuse_box`, `chip_reader`, `valve`, `lever`, `keypad`, `camera`, `medkit`, `sign`, `cable_tray`):
+  Rückseite an der Wand bei y = +0,1, Pivot am Boden darunter, Höhe über `mount_height`.
+* **Decke** (`ceiling_panel`, `hanging_crystals`): hängen auf `mount_height` (Standard 3 m = Wandhöhe). Previews und
+  Icons zeigen sie von unten.
+* **Begehbar** (`catwalk`, `floor_tile`, `floating_island`): Oberkante bei z = 0 wie die Plattformen.
+* **Slots**: `socket`, `chip_reader` (`Slot`), `fuse_box` und `battery_bank` (`Slot_1` …) haben leere Objekte an der
+  Stelle, an der das eingesetzte Item sitzen soll.
+* Statisch (ohne Script, also mit `--library-dir` in der Bibliothek): Einrichtung, Treppe, Leiter, Steg, Bodenplatte,
+  Wandecke, Fensterwand, Kabeltrasse und Natur.
+
+```bash
+# ein Rätselraum: Sockel, Sicherungskasten, Rohr-Puzzle, Laser, Keypad
+python -m cubegen generate --recipe recipes/puzzle_room.json
+python -m cubegen generate --seed 7 --types pipe_fitting --count 8 --param pipe_fitting.tile=1.0
+```
 
 ## Texturen (optional)
 
@@ -338,6 +446,7 @@ def beacon_box(rng, a):                       # rng = random.Random(asset-seed),
 ```
 
 Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils bestimmt nur, wo sein Ursprung liegt.
+Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
 zeigende Normalen, Pivot-Konvention und Determinismus.
 
@@ -354,7 +463,8 @@ cubegen/
 ├── params.py         Parameter (festlegen statt würfeln) und globaler Stil
 ├── textures.py       ImageMagick-Kacheltexturen (optional)
 ├── bake.py           läuft IN Blender: gebackene Atlas-Texturen pro Asset (optional)
-├── models/           Modelltypen (props, industrial, tech, environment, ruins) + wear, destruction
+├── models/           Modelltypen (props, industrial, tech, environment, ruins, puzzle, kit, furniture,
+│                     robots, nature) + wear, destruction
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend
 ├── bpy_builder.py    Blender-Objekte, Materialien, FBX/GLB/OBJ-Export (CLI + Add-on)

@@ -23,7 +23,7 @@ BuildFn = Callable[[random.Random, Asset], None]
 
 class ModelType:
     def __init__(self, name: str, title: str, category: str, pivot: str, description: str, build: BuildFn,
-                 params: Sequence[Param]):
+                 params: Sequence[Param], view: str = "above"):
         self.name = name          # CLI name, e.g. "server_rack"
         self.title = title        # asset name prefix in Unity, e.g. "ServerRack"
         self.category = category
@@ -31,6 +31,7 @@ class ModelType:
         self.description = description
         self.build = build
         self.params = list(params)
+        self.view = view          # above | below: preview / icon camera (below for ceiling pieces)
 
     def param(self, name: str) -> Param:
         for p in self.params:
@@ -43,13 +44,15 @@ REGISTRY: Dict[str, ModelType] = {}
 
 
 def model(name: str, title: str, category: str, description: str, pivot: str = "floor",
-          params: Sequence[Param] = ()):
+          params: Sequence[Param] = (), view: str = "above"):
     """Decorator that registers a builder function as model type ``name``."""
 
     def deco(fn: BuildFn) -> BuildFn:
         if name in REGISTRY:
             raise ValueError(f"model type {name!r} registered twice")
-        REGISTRY[name] = ModelType(name, title, category, pivot, description, fn, params)
+        if view not in ("above", "below"):
+            raise ValueError(f"model type {name!r}: view must be 'above' or 'below'")
+        REGISTRY[name] = ModelType(name, title, category, pivot, description, fn, params, view)
         return fn
 
     return deco

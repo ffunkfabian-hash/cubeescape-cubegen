@@ -1,0 +1,24 @@
+{
+  "seed": "puzzle-room-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "params": {
+    "pipe_fitting": { "tile": 1.0, "base": true }
+  },
+  "models": {
+    "socket": 2,
+    "fuse_box": 2,
+    "chip_reader": 2,
+    "battery_bank": 1,
+    "keycard": 3,
+    "item": 4,
+    "valve": 2,
+    "lever": 3,
+    "pipe_fitting": 8,
+    "laser_emitter": 1,
+    "laser_mirror": 4,
+    "laser_receiver": 1,
+    "pressure_plate": 2,
+    "keypad": 2
+  }
+}

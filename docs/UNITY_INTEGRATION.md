@@ -3,7 +3,9 @@
 `cubegen` schreibt neben jede FBX eine `<Name>.cubegen.json`. Sie enthält, was ein Prefab-Builder sonst als
 Rezeptzeile in `ModularBlocks.cs` bräuchte: Teile, Pivots (Unity-Koordinaten), Script und Feldwerte.
 Der Prompt unten lässt eine KI im **Unity-Projekt** einen Editor-Import dafür bauen – an die vorhandenen Builder
-angeschlossen, ohne Laufzeit-Scripts zu ändern.
+angeschlossen, ohne Laufzeit-Scripts zu ändern. Ein zweiter, optionaler Prompt
+([Neue Interaktionen](#optional-neue-interaktionen)) ergänzt die Spiel-Mechanik, für die es noch kein Script gibt
+(Item-Sockel, Laser, Druckplatte, Rohr-Puzzle, Kamera-Schwenk …).
 
 ## Prompt
 
@@ -23,7 +25,8 @@ Ein externer Generator (cubegen) legt neue Modelle als Assets/Art/Models/<Name>.
   "static": false,                      // true = reine Deko ohne Script
   "bounds": {"center": [x,y,z], "size": [x,y,z]},          // Unity-Koordinaten
   "parts": [ {"name": "Panel", "parent": null, "localPosition": [x,y,z],
-              "empty": false, "materials": ["M_Metal", "M_RobotDark"]} ],
+              "empty": false, "materials": ["M_Metal", "M_RobotDark"],
+              "bounds": {"center": [x,y,z], "size": [x,y,z]}} ],   // Collider-Hinweis relativ zum Pivot des Teils
   "behaviours": [
     {"script": "Door",
      "parts":  {"panels": ["Panel","Panel_B"], "statusLights": ["StatusLight_Front","StatusLight_Back"],
@@ -37,11 +40,32 @@ Vorkommende behaviours (Script → parts → fields):
 - Machine         → body, glow, [rotor], [damage]                      → needsPower
 - Rotator         → target                                             → axis ("right"|"up"|"forward"), speed (°/s)
 - Rotatable       → target, glow                                       → axis, step, speed, target, interactive
-- SignalLight     → glow, [rotor]                                      → mode ("Steady"|"Pulse"|"Rotate")
+- SignalLight     → glow, [rotor]                                      → mode ("Steady"|"Blink"|"Pulse"|"Rotate"|"Status")
 - SignalIndicator → renderers[]                                        → offMaterial, onMaterial (Materialnamen)
 - ItemPickup      → model[]                                            → spin (°/s)
 Achsnamen meinen Vector3.right/up/forward im lokalen Raum. Materialnamen sind die M_*-Materialien der
 MaterialLibrary.
+Weitere Regeln:
+- Ein Modell kann dasselbe Script mehrfach haben (conveyor: ein Rotator je Roller_<n>, drone: einer je
+  Rotor_<n>, bei Drohnen mit negativem speed für gegenläufige Propeller) - jeder Eintrag = eine Komponente.
+- Rotatable.step ist nicht immer 90 (laser_mirror 45, fuse_box = Deckelwinkel, lever = Stellungsabstand).
+- Door bewegt auch Nicht-Türen: lift hat panels = ["Deck"] und openOffset = (0, Hub, 0).
+- Leere Teile ("empty": true) sind Ankerpunkte und müssen als Transforms erhalten bleiben: Slot / Slot_<n>
+  (hier sitzt ein eingesetztes Item: socket, chip_reader, fuse_box, battery_bank), Beam (Startpunkt des
+  Laserstrahls von laser_emitter). Wenn es im Projekt ein passendes Feld gibt (z. B. ein Item-Sockel-Script),
+  schlage die Zuordnung vor, statt eines zu erfinden.
+- Gelenkketten haben Parents (robot_arm: Turret > Arm_Lower > Arm_Upper > Gripper; service_robot: Glow unter
+  Head). Die Hierarchie aus "parent" übernehmen.
+- Rotatable.target = Lösungsstellung in Schritten ab der Ruhelage, interactive = der Spieler darf drehen.
+  pipe_fitting: Stellung 0-3, welche Kanten das Stück in Ruhe verbindet, steht im "note" des Eintrags.
+- Rotator dreht endlos. Für antenna/radar und Lüfter ist das richtig; camera hat deshalb standardmäßig
+  speed 0 (steht), service_robot bekommt für den Kopf nur mit head_speed > 0 einen Rotator. Einen Rotator
+  mit speed 0 trotzdem anlegen (deaktiviert), damit ein späteres Schwenk-Script ihn ersetzen kann.
+- Collider: statische Modelle bekommen über AssetRegistry eine BoxCollider-Hülle. Für begehbare Typen
+  (stairs, catwalk, floor_tile, platform, floating_island) ist das falsch (Treppe als Block, Steg mit
+  Geländer-Hülle): prüfe, wie AssetRegistry das macht, und schlage MeshCollider bzw. Box-Collider aus den
+  "bounds" der einzelnen Teile vor (Deck ohne Rail). Wand- und Deckenteile (pivot "wall") brauchen nur
+  Collider, wenn man sie berühren kann.
 
 Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten M_*-Materialien):
 - "tiled": Materialien MT_<Name> (z. B. MT_Metal), beschrieben in <Texturordner>/CubeEscape_Textures.json:
@@ -72,4 +96,61 @@ Aufgabe:
 6. Wiederholbar: erneuter Import überschreibt die generierten Prefabs (gleicher Name), nichts anderes.
 7. Am Ende eine Zusammenfassung im Log: gebaut / übersprungen / Warnungen.
 Zeige mir vor der Umsetzung den Plan und die Feld-Abbildung aus Schritt 1.
+````
+
+## Optional: neue Interaktionen
+
+Die meisten neuen Typen bringen Teile und Ankerpunkte für Mechanik mit, die das Spiel noch nicht hat. Dieser
+Prompt lässt eine KI dafür **neue** Laufzeit-Scripts anlegen. Erst ausführen, wenn der Import oben läuft.
+
+````text
+Projekt: Unity-Spiel "Cube Escape". Generierte Modelle (cubegen) werden schon per Editor-Import zu Prefabs
+mit den vorhandenen Scripts (Door, Rotatable, Rotator, SignalLight, SignalIndicator, ItemPickup …).
+Jedes Modell hat eine <Name>.cubegen.json mit "type", "params", "parts" (Name, Parent, localPosition,
+bounds) und "behaviours". Einige Typen brauchen Mechanik, die es noch nicht gibt.
+
+Regeln:
+- Zuerst prüfen, wie das Spiel Signale/Schalter verbindet (z. B. wie ein Rotatable oder Terminal eine Tür
+  öffnet) und welche Systeme es schon gibt (Inventar, Interaktion, Spieler-Controller). Neue Scripts hängen
+  sich daran an und senden/empfangen Signale auf demselben Weg. Bestehende Laufzeit-Scripts nicht ändern.
+- Ein kleines Script pro Mechanik, Felder per [SerializeField], vom cubegen-Import gesetzt (Import um diese
+  Typen erweitern). Keine Animation-Clips, alles prozedural wie im restlichen Spiel.
+- Vor dem Schreiben: Plan + Liste, was sich mit vorhandenen Scripts schon lösen lässt.
+
+Mechaniken:
+1. Item-Sockel (socket, chip_reader, fuse_box, battery_bank; terminal mit params.extra = "slot"):
+   nimmt ein passendes Item aus dem Inventar an, setzt es auf das leere Teil "Slot" bzw. "Slot_<n>"
+   (Position + Rotation übernehmen), schaltet den SignalIndicator ein und sendet ein Signal, wenn alle Slots
+   belegt sind. Passend: socket params.kind (energy_cell | battery) -> item.kind gleichen Namens,
+   chip_reader -> item.kind data_chip, fuse_box -> item.kind fuse, battery_bank -> battery,
+   terminal (slot) -> keycard. fuse_box: Deckel (Rotatable an "Panel") muss offen sein.
+2. Laser (laser_emitter, laser_mirror, laser_receiver): Strahl vom leeren Teil "Beam" in dessen
+   Vorwärtsrichtung, Raycast, an Spiegeln reflektieren (Treffer auf das Glas des "Mirror"-Teils:
+   Vector3.Reflect mit hit.normal), max. ~10 Reflexionen, LineRenderer mit dem Glow-Material des Emitters.
+   Trifft der Strahl das Teil "Lens" eines Empfängers -> dessen SignalIndicator an + Signal; sonst aus.
+   Spiegel drehen weiter über ihr Rotatable.
+3. Druckplatte (pressure_plate): Trigger-Volumen über "Plate" (aus dessen bounds); Spieler oder
+   Rigidbody darauf -> "Plate" sinkt 0,04 m (Unity -Y), SignalIndicator an, Signal; runter -> zurück.
+4. Rohr-Puzzle (pipe_fitting): Controller für eine Gruppe von Fittings: gelöst, wenn jedes Rotatable auf
+   seinem target steht. Dann Glow aller Fittings an (SignalIndicator-Logik oder Materialtausch auf
+   M_GlowCyan) und Signal. Optional "Fluss": nur Fittings leuchten, die von einer Quelle aus verbunden
+   sind (Anschlüsse aus "note", gedreht um die aktuelle Stellung).
+5. Schwenken (camera "Rotor", service_robot "Head"): Hin- und Herschwenken um Unity up statt Dauer-Drehung,
+   ±60° (Kamera) bzw. ±40° (Kopf), Tempo als eigenes Feld (Standard 20 °/s); den Rotator der Kamera
+   (speed 0) dafür ersetzen. Kamera optional mit Sichtkegel:
+   sieht sie den Spieler -> Glow-LED auf Dauerlicht, Signal (Alarm).
+6. Leiter (ladder): Trigger-Volumen vor der Leiter (Front = Unity +Z), Spieler klettert hoch/runter;
+   Höhe aus bounds. Nur wenn der Spieler-Controller sich dafür erweitern lässt - sonst vorschlagen.
+7. Pads (pad): params.kind "jump" -> Spieler nach oben schleudern (Kraft als Feld, Standard so, dass er
+   ~3 m hoch kommt); "teleport" -> Ziel-Pad als Feld (im Level verknüpft), Ring dreht schneller beim Auslösen.
+8. Förderband (conveyor): Rigidbodies und Spieler auf dem Band bewegen sich entlang der lokalen X-Achse
+   (Unity right), Richtung aus dem Vorzeichen des Rotator-speed, Tempo = Rollen-Umfang * Drehzahl.
+   Nur aktiv, solange die Rotatoren laufen (z. B. Machine/Signal schaltet sie).
+9. Lift: Door bewegt "Deck" schon - ergänzen: Ruf-Knopf oben/unten (keypad oder lever im Level) und den
+   Spieler mitnehmen (Deck als bewegte Plattform, Spieler parenten oder Geschwindigkeit übertragen).
+10. Leerlauf-Animation (drone, robot_arm): Drohne schwebt sanft auf und ab (±5 cm, ~0,5 Hz) und neigt sich
+    leicht; Roboterarm bewegt Arm_Lower / Arm_Upper (Unity right) und Turret (Unity up) mit langsamen
+    Sinuswellen um die Ruhepose, Gripper öffnet/schließt. Rein visuell, abschaltbar.
+
+Am Ende: Liste der neuen Scripts, welche Typen sie nutzen, und welche Felder der Import jetzt setzt.
 ````
