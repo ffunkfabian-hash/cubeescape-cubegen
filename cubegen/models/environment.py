@@ -6,7 +6,7 @@ scripts work with generated variants:
 * doors: ``Frame_Left``, ``Frame_Right``, ``Frame_Top`` (colliders),
   ``StatusLight_Front`` / ``StatusLight_Back``, ``Panel`` (+ ``Panel_B`` for
   split doors, pivot in the leaf centre)
-* platforms: walkable top at z = 0, ``Deck`` + ``Glow``
+* platforms: square, walkable top at z = 0, ``Deck`` + ``Glow``
 * walls: 3 m high, 0.5 m thick, ``Wall`` + ``Glow``
 """
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 import math
 
 from ..params import Param
-from .common import ALONG_X, cube, cyl, deg, frustum, rail, stripes
+from .common import ALONG_X, cube, cyl, deg, frustum, stripes
 from .registry import model
 
 DOOR_STYLES = {
@@ -119,46 +119,35 @@ def door(rng, a):
                      "sign of their localPosition")
 
 
-@model("platform", "Platform", "environment", "Floating platform (walkable top at z = 0): square or octagonal, "
+@model("platform", "Platform", "environment", "Square floating platform (walkable top at z = 0), "
        "tapered underside or crystal keel", pivot="top", params=[
            Param("size", "choice", "Größe (m)", choices=(1.0, 2.0, 3.0, 4.0)),
-           Param("shape", "choice", "Form", choices=("square", "octagon")),
            Param("underside", "choice", "Unterseite", choices=("frustum", "keel")),
-           Param("rail", "bool", "Geländer (hinten)"),
            Param("stripes", "bool", "Warnstreifen vorne"),
        ])
 def platform(rng, a):
     p = a.p
     size = p.choice("size", [1.0, 2.0, 2.0, 3.0, 4.0])
-    shape = p.choice("shape", ["square", "square", "octagon"])
+    rng.choice(["square", "square", "octagon"])  # former shape roll - kept so other properties of seeds stay
     deck_mat = p.material(["M_Platform", "M_Platform", "M_Metal"])
     glow = p.glow()
     deck, lights = a.part("Deck"), a.part("Glow")
     under = p.choice("underside", ["frustum", "frustum", "keel"])
-    a.meta.update({"size_m": size, "shape": shape, "underside": under})
+    a.meta.update({"size_m": size, "underside": under})
 
-    if shape == "square":
-        cube(deck, (size, size, 0.25), (0, 0, -0.125), deck_mat, bevel=0.04)
-        cube(lights, (size - 0.1, size - 0.1, 0.06), (0, 0, -0.28), glow)
-    else:
-        r = size / 2 / math.cos(math.pi / 8)  # apothem = size / 2
-        cyl(deck, r, 0.25, (0, 0, -0.125), deck_mat, sides=8, bevel=0.03)
-        cyl(lights, r * 0.96, 0.06, (0, 0, -0.28), glow, sides=8)
+    cube(deck, (size, size, 0.25), (0, 0, -0.125), deck_mat, bevel=0.04)
+    cube(lights, (size - 0.1, size - 0.1, 0.06), (0, 0, -0.28), glow)
     depth = 0.35 + size * 0.3
     if under == "frustum":
         u = size * rng.uniform(0.3, 0.45)
-        if shape == "square":
-            frustum(deck, (u, u), (size - 0.2, size - 0.2), -0.31 - depth, -0.31, "M_RobotDark")
-        else:
-            cyl(deck, u / 2, depth, (0, 0, -0.31 - depth / 2), "M_RobotDark", sides=8, radius_top=size / 2 * 0.9)
+        frustum(deck, (u, u), (size - 0.2, size - 0.2), -0.31 - depth, -0.31, "M_RobotDark")
     else:
         kr = size * 0.18
         cyl(deck, kr, depth * 0.5, (0, 0, -0.31 - depth * 0.25), "M_Crystal", sides=6, radius_top=kr * 1.4)
         cyl(deck, kr, depth * 0.6, (0, 0, -0.31 - depth * 0.5 - depth * 0.3), "M_Crystal", sides=6, radius_top=0.0,
             rot=(math.pi, 0, 0))
-    if p.value("rail", size >= 2 and rng.random() < 0.3):
-        rail(a.part("Rail"), size - 0.2, True, size / 2 - 0.1)
-        a.meta["rail"] = True
+    if size >= 2:
+        rng.random()  # former railing roll - kept for seed stability, platforms have no railing any more
     if p.bool("stripes", 0.3, warning=True):
         stripes(deck, size * 0.8, (0, -size / 2 + 0.12, 0.006), count=6, width=0.12)
 
@@ -220,38 +209,26 @@ def wall(rng, a):
         stripes(m, length * 0.9, (0, -0.29, 0.125), count=int(length * 2), width=0.02, height=0.2)
 
 
-@model("pillar", "Pillar", "environment", "Square or octagonal pillar with base, cap, glow strips and warning band",
+@model("pillar", "Pillar", "environment", "Square pillar with base, cap, glow strips and warning band",
        params=[
            Param("width", "float", "Breite (m)", lo=0.2, hi=3.0, size=True),
            Param("height", "choice", "Höhe (m)", choices=(3.0, 4.0)),
-           Param("shape", "choice", "Form", choices=("square", "octagon")),
            Param("warning_band", "bool", "Warnband"),
        ])
 def pillar(rng, a):
     p = a.p
     w = p.float("width", 0.4, 1.2)
     h = p.choice("height", [3.0, 3.0, 4.0])
-    shape = p.choice("shape", ["square", "octagon"])
+    rng.choice(["square", "octagon"])  # former shape roll - kept so other properties of seeds stay
     mat = p.material(["M_Wall", "M_Metal"])
     glow = p.glow()
     body, lights = a.part("Body"), a.part("Glow")
-    a.meta.update({"shape": shape, "height_m": h})
-    if shape == "square":
-        cube(body, (w, w, h), (0, 0, h / 2), mat, bevel=0.04)
-        for z, zh in ((0.125, 0.25), (h - 0.09, 0.2)):  # cap 1 cm above the body: no z-fighting
-            cube(body, (w + 0.15, w + 0.15, zh), (0, 0, z), "M_RobotDark", bevel=0.02)
-        for x in (-1, 1):
-            for y in (-1, 1):
-                cube(lights, (0.04, 0.04, h * 0.72), (x * (w / 2 + 0.005), y * (w / 2 + 0.005), h / 2), glow)
-    else:
-        r = w / 2 / math.cos(math.pi / 8)
-        cyl(body, r, h, (0, 0, h / 2), mat, sides=8, bevel=0.03)
-        for z, zh in ((0.125, 0.25), (h - 0.09, 0.2)):
-            cyl(body, r + 0.08, zh, (0, 0, z), "M_RobotDark", sides=8, bevel=0.02)
-        for i in range(4):
-            ang = math.pi / 2 * i - math.pi / 2
-            ap = w / 2 + 0.005
-            cube(lights, (0.06 if i % 2 == 0 else 0.02, 0.02 if i % 2 == 0 else 0.06, h * 0.72),
-                 (math.cos(ang) * ap, math.sin(ang) * ap, h / 2), glow)
+    a.meta.update({"height_m": h})
+    cube(body, (w, w, h), (0, 0, h / 2), mat, bevel=0.04)
+    for z, zh in ((0.125, 0.25), (h - 0.09, 0.2)):  # cap 1 cm above the body: no z-fighting
+        cube(body, (w + 0.15, w + 0.15, zh), (0, 0, z), "M_RobotDark", bevel=0.02)
+    for x in (-1, 1):
+        for y in (-1, 1):
+            cube(lights, (0.04, 0.04, h * 0.72), (x * (w / 2 + 0.005), y * (w / 2 + 0.005), h / 2), glow)
     if p.bool("warning_band", 0.35, warning=True):
         cube(body, (w + 0.04, w + 0.04, 0.2), (0, 0, 0.5), "M_Warning")

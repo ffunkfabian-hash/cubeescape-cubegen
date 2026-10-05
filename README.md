@@ -23,7 +23,7 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 | Objekte haben nur eine Location | Rotation 0 / Skalierung 1, alles ist ins Mesh gebacken |
 | Materialnamen = Unity-Materialien | exakt die `M_…`-Tabelle (`M_Wall`, `M_RobotDark`, `M_GlowCyan`, …) → Unity remappt automatisch |
 | FBX-Exporteinstellungen | identisch zu `export_fbx()` (`bake_space_transform`, `axis_forward=-Z`, `axis_up=Y`, `FBX_SCALE_ALL`, …) |
-| Teilenamen für Unity-Skripte | `Body`, `Glow` (wird umgefärbt, genau ein Material), `Rotor` (dreht), `Wheel` (Ventilrad), `Damage` (Maschine defekt), `Screen`, `Deck`, `Rail`, `Lights` (Deko-LEDs); Türen: `Frame_Left/Right/Top`, `StatusLight_Front/Back`, `Panel` (+ `Panel_B`) – mit Pivot im Dreh-/Bewegungspunkt |
+| Teilenamen für Unity-Skripte | `Body`, `Glow` (wird umgefärbt, genau ein Material), `Rotor` (dreht), `Wheel` (Ventilrad), `Damage` (Maschine defekt), `Screen`, `Deck`, `Lights` (Deko-LEDs); Türen: `Frame_Left/Right/Top`, `StatusLight_Front/Back`, `Panel` (+ `Panel_B`) – mit Pivot im Dreh-/Bewegungspunkt |
 | Icons | `Icon_<Name>.png`, 256 × 256, transparenter Hintergrund |
 
 ![Materialien](docs/materials.png)
@@ -207,8 +207,8 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | Typ | Parameter (Wertebereich; 🔗 = Wert für ein Unity-Script) |
 |---|---|
 | `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗 |
-| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `shape` (square / octagon), `warning_band` (ja/nein) |
-| `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (square / octagon), `underside` (frustum / keel), `rail` (ja/nein), `stripes` (ja/nein) |
+| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein) |
+| `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `underside` (frustum / keel), `stripes` (ja/nein) |
 | `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein) |
 | `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
 | `machine` | `width` (0.5–5), `depth` (0.5–5), `height` (0.5–4), `warning_band` (ja/nein), `top` (pistons / stack), `flywheel` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
