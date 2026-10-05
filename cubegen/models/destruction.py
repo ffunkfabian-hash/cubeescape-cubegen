@@ -33,10 +33,13 @@ def _parts(asset):
 def _dent(mesh, part, rng, strength):
     (x0, y0, z0), (x1, y1, z1) = mesh.part_bbox(part)
     amount = min(x1 - x0, y1 - y0, z1 - z0) * strength
+    before = mesh.verts[part.v0:part.v1]
     for vi in part.vertex_indices():
         x, y, z = mesh.verts[vi]
         mesh.verts[vi] = (x + rng.uniform(-amount, amount), y + rng.uniform(-amount, amount),
                           z + rng.uniform(-amount, amount))
+    if part.closed and mesh.part_volume(part) <= 0:  # thin, tilted parts can turn inside out: keep them intact
+        mesh.verts[part.v0:part.v1] = before
 
 
 def _drop(mesh, part, rng, footprint):

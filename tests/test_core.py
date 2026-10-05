@@ -15,7 +15,8 @@ from cubegen.seeds import MAX_SEED, model_seed, parse_seed  # noqa: E402
 
 SEEDS_PER_TYPE = 40
 MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirror", "Plate", "Deck", "Head",
-                "Turret", "Arm_Lower", "Arm_Upper", "Gripper")
+                "Turret", "Arm_Lower", "Arm_Upper", "Gripper", "Button", "Prism", "Field", "Plug", "Gun", "Grille")
+MOVING_PREFIXES = ("Rotor_", "Roller_", "Gear_", "Button_", "Leg_")
 # fields every behaviour of a game script must carry (see docs/UNITY_INTEGRATION.md)
 SCRIPT_FIELDS = {
     "Door": ({"panels", "statusLights", "upperFrame", "colliders"}, {"openOffset", "speed"}),
@@ -100,7 +101,7 @@ class SeedTests(unittest.TestCase):
 
 class ModelTests(unittest.TestCase):
     def test_registry(self):
-        self.assertGreaterEqual(len(model_types()), 69)
+        self.assertGreaterEqual(len(model_types()), 104)
         for entry in REGISTRY.values():
             self.assertTrue(entry.description)
             self.assertIn(entry.pivot, ("floor", "top", "center", "wall"))
@@ -147,7 +148,7 @@ class ModelTests(unittest.TestCase):
         for model_type in model_types():
             for seed in range(SEEDS_PER_TYPE):
                 for obj in generate_asset(model_type, seed).meshes():
-                    if obj.name in MOVING_PARTS or obj.name.startswith(("Rotor_", "Roller_")):
+                    if obj.name in MOVING_PARTS or obj.name.startswith(MOVING_PREFIXES):
                         # pivot on (or within 5 cm of) the part - e.g. an off-axis beacon reflector
                         lo, hi = obj.mesh.bbox()
                         for i in range(3):
@@ -214,6 +215,58 @@ class ModelTests(unittest.TestCase):
             conveyor = generate_asset("conveyor", seed)
             rollers = [o.name for o in conveyor.objects if o.name.startswith("Roller_")]
             self.assertEqual(sorted(b["parts"]["target"] for b in conveyor.behaviours), sorted(rollers))
+
+    def test_new_puzzle_mechanics(self):
+        for seed in range(SEEDS_PER_TYPE):
+            gears = generate_asset("gear_puzzle", seed)
+            rotators = [b for b in gears.behaviours if b["script"] == "Rotator"]
+            present = [o.name for o in gears.objects if o.name.startswith("Gear_")]
+            self.assertEqual(sorted(b["parts"]["target"] for b in rotators), sorted(present))
+            missing = gears.meta.get("missing_gear")
+            self.assertEqual(len(present), gears.meta["gears"] - (1 if missing else 0))
+            self.assertEqual(gears.get("Slot") is not None, bool(missing))
+            speeds = {b["parts"]["target"]: b["fields"]["speed"] for b in rotators}
+            for name, speed in speeds.items():  # neighbouring gears turn in opposite directions
+                index = int(name.split("_")[1])
+                self.assertEqual(speed > 0, index % 2 == 1, name)
+
+            splitter = generate_asset("laser_splitter", seed)
+            self.assertEqual({splitter.get("Beam_A").parent, splitter.get("Beam_B").parent}, {"Prism"})
+
+            field = generate_asset("force_field", seed).behaviours[0]
+            self.assertEqual((field["script"], field["parts"]["panels"]), ("Door", ["Field"]))
+            self.assertLess(field["fields"]["openOffset"][1], 0)  # drops into the floor
+            shutter = generate_asset("shutter", seed).behaviours[0]
+            self.assertGreater(shutter["fields"]["openOffset"][1], 0)  # rolls up
+
+            plug = generate_asset("cable_plug", seed)
+            slots = [o for o in plug.objects if o.name.startswith("Slot_")]
+            self.assertEqual(len(slots), plug.meta["sockets"])
+            self.assertLessEqual(plug.meta["target_slot"], plug.meta["sockets"])
+            self.assertGreater(plug.get("Plug").mesh.bbox()[0][2], 0.0)  # hangs above the floor
+
+            safe = generate_asset("safe", seed)
+            self.assertIsNotNone(safe.get("Slot"))
+            self.assertEqual(safe.get("Glow").parent, "Panel")  # status LED sits on the door
+            if safe.meta["lock"] == "dial":
+                self.assertEqual(safe.get("Wheel").parent, "Panel")
+
+            hatch = generate_asset("hatch", seed)
+            lid = next(b for b in hatch.behaviours if b["parts"]["target"] == "Panel")
+            self.assertEqual(lid["fields"]["axis"], "right")
+            self.assertLess(lid["fields"]["step"], 0)  # negative around Unity right = swings up
+
+    def test_new_items(self):
+        for t in ("tool", "clue", "spare_part"):
+            self.assertEqual(REGISTRY[t].pivot, "center")
+            kinds = set()
+            for seed in range(SEEDS_PER_TYPE):
+                asset = generate_asset(t, seed)
+                kinds.add(asset.meta["kind"])
+                pickup = [b for b in asset.behaviours if b["script"] == "ItemPickup"]
+                self.assertEqual(len(pickup), 1, t)
+                self.assertEqual(set(pickup[0]["parts"]["model"]), {o.name for o in asset.meshes()})
+            self.assertEqual(kinds, set(REGISTRY[t].param("kind").choices), t)
 
     def test_robot_arm_joint_chain(self):
         for seed in range(SEEDS_PER_TYPE):

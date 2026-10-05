@@ -3,9 +3,10 @@
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,
 Server-Racks, Lampen, Kristalle, Trümmer, Türen, Plattformen, Wände, Säulen, Lüftungen und Inventar-Items, dazu
-Rätsel-Elemente (Sockel, Sicherungskasten, Ventil, Hebel, Rohr-Puzzle, Laser, Druckplatte, Keypad), ein modulares
-Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband …), Einrichtung, Roboter und Natur –
-69 Typen in 8 Kategorien.
+Rätsel-Elemente (Sockel, Sicherungskasten, Ventil, Hebel, Rohr-Puzzle, Laser, Druckplatte, Keypad, Knöpfe,
+Zahnradwerk, Kraftfeld, Steckfeld, Scanner, Tresor), Werkzeug-, Hinweis- und Ersatzteil-Items, ein modulares
+Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband, Luke, Rolltor, Lüftungsschacht …),
+Maschinen, Einrichtung, Roboter und Natur – 104 Typen in 8 Kategorien.
 
 * **Blender CLI** baut die Meshes, exportiert **FBX für Unity** (optional GLB/glTF/OBJ), rendert Previews und
   speichert eine Übersichts-`.blend`.
@@ -48,7 +49,7 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 
 * **Typ, Master-Seed, Variante**: Pfeile ◀ ▶ blättern, 🔄 würfelt. Die Vorschau entsteht live am Ursprung, mit
   Dreiecken, Maßen und Teilenamen im Panel.
-* **Von jedem Typ**: baut alle 69 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+* **Von jedem Typ**: baut alle 104 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
@@ -98,7 +99,7 @@ und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen:
 Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
 
 ```bash
-# alle 69 Typen je 2x, Seed 42 -> output/seed_42/
+# alle 104 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
 # Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
@@ -353,6 +354,39 @@ python -m cubegen generate --recipe recipes/puzzle_room.json
 python -m cubegen generate --seed 7 --types pipe_fitting --count 8 --param pipe_fitting.tile=1.0
 ```
 
+## Mehr Rätsel, Items, Bau-Kit, Maschinen, Roboter, Natur & Einrichtung
+
+35 weitere Typen. Die meisten nutzen die vorhandenen Scripts des Spiels, Unity braucht für sie also keinen neuen
+Code.
+
+| Kategorie | Typen |
+|---|---|
+| `puzzle` | `button` (großer Knopf, Not-Aus oder Knopfreihe; `Button` / `Button_<n>` werden eingedrückt), `gear_puzzle` (Zahnradwerk an der Wand: `Gear_<n>` mit `Rotator`, Tempo nach Übersetzung, gegenläufig; optional fehlt ein Rad → `Slot`), `laser_splitter` (drehbares Kristallprisma `Prism`, teilt den Strahl in `Beam_A` / `Beam_B`), `force_field` (Energiefeld oder Laserzaun zwischen zwei Emittern; `Door` fährt `Field` in den Boden), `cable_plug` (Steckfeld mit farbigen Buchsen `Slot_<n>` und losem Kabel `Plug`; die passende Buchse steht in `meta.target_slot`), `scanner` (Hand-, Netzhaut- oder Kartenscanner; `Scan` pulsiert über `SignalLight`), `safe` (Tresor: Tür `Panel` mit Zahlenrad `Wheel` oder Keypad, `Slot` innen) |
+| `props` – Inventar-Items (Pivot in der Mitte, `ItemPickup`) | `tool` (Schraubenschlüssel, Brecheisen, Zange, Schraubendreher), `clue` (Tablet, Notizzettel, Datapad, Audio-Log), `spare_part` (Zahnrad, Linse, Kristallsplitter, Ventilrad, Spule; Radius in `meta`) |
+| `props` – Einrichtung | `bed` (Pritsche, Etagenbett, Krankenbett mit Monitor), `table` (Tisch, Schreibtisch mit Monitor, rund, Labortisch), `bin` (rund, eckig, Wertstoff-Reihe, Gefahrstoff; Deckel offen, Müll), `toolbox` (Koffer, Werkstattwagen, offen mit Werkzeug) |
+| `environment` | `hatch` (Bodenluke, Oberkante bei z = 0, Deckel `Panel` klappt nach oben, rund mit Handrad `Wheel`), `shutter` (Rolltor oder Gitter, `Door` fährt es hoch), `vent_shaft` (begehbarer Lüftungsschacht: gerade, Ecke, T, Kreuz, Ende; optional Gitter `Grille`), `floor_grate` (Gitterrost über einem Schacht mit Rohren / Kabeln / Lichtern, Rost `Panel` herausnehmbar), `bulkhead` (Spant / Rahmen für Korridore, Durchgang entlang Y), `wall_panel` (Wandverkleidung: Konsolen, Rohre, Schränke, Glow-Paneele) |
+| `industrial` | `pipe_bend` (Bogen, Bogen nach oben, T, Kreuz – passend zu `pipe`), `fan` (Standlüfter oder Kastenlüfter, `Rotor`), `pump` (Pumpe mit Motor und Kupplung, `Machine`), `transformer` (Trafo mit Kühlrippen und Isolatoren, `Machine`), `reactor_core` (Reaktorkern: Glassäule mit drehendem Kristallkern `Rotor`, `Machine`) |
+| `tech` | `hologram` (Holo-Tisch oder -Sockel, drehende Projektion: Globus, Station, Würfel), `monitor_wall` (Bildschirmwand, 1–12 Bildschirme), `intercom` (Gegensprechanlage, Audio oder Video, Ruftaste `Button`) |
+| `robots` | `turret` (Wachgeschütz: `Turret` dreht, `Gun` neigt sich, Laservisier), `spider_bot` (Spinnenroboter, Beine `Leg_<n>` mit Pivot an der Hüfte), `android` (Androide, stehend oder kaputt an die Wand gelehnt) |
+| `nature` | `plant` (Farn, Leuchtknollen, Stacheln; Topf rund, eckig oder Fels), `hydroponic_bed` (Pflanzbeet mit 1–3 Ebenen und Pflanzenlampe), `stalagmite` (Gruppe, Säule bis zur Decke, mit Kristallspitzen), `mushroom` (Pilzgruppe bis Riesenpilz, leuchtende Lamellen) |
+
+* **Pflanzen**: Das Spiel hat kein grünes Material. Blätter sind deshalb „außerirdisch“: `M_Crystal` (leuchtet
+  cyan), `M_HazardOrange` oder `M_Warning`. Welche Farbe der Seed gewählt hat, steht in `meta.leaves`.
+* **Wandmontiert** (`button`, `gear_puzzle`, `cable_plug`, `scanner`, `wall_panel`, `monitor_wall`, `intercom`):
+  Rückseite an der Wand bei y = +0,1, Pivot am Boden darunter.
+* **Begehbar**: `hatch` und `floor_grate` haben die Oberkante bei z = 0, `vent_shaft` hat innen einen Boden (Pivot
+  unten).
+* **Passende Teile**: `spare_part` (Art `gear`) passt in den `Slot` von `gear_puzzle` (`meta.missing_gear.radius`),
+  `tool` und `clue` sind Inventar-Items für eigene Rätsel. Wie sie im Spiel verdrahtet werden, steht in
+  [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md).
+* Statisch (Bibliothek): `vent_shaft`, `floor_grate`, `bulkhead`, `wall_panel`, die Natur-Typen und die Einrichtung.
+
+```bash
+# Rätsel-Erweiterung: Knöpfe, Zahnräder, Kraftfeld, Tresor + die passenden Items
+python -m cubegen generate --recipe recipes/escape_extras.json
+python -m cubegen generate --seed 7 --types gear_puzzle,spare_part --count 4 --param spare_part.kind=gear
+```
+
 ## Texturen (optional)
 
 ![Oben: Kachel-Texturen · Mitte: Ruinen-Typen · unten: intakt / zerstört im Wechsel](docs/example_textures_ruins.png)
@@ -464,7 +498,7 @@ cubegen/
 ├── textures.py       ImageMagick-Kacheltexturen (optional)
 ├── bake.py           läuft IN Blender: gebackene Atlas-Texturen pro Asset (optional)
 ├── models/           Modelltypen (props, industrial, tech, environment, ruins, puzzle, kit, furniture,
-│                     robots, nature) + wear, destruction
+│                     robots, nature, mechanisms, items, structure, machinery) + wear, destruction
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend
 ├── bpy_builder.py    Blender-Objekte, Materialien, FBX/GLB/OBJ-Export (CLI + Add-on)
