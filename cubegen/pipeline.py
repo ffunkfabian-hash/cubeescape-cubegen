@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 from dataclasses import asdict, dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
 from . import __version__
 from .blender import BlenderError, find_blender, resolve_engine, run_job
@@ -22,7 +22,7 @@ FORMATS = ("fbx", "glb", "gltf", "obj")
 @dataclass
 class BatchConfig:
     seed: int
-    models: Dict[str, int]
+    models: Dict[str, Union[int, List[int]]]  # type -> count (indices 0..n-1) or explicit variant indices
     out_dir: str
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
@@ -48,15 +48,18 @@ class BatchConfig:
         bad = [f for f in self.formats if f not in FORMATS]
         if bad:
             raise ValueError(f"unknown format(s): {', '.join(bad)}. Available: {', '.join(FORMATS)}")
-        if any(c < 0 for c in self.models.values()):
-            raise ValueError("model counts must be >= 0")
+        for t, value in self.models.items():
+            indices = value if isinstance(value, list) else [value]
+            if any(not isinstance(i, int) or i < 0 for i in indices):
+                raise ValueError(f"{t}: counts and variant indices must be integers >= 0")
 
 
 def plan_models(config: BatchConfig) -> List[Dict]:
     """Names and seeds of every asset in the batch (deterministic)."""
     specs = []
-    for model_type, count in config.models.items():
-        for index in range(count):
+    for model_type, value in config.models.items():
+        indices = sorted(set(value)) if isinstance(value, list) else range(value)
+        for index in indices:
             specs.append({
                 "name": asset_name(model_type, index, config.prefix),
                 "type": model_type,

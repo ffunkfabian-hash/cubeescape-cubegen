@@ -24,8 +24,7 @@ if ROOT not in sys.path:
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
-from cubegen.geometry import box_uvs  # noqa: E402
-from cubegen.materials import MATERIALS, srgb_to_linear  # noqa: E402
+from cubegen.bpy_builder import build_collection, create_materials, export_collection  # noqa: E402
 from cubegen.models import generate_asset  # noqa: E402
 
 
@@ -54,116 +53,12 @@ def clear_scene():
     return scene
 
 
-def _input(node, *names):
-    for name in names:
-        if name in node.inputs:
-            return node.inputs[name]
-    return None
-
-
-def create_materials():
-    """Same values as the game's generator - Unity remaps them by name anyway."""
-    for name, (color, smoothness, metallic, emission) in MATERIALS.items():
-        mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-        linear = tuple(srgb_to_linear(c) for c in color)
-        mat.diffuse_color = (*linear, 1.0)  # colour in the solid viewport / Workbench
-        mat.use_backface_culling = True
-        if mat.node_tree is None:
-            mat.use_nodes = True
-        bsdf = mat.node_tree.nodes.get("Principled BSDF") if mat.node_tree else None
-        if bsdf:
-            bsdf.inputs["Base Color"].default_value = (*linear, 1.0)
-            bsdf.inputs["Roughness"].default_value = 1.0 - smoothness
-            bsdf.inputs["Metallic"].default_value = metallic
-            if emission:
-                color_in = _input(bsdf, "Emission Color", "Emission")
-                strength_in = _input(bsdf, "Emission Strength")
-                if color_in is not None:
-                    color_in.default_value = (*linear, 1.0)
-                if strength_in is not None:
-                    strength_in.default_value = emission
-
-
-# ---------------------------------------------------------------------------
-# asset -> Blender objects
-# ---------------------------------------------------------------------------
-
 def build_asset(spec):
     asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0))
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
-    objects = {}
-    for o in asset.objects:
-        if o.is_empty:
-            obj = bpy.data.objects.new(o.name, None)
-            obj.empty_display_type = "PLAIN_AXES"
-            obj.empty_display_size = 0.2
-        else:
-            obj = bpy.data.objects.new(o.name, _make_mesh(f"{asset.name}.{o.name}", o))
-        collection.objects.link(obj)
-        if o.parent:
-            parent = asset.get(o.parent)
-            obj.parent = objects[o.parent]
-            obj.location = tuple(o.pivot[i] - parent.pivot[i] for i in range(3))
-        else:
-            obj.location = o.pivot
-            obj["cubegen_type"] = spec["type"]
-            obj["cubegen_seed"] = str(spec["seed"])
-        objects[o.name] = obj
+    build_collection(asset, collection, tags={"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])})
     return asset, collection
-
-
-def _make_mesh(name, asset_object):
-    src = asset_object.mesh
-    verts = asset_object.local_verts()
-    me = bpy.data.meshes.new(name)
-    me.from_pydata(verts, [], src.faces)
-    materials = sorted(set(src.roles))
-    for m in materials:
-        me.materials.append(bpy.data.materials[m])
-    uv_layer = me.uv_layers.new(name="UVMap")
-    for fi, poly in enumerate(me.polygons):
-        poly.material_index = materials.index(src.roles[fi])
-        poly.use_smooth = False  # flat shading = crisp low-poly look
-        uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
-        for loop_index, uv in zip(poly.loop_indices, uvs):
-            uv_layer.data[loop_index].uv = uv
-    me.validate(clean_customdata=False)
-    me.update()
-    return me
-
-
-# ---------------------------------------------------------------------------
-# export
-# ---------------------------------------------------------------------------
-
-def _select(collection):
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in collection.all_objects:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = next(iter(collection.all_objects), None)
-
-
-def export(collection, fmt, path):
-    _select(collection)
-    if fmt == "fbx":
-        # identical to the game's export_fbx(): rotation 0 / scale 1 in Unity, +Z forward
-        bpy.ops.export_scene.fbx(
-            filepath=path, use_selection=True, object_types={"MESH", "EMPTY"}, apply_unit_scale=True,
-            apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y", bake_space_transform=True,
-            use_mesh_modifiers=True, mesh_smooth_type="FACE", add_leaf_bones=False, bake_anim=False,
-            use_custom_props=True,
-        )
-    elif fmt in ("glb", "gltf"):
-        bpy.ops.export_scene.gltf(filepath=path, export_format="GLB" if fmt == "glb" else "GLTF_SEPARATE",
-                                  use_selection=True, export_apply=True, export_extras=True, export_yup=True)
-    elif fmt == "obj":
-        if "obj_export" in dir(bpy.ops.wm):
-            bpy.ops.wm.obj_export(filepath=path, export_selected_objects=True, export_materials=True)
-        else:  # Blender < 3.2
-            bpy.ops.export_scene.obj(filepath=path, use_selection=True)
-    else:
-        raise ValueError(f"unknown export format {fmt!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +178,7 @@ def run_job(job_path):
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
     scene = clear_scene()
-    create_materials()
+    create_materials(overwrite=True)
     render = job.get("render") or {}
     cam = None
     if render.get("enabled"):
@@ -298,7 +193,7 @@ def run_job(job_path):
         files = {}
         for fmt in job["formats"]:
             path = os.path.join(job["models_dir"], f"{asset.name}.{fmt}")
-            export(collection, fmt, path)
+            export_collection(collection, fmt, path)
             files[fmt] = path
         preview = None
         if cam is not None:

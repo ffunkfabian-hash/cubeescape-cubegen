@@ -3,6 +3,7 @@
 import json
 import os
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -71,6 +72,26 @@ class BlenderTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out, "icons", "Icon_Door_000.png")))
             self.assertTrue(os.path.isfile(os.path.join(out, "contact_sheet.png")))
             self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
+
+
+@unittest.skipUnless(HAS_MAGICK and HAS_BLENDER, "Blender and ImageMagick required")
+class BlenderAddonTest(unittest.TestCase):
+    def test_addon_zip_installs_and_exports(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.join(root, "tools"))
+        import build_addon
+
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = build_addon.build(os.path.join(tmp, "cubegen_blender_addon.zip"))
+            proc = subprocess.run(
+                [find_blender(), "-b", "--factory-startup", "--python-exit-code", "3",
+                 "-P", os.path.join(root, "tests", "blender", "addon_smoke.py"), "--", zip_path,
+                 os.path.join(tmp, "out")],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600,
+                # install into a throw-away profile, not into the user's Blender preferences
+                env=dict(os.environ, BLENDER_USER_SCRIPTS=os.path.join(tmp, "scripts"),
+                         BLENDER_USER_CONFIG=os.path.join(tmp, "config")))
+            self.assertIn("ADDON_SMOKE_OK", proc.stdout, proc.stdout[-3000:])
 
 
 if __name__ == "__main__":

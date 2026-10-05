@@ -18,6 +18,22 @@ class ImageMagickError(RuntimeError):
     pass
 
 
+# Apps started from the macOS Finder (e.g. Blender running the add-on) don't see the
+# shell's PATH, so Homebrew / MacPorts installs are looked up explicitly.
+_EXTRA_DIRS = ("/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin")
+
+
+def _which(name: str) -> Optional[str]:
+    found = shutil.which(name)
+    if found:
+        return found
+    for d in _EXTRA_DIRS:
+        cand = os.path.join(d, name)
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
 class ImageMagick:
     def __init__(self, binary: Optional[str] = None):
         binary = binary or os.environ.get("CUBEGEN_MAGICK")
@@ -31,12 +47,12 @@ class ImageMagick:
                 self.convert = [path]
                 sibling = os.path.join(os.path.dirname(path), "montage")
                 self.montage = [sibling if os.path.exists(sibling) else "montage"]
-        elif shutil.which("magick"):
-            self.convert = [shutil.which("magick")]
-            self.montage = [shutil.which("magick"), "montage"]
-        elif shutil.which("convert") and shutil.which("montage"):
-            self.convert = [shutil.which("convert")]
-            self.montage = [shutil.which("montage")]
+        elif _which("magick"):
+            self.convert = [_which("magick")]
+            self.montage = [_which("magick"), "montage"]
+        elif _which("convert") and _which("montage"):
+            self.convert = [_which("convert")]
+            self.montage = [_which("montage")]
         else:
             raise ImageMagickError(
                 "ImageMagick not found. Install it (https://imagemagick.org) or pass --magick /path/to/magick"

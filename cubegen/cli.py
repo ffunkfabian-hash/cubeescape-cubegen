@@ -38,7 +38,14 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
     recipe = _load_recipe(args.recipe) if args.recipe else {}
     seed = parse_seed(args.seed if args.seed is not None else recipe.get("seed"))
 
-    if args.types:
+    if args.pick:
+        models: Dict = {}
+        for item in args.pick:
+            model_type, _, index = item.partition(":")
+            if not index.isdigit():
+                raise ValueError(f"--pick expects TYPE:INDEX, e.g. crate:3 (got {item!r})")
+            models.setdefault(model_type, []).append(int(index))
+    elif args.types:
         types = model_types() if args.types == ["all"] else args.types
         models = {t: args.count if args.count is not None else 1 for t in types}
     elif recipe.get("models"):
@@ -137,6 +144,7 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--recipe", help="JSON recipe with seed and model counts")
     g.add_argument("--types", type=_csv, help="comma separated model types or 'all'")
     g.add_argument("--count", type=int, help="assets per type (default 1)")
+    g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")
     g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models/Generated")
     g.add_argument("--icons-dir", help="write the icons here instead")
