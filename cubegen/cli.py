@@ -1,0 +1,181 @@
+"""Command line interface: ``python -m cubegen <command>``."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from typing import Dict, List, Optional
+
+from . import __version__
+from .blender import BlenderError, blender_version, find_blender, probe_engine
+from .imagemagick import ImageMagickError, find_imagemagick
+from .models import REGISTRY, generate_asset, model_types
+from .pipeline import FORMATS, BatchConfig, generate_batch, plan_models
+from .seeds import parse_seed
+
+# recipe keys that map 1:1 onto BatchConfig fields
+_RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "render", "engine", "render_size", "samples", "icon_size",
+                  "icon_background", "models_dir", "icons_dir")
+
+
+def _csv(value: str) -> List[str]:
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def _load_recipe(path: str) -> Dict:
+    with open(path, "r", encoding="utf-8") as fh:
+        recipe = json.load(fh)
+    models = recipe.get("models", {})
+    if isinstance(models, list):  # [{"type": "crate", "count": 3}, ...]
+        models = {m["type"]: int(m.get("count", 1)) for m in models}
+    recipe["models"] = {k: int(v) for k, v in models.items()}
+    return recipe
+
+
+def build_config(args: argparse.Namespace) -> BatchConfig:
+    recipe = _load_recipe(args.recipe) if args.recipe else {}
+    seed = parse_seed(args.seed if args.seed is not None else recipe.get("seed"))
+
+    if args.types:
+        types = model_types() if args.types == ["all"] else args.types
+        models = {t: args.count if args.count is not None else 1 for t in types}
+    elif recipe.get("models"):
+        models = dict(recipe["models"])
+        if args.count is not None:
+            models = {t: args.count for t in models}
+    else:
+        models = {t: args.count if args.count is not None else 1 for t in model_types()}
+
+    values = {k: recipe[k] for k in _RECIPE_FIELDS if k in recipe}
+    cli = {
+        "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
+        "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
+        "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
+    }
+    values.update({k: v for k, v in cli.items() if v is not None})
+    if args.no_render:
+        values["render"] = False
+    if args.no_blend:
+        values["blend"] = False
+    out = args.out or recipe.get("out") or os.path.join("output", f"seed_{seed}")
+    return BatchConfig(seed=seed, models=models, out_dir=out, use_blender=not args.no_blender,
+                       blender=args.blender, magick=args.magick, verbose=args.verbose, **values)
+
+
+# ---------------------------------------------------------------------------
+# commands
+# ---------------------------------------------------------------------------
+
+def cmd_generate(args) -> int:
+    config = build_config(args)
+    config.validate()
+    print(f"cubegen {__version__} | seed {config.seed} | out {config.out_dir}")
+    if args.dry_run:
+        for spec in plan_models(config):
+            st = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"]).stats()
+            dims = " x ".join(f"{d:.2f}" for d in st["dimensions_m"])
+            print(f"  {spec['name']:<20} seed {spec['seed']:>10}  {st['triangles']:>5} tris  {dims} m  "
+                  f"[{', '.join(st['objects'])}]")
+        return 0
+    generate_batch(config, log=lambda m: print("  " + m))
+    return 0
+
+
+def cmd_list(args) -> int:
+    if args.json:
+        print(json.dumps({e.name: {"title": e.title, "category": e.category, "pivot": e.pivot,
+                                   "description": e.description} for e in REGISTRY.values()}, indent=2))
+        return 0
+    by_cat: Dict[str, List] = {}
+    for entry in REGISTRY.values():
+        by_cat.setdefault(entry.category, []).append(entry)
+    for cat in sorted(by_cat):
+        print(f"{cat}:")
+        for e in sorted(by_cat[cat], key=lambda e: e.name):
+            print(f"  {e.name:<16} {e.description}")
+    print(f"\nformats: {', '.join(FORMATS)}")
+    return 0
+
+
+def cmd_doctor(args) -> int:
+    ok = True
+    print(f"python        {sys.version.split()[0]} ({sys.executable})")
+    im = find_imagemagick(args.magick)
+    if im:
+        print(f"imagemagick   {im.version()}")
+    else:
+        ok = False
+        print("imagemagick   NOT FOUND - install from https://imagemagick.org")
+    try:
+        blender = find_blender(args.blender)
+    except BlenderError as exc:
+        blender = None
+        print(f"blender       {exc}")
+    if blender:
+        print(f"blender       {blender_version(blender)} ({blender})")
+        for engine in ("workbench", "cycles"):
+            state = "ok" if probe_engine(blender, engine) else "not available"
+            print(f"  render {engine:<10} {state}")
+    else:
+        ok = False
+        print("blender       NOT FOUND - install Blender >= 3.6, set $BLENDER or use --no-blender")
+    print(f"model types   {len(model_types())}: {', '.join(model_types())}")
+    return 0 if ok else 1
+
+
+# ---------------------------------------------------------------------------
+
+def make_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="cubegen", description="Seeded low-poly asset generator for Cube Escape.")
+    parser.add_argument("--version", action="version", version=f"cubegen {__version__}")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    g = sub.add_parser("generate", help="generate a batch of assets")
+    g.add_argument("--seed", help="master seed (int or any text); random if omitted")
+    g.add_argument("--recipe", help="JSON recipe with seed and model counts")
+    g.add_argument("--types", type=_csv, help="comma separated model types or 'all'")
+    g.add_argument("--count", type=int, help="assets per type (default 1)")
+    g.add_argument("--out", help="output directory (default output/seed_<seed>)")
+    g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models/Generated")
+    g.add_argument("--icons-dir", help="write the icons here instead")
+    g.add_argument("--formats", type=_csv, help=f"export formats: {', '.join(FORMATS)} (default fbx)")
+    g.add_argument("--prefix", help="prefix for asset names, e.g. 'Gen_' -> Gen_Crate_000")
+    g.add_argument("--scale", type=float, help="uniform scale factor (default 1.0 = metres)")
+    g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
+    g.add_argument("--no-blender", action="store_true", help="pure-Python OBJ export, no Blender needed")
+    g.add_argument("--no-render", action="store_true", help="skip previews, icons and contact sheet")
+    g.add_argument("--engine", choices=["auto", "workbench", "eevee", "cycles"], help="preview render engine")
+    g.add_argument("--render-size", type=int, help="preview size in px (default 384)")
+    g.add_argument("--samples", type=int, help="Cycles/Eevee samples (default 32)")
+    g.add_argument("--icon-size", type=int, help="inventory icon size in px (default 256)")
+    g.add_argument("--icon-bg", help="icon background colour, e.g. '#2b2b33' (default transparent)")
+    g.add_argument("--blender", help="path to the Blender executable")
+    g.add_argument("--magick", help="path to ImageMagick (magick or convert)")
+    g.add_argument("--dry-run", action="store_true", help="only print names, seeds and stats")
+    g.add_argument("-v", "--verbose", action="store_true", help="show Blender output")
+    g.set_defaults(func=cmd_generate)
+
+    ls = sub.add_parser("list", help="list model types and formats")
+    ls.add_argument("--json", action="store_true")
+    ls.set_defaults(func=cmd_list)
+
+    d = sub.add_parser("doctor", help="check Blender and ImageMagick installation")
+    d.add_argument("--blender")
+    d.add_argument("--magick")
+    d.set_defaults(func=cmd_doctor)
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = make_parser().parse_args(argv)
+    try:
+        return args.func(args)
+    except (BlenderError, ImageMagickError, ValueError, KeyError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

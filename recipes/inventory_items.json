@@ -1,0 +1,10 @@
+{
+  "seed": "inventory-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "render_size": 512,
+  "icon_size": 256,
+  "models": {
+    "item": 8
+  }
+}
