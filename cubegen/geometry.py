@@ -461,6 +461,31 @@ class Mesh:
         self.parts.append(part)
         return part
 
+    def remove_parts(self, remove: Sequence[Part]) -> None:
+        """Delete whole parts (vertices, faces, roles) and re-index the remaining ones."""
+        gone = {id(p) for p in remove}
+        verts: List[Vec3] = []
+        faces: List[Tuple[int, ...]] = []
+        roles: List[str] = []
+        parts: List[Part] = []
+        for part in self.parts:
+            if id(part) in gone:
+                continue
+            v0, f0 = len(verts), len(faces)
+            shift = v0 - part.v0
+            verts.extend(self.verts[part.v0:part.v1])
+            for fi in part.face_indices():
+                faces.append(tuple(i + shift for i in self.faces[fi]))
+                roles.append(self.roles[fi])
+            part.v0, part.v1, part.f0, part.f1 = v0, len(verts), f0, len(faces)
+            parts.append(part)
+        self.verts, self.faces, self.roles, self.parts = verts, faces, roles, parts
+
+    def part_bbox(self, part: Part) -> Tuple[Vec3, Vec3]:
+        pts = self.verts[part.v0:part.v1]
+        return (tuple(min(p[i] for p in pts) for i in range(3)),  # type: ignore[return-value]
+                tuple(max(p[i] for p in pts) for i in range(3)))
+
     def translate(self, offset: Vec3) -> None:
         self.verts = [v_add(v, offset) for v in self.verts]
 

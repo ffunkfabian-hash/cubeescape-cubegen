@@ -19,10 +19,10 @@ from .seeds import parse_seed
 # recipe keys that map 1:1 onto BatchConfig fields
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
-                  "icon_elevation", "icon_zoom")
+                  "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir")
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail"}
+                "wear": "wear", "detail": "detail", "damage": "damage"}
 
 
 def _csv(value: str) -> List[str]:
@@ -65,7 +65,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
         "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
-        "library_dir": args.library_dir,
+        "library_dir": args.library_dir, "textures": args.textures, "texture_size": args.texture_size,
+        "texture_set": args.texture_set, "textures_dir": args.textures_dir,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
     # parameters: recipe {"params": {"door": {"style": "airlock"}}}, then --param door.style=airlock
@@ -144,6 +145,7 @@ def cmd_params(args) -> int:
         print()
     print("global: --size S|M|L  --snap 0.5  --glow cyan|red|orange  --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
+    print("        --damage intact|damaged|destroyed")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
@@ -198,6 +200,14 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--warning", choices=["none", "always"], help="warning stripes / bands never or always")
     st.add_argument("--wear", choices=["none", "light", "heavy"], help="rubble, plates and cables around models")
     st.add_argument("--detail", choices=["low", "normal", "high"], help="low: no bevels, fewer cylinder sides")
+    st.add_argument("--damage", choices=["intact", "damaged", "destroyed"],
+                    help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library)")
+    tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
+    tx.add_argument("--textures", choices=["none", "tiled", "baked"],
+                    help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas")
+    tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
+    tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
+    tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
     g.add_argument("--icon-angle", help="preview/icon camera 'AZIMUTH,ELEVATION' in degrees (default 33,31)")
     g.add_argument("--icon-zoom", type=float, help="preview/icon zoom, > 1 = closer (default 1)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")

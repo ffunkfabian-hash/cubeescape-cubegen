@@ -199,6 +199,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `--warning` | none / always | Warnstreifen und -bänder nie oder immer |
 | `--wear` | none / light / heavy | Brocken, lose Platten, abgerissenes Kabel als eigenes Teil `Wear` (verändert das Modell selbst nicht) |
 | `--detail` | low / normal / high | low: keine Fasen, weniger Zylinder-Seiten; high: rundere Zylinder |
+| `--damage` | intact / damaged / destroyed | Zustand, siehe „Zerstörung & Ruinen“ |
 | `--icon-angle`, `--icon-zoom` | z. B. `=-25,15`, 1.3 | Kamera für Previews und Icons (Azimut, Elevation wie die `ICONS`-Tabelle des Spiels) |
 
 **Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich)
@@ -218,6 +219,13 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
 | `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
 | `item` | `kind` (energy_cell / battery / data_chip / fuse), `spin` (0–360) 🔗 |
+| `broken_wall` | `length` (2.0 / 4.0), `remaining` (0.1–1), `hole` (ja/nein), `rebar` (ja/nein) |
+| `cable_mess` | `cables` (1–12), `sparks` (ja/nein) |
+| `crate_pile` | `count` (1–12), `broken` (ja/nein) |
+| `fallen_pillar` | `width` (0.2–2), `segments` (1–5), `stump` (ja/nein) |
+| `girders` | `count` (1–8), `length` (0.5–8) |
+| `rubble_pile` | `radius` (0.3–5), `height` (0.2–3), `chunks` (3–60), `plates` (ja/nein), `rebar` (ja/nein), `cable` (ja/nein) |
+| `scrap_heap` | `radius` (0.3–5), `height` (0.2–3), `pieces` (3–50), `gears` (ja/nein) |
 | `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
 | `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
 | `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
@@ -236,6 +244,55 @@ Bedingte Parameter wirken nur, wenn das Teil existiert (z. B. `machine.rotor_spe
 Die festgelegten und gewürfelten Werte stehen in `manifest.json` und in der `<Name>.cubegen.json` (`params`,
 `style`). Im Add-on gibt es dafür die Bereiche **Parameter** (Häkchen = festlegen; rechts steht, was der Seed gewählt
 hat) und **Stil (alle Typen)**.
+
+## Texturen (optional)
+
+![Oben: Kachel-Texturen · Mitte: Ruinen-Typen · unten: intakt / zerstört im Wechsel](docs/example_textures_ruins.png)
+
+Standard ist **keine Textur**: Die Modelle tragen wie bisher die einfarbigen `M_…`-Materialien. Per Auswahlfeld
+(Add-on: „Texturen“, Kommandozeile: `--textures`) gibt es zwei Stufen:
+
+| Stufe | Was passiert | Material in der FBX |
+|---|---|---|
+| `tiled` (Kachel) | ImageMagick erzeugt nahtlose Kacheltexturen pro Material: gebürstetes Metall mit Kratzern (`M_Metal`), Paneelfugen mit Nieten (`M_Wall`), beschichtetes Metall (`M_RobotDark`), Bodenplatten (`M_Platform`), Riffelblech (`M_Ground`), Lack (`M_RobotBody`), abgeplatzte Warnfarbe (`M_Warning`, `M_HazardOrange`). Die UVs sind eine Box-Projektion in Metern, also **1 Kachel = 1 m** auf jeder Fläche, unverzerrt und über alle Assets einheitlich. | `MT_Metal`, `MT_Wall`, … |
+| `baked` (Gebacken) | wie Kachel, dann pro Asset: eigene Atlas-UVs, Blender (Cycles) backt Farbe, Rauheit, Normalen, Metallic und Ambient Occlusion, ImageMagick legt Schmutz in Ecken und Vertiefungen. Rund 5–10 s pro Asset. | `MTA_<Asset>` |
+
+Glow-, Kristall- und Glas-Materialien werden nie texturiert, weil die Scripts des Spiels sie umschalten. Texturierte
+Materialien haben **eigene Namen** (`MT_…`, `MTA_…`). Dadurch bleiben deine handgebauten Assets mit `M_…`
+unverändert.
+
+```bash
+python -m cubegen generate --seed 42 --textures tiled --texture-size 1024 \
+    --models-dir ../CubeEscape/Assets/Art/Models --textures-dir ../CubeEscape/Assets/Art/Textures/Generated
+python -m cubegen generate --seed 42 --types machine --textures baked --texture-set Lab
+```
+
+Pro Material entstehen `<Name>_Albedo.png`, `_Normal.png` (OpenGL/Unity), `_Roughness.png` und
+`_MetallicSmoothness.png` (R = Metallic, A = Smoothness, für Unity), dazu `CubeEscape_Textures.json` mit allen
+Materialien. `--texture-set NAME` erzeugt eine eigene Variante (eigener Seed, Materialien `MT_<Name>_…`). In
+der `<Name>.cubegen.json` stehen die verwendeten Materialien und bei `baked` die Atlas-Dateien. In Unity braucht
+es dafür eine kleine Import-Ergänzung, siehe [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md).
+Im Add-on zeigt die Vorschau die Kachel-Texturen (Viewport-Modus „Material Preview“); gebacken wird beim Export.
+
+## Zerstörung & Ruinen
+
+**Zustand für jeden Typ** (`--damage`, Add-on: „Zustand“). Er hat einen eigenen Zufallsstrom: Die zerstörte
+Variante von Seed 42 ist immer die Ruine des intakten Seed 42.
+
+| Zustand | Wirkung |
+|---|---|
+| `intact` | wie bisher (Standard) |
+| `damaged` | Dellen, abgeschlagene Kleinteile liegen am Boden, einzelne Deko-LEDs tot, etwas Schutt. Scripts bleiben. |
+| `destroyed` | gezackte Bruchkante, darüberliegende Teile liegen am Boden oder fehlen, Bruchflächen, alle Lichter aus, viel Schutt. **Statisch** (keine Scripts) und damit mit `--library-dir` automatisch in der Bibliothek. |
+
+**Neue Ruinen-Typen** (Kategorie `ruins`, statisch): `rubble_pile` (Schutthaufen), `scrap_heap` (Schrotthaufen),
+`broken_wall`, `fallen_pillar`, `girders` (eingestürzte Stahlträger), `crate_pile` (umgekippte und aufgebrochene
+Kisten), `cable_mess` (Kabelsalat mit funkenden Enden als `Glow`).
+
+```bash
+python -m cubegen generate --seed 7 --types rubble_pile,scrap_heap,cable_mess --count 3
+python -m cubegen generate --seed 7 --types machine,console,wall --damage destroyed --library-dir ../CubeEscape/Assets/Art/Models/Library
+```
 
 ## Seeds & Reproduzierbarkeit
 
@@ -295,7 +352,9 @@ cubegen/
 ├── asset.py          Asset = benannte Objekte mit Pivots / Parents
 ├── materials.py      M_…-Materialtabelle des Spiels
 ├── params.py         Parameter (festlegen statt würfeln) und globaler Stil
-├── models/           Modelltypen (props, industrial, tech, environment)
+├── textures.py       ImageMagick-Kacheltexturen (optional)
+├── bake.py           läuft IN Blender: gebackene Atlas-Texturen pro Asset (optional)
+├── models/           Modelltypen (props, industrial, tech, environment, ruins) + wear, destruction
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend
 ├── bpy_builder.py    Blender-Objekte, Materialien, FBX/GLB/OBJ-Export (CLI + Add-on)

@@ -41,6 +41,7 @@ class Style:
     warning: Optional[str] = None    # none | always - warning stripes / bands
     wear: str = "none"               # none | light | heavy - rubble, loose plates, torn cables around the model
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
+    damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts)
 
     def validate(self) -> None:
         checks = [
@@ -50,6 +51,7 @@ class Style:
             ("warning", self.warning, (None, "none", "always")),
             ("wear", self.wear, ("none", "light", "heavy")),
             ("detail", self.detail, ("low", "normal", "high")),
+            ("damage", self.damage, ("intact", "damaged", "destroyed")),
         ]
         for name, value, allowed in checks:
             if value not in allowed:

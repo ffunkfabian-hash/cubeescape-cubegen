@@ -43,6 +43,16 @@ Vorkommende behaviours (Script → parts → fields):
 Achsnamen meinen Vector3.right/up/forward im lokalen Raum. Materialnamen sind die M_*-Materialien der
 MaterialLibrary.
 
+Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten M_*-Materialien):
+- "tiled": Materialien MT_<Name> (z. B. MT_Metal), beschrieben in <Texturordner>/CubeEscape_Textures.json:
+  {"materials": [{"name": "MT_Metal", "base": "M_Metal", "maps": {"Albedo": "MT_Metal_Albedo.png",
+  "Normal": "MT_Metal_Normal.png", "MetallicSmoothness": "MT_Metal_MetallicSmoothness.png", ...},
+  "metallic": 0.6, "smoothness": 0.55, "tile_m": 1.0}]}  (UV0 = Box-Projektion in Metern, Tiling 1/1)
+- "baked": pro Asset ein Material MTA_<Model>; die Dateien stehen in der <Name>.cubegen.json unter
+  "textures": {"mode": "baked", "baked": {"Albedo": ..., "Normal": ..., "MetallicSmoothness": ...}}
+Glow-/Status-Materialien (M_Glow*, M_Crystal, M_Glass) sind nie texturiert und bleiben M_*.
+Modelle mit "static": true (auch zerstörte Varianten und die Ruinen-Typen) haben keine Scripts.
+
 Aufgabe:
 1. Prüfe zuerst, ob die Feldnamen oben zu den echten Feldern der Scripts passen. Liste jede Abweichung
    (z. B. heißt das Feld in Door anders, oder Machine kennt keine Rotor-Achse) und schlage die Abbildung vor,
@@ -53,10 +63,13 @@ Aufgabe:
    kinematischer Rigidbody für bewegte Teile, MaterialLibrary …). Die Werte kommen aus der JSON statt
    aus einer festen Rezeptzeile – genauso wie die bestehenden Rezepte für Door_Sliding, Machine_Small,
    Valve, EmergencyLight usw.
-3. Modelle mit "static": true nicht anfassen (die gehören nach Art/Models/Library/<Kategorie> und werden
-   von AssetRegistry registriert).
+3. Modelle mit "static": true bekommen kein Prefab mit Scripts (sie gehören nach Art/Models/Library/<Kategorie>
+   und werden von AssetRegistry registriert) - ihre MT_/MTA_-Materialien aus Schritt 5 aber trotzdem.
 4. Keine Änderungen an Laufzeit-Scripts. Fehlende Teile: Warnung ins Log, Modell überspringen.
-5. Wiederholbar: erneuter Import überschreibt die generierten Prefabs (gleicher Name), nichts anderes.
-6. Am Ende eine Zusammenfassung im Log: gebaut / übersprungen / Warnungen.
+5. Materialien: MT_*/MTA_* NICHT auf M_* remappen, sondern aus den JSON-Angaben als URP/Lit-Materialien
+   anlegen (Albedo -> Base Map, Normal -> Normal Map, MetallicSmoothness -> Metallic Map mit Smoothness aus
+   Alpha) und auf die Slots gleichen Namens legen. M_* weiterhin wie bisher remappen.
+6. Wiederholbar: erneuter Import überschreibt die generierten Prefabs (gleicher Name), nichts anderes.
+7. Am Ende eine Zusammenfassung im Log: gebaut / übersprungen / Warnungen.
 Zeige mir vor der Umsetzung den Plan und die Feld-Abbildung aus Schritt 1.
 ````

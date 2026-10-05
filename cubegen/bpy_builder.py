@@ -46,12 +46,52 @@ def create_materials(overwrite=True):
                     strength_in.default_value = emission
 
 
-def build_collection(asset, collection, object_name=None, tags=None):
+def create_textured_materials(textures):
+    """``MT_...`` materials from a texture set: ``{plain material: {"name", "paths", "metallic", "color"}}``."""
+    for info in textures.values():
+        name = info["name"]
+        mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+        linear = tuple(srgb_to_linear(c) for c in info["color"])
+        mat.diffuse_color = (*linear, 1.0)
+        mat.use_backface_culling = True
+        if mat.node_tree is None:
+            mat.use_nodes = True
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+        for node in [n for n in nodes if n.type == "TEX_IMAGE" or n.type == "NORMAL_MAP"]:
+            nodes.remove(node)
+        bsdf = nodes.get("Principled BSDF")
+        if bsdf is None:
+            continue
+        paths = info["paths"]
+
+        def image_node(path, non_color, x, y):
+            node = nodes.new("ShaderNodeTexImage")
+            node.image = bpy.data.images.load(path, check_existing=True)
+            if non_color:
+                node.image.colorspace_settings.name = "Non-Color"
+            node.location = (x, y)
+            return node
+
+        albedo = image_node(paths["Albedo"], False, -600, 300)
+        links.new(albedo.outputs["Color"], bsdf.inputs["Base Color"])
+        rough = image_node(paths["Roughness"], True, -600, 0)
+        links.new(rough.outputs["Color"], bsdf.inputs["Roughness"])
+        normal = image_node(paths["Normal"], True, -900, -300)
+        normal_map = nodes.new("ShaderNodeNormalMap")
+        normal_map.location = (-500, -300)
+        links.new(normal.outputs["Color"], normal_map.inputs["Color"])
+        links.new(normal_map.outputs["Normal"], bsdf.inputs["Normal"])
+        bsdf.inputs["Metallic"].default_value = info["metallic"]
+        nodes.active = albedo  # Workbench "Texture" colour mode shows the active image
+
+
+def build_collection(asset, collection, object_name=None, tags=None, material_map=None):
     """Create Blender objects for ``asset`` in ``collection``.
 
     Objects only get a location (their pivot); children are parented and placed
     relative to their parent. ``object_name(part)`` renames objects (default:
-    the part name), ``tags`` become custom properties on the root objects.
+    the part name), ``tags`` become custom properties on the root objects,
+    ``material_map`` swaps materials (``{"M_Metal": "MT_Metal"}`` for textures).
     """
     objects = {}
     for o in asset.objects:
@@ -61,7 +101,7 @@ def build_collection(asset, collection, object_name=None, tags=None):
             obj.empty_display_type = "PLAIN_AXES"
             obj.empty_display_size = 0.2
         else:
-            obj = bpy.data.objects.new(name, make_mesh(f"{asset.name}.{o.name}", o))
+            obj = bpy.data.objects.new(name, make_mesh(f"{asset.name}.{o.name}", o, material_map))
         collection.objects.link(obj)
         if o.parent:
             parent = asset.get(o.parent)
@@ -75,18 +115,23 @@ def build_collection(asset, collection, object_name=None, tags=None):
     return objects
 
 
-def make_mesh(name, asset_object):
+def make_mesh(name, asset_object, material_map=None):
     src = asset_object.mesh
     verts = asset_object.local_verts()
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], src.faces)
-    materials = sorted(set(src.roles))
+    mapping = material_map or {}
+    roles = [mapping.get(r, r) for r in src.roles]
+    materials = sorted(set(roles))
     for m in materials:
         me.materials.append(bpy.data.materials[m])
     uv_layer = me.uv_layers.new(name="UVMap")
     for fi, poly in enumerate(me.polygons):
-        poly.material_index = materials.index(src.roles[fi])
-        poly.use_smooth = False  # flat shading = crisp low-poly look
+        poly.material_index = materials.index(roles[fi])
+        try:
+            poly.use_smooth = False  # flat shading = crisp low-poly look
+        except AttributeError:  # newer Blender: from_pydata already creates flat faces
+            pass
         uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
         for loop_index, uv in zip(poly.loop_indices, uvs):
             uv_layer.data[loop_index].uv = uv
@@ -106,12 +151,13 @@ def select_collection(collection):
 def export_collection(collection, fmt, path):
     select_collection(collection)
     if fmt == "fbx":
-        # identical to the game's export_fbx(): rotation 0 / scale 1 in Unity, +Z forward
+        # identical to the game's export_fbx(): rotation 0 / scale 1 in Unity, +Z forward;
+        # textures (if any) are referenced relative to the FBX, not embedded
         bpy.ops.export_scene.fbx(
             filepath=path, use_selection=True, object_types={"MESH", "EMPTY"}, apply_unit_scale=True,
             apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y", bake_space_transform=True,
             use_mesh_modifiers=True, mesh_smooth_type="FACE", add_leaf_bones=False, bake_anim=False,
-            use_custom_props=True,
+            use_custom_props=True, path_mode="RELATIVE",
         )
     elif fmt in ("glb", "gltf"):
         bpy.ops.export_scene.gltf(filepath=path, export_format="GLB" if fmt == "glb" else "GLTF_SEPARATE",

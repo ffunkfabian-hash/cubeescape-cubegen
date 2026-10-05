@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 3, 1),
+    "version": (0, 4, 0),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
@@ -57,12 +57,14 @@ def _load_cubegen():
             sys.path.insert(0, repo)  # development: add-on folder symlinked from the repository
         import cubegen as pkg
     return {name: importlib.import_module(f"{pkg.__name__}.{name}")
-            for name in ("models", "seeds", "pipeline", "bpy_builder", "params")}, pkg.__version__
+            for name in ("models", "seeds", "pipeline", "bpy_builder", "params", "textures", "imagemagick")}, \
+        pkg.__version__
 
 
 _CG, CUBEGEN_VERSION = _load_cubegen()
 models, seeds, pipeline, builder = _CG["models"], _CG["seeds"], _CG["pipeline"], _CG["bpy_builder"]
 params_mod = _CG["params"]
+textures_mod, magick_mod = _CG["textures"], _CG["imagemagick"]
 SEED = "__seed__"  # enum value: "roll it from the seed" 
 
 PREVIEW_COLLECTION = "CubeEscape Vorschau"
@@ -110,7 +112,10 @@ def _cli_command(s):
     flags = [("--size", style.size), ("--glow", style.glow), ("--material-style", style.material),
              ("--warning", style.warning)]
     flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear if style.wear != "none" else None),
-              ("--detail", style.detail if style.detail != "normal" else None)]
+              ("--detail", style.detail if style.detail != "normal" else None),
+              ("--damage", style.damage if style.damage != "intact" else None),
+              ("--textures", s.textures if s.textures != "none" else None),
+              ("--texture-set", s.texture_set or None)]
     return cmd + "".join(f" {flag} {value}" for flag, value in flags if value)
 
 
@@ -139,7 +144,7 @@ def _style(s):
         size=None if s.size_class in unset else s.size_class, snap=float(s.snap),
         glow=None if s.glow_color in unset else s.glow_color,
         material=None if s.material_style in unset else s.material_style,
-        warning=None if s.warning in unset else s.warning, wear=s.wear, detail=s.detail,
+        warning=None if s.warning in unset else s.warning, wear=s.wear, detail=s.detail, damage=s.damage,
     )
 
 
@@ -159,15 +164,36 @@ def _new_collection(context, name, parent=None):
     return coll
 
 
-def _build(asset, coll, s, variant):
+def _build(asset, coll, s, variant, material_map=None):
     model_type = asset.meta["type"]
     builder.build_collection(
-        asset, coll, object_name=lambda part: f"{asset.name}.{part}",
+        asset, coll, object_name=lambda part: f"{asset.name}.{part}", material_map=material_map,
         tags={"cubegen_type": model_type, "cubegen_seed": str(asset.meta["seed"])},
     )
     coll["cubegen_type"] = model_type
     coll["cubegen_variant"] = variant
     coll["cubegen_master_seed"] = s.master_seed
+
+
+_TEXTURE_CACHE = {}
+
+
+def _preview_material_map(context):
+    """Tiled textures for the viewport (cached per set + size); baking only happens on export."""
+    s = _settings(context)
+    if s.textures == "none":
+        return None
+    key = (s.texture_set, int(s.texture_size))
+    if key not in _TEXTURE_CACHE:
+        prefs = context.preferences.addons[__name__].preferences
+        im = magick_mod.find_imagemagick(prefs.magick_path.strip() or None)
+        if im is None:
+            raise RuntimeError("ImageMagick nicht gefunden - Pfad in den Add-on-Einstellungen eintragen")
+        folder = os.path.join(DEFAULT_OUT, "texture_cache", f"{s.texture_set or 'default'}_{key[1]}")
+        _TEXTURE_CACHE[key] = textures_mod.build_texture_set(im, folder, key[1], s.texture_set, log=print)
+    textures = _TEXTURE_CACHE[key]
+    builder.create_textured_materials(textures)
+    return {plain: info["name"] for plain, info in textures.items()}
 
 
 def rebuild_preview(context):
@@ -177,7 +203,7 @@ def rebuild_preview(context):
     asset = models.generate_asset(s.model_type, seed, name, s.scale, params=_overrides(s).get(s.model_type),
                                   style=_style(s))
     coll = _new_collection(context, PREVIEW_COLLECTION)
-    _build(asset, coll, s, s.variant)
+    _build(asset, coll, s, s.variant, _preview_material_map(context))
     stats = asset.stats()
     _INFO.clear()
     _INFO.update({
@@ -201,10 +227,11 @@ def build_grid(context, entries=None, columns=None):
     spacing = max(max(a.stats()["dimensions_m"][:2]) for a in assets) + 1.0
     cols = columns or math.ceil(math.sqrt(len(assets)))
     parent = _new_collection(context, GRID_COLLECTION)
+    material_map = _preview_material_map(context)
     for k, (variant, asset) in enumerate(zip(variants, assets)):
         coll = bpy.data.collections.new(asset.name)
         parent.children.link(coll)
-        _build(asset, coll, s, variant)
+        _build(asset, coll, s, variant, material_map)
         # in the grid behind the preview (front is -Y), row by row
         offset = ((k % cols - (cols - 1) / 2) * spacing, spacing * (1 + k // cols), 0.0)
         for obj in coll.objects:
@@ -264,6 +291,8 @@ def make_configs(context, picks):
             library_dir=bpy.path.abspath(s.library_dir).strip() or None,
             params=_overrides(s), style=_style(s),
             icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
+            textures=s.textures, texture_size=int(s.texture_size), texture_set=s.texture_set.strip(),
+            textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
             blender=bpy.app.binary_path, magick=prefs.magick_path.strip() or None,
         ))
     return configs
@@ -388,6 +417,19 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     detail: EnumProperty(name="Detail", update=_on_change, default="normal", items=[
         ("low", "Niedrig", "Keine Fasen, weniger Zylinder-Seiten"), ("normal", "Normal", ""),
         ("high", "Hoch", "Rundere Zylinder")])
+    damage: EnumProperty(name="Zustand", update=_on_change, default="intact", items=[
+        ("intact", "Intakt", ""), ("damaged", "Beschädigt", "Dellen, abgeschlagene Kleinteile, tote Deko-LEDs"),
+        ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts")])
+    textures: EnumProperty(name="Texturen", update=_on_change, default="none", items=[
+        ("none", "Keine", "Einfarbige M_-Materialien wie bisher (Standard)"),
+        ("tiled", "Kachel", "ImageMagick-Kacheltexturen als MT_-Materialien (1 Kachel = 1 m)"),
+        ("baked", "Gebacken", "Kachel + pro Asset gebackener Atlas mit Schmutz (MTA_<Asset>); Vorschau zeigt Kachel")])
+    texture_size: EnumProperty(name="Auflösung", update=_on_change, default="512", items=[
+        ("256", "256 px", ""), ("512", "512 px", ""), ("1024", "1024 px", ""), ("2048", "2048 px", "")])
+    texture_set: StringProperty(name="Textur-Set", default="", update=_on_change,
+                                description="Name einer Textur-Variante (eigener Seed, Materialien MT_<Set>_...)")
+    textures_dir: StringProperty(name="Texturen", subtype="DIR_PATH",
+                                 description="Leer = <Modelle>/Textures, z. B. <Unity>/Assets/Art/Textures/Generated")
     icon_azimuth: FloatProperty(name="Azimut", default=33.0, min=-180.0, max=180.0,
                                 description="Icon-Kamera: Winkel um das Modell (+ = von rechts), Grad")
     icon_elevation: FloatProperty(name="Höhe", default=31.0, min=-10.0, max=89.0,
@@ -724,14 +766,13 @@ class CUBEGEN_PT_params(_Panel, bpy.types.Panel):
 
 
 class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
-    bl_label = "Stil (alle Typen)"
+    bl_label = "Stil & Zustand (alle Typen)"
     bl_parent_id = "CUBEGEN_PT_main"
-    bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
         s = _settings(context)
         col = self.layout.column(align=True)
-        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail"):
+        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage"):
             col.prop(s, name)
         self.layout.label(text="Icon-Kamera")
         row = self.layout.row(align=True)
@@ -780,6 +821,13 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         row.prop(s, "fmt_fbx", toggle=True)
         row.prop(s, "fmt_glb", toggle=True)
         row.prop(s, "fmt_obj", toggle=True)
+        box = layout.box()
+        box.prop(s, "textures")
+        if s.textures != "none":
+            row = box.row(align=True)
+            row.prop(s, "texture_size", text="")
+            row.prop(s, "texture_set", text="Set")
+            box.prop(s, "textures_dir")
         layout.prop(s, "render_icons")
         col = layout.column(align=True)
         col.enabled = not s.running

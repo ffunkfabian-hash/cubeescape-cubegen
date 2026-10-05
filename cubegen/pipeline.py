@@ -16,6 +16,10 @@ from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
 from .params import Style
+from .materials import MATERIALS
+from .textures import TEXTURE_MODES, build_texture_set
+
+BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
 from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
@@ -46,6 +50,10 @@ class BatchConfig:
     icon_azimuth: float = 33.0     # degrees, like the ICONS table of generate_assets.py (+ = from the right)
     icon_elevation: float = 31.0
     icon_zoom: float = 1.0         # > 1 = closer
+    textures: str = "none"         # none | tiled (ImageMagick tile textures) | baked (+ per-asset grime atlas)
+    texture_size: int = 512
+    texture_set: str = ""          # name of the texture variant -> material names MT_<set>_<Material>
+    textures_dir: Optional[str] = None  # default: <models dir>/Textures
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
@@ -69,6 +77,12 @@ class BatchConfig:
                 raise ValueError(f"--param: unknown model type {t!r}")
             for name, value in overrides.items():
                 REGISTRY[t].param(name).parse(value)
+        if self.textures not in TEXTURE_MODES:
+            raise ValueError(f"textures must be one of {', '.join(TEXTURE_MODES)}")
+        if self.texture_size < 64 or self.texture_size & (self.texture_size - 1):
+            raise ValueError("texture size must be a power of two >= 64")
+        if self.texture_set and not self.texture_set.replace("_", "").isalnum():
+            raise ValueError("texture set: letters, digits and _ only")
         if self.icon_zoom <= 0:
             raise ValueError("icon zoom must be > 0")
 
@@ -91,7 +105,7 @@ def plan_models(config: BatchConfig) -> List[Dict]:
     return specs
 
 
-def rig_data(asset, spec: Dict, master_seed: int) -> Dict:
+def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[str, str]] = None) -> Dict:
     """Everything a Unity prefab builder needs besides the FBX, in Unity coordinates.
 
     Animations are not baked into the FBX: the game's scripts move parts with
@@ -107,7 +121,7 @@ def rig_data(asset, spec: Dict, master_seed: int) -> Dict:
             "parent": o.parent,
             "localPosition": list(to_unity(local)),
             "empty": o.is_empty,
-            "materials": [] if o.is_empty else sorted(set(o.mesh.roles)),
+            "materials": [] if o.is_empty else sorted({(material_map or {}).get(r, r) for r in o.mesh.roles}),
         }
         if not o.is_empty:  # box collider hint relative to the part's own pivot (Unity coordinates)
             (bx0, by0, bz0), (bx1, by1, bz1) = o.mesh.bbox()
@@ -173,6 +187,14 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     im = ImageMagick(config.magick)
     swatch = im.material_swatch(os.path.join(out, "materials.png"))
 
+    textures: Dict[str, Dict] = {}
+    textures_dir = None
+    if config.textures != "none":
+        textures_dir = os.path.abspath(config.textures_dir) if config.textures_dir \
+            else os.path.join(dirs["models"], "Textures")
+        textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
+    material_map = {plain: info["name"] for plain, info in textures.items()}
+
     results: Dict[str, Dict] = {}
     blender_info: Dict[str, object] = {}
     formats = list(config.formats)
@@ -190,6 +212,11 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "models_dir": dirs["models"],
             "previews_dir": dirs["previews"],
             "blend": blend_path,
+            "textures": textures,
+            "texture_mode": config.textures,
+            "texture_size": config.texture_size,
+            "textures_dir": textures_dir,
+            "magick": im.convert,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
                        "elevation": config.icon_elevation, "zoom": config.icon_zoom},
@@ -203,13 +230,15 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     else:
         if formats != ["obj"]:
             log("--no-blender: only OBJ export is available, ignoring other formats")
+        if config.textures == "baked":
+            log("--no-blender: baking needs Blender, using tiled textures")
         formats = ["obj"]
         for folder in {spec["models_dir"] for spec in specs}:
-            write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"))
+            write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"), textures)
         for spec in specs:
             asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
-            write_obj(asset, path, "CubeEscape_Materials.mtl")
+            write_obj(asset, path, "CubeEscape_Materials.mtl", material_map)
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
 
@@ -237,7 +266,17 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if config.rig_data:
             rig_path = os.path.join(spec["models_dir"], f"{spec['name']}.cubegen.json")
             with open(rig_path, "w", encoding="utf-8") as fh:
-                json.dump(rig_data(asset, spec, config.seed), fh, indent=2)
+                asset_map = material_map
+                if res.get("baked_material"):  # every non-glow material became the asset's atlas material
+                    asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
+                rig = rig_data(asset, spec, config.seed, asset_map)
+                if textures:
+                    rig["textures"] = {"mode": config.textures,
+                                       "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
+                                                        spec["models_dir"])}
+                    if res.get("baked"):
+                        rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()}
+                json.dump(rig, fh, indent=2)
             res.setdefault("files", {})["rig"] = rig_path
         entries.append({
             "name": spec["name"],
@@ -265,6 +304,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         "imagemagick": im.version(),
         "overview_blend": _rel(blend_path, out) if blend_path and os.path.isfile(blend_path) else None,
         "material_swatch": _rel(swatch, out),
+        "textures": {"mode": config.textures, "dir": _rel(textures_dir, out),
+                     "materials": material_map} if textures else None,
         "contact_sheet": _rel(sheet, out),
         "models": entries,
     }

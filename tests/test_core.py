@@ -88,7 +88,7 @@ class SeedTests(unittest.TestCase):
 
 class ModelTests(unittest.TestCase):
     def test_registry(self):
-        self.assertGreaterEqual(len(model_types()), 18)
+        self.assertGreaterEqual(len(model_types()), 25)
         for entry in REGISTRY.values():
             self.assertTrue(entry.description)
             self.assertIn(entry.pivot, ("floor", "top", "center", "wall"))

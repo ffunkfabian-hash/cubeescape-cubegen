@@ -127,6 +127,31 @@ bpy.ops.cubegen.reset_params()
 assert s.type_params.door.style == addon.SEED and not s.type_params.door.use_width
 s.detail, s.wear = "normal", "none"
 
+# --- textures (selection field) + destroyed state + ruins ---------------------------------
+s.model_type = "crate"
+s.textures = "tiled"
+s.texture_size = "256"
+body = bpy.data.objects["Gen_Crate_001.Body"]
+mats = {slot.material.name for slot in body.material_slots}
+print("TILED_PREVIEW", sorted(mats))
+assert any(m.startswith("MT_") for m in mats), mats
+s.damage = "destroyed"
+assert addon._INFO["meta"].get("damage") == "destroyed"
+s.model_type = "rubble_pile"
+assert "Gen_RubblePile_001.Rubble" in bpy.data.objects
+s.model_type = "machine"
+s.damage = "intact"
+s.textures = "baked"
+s.render_icons = False
+result = bpy.ops.cubegen.export(mode="PREVIEW")
+assert result == {"FINISHED"}, s.status
+rig = json.load(open(os.path.join(out, "Models", "Gen_Machine_001.cubegen.json")))
+body_mats = next(p["materials"] for p in rig["parts"] if p["name"] == "Body")
+print("BAKED", body_mats, rig["textures"]["mode"])
+assert body_mats == ["MTA_Gen_Machine_001"], body_mats
+assert os.path.isfile(os.path.join(out, "Models", "Textures", "MTA_Gen_Machine_001_Albedo.png"))
+s.textures = "none"
+
 # --- panels: draw with a fake layout that validates every prop / operator ----------
 class Fake:
     def __init__(self):

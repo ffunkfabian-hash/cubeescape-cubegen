@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from ..asset import Asset
 from ..materials import check_material
 from ..params import DETAIL, Param, ParamReader, Style
+from .destruction import damage_asset
 from .wear import apply_wear
 
 BuildFn = Callable[[random.Random, Asset], None]
@@ -84,6 +85,8 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         for role in set(obj.mesh.roles):
             check_material(role)
     asset.normalize(entry.pivot)
+    if style.damage != "intact":
+        damage_asset(asset, seed, style.damage, entry.pivot)
     if style.wear != "none" and entry.pivot == "floor":
         apply_wear(asset, seed, style.wear)
     if scale != 1.0:

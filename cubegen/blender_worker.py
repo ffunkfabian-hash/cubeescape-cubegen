@@ -24,7 +24,8 @@ if ROOT not in sys.path:
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
-from cubegen.bpy_builder import build_collection, create_materials, export_collection  # noqa: E402
+from cubegen.bpy_builder import (build_collection, create_materials, create_textured_materials,  # noqa: E402
+                                 export_collection)
 from cubegen.models import generate_asset  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 
@@ -54,12 +55,12 @@ def clear_scene():
     return scene
 
 
-def build_asset(spec):
+def build_asset(spec, material_map=None):
     asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
                            params=spec.get("params"), style=Style.from_dict(spec.get("style")))
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
-    objects = build_collection(asset, collection,
+    objects = build_collection(asset, collection, material_map=material_map,
                                tags={"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])})
     if "Damage" in objects:  # in the game only visible while the machine is broken
         objects["Damage"].hide_render = True
@@ -77,7 +78,7 @@ ENGINES = {
 }
 
 
-def setup_render(scene, engine, size, samples):
+def setup_render(scene, engine, size, samples, textured=False):
     for ident in ENGINES[engine]:
         try:
             scene.render.engine = ident  # EEVEE's identifier changed in Blender 4.2
@@ -95,7 +96,7 @@ def setup_render(scene, engine, size, samples):
     if engine == "workbench":  # like the game's render_icons()
         shading = scene.display.shading
         shading.light = "STUDIO"
-        shading.color_type = "MATERIAL"
+        shading.color_type = "TEXTURE" if textured else "MATERIAL"
         shading.show_cavity = True
     elif engine == "cycles":
         scene.cycles.samples = samples
@@ -193,17 +194,28 @@ def run_job(job_path):
         job = json.load(fh)
     scene = clear_scene()
     create_materials(overwrite=True)
+    textures = job.get("textures") or {}
+    material_map = {plain: info["name"] for plain, info in textures.items()}
+    if textures:
+        create_textured_materials(textures)
     render = job.get("render") or {}
     cam = None
     if render.get("enabled"):
-        cam = setup_render(scene, render.get("engine", "cycles"), render.get("size", 256), render.get("samples", 32))
+        cam = setup_render(scene, render.get("engine", "cycles"), render.get("size", 256), render.get("samples", 32),
+                           textured=bool(job.get("textures")))
         log(f"rendering previews with {scene.render.engine}")
 
     results, collections, biggest = [], [], 1.0
     total = len(job["models"])
     for i, spec in enumerate(job["models"], 1):
         t0 = time.time()
-        asset, collection = build_asset(spec)
+        asset, collection = build_asset(spec, material_map)
+        baked = None
+        if job.get("texture_mode") == "baked" and textures:
+            from cubegen.bake import bake_asset
+
+            baked = bake_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
+                               job["magick"], seed=spec["seed"])
         files = {}
         for fmt in job["formats"]:
             path = os.path.join(spec.get("models_dir") or job["models_dir"], f"{asset.name}.{fmt}")
@@ -217,7 +229,10 @@ def run_job(job_path):
                          render.get("zoom", 1.0))
             preview = os.path.join(job["previews_dir"], f"{asset.name}.png")
             render_preview(scene, preview)
-        results.append({"name": asset.name, "files": files, "preview": preview})
+        entry = {"name": asset.name, "files": files, "preview": preview}
+        if baked:
+            entry.update({"baked": baked["maps"], "baked_material": baked["material"]})
+        results.append(entry)
         log(f"({i}/{total}) {asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
 
         # Object names are unique per .blend: rename the finished asset's parts
