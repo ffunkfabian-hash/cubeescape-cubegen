@@ -8,6 +8,18 @@ Unity-Ordner. Alle Optionen auf einen Blick stehen am Ende unter [Alle Optionen]
 Voraussetzungen: **Python ≥ 3.9**, **[Blender](https://www.blender.org/download/) ≥ 3.6** und
 **[ImageMagick](https://imagemagick.org)** (macOS: `brew install imagemagick`). Python-Pakete braucht es keine.
 
+Am einfachsten mit dem Download-Script (lädt in den angegebenen Ordner, legt den Befehl `cubegen` an und baut
+das Blender-Add-on):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash -s -- ~/Projekte/cubegen
+```
+
+Ohne Ordnerangabe nimmt es den aktuellen Ordner, wenn er leer ist, sonst `~/cubegen`. Danach `cubegen doctor`
+statt `python3 -m cubegen doctor` (falls `~/.local/bin` nicht im `PATH` ist, zeigt das Script die nötige Zeile).
+
+Oder von Hand:
+
 ```bash
 git clone https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior.git
 cd lowpoly_cubeescape_model_generatior

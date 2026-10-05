@@ -85,13 +85,24 @@ entfernt beides wieder.
 ## Herunterladen (macOS / Linux)
 
 ```bash
+# in einen eigenen Ordner (wird angelegt, falls er fehlt)
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash -s -- ~/Projekte/cubegen
+
+# oder: im Terminal in einen leeren Ordner wechseln und dort ausführen
+cd ~/Projekte/MeinOrdner
 curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
 ```
 
-Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),
-legt den Befehl `cubegen` in `~/.local/bin` an, baut das Blender-Add-on (`~/cubegen/dist/cubegen_blender_addon.zip`)
-und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen: `--dir ORDNER`, `--branch BRANCH`,
-`--no-link` (als `… | bash -s -- --dir ~/tools/cubegen`).
+Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt in den Zielordner (mit git, sonst als Archiv),
+legt den Befehl `cubegen` in `~/.local/bin` an, baut das Blender-Add-on (`<Ordner>/dist/cubegen_blender_addon.zip`)
+und prüft Blender und ImageMagick. Zielordner:
+
+* der angegebene Ordner; liegen darin schon andere Dateien, kommt das Projekt in einen Unterordner `cubegen`
+* ohne Angabe der aktuelle Ordner, wenn er leer ist (eine `.DS_Store` vom Finder zählt nicht) oder schon cubegen enthält
+* sonst `~/cubegen`
+
+Erneut ausführen = aktualisieren (im selben Ordner bzw. mit demselben Ordner). Weitere Optionen: `--branch BRANCH`,
+`--no-link` (kein `cubegen`-Befehl).
 
 ## Schnellstart (Kommandozeile)
 
