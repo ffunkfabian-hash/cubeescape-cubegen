@@ -26,7 +26,7 @@ from mathutils import Vector  # noqa: E402
 
 from cubegen.bpy_builder import (build_collection, create_materials, create_textured_materials,  # noqa: E402
                                  export_collection)
-from cubegen.models import generate_asset  # noqa: E402
+from cubegen.models import REGISTRY, generate_asset  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 
 
@@ -225,8 +225,10 @@ def run_job(job_path):
         if cam is not None:
             for other in collections:
                 other.hide_render = True
-            frame_camera(cam, collection, render.get("azimuth", 33.0), render.get("elevation", 31.0),
-                         render.get("zoom", 1.0))
+            elevation = render.get("elevation", 31.0)
+            if REGISTRY[spec["type"]].view == "below":  # ceiling pieces: look up at them
+                elevation = -abs(elevation)
+            frame_camera(cam, collection, render.get("azimuth", 33.0), elevation, render.get("zoom", 1.0))
             preview = os.path.join(job["previews_dir"], f"{asset.name}.png")
             render_preview(scene, preview)
         entry = {"name": asset.name, "files": files, "preview": preview}

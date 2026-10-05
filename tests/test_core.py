@@ -14,6 +14,18 @@ from cubegen.models import REGISTRY, asset_name, generate_asset, model_types  # 
 from cubegen.seeds import MAX_SEED, model_seed, parse_seed  # noqa: E402
 
 SEEDS_PER_TYPE = 40
+MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirror", "Plate", "Deck", "Head",
+                "Turret", "Arm_Lower", "Arm_Upper", "Gripper")
+# fields every behaviour of a game script must carry (see docs/UNITY_INTEGRATION.md)
+SCRIPT_FIELDS = {
+    "Door": ({"panels", "statusLights", "upperFrame", "colliders"}, {"openOffset", "speed"}),
+    "Machine": ({"body", "glow"}, {"needsPower"}),
+    "Rotator": ({"target"}, {"axis", "speed"}),
+    "Rotatable": ({"target", "glow"}, {"axis", "step", "speed", "target", "interactive"}),
+    "SignalLight": ({"glow"}, {"mode"}),
+    "SignalIndicator": ({"renderers"}, {"offMaterial", "onMaterial"}),
+    "ItemPickup": ({"model"}, {"spin"}),
+}
 
 
 def volume(prim):
@@ -88,7 +100,7 @@ class SeedTests(unittest.TestCase):
 
 class ModelTests(unittest.TestCase):
     def test_registry(self):
-        self.assertGreaterEqual(len(model_types()), 25)
+        self.assertGreaterEqual(len(model_types()), 69)
         for entry in REGISTRY.values():
             self.assertTrue(entry.description)
             self.assertIn(entry.pivot, ("floor", "top", "center", "wall"))
@@ -135,7 +147,7 @@ class ModelTests(unittest.TestCase):
         for model_type in model_types():
             for seed in range(SEEDS_PER_TYPE):
                 for obj in generate_asset(model_type, seed).meshes():
-                    if obj.name in ("Rotor", "Wheel", "Panel", "Panel_B"):
+                    if obj.name in MOVING_PARTS or obj.name.startswith(("Rotor_", "Roller_")):
                         # pivot on (or within 5 cm of) the part - e.g. an off-axis beacon reflector
                         lo, hi = obj.mesh.bbox()
                         for i in range(3):
@@ -172,6 +184,48 @@ class ModelTests(unittest.TestCase):
         scaled = generate_asset("door", 3, scale=2.0).behaviours[0]["fields"]["openOffset"]
         base = generate_asset("door", 3).behaviours[0]["fields"]["openOffset"]
         self.assertEqual(scaled, [round(c * 2, 4) for c in base])
+
+    def test_behaviours_use_known_scripts_and_fields(self):
+        for model_type in model_types():
+            for seed in range(SEEDS_PER_TYPE):
+                for b in generate_asset(model_type, seed).behaviours:
+                    self.assertIn(b["script"], SCRIPT_FIELDS, model_type)
+                    parts, fields = SCRIPT_FIELDS[b["script"]]
+                    self.assertTrue(parts <= set(b["parts"]), f"{model_type} {b}")
+                    self.assertTrue(fields <= set(b["fields"]), f"{model_type} {b}")
+                    if "axis" in b["fields"]:
+                        self.assertIn(b["fields"]["axis"], ("right", "up", "forward"))
+
+    def test_puzzle_pieces(self):
+        for seed in range(SEEDS_PER_TYPE):
+            for t in ("socket", "chip_reader"):
+                self.assertIsNotNone(generate_asset(t, seed).get("Slot"), t)
+            fuse = generate_asset("fuse_box", seed)
+            slots = [o for o in fuse.objects if o.name.startswith("Slot_")]
+            self.assertEqual(len(slots), fuse.meta["slots"])
+            self.assertTrue(all(o.is_empty for o in slots))
+            fitting = generate_asset("pipe_fitting", seed)
+            rot = next(b for b in fitting.behaviours if b["script"] == "Rotatable")
+            self.assertEqual((rot["parts"]["target"], rot["fields"]["axis"], rot["fields"]["step"]),
+                             ("Fitting", "up", 90))
+            lift = generate_asset("lift", seed).behaviours[0]
+            self.assertEqual(lift["parts"]["panels"], ["Deck"])
+            self.assertGreater(lift["fields"]["openOffset"][1], 0)  # moves up (Unity Y)
+            conveyor = generate_asset("conveyor", seed)
+            rollers = [o.name for o in conveyor.objects if o.name.startswith("Roller_")]
+            self.assertEqual(sorted(b["parts"]["target"] for b in conveyor.behaviours), sorted(rollers))
+
+    def test_robot_arm_joint_chain(self):
+        for seed in range(SEEDS_PER_TYPE):
+            arm = generate_asset("robot_arm", seed)
+            parents = {o.name: o.parent for o in arm.objects}
+            self.assertEqual((parents["Turret"], parents["Arm_Lower"], parents["Arm_Upper"], parents["Gripper"]),
+                             (None, "Turret", "Arm_Lower", "Arm_Upper"))
+            drone = generate_asset("drone", seed)
+            self.assertEqual(sum(b["script"] == "Rotator" for b in drone.behaviours), drone.meta["rotors"])
+
+    def test_ceiling_pieces_are_viewed_from_below(self):
+        self.assertEqual({t for t, e in REGISTRY.items() if e.view == "below"}, {"ceiling_panel", "hanging_crystals"})
 
     def test_doors_have_game_part_names(self):
         for seed in range(20):

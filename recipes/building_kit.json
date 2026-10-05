@@ -1,0 +1,20 @@
+{
+  "seed": "building-kit-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "style": { "snap": 0.5 },
+  "models": {
+    "wall": 4,
+    "wall_corner": 3,
+    "window_wall": 3,
+    "floor_tile": 4,
+    "ceiling_panel": 3,
+    "stairs": 2,
+    "ladder": 2,
+    "catwalk": 3,
+    "cable_tray": 2,
+    "lift": 1,
+    "conveyor": 2,
+    "pad": 2
+  }
+}
