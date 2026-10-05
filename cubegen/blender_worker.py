@@ -26,6 +26,7 @@ from mathutils import Vector  # noqa: E402
 
 from cubegen.bpy_builder import build_collection, create_materials, export_collection  # noqa: E402
 from cubegen.models import generate_asset  # noqa: E402
+from cubegen.params import Style  # noqa: E402
 
 
 def log(msg):
@@ -54,7 +55,8 @@ def clear_scene():
 
 
 def build_asset(spec):
-    asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0))
+    asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
+                           params=spec.get("params"), style=Style.from_dict(spec.get("style")))
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
     objects = build_collection(asset, collection,
@@ -128,17 +130,23 @@ def setup_render(scene, engine, size, samples):
     return cam
 
 
-def frame_camera(cam, collection, margin=1.12):
-    """Orthographic camera from front-right-above (front = -Y), tightly framed."""
+def frame_camera(cam, collection, azimuth=33.0, elevation=31.0, zoom=1.0):
+    """Orthographic camera looking at the front (-Y), tightly framed.
+
+    azimuth / elevation in degrees like the ICONS table of the game's generate_assets.py
+    (positive azimuth = from the right); zoom > 1 moves closer.
+    """
     corners = []
     for obj in collection.all_objects:
-        if obj.type == "MESH":
+        if obj.type == "MESH" and not obj.hide_render:
             corners += [obj.matrix_world @ Vector(c) for c in obj.bound_box]
     if not corners:
         return
     center = sum(corners, Vector()) / len(corners)
     radius = max((c - center).length for c in corners) or 1.0
-    direction = Vector((0.85, -1.3, 0.9)).normalized()
+    az, el = math.radians(azimuth), math.radians(elevation)
+    direction = Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
+    margin = 1.12 / max(zoom, 0.01)
     cam.location = center + direction * radius * 4.0
     cam.rotation_euler = (-direction).to_track_quat("-Z", "Y").to_euler()
     bpy.context.view_layer.update()
@@ -202,7 +210,8 @@ def run_job(job_path):
         if cam is not None:
             for other in collections:
                 other.hide_render = True
-            frame_camera(cam, collection)
+            frame_camera(cam, collection, render.get("azimuth", 33.0), render.get("elevation", 31.0),
+                         render.get("zoom", 1.0))
             preview = os.path.join(job["previews_dir"], f"{asset.name}.png")
             render_preview(scene, preview)
         results.append({"name": asset.name, "files": files, "preview": preview})

@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
@@ -43,11 +43,13 @@ def _load_cubegen():
             sys.path.insert(0, repo)  # development: add-on folder symlinked from the repository
         import cubegen as pkg
     return {name: importlib.import_module(f"{pkg.__name__}.{name}")
-            for name in ("models", "seeds", "pipeline", "bpy_builder")}, pkg.__version__
+            for name in ("models", "seeds", "pipeline", "bpy_builder", "params")}, pkg.__version__
 
 
 _CG, CUBEGEN_VERSION = _load_cubegen()
 models, seeds, pipeline, builder = _CG["models"], _CG["seeds"], _CG["pipeline"], _CG["bpy_builder"]
+params_mod = _CG["params"]
+SEED = "__seed__"  # enum value: "roll it from the seed" 
 
 PREVIEW_COLLECTION = "CubeEscape Vorschau"
 GRID_COLLECTION = "CubeEscape Varianten"
@@ -86,7 +88,45 @@ def _all_types():
 def _cli_command(s):
     seed = s.master_seed if s.master_seed.isdigit() else f'"{s.master_seed}"'
     cmd = f"python3 -m cubegen generate --seed {seed} --pick {s.model_type}:{s.variant}"
-    return cmd + (f" --prefix {s.prefix}" if s.prefix else "")
+    if s.prefix:
+        cmd += f" --prefix {s.prefix}"
+    for name, value in _overrides(s).get(s.model_type, {}).items():
+        cmd += f" --param {s.model_type}.{name}={value}"
+    style = _style(s)
+    flags = [("--size", style.size), ("--glow", style.glow), ("--material-style", style.material),
+             ("--warning", style.warning)]
+    flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear if style.wear != "none" else None),
+              ("--detail", style.detail if style.detail != "normal" else None)]
+    return cmd + "".join(f" {flag} {value}" for flag, value in flags if value)
+
+
+def _overrides(s):
+    """Fixed parameters of every type: {type: {name: value}} (only what the user fixed)."""
+    result = {}
+    for entry in models.REGISTRY.values():
+        group = getattr(s.type_params, entry.name)
+        values = {}
+        for prm in entry.params:
+            if prm.kind in ("choice", "bool"):
+                value = getattr(group, prm.name)
+                if value != SEED:
+                    values[prm.name] = value
+            elif getattr(group, "use_" + prm.name):
+                value = getattr(group, prm.name)
+                values[prm.name] = round(value, 4) if prm.kind == "float" else value
+        if values:
+            result[entry.name] = values
+    return result
+
+
+def _style(s):
+    unset = (SEED, "")
+    return params_mod.Style(
+        size=None if s.size_class in unset else s.size_class, snap=float(s.snap),
+        glow=None if s.glow_color in unset else s.glow_color,
+        material=None if s.material_style in unset else s.material_style,
+        warning=None if s.warning in unset else s.warning, wear=s.wear, detail=s.detail,
+    )
 
 
 def _tag_redraw(context):
@@ -120,7 +160,8 @@ def rebuild_preview(context):
     s = _settings(context)
     builder.create_materials(overwrite=False)
     master, seed, name = _spec(s)
-    asset = models.generate_asset(s.model_type, seed, name, s.scale)
+    asset = models.generate_asset(s.model_type, seed, name, s.scale, params=_overrides(s).get(s.model_type),
+                                  style=_style(s))
     coll = _new_collection(context, PREVIEW_COLLECTION)
     _build(asset, coll, s, s.variant)
     stats = asset.stats()
@@ -129,6 +170,7 @@ def rebuild_preview(context):
         "name": name, "seed": seed, "parts": stats["objects"], "tris": stats["triangles"],
         "dims": stats["dimensions_m"],
         "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed") and not isinstance(v, (dict, list))},
+        "type": s.model_type, "params": dict(asset.meta.get("params", {})),
     })
 
 
@@ -139,7 +181,9 @@ def build_grid(context, entries=None, columns=None):
     if entries is None:
         entries = [(s.model_type, v) for v in range(s.grid_start, s.grid_start + s.grid_count)]
     variants = [v for _, v in entries]
-    assets = [models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale) for t, v in entries]
+    overrides, style = _overrides(s), _style(s)
+    assets = [models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale, params=overrides.get(t),
+                                    style=style) for t, v in entries]
     spacing = max(max(a.stats()["dimensions_m"][:2]) for a in assets) + 1.0
     cols = columns or math.ceil(math.sqrt(len(assets)))
     parent = _new_collection(context, GRID_COLLECTION)
@@ -204,6 +248,8 @@ def make_configs(context, picks):
             prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
             models_dir=export_dir, icons_dir=bpy.path.abspath(s.icons_dir).strip() or None,
             library_dir=bpy.path.abspath(s.library_dir).strip() or None,
+            params=_overrides(s), style=_style(s),
+            icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
             blender=bpy.app.binary_path, magick=prefs.magick_path.strip() or None,
         ))
     return configs
@@ -219,6 +265,60 @@ def _on_change(self, context):
             rebuild_preview(context)
         except Exception:  # never break the UI because of a preview
             traceback.print_exc()
+
+
+def _on_param_change(self, context):
+    _on_change(context.scene.cubegen, context)
+
+
+def _make_use_update(model_type, name):
+    """Ticking "festlegen" starts from the value the seed rolled for the current preview."""
+
+    def update(self, context):
+        if getattr(self, "use_" + name) and _INFO.get("type") == model_type and name in _INFO.get("params", {}):
+            rolled = _INFO["params"][name]
+            if isinstance(rolled, (int, float)) and not isinstance(rolled, bool):
+                setattr(self, name, rolled)
+                return  # setting the value already rebuilt the preview
+        _on_param_change(self, context)
+
+    return update
+
+
+def _param_annotations(model_type, prm):
+    seed_label = "Standard" if (prm.unity or prm.default is not None) else "Seed"
+    seed_item = (SEED, seed_label, "Nicht festgelegt: vom Seed bestimmt (Unity-Werte: Standard des Generators)")
+    if prm.kind in ("choice", "bool"):
+        values = ([(str(c), str(c), "") for c in prm.choices] if prm.kind == "choice"
+                  else [("on", "An", ""), ("off", "Aus", "")])
+        return {prm.name: EnumProperty(name=prm.label, items=[seed_item] + values, default=SEED,
+                                       description=prm.description, update=_on_param_change)}
+    lo, hi = prm.lo, prm.hi
+    default = prm.default if prm.default is not None else lo + (hi - lo) * 0.25
+    value_prop = (FloatProperty(name=prm.label, min=lo, max=hi, default=default, precision=2,
+                                description=prm.description, update=_on_param_change) if prm.kind == "float"
+                  else IntProperty(name=prm.label, min=int(lo), max=int(hi), default=int(default),
+                                   description=prm.description, update=_on_param_change))
+    return {
+        "use_" + prm.name: BoolProperty(name=f"{prm.label} festlegen", default=False,
+                                        description="Festlegen statt vom Seed würfeln",
+                                        update=_make_use_update(model_type, prm.name)),
+        prm.name: value_prop,
+    }
+
+
+def _type_param_group(entry):
+    annotations = {}
+    for prm in entry.params:
+        annotations.update(_param_annotations(entry.name, prm))
+    return type(f"CUBEGEN_PG_params_{entry.name}", (bpy.types.PropertyGroup,), {"__annotations__": annotations})
+
+
+TYPE_PARAM_GROUPS = [_type_param_group(e) for e in sorted(models.REGISTRY.values(), key=lambda e: e.name)]
+CUBEGEN_TypeParams = type("CUBEGEN_TypeParams", (bpy.types.PropertyGroup,), {"__annotations__": {
+    e.name: PointerProperty(type=cls)
+    for e, cls in zip(sorted(models.REGISTRY.values(), key=lambda e: e.name), TYPE_PARAM_GROUPS)
+}})
 
 
 class CUBEGEN_Settings(bpy.types.PropertyGroup):
@@ -251,6 +351,35 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     fmt_obj: BoolProperty(name="OBJ", default=False)
     render_icons: BoolProperty(name="Icons + Kontaktbogen", default=True,
                                description="Previews rendern und mit ImageMagick Icons erzeugen")
+
+    # global style (all types)
+    size_class: EnumProperty(name="Größe", update=_on_change, items=[
+        (SEED, "Seed", "Größe vom Seed"), ("S", "S – klein", "Unteres Drittel der Größenbereiche"),
+        ("M", "M – mittel", "Mittleres Drittel"), ("L", "L – groß", "Oberes Drittel")])
+    snap: EnumProperty(name="Raster", update=_on_change, default="0", items=[
+        ("0", "Aus", "Maße nicht runden"), ("0.25", "0,25 m", ""), ("0.5", "0,5 m", ""), ("1.0", "1 m", ""),
+        ("2.0", "2 m", "")], description="Hauptmaße auf Vielfache runden (passt ins Modulraster)")
+    glow_color: EnumProperty(name="Glow-Farbe", update=_on_change, items=[
+        (SEED, "Seed", "Glow-Farbe vom Seed"), ("cyan", "Cyan", ""), ("red", "Rot", ""), ("orange", "Orange", "")],
+        description="Für Deko-Glow; Status-Teile (Maschine, Terminal, Tür) behalten ihre Zustandsfarbe")
+    material_style: EnumProperty(name="Material", update=_on_change, items=[
+        (SEED, "Seed", "Material vom Seed"), ("metal", "Metall", "M_Metal bevorzugen"),
+        ("wall", "Wand", "M_Wall bevorzugen"), ("dark", "Dunkel", "M_RobotDark bevorzugen"),
+        ("light", "Hell", "M_Platform / M_RobotBody bevorzugen")])
+    warning: EnumProperty(name="Warnfarbe", update=_on_change, items=[
+        (SEED, "Seed", "Warnstreifen/-bänder vom Seed"), ("none", "Keine", ""), ("always", "Immer", "")])
+    wear: EnumProperty(name="Abnutzung", update=_on_change, default="none", items=[
+        ("none", "Keine", ""), ("light", "Leicht", "Ein paar Brocken und eine lose Platte"),
+        ("heavy", "Stark", "Mehr Trümmer, Platten und ein abgerissenes Kabel")])
+    detail: EnumProperty(name="Detail", update=_on_change, default="normal", items=[
+        ("low", "Niedrig", "Keine Fasen, weniger Zylinder-Seiten"), ("normal", "Normal", ""),
+        ("high", "Hoch", "Rundere Zylinder")])
+    icon_azimuth: FloatProperty(name="Azimut", default=33.0, min=-180.0, max=180.0,
+                                description="Icon-Kamera: Winkel um das Modell (+ = von rechts), Grad")
+    icon_elevation: FloatProperty(name="Höhe", default=31.0, min=-10.0, max=89.0,
+                                  description="Icon-Kamera: Blickwinkel von oben, Grad")
+    icon_zoom: FloatProperty(name="Zoom", default=1.0, min=0.2, max=5.0, description="> 1 = näher heran")
+    type_params: PointerProperty(type=CUBEGEN_TypeParams)
 
     running: BoolProperty(default=False)
     status: StringProperty(default="")
@@ -329,6 +458,26 @@ class CUBEGEN_OT_all_types(bpy.types.Operator):
         entries = all_type_entries(s)
         build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
         self.report({"INFO"}, f"{len(entries)} Modelle gebaut ({len(_all_types())} Typen × {s.per_type})")
+        return {"FINISHED"}
+
+
+class CUBEGEN_OT_reset_params(bpy.types.Operator):
+    bl_idname = "cubegen.reset_params"
+    bl_label = "Zurücksetzen"
+    bl_description = "Alle Parameter dieses Typs wieder vom Seed bestimmen lassen"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        s = _settings(context)
+        live, s.live = s.live, False
+        group = getattr(s.type_params, s.model_type)
+        for prm in models.REGISTRY[s.model_type].params:
+            if prm.kind in ("choice", "bool"):
+                setattr(group, prm.name, SEED)
+            else:
+                setattr(group, "use_" + prm.name, False)
+        s.live = live
+        rebuild_preview(context)
         return {"FINISHED"}
 
 
@@ -525,6 +674,58 @@ class CUBEGEN_PT_main(_Panel, bpy.types.Panel):
         row.operator("cubegen.copy_cli", text="CLI", icon="COPYDOWN")
 
 
+class CUBEGEN_PT_params(_Panel, bpy.types.Panel):
+    bl_label = "Parameter"
+    bl_parent_id = "CUBEGEN_PT_main"
+
+    def draw(self, context):
+        s = _settings(context)
+        layout = self.layout
+        entry = models.REGISTRY[s.model_type]
+        group = getattr(s.type_params, s.model_type)
+        rolled = _INFO.get("params", {}) if _INFO.get("type") == s.model_type else {}
+        if not entry.params:
+            layout.label(text="Dieser Typ hat keine Parameter")
+            return
+        col = layout.column(align=True)
+        for prm in entry.params:
+            row = col.row(align=True)
+            if prm.kind in ("choice", "bool"):
+                row.prop(group, prm.name)
+                fixed = getattr(group, prm.name) != SEED
+            else:
+                row.prop(group, "use_" + prm.name, text="")
+                sub = row.row(align=True)
+                fixed = getattr(group, "use_" + prm.name)
+                sub.active = fixed
+                sub.prop(group, prm.name)
+            if not fixed and prm.name in rolled:  # what the seed chose for the current preview
+                value = rolled[prm.name]
+                row.label(text=f"{value:.2f}" if isinstance(value, float) else str(value))
+            if prm.unity:
+                row.label(text="", icon="LINKED")
+        row = layout.row(align=True)
+        row.operator("cubegen.reset_params", icon="LOOP_BACK")
+        row.label(text="= Unity-Script-Wert", icon="LINKED")
+
+
+class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
+    bl_label = "Stil (alle Typen)"
+    bl_parent_id = "CUBEGEN_PT_main"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context):
+        s = _settings(context)
+        col = self.layout.column(align=True)
+        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail"):
+            col.prop(s, name)
+        self.layout.label(text="Icon-Kamera")
+        row = self.layout.row(align=True)
+        row.prop(s, "icon_azimuth")
+        row.prop(s, "icon_elevation")
+        row.prop(s, "icon_zoom")
+
+
 class CUBEGEN_PT_grid(_Panel, bpy.types.Panel):
     bl_label = "Varianten-Raster"
     bl_parent_id = "CUBEGEN_PT_main"
@@ -584,11 +785,11 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
 
 
 CLASSES = (
-    CUBEGEN_Settings, CUBEGEN_Preferences,
+    *TYPE_PARAM_GROUPS, CUBEGEN_TypeParams, CUBEGEN_Settings, CUBEGEN_Preferences,
     CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_all_types, CUBEGEN_OT_use_active,
-    CUBEGEN_OT_clear,
+    CUBEGEN_OT_reset_params, CUBEGEN_OT_clear,
     CUBEGEN_OT_copy_cli, CUBEGEN_OT_export, CUBEGEN_OT_open_folder,
-    CUBEGEN_PT_main, CUBEGEN_PT_grid, CUBEGEN_PT_export,
+    CUBEGEN_PT_main, CUBEGEN_PT_params, CUBEGEN_PT_style, CUBEGEN_PT_grid, CUBEGEN_PT_export,
 )
 
 

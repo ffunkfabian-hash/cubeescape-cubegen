@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import math
 
-from .common import ALONG_X, cube, cyl, deg, frustum, glow_material, rail, stripes
+from ..params import Param
+from .common import ALONG_X, cube, cyl, deg, frustum, rail, stripes
 from .registry import model
 
 DOOR_STYLES = {
@@ -51,12 +52,27 @@ def _door_offset(style: str, width: float, height: float, split) -> list:
     return [0.0, round((height + 0.1) * (-1 if direction == "down" else 1), 4), 0.0]
 
 
-@model("door", "Door", "environment", "Door with frame, status lights and one or two moving leaves (6 styles)")
+@model("door", "Door", "environment", "Door with frame, status lights and one or two moving leaves (6 styles)",
+       params=[
+           Param("style", "choice", "Stil", choices=tuple(sorted(DOOR_STYLES))),
+           Param("width", "float", "Öffnung Breite (m)", lo=0.6, hi=8.0, size=True),
+           Param("height", "float", "Öffnung Höhe (m)", lo=1.2, hi=8.0, size=True),
+           Param("speed", "float", "Öffnungstempo (m/s)", lo=0.05, hi=20.0, unity=True),
+       ])
 def door(rng, a):
-    style = rng.choice(sorted(DOOR_STYLES))
+    p = a.p
+    style = p.choice("style", sorted(DOOR_STYLES))
     (w0, w1), (h0, h1), post, depth, frame_mat, panel_mat, split, stripe_mat, accent, top = DOOR_STYLES[style]
-    width = round(rng.uniform(w0, w1) * 5) / 5   # snap to 0.2 m so doors fit wall openings
-    height = round(rng.uniform(h0, h1) * 5) / 5
+
+    def opening(name, lo, hi):
+        value = p.float(name, lo, hi)
+        if name not in p.overrides and p.style.snap == 0:
+            value = round(value * 5) / 5  # snap to 0.2 m so doors fit wall openings
+        p.used[name] = value
+        return value
+
+    width = opening("width", w0, w1)
+    height = opening("height", h0, h1)
     top = top if top is not None else post
     a.meta.update({"style": style, "opening_m": [width, height], "split": split})
 
@@ -97,20 +113,28 @@ def door(rng, a):
     panels = ["Panel", "Panel_B"] if split else ["Panel"]
     a.behaviour("Door", {"panels": panels, "statusLights": ["StatusLight_Front", "StatusLight_Back"],
                          "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Frame_Top"]},
-                {"openOffset": _door_offset(style, width, height, split), "speed": DOOR_MOTION[style][1]},
+                {"openOffset": _door_offset(style, width, height, split),
+                 "speed": p.value("speed", DOOR_MOTION[style][1])},
                 note="openOffset in Unity units relative to the leaf's rest position; split leaves move by the "
                      "sign of their localPosition")
 
 
 @model("platform", "Platform", "environment", "Floating platform (walkable top at z = 0): square or octagonal, "
-       "tapered underside or crystal keel", pivot="top")
+       "tapered underside or crystal keel", pivot="top", params=[
+           Param("size", "choice", "Größe (m)", choices=(1.0, 2.0, 3.0, 4.0)),
+           Param("shape", "choice", "Form", choices=("square", "octagon")),
+           Param("underside", "choice", "Unterseite", choices=("frustum", "keel")),
+           Param("rail", "bool", "Geländer (hinten)"),
+           Param("stripes", "bool", "Warnstreifen vorne"),
+       ])
 def platform(rng, a):
-    size = rng.choice([1.0, 2.0, 2.0, 3.0, 4.0])
-    shape = rng.choice(["square", "square", "octagon"])
-    deck_mat = rng.choice(["M_Platform", "M_Platform", "M_Metal"])
-    glow = glow_material(rng)
+    p = a.p
+    size = p.choice("size", [1.0, 2.0, 2.0, 3.0, 4.0])
+    shape = p.choice("shape", ["square", "square", "octagon"])
+    deck_mat = p.material(["M_Platform", "M_Platform", "M_Metal"])
+    glow = p.glow()
     deck, lights = a.part("Deck"), a.part("Glow")
-    under = rng.choice(["frustum", "frustum", "keel"])
+    under = p.choice("underside", ["frustum", "frustum", "keel"])
     a.meta.update({"size_m": size, "shape": shape, "underside": under})
 
     if shape == "square":
@@ -132,22 +156,31 @@ def platform(rng, a):
         cyl(deck, kr, depth * 0.5, (0, 0, -0.31 - depth * 0.25), "M_Crystal", sides=6, radius_top=kr * 1.4)
         cyl(deck, kr, depth * 0.6, (0, 0, -0.31 - depth * 0.5 - depth * 0.3), "M_Crystal", sides=6, radius_top=0.0,
             rot=(math.pi, 0, 0))
-    if size >= 2 and rng.random() < 0.3:
+    if p.value("rail", size >= 2 and rng.random() < 0.3):
         rail(a.part("Rail"), size - 0.2, True, size / 2 - 0.1)
         a.meta["rail"] = True
-    if rng.random() < 0.3:
+    if p.bool("stripes", 0.3, warning=True):
         stripes(deck, size * 0.8, (0, -size / 2 + 0.12, 0.006), count=6, width=0.12)
 
 
-@model("wall", "Wall", "environment", "Wall module 2 or 4 m long, 3 m high, 0.5 m thick: panel layouts, glow lines, pipes")
+@model("wall", "Wall", "environment", "Wall module 2 or 4 m long, 3 m high, 0.5 m thick: panel layouts, glow lines, pipes",
+       params=[
+           Param("length", "choice", "Länge (m)", choices=(2.0, 4.0)),
+           Param("layout", "choice", "Panel-Layout", choices=("tall", "split", "grid", "vent")),
+           Param("lines", "choice", "Glow-Linien", choices=("top", "both", "vertical")),
+           Param("pipe", "bool", "Rohr vorne"),
+           Param("pipe_height", "float", "Rohr-Höhe (m)", lo=0.2, hi=2.8, description="Nur mit Rohr"),
+           Param("stripes", "bool", "Warnstreifen unten"),
+       ])
 def wall(rng, a):
-    length = rng.choice([2.0, 4.0, 4.0])
+    p = a.p
+    length = p.choice("length", [2.0, 4.0, 4.0])
     m, lights = a.part("Wall"), a.part("Glow")
-    glow = glow_material(rng)
-    cube(m, (length, 0.5, 3.0), (0, 0, 1.5), "M_Wall", bevel=0.03)
+    glow = p.glow()
+    cube(m, (length, 0.5, 3.0), (0, 0, 1.5), p.styled("M_Wall", ["M_Wall", "M_Metal"]), bevel=0.03)
     cube(m, (length, 0.56, 0.25), (0, 0, 0.125), "M_RobotDark", bevel=0.01)
     cube(m, (length, 0.60, 0.15), (0, 0, 2.95), "M_RobotDark", bevel=0.01)
-    layout = rng.choice(["tall", "split", "grid", "vent"])
+    layout = p.choice("layout", ["tall", "split", "grid", "vent"])
     a.meta.update({"length_m": length, "layout": layout})
     for i in range(int(length // 2)):
         x = -length / 2 + 1 + i * 2
@@ -166,7 +199,7 @@ def wall(rng, a):
                 if y < 0:  # vent grille on the front only
                     for k in range(6):
                         cube(m, (1.2, 0.05, 0.04), (x, y - 0.02, 0.8 + k * 0.12), "M_RobotDark", rot=(deg(30), 0, 0))
-    lines = rng.choice(["top", "both", "vertical"])
+    lines = p.choice("lines", ["top", "both", "vertical"])
     for y in (-0.285, 0.285):
         if lines in ("top", "both"):
             cube(lights, (length - 0.4, 0.02, 0.05), (0, y, 2.45), glow)
@@ -177,23 +210,30 @@ def wall(rng, a):
                 x = -length / 2 + i * 2
                 x = max(-length / 2 + 0.1, min(length / 2 - 0.1, x))
                 cube(lights, (0.04, 0.02, 2.2), (x, y, 1.45), glow)
-    if rng.random() < 0.3:  # pipe along the front
-        z = rng.uniform(0.5, 2.2)
+    if p.bool("pipe", 0.3):  # pipe along the front
+        z = p.value("pipe_height", rng.uniform(0.5, 2.2))
         cyl(m, 0.07, length, (0, -0.4, z), "M_Metal", rot=ALONG_X)
         for x in (-length / 2 + 0.4, length / 2 - 0.4):
             cube(m, (0.08, 0.16, 0.08), (x, -0.32, z), "M_RobotDark")
         a.meta["pipe"] = True
-    if rng.random() < 0.2:
+    if p.bool("stripes", 0.2, warning=True):
         stripes(m, length * 0.9, (0, -0.29, 0.125), count=int(length * 2), width=0.02, height=0.2)
 
 
-@model("pillar", "Pillar", "environment", "Square or octagonal pillar with base, cap, glow strips and warning band")
+@model("pillar", "Pillar", "environment", "Square or octagonal pillar with base, cap, glow strips and warning band",
+       params=[
+           Param("width", "float", "Breite (m)", lo=0.2, hi=3.0, size=True),
+           Param("height", "choice", "Höhe (m)", choices=(3.0, 4.0)),
+           Param("shape", "choice", "Form", choices=("square", "octagon")),
+           Param("warning_band", "bool", "Warnband"),
+       ])
 def pillar(rng, a):
-    w = rng.uniform(0.4, 1.2)
-    h = rng.choice([3.0, 3.0, 4.0])
-    shape = rng.choice(["square", "octagon"])
-    mat = rng.choice(["M_Wall", "M_Metal"])
-    glow = glow_material(rng)
+    p = a.p
+    w = p.float("width", 0.4, 1.2)
+    h = p.choice("height", [3.0, 3.0, 4.0])
+    shape = p.choice("shape", ["square", "octagon"])
+    mat = p.material(["M_Wall", "M_Metal"])
+    glow = p.glow()
     body, lights = a.part("Body"), a.part("Glow")
     a.meta.update({"shape": shape, "height_m": h})
     if shape == "square":
@@ -213,5 +253,5 @@ def pillar(rng, a):
             ap = w / 2 + 0.005
             cube(lights, (0.06 if i % 2 == 0 else 0.02, 0.02 if i % 2 == 0 else 0.06, h * 0.72),
                  (math.cos(ang) * ap, math.sin(ang) * ap, h / 2), glow)
-    if rng.random() < 0.35:
+    if p.bool("warning_band", 0.35, warning=True):
         cube(body, (w + 0.04, w + 0.04, 0.2), (0, 0, 0.5), "M_Warning")

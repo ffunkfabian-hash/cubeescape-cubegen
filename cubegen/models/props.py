@@ -4,20 +4,29 @@ from __future__ import annotations
 
 import math
 
-from .common import ALONG_X, cube, cyl, deg, glow_material
+from ..params import Param
+from .common import ALONG_X, cube, cyl, deg
 from .registry import model
 
 
-@model("crate", "Crate", "props", "Sci-fi crate: panels, rims or corner posts, warning paint, glow strips")
+@model("crate", "Crate", "props", "Sci-fi crate: panels, rims or corner posts, warning paint, glow strips", params=[
+    Param("width", "float", "Breite (m)", lo=0.3, hi=3.0, size=True),
+    Param("height", "float", "Höhe (m)", lo=0.2, hi=3.0, size=True),
+    Param("style", "choice", "Stil", choices=("panels", "rims", "posts")),
+    Param("stripes", "bool", "Warnstreifen vorne"),
+    Param("hatch", "bool", "Orange Deckelluke"),
+    Param("glow_pattern", "choice", "Glow-Muster", choices=("strips", "line")),
+])
 def crate(rng, a):
-    w = rng.uniform(0.8, 1.4)
+    p = a.p
+    w = p.float("width", 0.8, 1.4)
     d = w * rng.choice([1.0, 1.0, rng.uniform(0.7, 1.0)])
-    h = w * rng.uniform(0.6, 1.0)
-    body_mat = rng.choice(["M_RobotDark", "M_Wall", "M_Metal"])
+    h = p.value("height", w * rng.uniform(0.6, 1.0))
+    body_mat = p.material(["M_RobotDark", "M_Wall", "M_Metal"])
     trim = "M_Metal" if body_mat == "M_RobotDark" else "M_RobotDark"
     panel = rng.choice([m for m in ("M_Platform", "M_Wall", "M_RobotBody", "M_Metal") if m != body_mat])
-    style = rng.choice(["panels", "rims", "posts"])
-    glow = glow_material(rng)
+    style = p.choice("style", ["panels", "rims", "posts"])
+    glow = p.glow()
     a.meta["style"] = style
     body, lights = a.part("Body"), a.part("Glow")
 
@@ -44,7 +53,7 @@ def crate(rng, a):
                      trim, bevel=0.01)
         out = 0.01
 
-    if rng.random() < 0.45:  # warning stripes on the front
+    if p.bool("stripes", 0.45, warning=True):  # warning stripes on the front
         n = rng.randint(3, 6)
         span = w * 0.6
         for i in range(n):
@@ -52,12 +61,12 @@ def crate(rng, a):
             cube(body, (span / n * 0.45, 0.02, h * 0.18), (x, -d / 2 - out - 0.01, h * 0.3), "M_Warning",
                  rot=(0, deg(30), 0))
         a.meta["stripes"] = n
-    if rng.random() < 0.35:
+    if p.bool("hatch", 0.35, warning=True):
         cube(body, (w * 0.4, d * 0.4, 0.04), (0, 0, h + out + 0.02), "M_HazardOrange", bevel=0.01)
 
     gy = d / 2 + out + 0.01
-    if rng.random() < 0.5:  # vertical strips front and back
-        for s in (-1, 1):
+    if p.value("glow_pattern", "strips" if rng.random() < 0.5 else "line") == "strips":
+        for s in (-1, 1):  # vertical strips front and back
             for x in (-w * 0.3, w * 0.3):
                 cube(lights, (0.04, 0.02, h * 0.5), (x, s * gy, h / 2), glow)
     else:  # one line around the crate
@@ -67,13 +76,21 @@ def crate(rng, a):
             cube(lights, (0.02, d * 0.7, 0.04), (s * (w / 2 + out + 0.01), 0, z), glow)
 
 
-@model("canister", "Canister", "props", "Canister / barrel: bands, cap, handle, warning band, glow window")
+@model("canister", "Canister", "props", "Canister / barrel: bands, cap, handle, warning band, glow window", params=[
+    Param("radius", "float", "Radius (m)", lo=0.1, hi=1.0, size=True, snap_factor=2),
+    Param("height", "float", "Höhe (m)", lo=0.3, hi=3.0, size=True),
+    Param("sides", "choice", "Seiten", choices=(8, 10, 12)),
+    Param("warning_band", "bool", "Warnband"),
+    Param("handle", "bool", "Tragegriff"),
+    Param("glow_style", "choice", "Glow", choices=("window", "ring")),
+])
 def canister(rng, a):
-    r = rng.uniform(0.2, 0.35)
-    h = rng.uniform(0.6, 1.1)
-    sides = rng.choice([8, 10, 12])
-    mat = rng.choice(["M_Wall", "M_Metal", "M_RobotBody", "M_HazardOrange"])
-    glow = glow_material(rng)
+    p = a.p
+    r = p.float("radius", 0.2, 0.35)
+    h = p.float("height", 0.6, 1.1)
+    sides = p.choice("sides", [8, 10, 12])
+    mat = p.material(["M_Wall", "M_Metal", "M_RobotBody", "M_HazardOrange"])
+    glow = p.glow()
     body, lights = a.part("Body"), a.part("Glow")
     apothem = r * math.cos(math.pi / sides)
 
@@ -82,24 +99,28 @@ def canister(rng, a):
     for f in bands:
         cyl(body, r * 1.07, 0.06, (0, 0, h * f), "M_RobotDark", sides=sides)
     cyl(body, r * 0.7, 0.05, (0, 0, h + 0.025), "M_RobotDark", sides=sides)
-    if rng.random() < 0.4:
+    if p.bool("warning_band", 0.4, warning=True):
         cyl(body, r * 1.02, h * 0.12, (0, 0, h * 0.3), "M_Warning", sides=sides)
-    if rng.random() < 0.5:  # carry handle
+    if p.bool("handle", 0.5):  # carry handle
         for x in (-r * 0.45, r * 0.45):
             cube(body, (0.03, 0.03, 0.12), (x, 0, h + 0.1), "M_Metal")
         cube(body, (r * 0.9 + 0.03, 0.04, 0.03), (0, 0, h + 0.16), "M_Metal")
         a.meta["handle"] = True
-    if rng.random() < 0.5:
+    if p.value("glow_style", "window" if rng.random() < 0.5 else "ring") == "window":
         cube(lights, (0.05, 0.02, h * 0.45), (0, -apothem * 1.02 - 0.01, h / 2), glow)
     else:
         cyl(lights, r * 1.03, 0.05, (0, 0, h * rng.uniform(0.6, 0.7)), glow, sides=sides)
 
 
 @model("item", "Item", "props", "Inventory item: energy cell, battery, data chip or fuse (pivot in the centre)",
-       pivot="center")
+       pivot="center", params=[
+           Param("kind", "choice", "Art", choices=("energy_cell", "battery", "data_chip", "fuse")),
+           Param("spin", "float", "Drehtempo im Level (°/s)", lo=0, hi=360, unity=True, default=45),
+       ])
 def item(rng, a):
-    kind = rng.choice(["energy_cell", "battery", "data_chip", "fuse"])
-    glow = glow_material(rng, weights=(0.75, 0.05, 0.2))
+    p = a.p
+    kind = p.choice("kind", ["energy_cell", "battery", "data_chip", "fuse"])
+    glow = p.glow(weights=(0.75, 0.05, 0.2))
     body, lights = a.part("Body"), a.part("Glow")
     a.meta["kind"] = kind
     if kind == "energy_cell":
@@ -116,7 +137,7 @@ def item(rng, a):
         cyl(body, r * 0.45, 0.05, (0, 0, h / 2 + 0.085), "M_Platform", sides=6)
     elif kind == "battery":
         w, d, h = rng.uniform(0.28, 0.4), rng.uniform(0.16, 0.22), rng.uniform(0.2, 0.28)
-        cube(body, (w, d, h), (0, 0, 0), rng.choice(["M_Wall", "M_RobotBody"]), bevel=0.02)
+        cube(body, (w, d, h), (0, 0, 0), p.material(["M_Wall", "M_RobotBody"]), bevel=0.02)
         for x in (-w / 2, w / 2):
             cube(body, (0.04, d + 0.02, h + 0.02), (x, 0, 0), "M_HazardOrange", bevel=0.01)
         cube(lights, (w * 0.6, 0.02, h * 0.2), (0, -d / 2 - 0.005, h * 0.12), glow)
@@ -138,25 +159,31 @@ def item(rng, a):
             cyl(body, r, 0.06, (x, 0, 0), "M_Metal", sides=8, bevel=0.01, rot=ALONG_X)
         cube(body, (length * 0.3, r * 0.6, 0.02), (0, 0, r * 0.85), "M_RobotDark")
     # floats and turns around world up while lying in the level (pivot in the centre)
-    a.behaviour("ItemPickup", {"model": ["Body", "Glow"]}, {"spin": 45},
+    a.behaviour("ItemPickup", {"model": ["Body", "Glow"]}, {"spin": p.option("spin")},
                 note="ItemPickup turns the whole model around world Y and lets it float")
 
 
-@model("debris", "Debris", "props", "Pile of broken wall chunks, plates and a torn cable")
+@model("debris", "Debris", "props", "Pile of broken wall chunks, plates and a torn cable", params=[
+    Param("radius", "float", "Radius (m)", lo=0.2, hi=3.0, size=True, snap_factor=2),
+    Param("chunks", "int", "Brocken", lo=1, hi=20),
+    Param("plate", "bool", "Lose Platte"),
+    Param("cable", "bool", "Abgerissenes Kabel"),
+])
 def debris(rng, a):
+    p = a.p
     m = a.part("Debris")
-    radius = rng.uniform(0.5, 1.4)
-    for _ in range(rng.randint(4, 9)):
+    radius = p.float("radius", 0.5, 1.4)
+    for _ in range(p.int("chunks", 4, 9)):
         s = rng.uniform(0.15, 0.55) * radius
         ang = rng.uniform(0, 2 * math.pi)
         dist = rng.uniform(0, radius * 0.7)
         sx, sy, sz = s * rng.uniform(0.7, 1.4), s * rng.uniform(0.6, 1.2), s * rng.uniform(0.4, 0.9)
         cube(m, (sx, sy, sz), (math.cos(ang) * dist, math.sin(ang) * dist, sz * 0.3),
-             rng.choice(["M_Wall", "M_Ground", "M_RobotDark", "M_Wall"]),
+             p.material(["M_Wall", "M_Ground", "M_RobotDark", "M_Wall"]),
              rot=(deg(rng.uniform(-20, 20)), deg(rng.uniform(-20, 20)), rng.uniform(0, 2 * math.pi)))
-    if rng.random() < 0.6:  # a loose plate leaning on the pile
+    if p.bool("plate", 0.6):  # a loose plate leaning on the pile
         cube(m, (radius * 0.7, radius * 0.5, 0.04), (radius * 0.2, -radius * 0.2, radius * 0.15), "M_Platform",
              rot=(0, deg(-20), rng.uniform(0, 2 * math.pi)))
-    if rng.random() < 0.5:  # a torn cable
+    if p.bool("cable", 0.5):  # a torn cable
         cube(m, (0.05, 0.05, radius), (-radius * 0.3, 0.1, radius * 0.4), "M_HazardOrange",
              rot=(deg(rng.uniform(20, 50)), deg(rng.uniform(-30, 30)), 0))

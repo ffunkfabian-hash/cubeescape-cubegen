@@ -48,6 +48,8 @@ class Asset:
         self.meta: Dict[str, object] = {}
         #: which existing Unity scripts drive which parts, with field values in Unity units
         self.behaviours: List[Dict[str, object]] = []
+        #: parameter reader of the build (set by generate_asset): rolls values, applies overrides / style
+        self.p = None
 
     def behaviour(self, script: str, parts: Dict[str, object], fields: Optional[Dict[str, object]] = None,
                   note: str = "") -> None:

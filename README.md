@@ -47,6 +47,9 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
   Dreiecken, Maßen und Teilenamen im Panel.
 * **Von jedem Typ**: baut alle 18 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
+* **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
+  der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
+* **Stil (alle Typen)**: Größe, Raster, Glow-Farbe, Material, Warnfarbe, Abnutzung, Detail, Icon-Kamera.
 * **Varianten-Raster**: z. B. 12 Varianten nebeneinander, beschriftet. Gute Varianten im Viewport anklicken
   (Shift = mehrere) und **Auswahl exportieren**. **Als Vorschau** übernimmt die Variante des aktiven Objekts.
 * **Export für Unity**: Modell-, Icon- und Ausgabeordner, Präfix, FBX/GLB/OBJ, Icons + Kontaktbogen. Der Export
@@ -167,6 +170,73 @@ Material, weil `renderer.sharedMaterial` nur Slot 0 ersetzt. Mehrfarbige Deko-LE
 Für den Unity-Import liegt in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md) ein Prompt, mit dem eine KI
 im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann.
 
+## Parameter & Stil
+
+Standardmäßig würfelt der Seed alles. Einzelne Eigenschaften lassen sich **festlegen**, ohne dass sich der Rest
+der Variante ändert: Ein Parameter würfelt intern immer weiter wie bisher, nur das Ergebnis wird ersetzt. Ohne
+Parameter liefern alle Seeds exakt dieselben Modelle wie vorher.
+
+```bash
+python -m cubegen params            # alle Parameter (python -m cubegen params door: nur Türen)
+
+# Airlock-Tür mit 2 m Öffnung und langsamerem Öffnen, sonst wie Variante 3 von Seed 42
+python -m cubegen generate --seed 42 --pick door:3 --param door.style=airlock \
+    --param door.width=2.0 --param door.speed=0.8
+
+# ganzer Batch im gleichen Look
+python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-style metal \
+    --warning none --wear light --detail low
+```
+
+**Stil (für alle Typen)**
+
+| Option | Werte | Wirkung |
+|---|---|---|
+| `--size` | S / M / L | Größen aus dem unteren / mittleren / oberen Drittel der Bereiche |
+| `--snap` | z. B. 0.5 | Hauptmaße auf Vielfache runden (Radien: der Durchmesser), passend zum Modulraster |
+| `--glow` | cyan / red / orange | feste Farbe für Deko-Glow. Status-Teile (Maschine, Generator, Terminal, Tür) behalten ihre Zustandsfarbe |
+| `--material-style` | metal / wall / dark / light | bevorzugtes Körpermaterial, wo es eine Option ist |
+| `--warning` | none / always | Warnstreifen und -bänder nie oder immer |
+| `--wear` | none / light / heavy | Brocken, lose Platten, abgerissenes Kabel als eigenes Teil `Wear` (verändert das Modell selbst nicht) |
+| `--detail` | low / normal / high | low: keine Fasen, weniger Zylinder-Seiten; high: rundere Zylinder |
+| `--icon-angle`, `--icon-zoom` | z. B. `=-25,15`, 1.3 | Kamera für Previews und Icons (Azimut, Elevation wie die `ICONS`-Tabelle des Spiels) |
+
+**Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich)
+
+| Typ | Parameter (Wertebereich; 🔗 = Wert für ein Unity-Script) |
+|---|---|
+| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗 |
+| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `shape` (square / octagon), `warning_band` (ja/nein) |
+| `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (square / octagon), `underside` (frustum / keel), `rail` (ja/nein), `stripes` (ja/nein) |
+| `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein) |
+| `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
+| `machine` | `width` (0.5–5), `depth` (0.5–5), `height` (0.5–4), `warning_band` (ja/nein), `top` (pistons / stack), `flywheel` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
+| `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000) 🔗 |
+| `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
+| `vent` | `width` (0.3–4), `height` (0.3–3), `mount_height` (0.2–3), `fan` (ja/nein), `stripes` (ja/nein), `fan_speed` (0–2000) 🔗 |
+| `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
+| `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
+| `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
+| `item` | `kind` (energy_cell / battery / data_chip / fuse), `spin` (0–360) 🔗 |
+| `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
+| `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
+| `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
+| `server_rack` | `width` (0.3–3), `depth` (0.3–3), `height` (0.8–4), `double_sided` (ja/nein), `red_ratio` (0–1) |
+| `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on) |
+
+Bedingte Parameter wirken nur, wenn das Teil existiert (z. B. `machine.rotor_speed` nur mit Schwungrad; mit
+`machine.flywheel=true` erzwingst du es). In Rezepten stehen sie unter `"params"` und `"style"`:
+
+```json
+{ "seed": 7, "style": { "size": "L", "wear": "light" },
+  "params": { "door": { "style": "airlock", "width": 2.0 }, "wall": { "length": 4.0 } },
+  "models": { "door": 3, "wall": 4 } }
+```
+
+Die festgelegten und gewürfelten Werte stehen in `manifest.json` und in der `<Name>.cubegen.json` (`params`,
+`style`). Im Add-on gibt es dafür die Bereiche **Parameter** (Häkchen = festlegen; rechts steht, was der Seed gewählt
+hat) und **Stil (alle Typen)**.
+
 ## Seeds & Reproduzierbarkeit
 
 * Jedes Asset bekommt einen eigenen Seed `sha256(master, typ, index)` → gleiche Kommandozeile = gleiche Dateien.
@@ -185,8 +255,8 @@ im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen B
 }
 ```
 
-Weitere Schlüssel: `scale`, `blend`, `render`, `engine`, `render_size`, `samples`, `icon_size`, `icon_background`,
-`models_dir`, `icons_dir`, `out`. Kommandozeilen-Optionen überschreiben das Rezept. Beispiele liegen in `recipes/`.
+Weitere Schlüssel: `params`, `style`, `scale`, `blend`, `render`, `engine`, `render_size`, `samples`, `icon_size`,
+`icon_background`, `icon_azimuth`, `icon_elevation`, `icon_zoom`, `models_dir`, `library_dir`, `icons_dir`, `out`. Kommandozeilen-Optionen überschreiben das Rezept. Beispiele liegen in `recipes/`.
 
 ## Previews & Headless-Server
 
@@ -224,6 +294,7 @@ cubegen/
 ├── geometry.py       reine Python-Geometrie (Box, gefaste Box, Lathe, Zylinder, Prisma …)
 ├── asset.py          Asset = benannte Objekte mit Pivots / Parents
 ├── materials.py      M_…-Materialtabelle des Spiels
+├── params.py         Parameter (festlegen statt würfeln) und globaler Stil
 ├── models/           Modelltypen (props, industrial, tech, environment)
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend

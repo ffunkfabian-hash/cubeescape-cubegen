@@ -92,6 +92,38 @@ assert os.path.isfile(os.path.join(out, "Models", "Library", "Props", "Gen_Crate
 fbx = [f for _, _, files in os.walk(os.path.join(out, "Models")) for f in files if f.endswith(".fbx")]
 print("ALL_EXPORT", len(fbx))
 
+# --- parameters + style ---------------------------------------------------------------
+s.model_type = "door"
+s.variant = 1
+door_params = s.type_params.door
+door_params.style = "airlock"
+door_params.use_width = True          # starts from the rolled value ...
+door_params.width = 2.0               # ... then fixed to 2.0 m
+info = addon._INFO
+print("PARAMS", info["params"])
+assert info["params"]["style"] == "airlock" and abs(info["params"]["width"] - 2.0) < 1e-6, info["params"]
+assert "Gen_Door_001.Panel_B" in bpy.data.objects  # airlock = split door
+s.detail = "low"
+s.wear = "light"
+s.model_type = "machine"
+assert "Gen_Machine_001.Wear" in bpy.data.objects
+cmd = addon._cli_command(s)
+print("CLI", cmd)
+assert "--wear light" in cmd and "--detail low" in cmd
+s.model_type = "door"
+assert "--param door.style=airlock" in addon._cli_command(s) and "--param door.width=2.0" in addon._cli_command(s)
+s.render_icons = False
+s.library_dir = ""
+result = bpy.ops.cubegen.export(mode="PREVIEW")
+assert result == {"FINISHED"}, s.status
+import json  # noqa: E402
+rig = json.load(open(os.path.join(out, "Models", "Gen_Door_001.cubegen.json")))
+print("RIG", rig["params"], rig["style"]["detail"])
+assert rig["params"]["style"] == "airlock" and rig["style"]["wear"] == "light"
+bpy.ops.cubegen.reset_params()
+assert s.type_params.door.style == addon.SEED and not s.type_params.door.use_width
+s.detail, s.wear = "normal", "none"
+
 # --- panels: draw with a fake layout that validates every prop / operator ----------
 class Fake:
     def __init__(self):
@@ -128,11 +160,17 @@ class Ctx:
     preferences = bpy.context.preferences
 
 
-for cls in (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_grid, addon.CUBEGEN_PT_export):
-    try:
-        cls.draw(type("P", (), {"layout": Fake()})(), Ctx)
-    except Exception as exc:
-        problems.append(f"{cls.__name__}: {exc!r}")
+panels = (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_params, addon.CUBEGEN_PT_style, addon.CUBEGEN_PT_grid,
+          addon.CUBEGEN_PT_export)
+s.live = False
+for model_type in addon._all_types():  # the parameter panel differs per type
+    s.model_type = model_type
+    for cls in panels:
+        try:
+            cls.draw(type("P", (), {"layout": Fake()})(), Ctx)
+        except Exception as exc:
+            problems.append(f"{model_type} {cls.__name__}: {exc!r}")
+s.live = True
 prefs = bpy.context.preferences.addons["cubegen_addon"].preferences
 addon.CUBEGEN_Preferences.draw(type("P", (), {"layout": Fake(), "bl_rna": prefs.bl_rna})(), Ctx)
 

@@ -12,12 +12,17 @@ from . import __version__
 from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
-from .pipeline import FORMATS, BatchConfig, generate_batch, plan_models
+from .params import Style, parse_param_overrides
+from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
 
 # recipe keys that map 1:1 onto BatchConfig fields
-_RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples", "icon_size",
-                  "icon_background", "models_dir", "library_dir", "icons_dir")
+_RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
+                  "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
+                  "icon_elevation", "icon_zoom")
+# global style options: CLI flag -> Style field
+_STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
+                "wear": "wear", "detail": "detail"}
 
 
 def _csv(value: str) -> List[str]:
@@ -63,6 +68,23 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "library_dir": args.library_dir,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
+    # parameters: recipe {"params": {"door": {"style": "airlock"}}}, then --param door.style=airlock
+    params: Dict[str, Dict] = {t: dict(v) for t, v in recipe.get("params", {}).items()}
+    for model_type, overrides in parse_param_overrides(args.param or []).items():
+        params.setdefault(model_type, {}).update(overrides)
+    values["params"] = params
+    style = dict(recipe.get("style", {}))
+    for flag, key in _STYLE_FLAGS.items():
+        if getattr(args, flag) is not None:
+            style[key] = getattr(args, flag)
+    values["style"] = Style.from_dict(style)
+    if args.icon_angle:
+        az, _, el = args.icon_angle.partition(",")
+        values["icon_azimuth"] = float(az)
+        if el:
+            values["icon_elevation"] = float(el)
+    if args.icon_zoom is not None:
+        values["icon_zoom"] = args.icon_zoom
     if args.no_render:
         values["render"] = False
     if args.no_blend:
@@ -84,7 +106,7 @@ def cmd_generate(args) -> int:
     print(f"cubegen {__version__} | seed {config.seed} | out {config.out_dir}")
     if args.dry_run:
         for spec in plan_models(config):
-            st = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"]).stats()
+            st = build_spec(spec).stats()
             dims = " x ".join(f"{d:.2f}" for d in st["dimensions_m"])
             print(f"  {spec['name']:<20} seed {spec['seed']:>10}  {st['triangles']:>5} tris  {dims} m  "
                   f"[{', '.join(st['objects'])}]")
@@ -106,6 +128,23 @@ def cmd_list(args) -> int:
         for e in sorted(by_cat[cat], key=lambda e: e.name):
             print(f"  {e.name:<16} {e.description}")
     print(f"\nformats: {', '.join(FORMATS)}")
+    return 0
+
+
+def cmd_params(args) -> int:
+    """Parameters of one or all model types."""
+    types = [args.type] if args.type else model_types()
+    for t in types:
+        if t not in REGISTRY:
+            raise ValueError(f"unknown model type {t!r}; available: {', '.join(model_types())}")
+        entry = REGISTRY[t]
+        print(f"{t}  ({entry.title}, {entry.category})")
+        for p in entry.params:
+            print(f"  {t}.{p.describe()}")
+        print()
+    print("global: --size S|M|L  --snap 0.5  --glow cyan|red|orange  --material-style metal|wall|dark|light")
+    print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
+    print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
 
@@ -148,6 +187,19 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--types", type=_csv, help="comma separated model types or 'all'")
     g.add_argument("--count", type=int, help="assets per type (default 1)")
     g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
+    g.add_argument("--param", action="append", metavar="TYPE.NAME=VALUE",
+                   help="fix a parameter instead of rolling it, e.g. door.style=airlock (repeatable; "
+                        "list: python -m cubegen params)")
+    st = g.add_argument_group("style (all types)")
+    st.add_argument("--size", choices=["S", "M", "L"], help="size class: small / medium / large variants")
+    st.add_argument("--snap", type=float, help="round main dimensions to multiples of this many metres (e.g. 0.5)")
+    st.add_argument("--glow", choices=["cyan", "red", "orange"], help="fixed colour for decorative glow")
+    st.add_argument("--material-style", choices=["metal", "wall", "dark", "light"], help="preferred body material")
+    st.add_argument("--warning", choices=["none", "always"], help="warning stripes / bands never or always")
+    st.add_argument("--wear", choices=["none", "light", "heavy"], help="rubble, plates and cables around models")
+    st.add_argument("--detail", choices=["low", "normal", "high"], help="low: no bevels, fewer cylinder sides")
+    g.add_argument("--icon-angle", help="preview/icon camera 'AZIMUTH,ELEVATION' in degrees (default 33,31)")
+    g.add_argument("--icon-zoom", type=float, help="preview/icon zoom, > 1 = closer (default 1)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")
     g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models")
     g.add_argument("--library-dir", help="static decoration goes to <dir>/<Kategorie> instead, "
@@ -175,6 +227,10 @@ def make_parser() -> argparse.ArgumentParser:
     ls = sub.add_parser("list", help="list model types and formats")
     ls.add_argument("--json", action="store_true")
     ls.set_defaults(func=cmd_list)
+
+    pa = sub.add_parser("params", help="list the parameters of the model types")
+    pa.add_argument("type", nargs="?", help="only this model type")
+    pa.set_defaults(func=cmd_params)
 
     d = sub.add_parser("doctor", help="check Blender and ImageMagick installation")
     d.add_argument("--blender")

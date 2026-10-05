@@ -7,7 +7,7 @@ import os
 import shutil
 import tempfile
 from dataclasses import asdict, dataclass, field
-from typing import Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from . import __version__
 from .blender import BlenderError, find_blender, resolve_engine, run_job
@@ -15,6 +15,7 @@ from .imagemagick import ImageMagick, ImageMagickError
 from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
+from .params import Style
 from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
@@ -40,6 +41,11 @@ class BatchConfig:
     models_dir: Optional[str] = None
     library_dir: Optional[str] = None  # static decoration goes to <library_dir>/<Category> (Unity: Art/Models/Library)
     icons_dir: Optional[str] = None
+    params: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # type -> {parameter: value}
+    style: Style = field(default_factory=Style)
+    icon_azimuth: float = 33.0     # degrees, like the ICONS table of generate_assets.py (+ = from the right)
+    icon_elevation: float = 31.0
+    icon_zoom: float = 1.0         # > 1 = closer
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
@@ -55,6 +61,16 @@ class BatchConfig:
             indices = value if isinstance(value, list) else [value]
             if any(not isinstance(i, int) or i < 0 for i in indices):
                 raise ValueError(f"{t}: counts and variant indices must be integers >= 0")
+        if isinstance(self.style, dict):
+            self.style = Style.from_dict(self.style)
+        self.style.validate()
+        for t, overrides in self.params.items():
+            if t not in REGISTRY:
+                raise ValueError(f"--param: unknown model type {t!r}")
+            for name, value in overrides.items():
+                REGISTRY[t].param(name).parse(value)
+        if self.icon_zoom <= 0:
+            raise ValueError("icon zoom must be > 0")
 
 
 def plan_models(config: BatchConfig) -> List[Dict]:
@@ -69,6 +85,8 @@ def plan_models(config: BatchConfig) -> List[Dict]:
                 "index": index,
                 "seed": model_seed(config.seed, model_type, index),
                 "scale": config.scale,
+                "params": dict(config.params.get(model_type, {})),
+                "style": config.style.to_dict(),
             })
     return specs
 
@@ -84,13 +102,19 @@ def rig_data(asset, spec: Dict, master_seed: int) -> Dict:
     for o in asset.objects:
         parent = asset.get(o.parent) if o.parent else None
         local = tuple(o.pivot[i] - (parent.pivot[i] if parent else 0.0) for i in range(3))
-        parts.append({
+        entry_part = {
             "name": o.name,
             "parent": o.parent,
             "localPosition": list(to_unity(local)),
             "empty": o.is_empty,
             "materials": [] if o.is_empty else sorted(set(o.mesh.roles)),
-        })
+        }
+        if not o.is_empty:  # box collider hint relative to the part's own pivot (Unity coordinates)
+            (bx0, by0, bz0), (bx1, by1, bz1) = o.mesh.bbox()
+            center = tuple((lo_ + hi_) / 2 - o.pivot[i] for i, (lo_, hi_) in enumerate(((bx0, bx1), (by0, by1), (bz0, bz1))))
+            entry_part["bounds"] = {"center": list(to_unity(center)),
+                                    "size": [abs(c) for c in to_unity((bx1 - bx0, by1 - by0, bz1 - bz0))]}
+        parts.append(entry_part)
     lo, hi = asset.bbox()
     center = to_unity(tuple((lo[i] + hi[i]) / 2 for i in range(3)))
     size = to_unity(tuple(hi[i] - lo[i] for i in range(3)))
@@ -103,10 +127,18 @@ def rig_data(asset, spec: Dict, master_seed: int) -> Dict:
         "seed": spec["seed"],
         "masterSeed": master_seed,
         "static": not asset.behaviours,
+        "params": asset.meta.get("params", {}),
+        "style": spec.get("style", {}),
         "bounds": {"center": list(center), "size": [abs(c) for c in size]},
         "parts": parts,
         "behaviours": asset.behaviours,
     }
+
+
+def build_spec(spec: Dict):
+    """The asset a planned spec describes (same call as inside Blender)."""
+    return generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"], params=spec.get("params"),
+                          style=Style.from_dict(spec.get("style")))
 
 
 def _rel(path: Optional[str], base: str) -> Optional[str]:
@@ -132,7 +164,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     for spec in specs:
         spec["models_dir"] = dirs["models"]
         if config.library_dir:
-            asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
+            asset = build_spec(spec)
             if not asset.behaviours:
                 category = REGISTRY[spec["type"]].category.capitalize()
                 spec["models_dir"] = os.path.join(os.path.abspath(config.library_dir), category)
@@ -159,7 +191,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "previews_dir": dirs["previews"],
             "blend": blend_path,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
-                       "samples": config.samples},
+                       "samples": config.samples, "azimuth": config.icon_azimuth,
+                       "elevation": config.icon_elevation, "zoom": config.icon_zoom},
         }
         log(f"Blender: {blender} - {len(specs)} asset(s), formats: {', '.join(formats)}")
         with tempfile.TemporaryDirectory(prefix="cubegen_job_") as work:
@@ -174,7 +207,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         for folder in {spec["models_dir"] for spec in specs}:
             write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"))
         for spec in specs:
-            asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
+            asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
             write_obj(asset, path, "CubeEscape_Materials.mtl")
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
@@ -199,7 +232,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     # --- manifest + rig data ----------------------------------------------------
     entries = []
     for spec in specs:
-        asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
+        asset = build_spec(spec)
         res = results.get(spec["name"], {})
         if config.rig_data:
             rig_path = os.path.join(spec["models_dir"], f"{spec['name']}.cubegen.json")
@@ -220,6 +253,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
         })
     cfg = asdict(config)
+    cfg["style"] = config.style.to_dict()
     for key in ("out_dir", "models_dir", "library_dir", "icons_dir", "blender", "magick", "verbose"):
         cfg.pop(key, None)
     manifest = {

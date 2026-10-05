@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from ..geometry import Mesh, box, chamfer_box, cylinder, euler_matrix, mat_mul_vec
+from ..params import DETAIL
 
 ALONG_X = (0.0, math.pi / 2, 0.0)   # rotate a Z cylinder so it runs along X
 ALONG_Y = (math.pi / 2, 0.0, 0.0)   # ... along Y (e.g. lenses and wheels facing the front)
@@ -14,20 +15,30 @@ def deg(a: float) -> float:
     return math.radians(a)
 
 
-def glow_material(rng, weights=(0.7, 0.1, 0.2)) -> str:
-    """Mostly cyan, sometimes red or orange - Unity recolours ``Glow`` parts anyway."""
-    return rng.choices(["M_GlowCyan", "M_GlowRed", "M_GlowOrange"], weights=weights)[0]
-
-
 def cube(mesh: Mesh, size, center, material: str, bevel: float = 0.0, rot=(0.0, 0.0, 0.0)):
     """Box with optional chamfer - the workhorse, like ``MeshBuilder.box`` in the game."""
+    if DETAIL.get() == "low":
+        bevel = 0.0
     prim = chamfer_box(size[0], size[1], size[2], material, bevel) if bevel > 0 else box(*size, material)
     return mesh.add(prim, loc=center, rot=rot)
 
 
+def detail_sides(sides: int) -> int:
+    """Cylinder sides for the current detail level (low: 3/4, high: 1.5x, always even, >= 6)."""
+    level = DETAIL.get()
+    if level == "low":
+        return max(6, int(round(sides * 0.75 / 2)) * 2) if sides > 6 else sides
+    if level == "high":
+        return int(round(sides * 1.5 / 2)) * 2
+    return sides
+
+
 def cyl(mesh: Mesh, radius: float, depth: float, center, material: str, sides: int = 8, radius_top=None,
         bevel: float = 0.0, rot=(0.0, 0.0, 0.0)):
-    return mesh.add(cylinder(radius, depth, sides, material, radius_top=radius_top, bevel=bevel), loc=center, rot=rot)
+    if DETAIL.get() == "low":
+        bevel = 0.0
+    prim = cylinder(radius, depth, detail_sides(sides), material, radius_top=radius_top, bevel=bevel)
+    return mesh.add(prim, loc=center, rot=rot)
 
 
 def frustum(mesh: Mesh, bottom_size, top_size, z_bottom: float, z_top: float, material: str, center_xy=(0.0, 0.0)):
