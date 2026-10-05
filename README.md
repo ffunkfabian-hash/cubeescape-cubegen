@@ -187,7 +187,10 @@ Achsen: Unity = (−Blender-X, Blender-Z, −Blender-Y). Also ist Blender X → 
 Material, weil `renderer.sharedMaterial` nur Slot 0 ersetzt. Mehrfarbige Deko-LEDs heißen `Lights`.
 
 Für den Unity-Import liegt in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md) ein Prompt, mit dem eine KI
-im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann.
+im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen Builder anschließen kann. Ein
+zweiter Prompt dort ergänzt die Mechanik, für die das Spiel noch kein Script hat: Item-Sockel, Laser mit Spiegeln,
+Druckplatte, Rohr-Puzzle, Kamera-Schwenk, Leiter, Sprung-/Teleporter-Pad, Förderband, Lift-Knöpfe und
+Leerlauf-Animationen für Drohne und Roboterarm.
 
 ## Parameter & Stil
 
