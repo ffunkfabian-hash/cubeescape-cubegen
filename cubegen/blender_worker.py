@@ -195,7 +195,7 @@ def run_job(job_path):
         asset, collection = build_asset(spec)
         files = {}
         for fmt in job["formats"]:
-            path = os.path.join(job["models_dir"], f"{asset.name}.{fmt}")
+            path = os.path.join(spec.get("models_dir") or job["models_dir"], f"{asset.name}.{fmt}")
             export_collection(collection, fmt, path)
             files[fmt] = path
         preview = None

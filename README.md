@@ -45,6 +45,8 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 
 * **Typ, Master-Seed, Variante**: Pfeile ◀ ▶ blättern, 🔄 würfelt. Die Vorschau entsteht live am Ursprung, mit
   Dreiecken, Maßen und Teilenamen im Panel.
+* **Von jedem Typ**: baut alle 18 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+  pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Varianten-Raster**: z. B. 12 Varianten nebeneinander, beschriftet. Gute Varianten im Viewport anklicken
   (Shift = mehrere) und **Auswahl exportieren**. **Als Vorschau** übernimmt die Variante des aktiven Objekts.
 * **Export für Unity**: Modell-, Icon- und Ausgabeordner, Präfix, FBX/GLB/OBJ, Icons + Kontaktbogen. Der Export
@@ -84,9 +86,10 @@ python -m cubegen generate --seed 42 --count 2
 python -m cubegen generate --seed 7 --types machine,door --count 3 --prefix Gen_ \
     --models-dir ../CubeEscape/Assets/Art/Models
 
-# reine Deko in die Bibliothek (wird automatisch als statisches Modell registriert)
-python -m cubegen generate --seed 7 --types crate,debris --count 4 --prefix Gen_ \
-    --models-dir ../CubeEscape/Assets/Art/Models/Library/Props
+# von jedem Typ eins – Modelle mit Script nach Art/Models, Deko automatisch nach Library/<Kategorie>
+python -m cubegen generate --seed 7 --prefix Gen_ \
+    --models-dir  ../CubeEscape/Assets/Art/Models \
+    --library-dir ../CubeEscape/Assets/Art/Models/Library
 
 # Batch aus einem Rezept
 python -m cubegen generate --recipe recipes/station_props.json
@@ -122,6 +125,9 @@ output/seed_42/
 |---|---|---|
 | bewegt sich / hat Zustände (Tür, Maschine, Generator, Ventil-Rohr, Lampe, Terminal, Lüfter, Item) | `Assets/Art/Models` | `AddModel` lädt `Assets/Art/Models/<Name>.fbx`; der Prefab-Builder braucht eine Rezeptzeile in `ModularBlocks.cs` (Werte stehen in `<Name>.cubegen.json`) |
 | reine Deko (`"static": true` in der JSON) | `Assets/Art/Models/Library/<Kategorie>` | `AssetRegistry` registriert sie automatisch als statische Hülle mit BoxCollider |
+
+Mit `--library-dir` (im Add-on: Feld „Bibliothek“) sortiert der Generator das selbst: Modelle ohne Script landen in
+`<Bibliothek>/<Kategorie>` (Props, Industrial, Tech, Environment), alle anderen im Modell-Ordner.
 
 Das Präfix (`--prefix Gen_`) verhindert Namenskollisionen mit den handgebauten Modellen. Unity-Importeinstellungen
 gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselben Namen behält sie also.

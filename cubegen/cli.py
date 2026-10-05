@@ -17,7 +17,7 @@ from .seeds import parse_seed
 
 # recipe keys that map 1:1 onto BatchConfig fields
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples", "icon_size",
-                  "icon_background", "models_dir", "icons_dir")
+                  "icon_background", "models_dir", "library_dir", "icons_dir")
 
 
 def _csv(value: str) -> List[str]:
@@ -60,6 +60,7 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
         "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
+        "library_dir": args.library_dir,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
     if args.no_render:
@@ -149,6 +150,8 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")
     g.add_argument("--models-dir", help="write the model files here instead, e.g. <Unity>/Assets/Art/Models")
+    g.add_argument("--library-dir", help="static decoration goes to <dir>/<Kategorie> instead, "
+                                         "e.g. <Unity>/Assets/Art/Models/Library")
     g.add_argument("--icons-dir", help="write the icons here instead")
     g.add_argument("--formats", type=_csv, help=f"export formats: {', '.join(FORMATS)} (default fbx)")
     g.add_argument("--prefix", help="prefix for asset names, e.g. 'Gen_' -> Gen_Crate_000")

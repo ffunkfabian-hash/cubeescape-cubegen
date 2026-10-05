@@ -69,12 +69,18 @@ def _settings(context):
     return context.scene.cubegen
 
 
-def _spec(s, variant=None):
+def _spec(s, variant=None, model_type=None):
     """(master seed, asset seed, asset name) - identical to the CLI's naming."""
     variant = s.variant if variant is None else variant
+    model_type = model_type or s.model_type
     master = seeds.parse_seed(s.master_seed)
-    seed = seeds.model_seed(master, s.model_type, variant)
-    return master, seed, models.asset_name(s.model_type, variant, s.prefix)
+    seed = seeds.model_seed(master, model_type, variant)
+    return master, seed, models.asset_name(model_type, variant, s.prefix)
+
+
+def _all_types():
+    """Every model type, in the order of the type menu (grouped by category)."""
+    return [item[0] for item in _TYPE_ITEMS]
 
 
 def _cli_command(s):
@@ -100,11 +106,12 @@ def _new_collection(context, name, parent=None):
 
 
 def _build(asset, coll, s, variant):
+    model_type = asset.meta["type"]
     builder.build_collection(
         asset, coll, object_name=lambda part: f"{asset.name}.{part}",
-        tags={"cubegen_type": s.model_type, "cubegen_seed": str(asset.meta["seed"])},
+        tags={"cubegen_type": model_type, "cubegen_seed": str(asset.meta["seed"])},
     )
-    coll["cubegen_type"] = s.model_type
+    coll["cubegen_type"] = model_type
     coll["cubegen_variant"] = variant
     coll["cubegen_master_seed"] = s.master_seed
 
@@ -125,13 +132,16 @@ def rebuild_preview(context):
     })
 
 
-def build_grid(context):
+def build_grid(context, entries=None, columns=None):
+    """Lay out variants behind the preview. ``entries`` = [(type, variant)], default: the grid settings."""
     s = _settings(context)
     builder.create_materials(overwrite=False)
-    variants = list(range(s.grid_start, s.grid_start + s.grid_count))
-    assets = [models.generate_asset(s.model_type, _spec(s, v)[1], _spec(s, v)[2], s.scale) for v in variants]
+    if entries is None:
+        entries = [(s.model_type, v) for v in range(s.grid_start, s.grid_start + s.grid_count)]
+    variants = [v for _, v in entries]
+    assets = [models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale) for t, v in entries]
     spacing = max(max(a.stats()["dimensions_m"][:2]) for a in assets) + 1.0
-    cols = math.ceil(math.sqrt(len(assets)))
+    cols = columns or math.ceil(math.sqrt(len(assets)))
     parent = _new_collection(context, GRID_COLLECTION)
     for k, (variant, asset) in enumerate(zip(variants, assets)):
         coll = bpy.data.collections.new(asset.name)
@@ -149,6 +159,11 @@ def build_grid(context):
         label = bpy.data.objects.new(f"{asset.name}.Label", curve)
         label.location = (offset[0], offset[1] - spacing * 0.45, 0.01)
         coll.objects.link(label)
+
+
+def all_type_entries(s):
+    """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1."""
+    return [(t, v) for t in _all_types() for v in range(s.grid_start, s.grid_start + s.per_type)]
 
 
 def selected_variants(context):
@@ -188,6 +203,7 @@ def make_configs(context, picks):
             seed=master, models=picked, out_dir=os.path.join(out_root, f"seed_{master}"), formats=formats,
             prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
             models_dir=export_dir, icons_dir=bpy.path.abspath(s.icons_dir).strip() or None,
+            library_dir=bpy.path.abspath(s.library_dir).strip() or None,
             blender=bpy.app.binary_path, magick=prefs.magick_path.strip() or None,
         ))
     return configs
@@ -218,9 +234,14 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
 
     grid_count: IntProperty(name="Anzahl", default=12, min=1, max=100)
     grid_start: IntProperty(name="Ab Variante", default=0, min=0, max=9999)
+    per_type: IntProperty(name="Pro Typ", default=1, min=1, max=10,
+                          description="Wie viele Varianten je Typ bei „Von jedem Typ“")
 
     export_dir: StringProperty(name="Modelle", subtype="DIR_PATH",
                                description="Mit Script: <Unity>/Assets/Art/Models · statische Deko: <Unity>/Assets/Art/Models/Library/<Kategorie>")
+    library_dir: StringProperty(name="Bibliothek", subtype="DIR_PATH",
+                                description="Optional: statische Deko (ohne Script) nach <Ordner>/<Kategorie>, "
+                                            "z. B. <Unity>/Assets/Art/Models/Library. Leer = alles in „Modelle“")
     icons_dir: StringProperty(name="Icons", subtype="DIR_PATH",
                               description="Leer = Icons landen im Ausgabeordner")
     out_dir: StringProperty(name="Ausgabe", subtype="DIR_PATH",
@@ -297,6 +318,20 @@ class CUBEGEN_OT_grid(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class CUBEGEN_OT_all_types(bpy.types.Operator):
+    bl_idname = "cubegen.all_types"
+    bl_label = "Von jedem Typ"
+    bl_description = "Von jedem Modelltyp Varianten nebeneinander bauen (eine Reihe pro Typ)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        s = _settings(context)
+        entries = all_type_entries(s)
+        build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
+        self.report({"INFO"}, f"{len(entries)} Modelle gebaut ({len(_all_types())} Typen × {s.per_type})")
+        return {"FINISHED"}
+
+
 class CUBEGEN_OT_use_active(bpy.types.Operator):
     bl_idname = "cubegen.use_active"
     bl_label = "Als Vorschau"
@@ -357,6 +392,7 @@ class CUBEGEN_OT_export(bpy.types.Operator):
     mode: EnumProperty(items=[
         ("PREVIEW", "Vorschau", "Die aktuelle Variante exportieren"),
         ("SELECTED", "Auswahl", "Alle Varianten exportieren, von denen ein Objekt ausgewählt ist"),
+        ("ALL", "Alle Typen", "Von jedem Typ die Varianten aus „Pro Typ“ / „Ab Variante“ exportieren"),
     ], default="PREVIEW")
 
     _timer = None
@@ -370,6 +406,8 @@ class CUBEGEN_OT_export(bpy.types.Operator):
         s = _settings(context)
         if self.mode == "PREVIEW":
             return [(s.master_seed, s.model_type, s.variant)]
+        if self.mode == "ALL":
+            return [(s.master_seed, t, v) for t, v in all_type_entries(s)]
         return selected_variants(context)
 
     def execute(self, context):
@@ -500,6 +538,11 @@ class CUBEGEN_PT_grid(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("cubegen.grid", icon="GRID")
         row.operator("cubegen.clear", icon="TRASH")
+        layout.separator()
+        row = layout.row(align=True)
+        row.prop(s, "per_type")
+        row.operator("cubegen.all_types", text=f"Von jedem Typ ({len(_all_types())} × {s.per_type})",
+                     icon="MOD_ARRAY")
         layout.label(text="Gute Varianten im Viewport anklicken (Shift = mehrere)", icon="INFO")
 
 
@@ -512,6 +555,7 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         layout = self.layout
         col = layout.column(align=True)
         col.prop(s, "export_dir")
+        col.prop(s, "library_dir")
         col.prop(s, "icons_dir")
         col.prop(s, "out_dir")
         row = layout.row(align=True)
@@ -529,6 +573,9 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         n = len(selected_variants(context))
         op = col.operator("cubegen.export", text=f"Auswahl exportieren ({n})", icon="EXPORT")
         op.mode = "SELECTED"
+        total = len(_all_types()) * s.per_type
+        op = col.operator("cubegen.export", text=f"Alle Typen exportieren ({total})", icon="EXPORT")
+        op.mode = "ALL"
         if s.status:
             layout.label(text=s.status, icon="TIME" if s.running else "CHECKMARK")
         row = layout.row(align=True)
@@ -538,7 +585,8 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
 
 CLASSES = (
     CUBEGEN_Settings, CUBEGEN_Preferences,
-    CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_use_active, CUBEGEN_OT_clear,
+    CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_all_types, CUBEGEN_OT_use_active,
+    CUBEGEN_OT_clear,
     CUBEGEN_OT_copy_cli, CUBEGEN_OT_export, CUBEGEN_OT_open_folder,
     CUBEGEN_PT_main, CUBEGEN_PT_grid, CUBEGEN_PT_export,
 )

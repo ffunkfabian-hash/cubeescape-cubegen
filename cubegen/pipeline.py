@@ -38,6 +38,7 @@ class BatchConfig:
     icon_size: int = 256
     icon_background: Optional[str] = None
     models_dir: Optional[str] = None
+    library_dir: Optional[str] = None  # static decoration goes to <library_dir>/<Category> (Unity: Art/Models/Library)
     icons_dir: Optional[str] = None
     blender: Optional[str] = None
     magick: Optional[str] = None
@@ -127,6 +128,15 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     os.makedirs(out, exist_ok=True)
     for d in dirs.values():
         os.makedirs(d, exist_ok=True)
+    # scripted assets -> models dir (where the game's AddModel loads them), static decoration -> library
+    for spec in specs:
+        spec["models_dir"] = dirs["models"]
+        if config.library_dir:
+            asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
+            if not asset.behaviours:
+                category = REGISTRY[spec["type"]].category.capitalize()
+                spec["models_dir"] = os.path.join(os.path.abspath(config.library_dir), category)
+        os.makedirs(spec["models_dir"], exist_ok=True)
 
     im = ImageMagick(config.magick)
     swatch = im.material_swatch(os.path.join(out, "materials.png"))
@@ -161,10 +171,11 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if formats != ["obj"]:
             log("--no-blender: only OBJ export is available, ignoring other formats")
         formats = ["obj"]
-        write_mtl(os.path.join(dirs["models"], "CubeEscape_Materials.mtl"))
+        for folder in {spec["models_dir"] for spec in specs}:
+            write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"))
         for spec in specs:
             asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
-            path = os.path.join(dirs["models"], f"{spec['name']}.obj")
+            path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
             write_obj(asset, path, "CubeEscape_Materials.mtl")
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
@@ -191,7 +202,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"])
         res = results.get(spec["name"], {})
         if config.rig_data:
-            rig_path = os.path.join(dirs["models"], f"{spec['name']}.cubegen.json")
+            rig_path = os.path.join(spec["models_dir"], f"{spec['name']}.cubegen.json")
             with open(rig_path, "w", encoding="utf-8") as fh:
                 json.dump(rig_data(asset, spec, config.seed), fh, indent=2)
             res.setdefault("files", {})["rig"] = rig_path
@@ -209,7 +220,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
         })
     cfg = asdict(config)
-    for key in ("out_dir", "models_dir", "icons_dir", "blender", "magick", "verbose"):
+    for key in ("out_dir", "models_dir", "library_dir", "icons_dir", "blender", "magick", "verbose"):
         cfg.pop(key, None)
     manifest = {
         "generator": "cubegen",

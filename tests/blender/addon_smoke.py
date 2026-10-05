@@ -73,6 +73,25 @@ for f in ("Models/Gen_Crate_001.fbx", "Models/Gen_Crate_004.fbx", "Models/Gen_Cr
           "Icons/Icon_Gen_Crate_001.png", "cubegen/seed_42/manifest.json"):
     assert os.path.isfile(os.path.join(out, f)), f
 
+# --- one of every type: grid + export of all types (static ones into the library) -------
+s.per_type = 1
+s.grid_start = 0
+bpy.ops.cubegen.all_types()
+grid = bpy.data.collections[addon.GRID_COLLECTION]
+n_types = len(addon._all_types())
+print("ALL_TYPES", len(grid.children))
+assert len(grid.children) == n_types, len(grid.children)
+assert {c["cubegen_type"] for c in grid.children} == set(addon._all_types())
+s.render_icons = False
+s.fmt_glb = False
+s.library_dir = os.path.join(out, "Models", "Library")
+result = bpy.ops.cubegen.export(mode="ALL")
+assert result == {"FINISHED"}, s.status
+assert os.path.isfile(os.path.join(out, "Models", "Gen_Door_000.fbx"))
+assert os.path.isfile(os.path.join(out, "Models", "Library", "Props", "Gen_Crate_000.fbx"))
+fbx = [f for _, _, files in os.walk(os.path.join(out, "Models")) for f in files if f.endswith(".fbx")]
+print("ALL_EXPORT", len(fbx))
+
 # --- panels: draw with a fake layout that validates every prop / operator ----------
 class Fake:
     def __init__(self):
