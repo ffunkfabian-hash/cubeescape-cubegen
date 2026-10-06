@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import sys
@@ -19,7 +20,9 @@ from .seeds import parse_seed
 # recipe keys that map 1:1 onto BatchConfig fields
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
-                  "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir")
+                  "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
+                  "unique")
+RECIPE_KEYS = ("seed", "models", "params", "style", "out") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
                 "wear": "wear", "detail": "detail", "damage": "damage"}
@@ -29,13 +32,66 @@ def _csv(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def unknown_key(what: str, key: str, allowed) -> ValueError:
+    """``unknown key 'stlye' (did you mean 'style'?)`` - typos must not be silently ignored."""
+    close = difflib.get_close_matches(key, list(allowed), n=1)
+    hint = f" (did you mean {close[0]!r}?)" if close else ""
+    return ValueError(f"{what}: unknown key {key!r}{hint}; allowed: {', '.join(allowed)}")
+
+
+def _count_or_indices(where: str, value):
+    """A model entry: a count (int) or a list of variant indices."""
+    if isinstance(value, bool):
+        raise ValueError(f"{where}: expected a count or a list of variant indices, got {value!r}")
+    if isinstance(value, str) and value.strip().isdigit():  # "3" was accepted before 0.8
+        value = int(value)
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, list) and value and all(isinstance(i, int) and not isinstance(i, bool) and i >= 0
+                                                 for i in value):
+        return value
+    raise ValueError(f"{where}: expected a count >= 0 or a list of variant indices like [0, 3, 7], got {value!r}")
+
+
 def _load_recipe(path: str) -> Dict:
-    with open(path, "r", encoding="utf-8") as fh:
-        recipe = json.load(fh)
+    """Read and check a recipe. Keys starting with ``_`` are comments."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            recipe = json.load(fh)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: not valid JSON ({exc})") from exc
+    if not isinstance(recipe, dict):
+        raise ValueError(f"{path}: a recipe is a JSON object {{...}}")
+    recipe = {k: v for k, v in recipe.items() if not k.startswith("_")}
+    for key in recipe:
+        if key not in RECIPE_KEYS:
+            raise unknown_key(path, key, RECIPE_KEYS)
     models = recipe.get("models", {})
-    if isinstance(models, list):  # [{"type": "crate", "count": 3}, ...]
-        models = {m["type"]: int(m.get("count", 1)) for m in models}
-    recipe["models"] = {k: int(v) for k, v in models.items()}
+    if isinstance(models, list):  # [{"type": "crate", "count": 3}, {"type": "door", "pick": [0, 7]}, ...]
+        result = {}
+        for i, entry in enumerate(models):
+            where = f"{path}: models[{i}]"
+            if not isinstance(entry, dict) or "type" not in entry:
+                raise ValueError(f'{where}: expected {{"type": ..., "count": n}} or {{"type": ..., "pick": [...]}}')
+            for key in entry:
+                if key not in ("type", "count", "pick") and not key.startswith("_"):
+                    raise unknown_key(where, key, ("type", "count", "pick"))
+            if "count" in entry and "pick" in entry:
+                raise ValueError(f"{where}: use either count or pick")
+            value = entry["pick"] if "pick" in entry else entry.get("count", 1)
+            result[entry["type"]] = _count_or_indices(f"{where} ({entry['type']})", value)
+        models = result
+    elif isinstance(models, dict):
+        models = {t: _count_or_indices(f"{path}: models.{t}", v) for t, v in models.items()}
+    else:
+        raise ValueError(f"{path}: models must be an object {{type: count}} or a list")
+    recipe["models"] = models
+    for key in ("params", "style"):
+        if not isinstance(recipe.get(key, {}), dict):
+            raise ValueError(f"{path}: {key} must be an object")
+    for model_type, values in recipe.get("params", {}).items():
+        if not isinstance(values, dict):
+            raise ValueError(f'{path}: params.{model_type} must be an object like {{"style": "airlock"}}')
     return recipe
 
 
@@ -79,6 +135,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         if getattr(args, flag) is not None:
             style[key] = getattr(args, flag)
     values["style"] = Style.from_dict(style)
+    if args.unique:
+        values["unique"] = True
     if args.icon_angle:
         az, _, el = args.icon_angle.partition(",")
         values["icon_azimuth"] = float(az)
@@ -106,7 +164,7 @@ def cmd_generate(args) -> int:
     config.validate()
     print(f"cubegen {__version__} | seed {config.seed} | out {config.out_dir}")
     if args.dry_run:
-        for spec in plan_models(config):
+        for spec in plan_models(config, log=lambda m: print("  " + m)):
             st = build_spec(spec).stats()
             dims = " x ".join(f"{d:.2f}" for d in st["dimensions_m"])
             print(f"  {spec['name']:<20} seed {spec['seed']:>10}  {st['triangles']:>5} tris  {dims} m  "
@@ -189,6 +247,8 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--types", type=_csv, help="comma separated model types or 'all'")
     g.add_argument("--count", type=int, help="assets per type (default 1)")
     g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
+    g.add_argument("--unique", action="store_true",
+                   help="with --count: skip variants that look like an earlier one (same parts, sizes within 8%%)")
     g.add_argument("--param", action="append", metavar="TYPE.NAME=VALUE",
                    help="fix a parameter instead of rolling it, e.g. door.style=airlock (repeatable; "
                         "list: python -m cubegen params)")

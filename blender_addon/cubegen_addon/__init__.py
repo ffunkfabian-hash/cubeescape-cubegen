@@ -57,13 +57,14 @@ def _load_cubegen():
             sys.path.insert(0, repo)  # development: add-on folder symlinked from the repository
         import cubegen as pkg
     return {name: importlib.import_module(f"{pkg.__name__}.{name}")
-            for name in ("models", "seeds", "pipeline", "bpy_builder", "params", "textures", "imagemagick")}, \
+            for name in ("models", "seeds", "pipeline", "bpy_builder", "params", "textures", "imagemagick",
+                         "variety")}, \
         pkg.__version__
 
 
 _CG, CUBEGEN_VERSION = _load_cubegen()
 models, seeds, pipeline, builder = _CG["models"], _CG["seeds"], _CG["pipeline"], _CG["bpy_builder"]
-params_mod = _CG["params"]
+params_mod, variety = _CG["params"], _CG["variety"]
 textures_mod, magick_mod = _CG["textures"], _CG["imagemagick"]
 SEED = "__seed__"  # enum value: "roll it from the seed" 
 
@@ -214,12 +215,25 @@ def rebuild_preview(context):
     })
 
 
+def _variants(s, model_type, start, count):
+    """``count`` variant indices from ``start`` on - with „Nur unterschiedliche“ skipping look-alikes."""
+    if not s.unique or count < 2:
+        return list(range(start, start + count))
+    overrides, style = _overrides(s).get(model_type), _style(s)
+
+    def build(v):
+        _, seed, name = _spec(s, v, model_type)
+        return models.generate_asset(model_type, seed, name, s.scale, params=overrides, style=style)
+
+    return variety.pick_unique(count, build, start=start)[0]
+
+
 def build_grid(context, entries=None, columns=None):
     """Lay out variants behind the preview. ``entries`` = [(type, variant)], default: the grid settings."""
     s = _settings(context)
     builder.create_materials(overwrite=False)
     if entries is None:
-        entries = [(s.model_type, v) for v in range(s.grid_start, s.grid_start + s.grid_count)]
+        entries = [(s.model_type, v) for v in _variants(s, s.model_type, s.grid_start, s.grid_count)]
     variants = [v for _, v in entries]
     overrides, style = _overrides(s), _style(s)
     assets = [models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale, params=overrides.get(t),
@@ -248,7 +262,7 @@ def build_grid(context, entries=None, columns=None):
 
 def all_type_entries(s):
     """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1."""
-    return [(t, v) for t in _all_types() for v in range(s.grid_start, s.grid_start + s.per_type)]
+    return [(t, v) for t in _all_types() for v in _variants(s, t, s.grid_start, s.per_type)]
 
 
 def selected_variants(context):
@@ -379,6 +393,9 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     grid_start: IntProperty(name="Ab Variante", default=0, min=0, max=9999)
     per_type: IntProperty(name="Pro Typ", default=1, min=1, max=10,
                           description="Wie viele Varianten je Typ bei „Von jedem Typ“")
+    unique: BoolProperty(name="Nur unterschiedliche", default=False,
+                         description="Varianten überspringen, die wie eine frühere aussehen (gleiche Teile, "
+                                     "Maße innerhalb 8 %) - wie --unique auf der Kommandozeile")
 
     export_dir: StringProperty(name="Modelle", subtype="DIR_PATH",
                                description="Mit Script: <Unity>/Assets/Art/Models · statische Deko: <Unity>/Assets/Art/Models/Library/<Kategorie>")
@@ -791,6 +808,7 @@ class CUBEGEN_PT_grid(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.prop(s, "grid_count")
         row.prop(s, "grid_start")
+        layout.prop(s, "unique")
         row = layout.row(align=True)
         row.operator("cubegen.grid", icon="GRID")
         row.operator("cubegen.clear", icon="TRASH")

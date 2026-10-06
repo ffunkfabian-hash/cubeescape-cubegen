@@ -60,6 +60,17 @@ bpy.context.view_layer.objects.active = bpy.data.objects["Gen_Crate_004.Body"]
 bpy.ops.cubegen.use_active()
 assert s.model_type == "crate" and s.variant == 4
 
+# "Nur unterschiedliche": same variants as the CLI's --unique
+s.model_type, s.unique = "laser_mirror", True
+bpy.ops.cubegen.grid()
+grid_names = sorted(c.name for c in bpy.data.collections[addon.GRID_COLLECTION].children)
+cli = addon.pipeline.plan_models(addon.pipeline.BatchConfig(seed=42, models={"laser_mirror": 6}, out_dir="-",
+                                                            prefix="Gen_", unique=True))
+print("UNIQUE", grid_names)
+assert grid_names == sorted(spec["name"] for spec in cli), (grid_names, cli)
+s.unique, s.model_type = False, "crate"
+bpy.ops.cubegen.grid()  # back to the crate grid for the selection export below
+
 # --- export of the selection (synchronous in background mode) ----------------------
 s.export_dir = os.path.join(out, "Models")
 s.icons_dir = os.path.join(out, "Icons")

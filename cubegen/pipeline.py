@@ -18,6 +18,7 @@ from .objwriter import write_mtl, write_obj
 from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set
+from .variety import pick_unique
 
 BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
 from .seeds import model_seed
@@ -30,6 +31,7 @@ class BatchConfig:
     seed: int
     models: Dict[str, Union[int, List[int]]]  # type -> count (indices 0..n-1) or explicit variant indices
     out_dir: str
+    unique: bool = False           # counts: skip variants that look like an earlier one (see variety.py)
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -87,21 +89,37 @@ class BatchConfig:
             raise ValueError("icon zoom must be > 0")
 
 
-def plan_models(config: BatchConfig) -> List[Dict]:
-    """Names and seeds of every asset in the batch (deterministic)."""
+def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
+    return {
+        "name": asset_name(model_type, index, config.prefix),
+        "type": model_type,
+        "index": index,
+        "seed": model_seed(config.seed, model_type, index),
+        "scale": config.scale,
+        "params": dict(config.params.get(model_type, {})),
+        "style": config.style.to_dict(),
+    }
+
+
+def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None) -> List[Dict]:
+    """Names and seeds of every asset in the batch (deterministic).
+
+    With ``config.unique`` a count takes the first indices whose models differ
+    from each other (Crate_000, Crate_002, ...): names and seeds stay the ones
+    of those indices, so ``--pick`` rebuilds them exactly.
+    """
     specs = []
     for model_type, value in config.models.items():
-        indices = sorted(set(value)) if isinstance(value, list) else range(value)
-        for index in indices:
-            specs.append({
-                "name": asset_name(model_type, index, config.prefix),
-                "type": model_type,
-                "index": index,
-                "seed": model_seed(config.seed, model_type, index),
-                "scale": config.scale,
-                "params": dict(config.params.get(model_type, {})),
-                "style": config.style.to_dict(),
-            })
+        if isinstance(value, list):
+            indices = sorted(set(value))
+        elif config.unique and value > 1:
+            indices, tried = pick_unique(value, lambda i: build_spec(_spec(config, model_type, i)))
+            if len(indices) < value and log:
+                log(f"{model_type}: only {len(indices)} different variants among the first {tried} - "
+                    "using those")
+        else:
+            indices = list(range(value))
+        specs.extend(_spec(config, model_type, index) for index in indices)
     return specs
 
 
@@ -163,7 +181,7 @@ def _rel(path: Optional[str], base: str) -> Optional[str]:
 
 def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> Dict:
     config.validate()
-    specs = plan_models(config)
+    specs = plan_models(config, log)
     if not specs:
         raise ValueError("nothing to generate (all counts are 0)")
 

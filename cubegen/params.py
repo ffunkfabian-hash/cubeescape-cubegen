@@ -17,6 +17,7 @@ Two kinds of settings:
 from __future__ import annotations
 
 import contextvars
+import difflib
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional, Sequence, Tuple
 
@@ -65,6 +66,12 @@ class Style:
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Style":
         data = {k: v for k, v in (data or {}).items() if v not in ("", "seed")}
+        fields = list(cls.__dataclass_fields__)
+        for key in data:
+            if key not in fields:
+                close = difflib.get_close_matches(key, fields, n=1)
+                hint = f" (did you mean {close[0]!r}?)" if close else ""
+                raise ValueError(f"style: unknown key {key!r}{hint}; allowed: {', '.join(fields)}")
         return cls(**data)
 
 
