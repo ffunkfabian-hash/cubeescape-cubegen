@@ -173,6 +173,22 @@ class BlenderTest(unittest.TestCase):
                 entry["localPosition"][1] += 0.02
                 self.assertTrue(any(part in e for e in check_fbx(broken, fbx)), name)
 
+    def test_family_kits_real_fbx(self):
+        # every kit part (new types, wall openings, catwalk shapes, stair layouts) exported for real and checked
+        # against the Unity contract and its FBX; the fit checks of the kit are in the manifest
+        from cubegen.contract import check_export
+
+        for family in ("station", "foundry", "lab"):
+            with tempfile.TemporaryDirectory() as out:
+                code = main(["generate", "--family", family, "--seed", "42", "--prefix", "Gen_", "--no-render",
+                             "--no-blend", "--out", out, "--jobs", "2"])
+                self.assertEqual(code, 0, family)
+                result = check_export(os.path.join(out, "models"))
+                self.assertGreater(len(result), 25)
+                self.assertEqual({k: v["errors"] for k, v in result.items() if v["errors"]}, {}, family)
+                manifest = json.loads(read(os.path.join(out, "manifest.json")))
+                self.assertEqual(manifest["family"]["fit"]["problems"], [], family)
+
     def test_fbx_pivots_match_rig_data(self):
         # cubegen 0.7.0: parts nested two levels deep (Slot_A, Arm_Upper, Glow) had wrong pivots and a 90 deg
         # rotation in the FBX. Unity rejects such models - FBX and <Name>.cubegen.json must agree exactly.

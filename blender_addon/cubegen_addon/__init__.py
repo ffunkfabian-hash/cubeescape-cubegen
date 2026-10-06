@@ -23,6 +23,7 @@ bl_info = {
 }
 
 import importlib
+import json
 import math
 import os
 import random
@@ -59,13 +60,13 @@ def _load_cubegen():
         import cubegen as pkg
     return {name: importlib.import_module(f"{pkg.__name__}.{name}")
             for name in ("models", "seeds", "pipeline", "bpy_builder", "params", "textures", "imagemagick",
-                         "variety")}, \
+                         "variety", "families")}, \
         pkg.__version__
 
 
 _CG, CUBEGEN_VERSION = _load_cubegen()
 models, seeds, pipeline, builder = _CG["models"], _CG["seeds"], _CG["pipeline"], _CG["bpy_builder"]
-params_mod, variety = _CG["params"], _CG["variety"]
+params_mod, variety, families = _CG["params"], _CG["variety"], _CG["families"]
 textures_mod, magick_mod = _CG["textures"], _CG["imagemagick"]
 SEED = "__seed__"  # enum value: "roll it from the seed" 
 
@@ -79,6 +80,10 @@ _TYPE_ITEMS = [
     for e in sorted(models.REGISTRY.values(), key=lambda e: (e.category, e.name))
 ]
 _INFO = {}  # last preview: shown in the panel
+NO_FAMILY = "__none__"
+_FAMILY_ITEMS = [(NO_FAMILY, "Keine", "Ohne Familie: alles vom Seed bzw. den eigenen Einstellungen")] + [
+    (name, name, families.load_family(path).get("description", "")) for name, path in families.family_files().items()]
+_FAMILY_CACHE = {}
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +108,51 @@ def _all_types():
     return [item[0] for item in _TYPE_ITEMS]
 
 
+def _family(s):
+    """The chosen family (recipe dict) or None."""
+    if s.family == NO_FAMILY:
+        return None
+    if s.family not in _FAMILY_CACHE:
+        _FAMILY_CACHE[s.family] = families.load_family(s.family)
+    return _FAMILY_CACHE[s.family]
+
+
+def _explicit_style(s):
+    """Style settings the user set in the panel (on top of a family, like CLI flags)."""
+    st, out = _style(s), {}
+    for key in ("size", "glow", "material", "warning", "wear", "theme"):
+        if getattr(st, key):
+            out[key] = getattr(st, key)
+    if st.snap:
+        out["snap"] = st.snap
+    if st.detail != "normal":
+        out["detail"] = st.detail
+    if st.damage != "intact":
+        out["damage"] = st.damage
+    return out
+
+
+def _resolved(s, kit=False):
+    """families.resolve - the family, then the panel's fixed parameters and style (source "addon").
+    Without a family the same as the panel's settings. kit=True: the family's kit with its own params."""
+    model_set = None if kit else {t: 1 for t in models.model_types()}
+    return families.resolve(_family(s), None, models=model_set, extra_params=_overrides(s),
+                            extra_style=_explicit_style(s), extra_source="addon")
+
+
+def _effective(s, model_type, kit_params=None, resolved=None):
+    """(params, Style) a model of this type is built with."""
+    r = resolved or _resolved(s)
+    params = dict(r["values"]["params"].get(model_type, {}))
+    params.update(kit_params or {})
+    return params, params_mod.Style.from_dict(r["values"]["style"])
+
+
 def _cli_command(s):
     seed = s.master_seed if s.master_seed.isdigit() else f'"{s.master_seed}"'
     cmd = f"python3 -m cubegen generate --seed {seed} --pick {s.model_type}:{s.variant}"
+    if s.family != NO_FAMILY:
+        cmd += f" --family {s.family}"
     if s.prefix:
         cmd += f" --prefix {s.prefix}"
     for name, value in _overrides(s).get(s.model_type, {}).items():
@@ -210,8 +257,8 @@ def rebuild_preview(context):
     s = _settings(context)
     builder.create_materials(overwrite=False)
     master, seed, name = _spec(s)
-    asset = models.generate_asset(s.model_type, seed, name, s.scale, params=_overrides(s).get(s.model_type),
-                                  style=_style(s))
+    params, style = _effective(s, s.model_type)
+    asset = models.generate_asset(s.model_type, seed, name, s.scale, params=params, style=style)
     coll = _new_collection(context, PREVIEW_COLLECTION)
     _build(asset, coll, s, s.variant, _preview_material_map(context))
     stats = asset.stats()
@@ -228,7 +275,7 @@ def _variants(s, model_type, start, count):
     """``count`` variant indices from ``start`` on - with „Nur unterschiedliche“ skipping look-alikes."""
     if not s.unique or count < 2:
         return list(range(start, start + count))
-    overrides, style = _overrides(s).get(model_type), _style(s)
+    overrides, style = _effective(s, model_type)
 
     def build(v):
         _, seed, name = _spec(s, v, model_type)
@@ -237,16 +284,21 @@ def _variants(s, model_type, start, count):
     return variety.pick_unique(count, build, start=start)[0]
 
 
-def build_grid(context, entries=None, columns=None):
-    """Lay out variants behind the preview. ``entries`` = [(type, variant)], default: the grid settings."""
+def build_grid(context, entries=None, columns=None, kit_params=None):
+    """Lay out variants behind the preview. ``entries`` = [(type, variant)], default: the grid settings.
+    ``kit_params`` {(type, variant): params} - a family kit's own parameters per part."""
     s = _settings(context)
     builder.create_materials(overwrite=False)
     if entries is None:
         entries = [(s.model_type, v) for v in _variants(s, s.model_type, s.grid_start, s.grid_count)]
     variants = [v for _, v in entries]
-    overrides, style = _overrides(s), _style(s)
-    assets = [models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale, params=overrides.get(t),
-                                    style=style) for t, v in entries]
+    kit_params = kit_params or {}
+    resolved = _resolved(s)
+    assets = []
+    for t, v in entries:
+        params, style = _effective(s, t, kit_params.get((t, v)), resolved)
+        assets.append(models.generate_asset(t, _spec(s, v, t)[1], _spec(s, v, t)[2], s.scale, params=params,
+                                            style=style))
     spacing = max(max(a.stats()["dimensions_m"][:2]) for a in assets) + 1.0
     cols = columns or math.ceil(math.sqrt(len(assets)))
     parent = _new_collection(context, GRID_COLLECTION)
@@ -255,6 +307,9 @@ def build_grid(context, entries=None, columns=None):
         coll = bpy.data.collections.new(asset.name)
         parent.children.link(coll)
         _build(asset, coll, s, variant, material_map)
+        own = kit_params.get((entries[k][0], variant))
+        if own:
+            coll["cubegen_params"] = json.dumps(own)
         # in the grid behind the preview (front is -Y), row by row
         offset = ((k % cols - (cols - 1) / 2) * spacing, spacing * (1 + k // cols), 0.0)
         for obj in coll.objects:
@@ -267,6 +322,28 @@ def build_grid(context, entries=None, columns=None):
         label = bpy.data.objects.new(f"{asset.name}.Label", curve)
         label.location = (offset[0], offset[1] - spacing * 0.45, 0.01)
         coll.objects.link(label)
+
+
+def kit_entries(s):
+    """The family's kit: [(type, variant)] and {(type, variant): own params}."""
+    r = _resolved(s, kit=True)
+    entries, own = [], {}
+    for t, value in r["values"]["models"].items():
+        for v in (value if isinstance(value, list) else range(value)):
+            entries.append((t, v))
+            if v in r["values"]["variant_params"].get(t, {}):
+                own[(t, v)] = r["values"]["variant_params"][t][v]
+    return entries, own
+
+
+def _grid_params():
+    """Own params of the kit parts in the variant grid: {(type, variant): params}."""
+    root = bpy.data.collections.get(GRID_COLLECTION)
+    result = {}
+    for coll in (root.children if root else []):
+        if "cubegen_params" in coll:
+            result[(coll["cubegen_type"], int(coll["cubegen_variant"]))] = json.loads(coll["cubegen_params"])
+    return result
 
 
 def all_type_entries(s):
@@ -290,9 +367,13 @@ def selected_variants(context):
     return picks
 
 
-def make_configs(context, picks):
-    """One BatchConfig per master seed (each writes its manifest to <out>/seed_<seed>)."""
+def make_configs(context, picks, kit_params=None):
+    """One BatchConfig per master seed (each writes its manifest to <out>/seed_<seed>).
+    With a family: its measures, look and kit parameters - the same contract as --family."""
     s = _settings(context)
+    kit_params = _grid_params() if kit_params is None else kit_params
+    resolved = _resolved(s)
+    fam_values = resolved["values"]
     prefs = context.preferences.addons[__name__].preferences
     export_dir = bpy.path.abspath(s.export_dir).strip()
     if not export_dir:
@@ -305,16 +386,26 @@ def make_configs(context, picks):
     for master_text, model_type, variant in picks:
         grouped.setdefault(master_text, {}).setdefault(model_type, []).append(variant)
     configs = []
+    textures = s.textures if s.textures != "none" else fam_values.get("textures", "none")
+    texture_set = s.texture_set.strip() or fam_values.get("texture_set", "")
     for master_text, picked in grouped.items():
         master = seeds.parse_seed(master_text)
+        variant_params = {}
+        for t, variants in picked.items():
+            for v in variants:
+                if (t, v) in kit_params:
+                    variant_params.setdefault(t, {})[v] = kit_params[(t, v)]
+        family_name = f"{s.family}_" if s.family != NO_FAMILY else ""
         configs.append(pipeline.BatchConfig(
-            seed=master, models=picked, out_dir=os.path.join(out_root, f"seed_{master}"), formats=formats,
-            prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
+            seed=master, models=picked, out_dir=os.path.join(out_root, f"{family_name}seed_{master}"),
+            formats=formats, prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
             models_dir=export_dir, icons_dir=bpy.path.abspath(s.icons_dir).strip() or None,
             library_dir=bpy.path.abspath(s.library_dir).strip() or None,
-            params=_overrides(s), style=_style(s), lods=s.lods, jobs=s.jobs, force=s.force,
+            params={t: v for t, v in fam_values["params"].items() if t in picked},
+            variant_params=variant_params, param_sources=resolved["param_sources"], family=resolved["family"],
+            style=params_mod.Style.from_dict(fam_values["style"]), lods=s.lods, jobs=s.jobs, force=s.force,
             icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
-            textures=s.textures, texture_size=int(s.texture_size), texture_set=s.texture_set.strip(),
+            textures=textures, texture_size=int(s.texture_size), texture_set=texture_set,
             textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
             blender=bpy.app.binary_path, magick=prefs.magick_path.strip() or None,
         ))
@@ -391,6 +482,9 @@ CUBEGEN_TypeParams = type("CUBEGEN_TypeParams", (bpy.types.PropertyGroup,), {"__
 
 
 class CUBEGEN_Settings(bpy.types.PropertyGroup):
+    family: EnumProperty(name="Familie", items=_FAMILY_ITEMS, update=_on_change,
+                         description="Modellfamilie: gemeinsame Maße (Wand, Öffnungen, Stege, Treppen, Rohre), "
+                                     "Materialien und Kit - wie --family auf der Kommandozeile")
     model_type: EnumProperty(name="Typ", items=_TYPE_ITEMS, update=_on_change)
     master_seed: StringProperty(name="Master-Seed", default="42", update=_on_change,
                                 description="Zahl oder Text, wie --seed auf der Kommandozeile")
@@ -560,6 +654,24 @@ class CUBEGEN_OT_all_types(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class CUBEGEN_OT_kit(bpy.types.Operator):
+    bl_idname = "cubegen.kit"
+    bl_label = "Kit bauen"
+    bl_description = "Das Kit der gewählten Familie ins Raster bauen (Teile wählen und exportieren)"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.cubegen.family != NO_FAMILY
+
+    def execute(self, context):
+        s = _settings(context)
+        entries, own = kit_entries(s)
+        build_grid(context, entries, columns=6, kit_params=own)
+        self.report({"INFO"}, f"Kit {s.family}: {len(entries)} Teile gebaut")
+        return {"FINISHED"}
+
+
 class CUBEGEN_OT_reset_params(bpy.types.Operator):
     bl_idname = "cubegen.reset_params"
     bl_label = "Zurücksetzen"
@@ -643,6 +755,7 @@ class CUBEGEN_OT_export(bpy.types.Operator):
         ("PREVIEW", "Vorschau", "Die aktuelle Variante exportieren"),
         ("SELECTED", "Auswahl", "Alle Varianten exportieren, von denen ein Objekt ausgewählt ist"),
         ("ALL", "Alle Typen", "Von jedem Typ die Varianten aus „Pro Typ“ / „Ab Variante“ exportieren"),
+        ("KIT", "Kit", "Das ganze Kit der Familie exportieren (gemeinsamer Kontaktbogen, Passungsprüfung)"),
     ], default="PREVIEW")
 
     _timer = None
@@ -658,6 +771,8 @@ class CUBEGEN_OT_export(bpy.types.Operator):
             return [(s.master_seed, s.model_type, s.variant)]
         if self.mode == "ALL":
             return [(s.master_seed, t, v) for t, v in all_type_entries(s)]
+        if self.mode == "KIT":
+            return [(s.master_seed, t, v) for t, v in kit_entries(s)[0]]
         return selected_variants(context)
 
     def execute(self, context):
@@ -667,7 +782,7 @@ class CUBEGEN_OT_export(bpy.types.Operator):
             self.report({"WARNING"}, "Keine Variante ausgewählt - Objekte im Raster anklicken")
             return {"CANCELLED"}
         try:
-            configs = make_configs(context, picks)
+            configs = make_configs(context, picks, kit_entries(s)[1] if self.mode == "KIT" else None)
         except ValueError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
@@ -773,6 +888,30 @@ class CUBEGEN_PT_main(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("cubegen.use_active", icon="EYEDROPPER")
         row.operator("cubegen.copy_cli", text="CLI", icon="COPYDOWN")
+
+
+class CUBEGEN_PT_family(_Panel, bpy.types.Panel):
+    bl_label = "Familie & Kit"
+    bl_parent_id = "CUBEGEN_PT_main"
+
+    def draw(self, context):
+        s = _settings(context)
+        layout = self.layout
+        layout.prop(s, "family")
+        fam = _family(s)
+        if fam is None:
+            layout.label(text="Ohne Familie: Maße vom Seed bzw. von den Parametern", icon="INFO")
+            return
+        box = layout.box()
+        box.label(text=fam.get("description", "")[:70])
+        dims = fam["dims"]
+        for keys in (("wall_height", "wall_thickness", "module"), ("door_style", "door_width", "door_height"),
+                     ("walk_width", "deck_height", "rail_height"), ("pipe_radius", "pipe_height", "platform_size")):
+            box.label(text="  ".join(f"{k}={dims[k]}" for k in keys if k in dims))
+        box.label(text="Vorschau, Raster und Export folgen diesen Maßen; feste Parameter = Abweichung")
+        row = layout.row(align=True)
+        row.operator("cubegen.kit", icon="OUTLINER_COLLECTION")
+        row.operator("cubegen.export", text="Kit exportieren", icon="EXPORT").mode = "KIT"
 
 
 class CUBEGEN_PT_params(_Panel, bpy.types.Panel):
@@ -907,10 +1046,10 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
 
 CLASSES = (
     *TYPE_PARAM_GROUPS, CUBEGEN_TypeParams, CUBEGEN_Settings, CUBEGEN_Preferences,
-    CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_all_types, CUBEGEN_OT_use_active,
+    CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_all_types, CUBEGEN_OT_kit, CUBEGEN_OT_use_active,
     CUBEGEN_OT_reset_params, CUBEGEN_OT_clear,
     CUBEGEN_OT_copy_cli, CUBEGEN_OT_export, CUBEGEN_OT_open_folder,
-    CUBEGEN_PT_main, CUBEGEN_PT_params, CUBEGEN_PT_style, CUBEGEN_PT_grid, CUBEGEN_PT_export,
+    CUBEGEN_PT_main, CUBEGEN_PT_family, CUBEGEN_PT_params, CUBEGEN_PT_style, CUBEGEN_PT_grid, CUBEGEN_PT_export,
 )
 
 
