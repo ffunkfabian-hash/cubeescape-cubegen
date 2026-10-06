@@ -6,7 +6,8 @@ Server-Racks, Lampen, Kristalle, Trümmer, Türen, Plattformen, Wände, Säulen,
 Rätsel-Elemente (Sockel, Sicherungskasten, Ventil, Hebel, Rohr-Puzzle, Laser, Druckplatte, Keypad, Knöpfe,
 Zahnradwerk, Kraftfeld, Steckfeld, Scanner, Tresor), Werkzeug-, Hinweis- und Ersatzteil-Items, ein modulares
 Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband, Luke, Rolltor, Lüftungsschacht …),
-Maschinen, Einrichtung, Roboter und Natur – 104 Typen in 8 Kategorien.
+Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Dampf, Strom) und Geräte – 121 Typen in
+8 Kategorien.
 
 * **Blender CLI** baut die Meshes, exportiert **FBX für Unity** (optional GLB/glTF/OBJ), rendert Previews und
   speichert eine Übersichts-`.blend`.
@@ -49,7 +50,7 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 
 * **Typ, Master-Seed, Variante**: Pfeile ◀ ▶ blättern, 🔄 würfelt. Die Vorschau entsteht live am Ursprung, mit
   Dreiecken, Maßen und Teilenamen im Panel.
-* **Von jedem Typ**: baut alle 104 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+* **Von jedem Typ**: baut alle 121 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
@@ -99,7 +100,7 @@ und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen:
 Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
 
 ```bash
-# alle 104 Typen je 2x, Seed 42 -> output/seed_42/
+# alle 121 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
 # Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
@@ -144,7 +145,7 @@ output/seed_42/
 | Asset | Ordner | Warum |
 |---|---|---|
 | bewegt sich / hat Zustände (Tür, Maschine, Generator, Ventil, Lampe, Terminal, Lüfter, Item, Rätsel-Elemente, Lift, Förderband, Roboter …) | `Assets/Art/Models` | `AddModel` lädt `Assets/Art/Models/<Name>.fbx`; der Prefab-Builder braucht eine Rezeptzeile in `ModularBlocks.cs` (Werte stehen in `<Name>.cubegen.json`) |
-| reine Deko (`"static": true` in der JSON) | `Assets/Art/Models/Library/<Kategorie>` | `AssetRegistry` registriert sie automatisch als statische Hülle mit BoxCollider |
+| reine Deko (`"static": true` in der JSON) | `Assets/Art/Models/Library/<Kategorie>` | `AssetRegistry` registriert sie automatisch als statische Hülle mit BoxCollider (begehbare Teile wie Treppe oder Steg bringen eigene [Collider](#collider) mit) |
 
 Mit `--library-dir` (im Add-on: Feld „Bibliothek“) sortiert der Generator das selbst: Modelle ohne Script landen in
 `<Bibliothek>/<Kategorie>` (Props, Industrial, Tech, Environment, Ruins, Nature …), alle anderen im Modell-Ordner.
@@ -161,6 +162,7 @@ Felder. Der Generator liefert deshalb keine Keyframes, sondern neben jeder FBX e
 * `parts`: Teile mit Parent, `localPosition` **in Unity-Koordinaten** und Materialien
 * `behaviours`: welches vorhandene Script welche Teile steuert, mit den Feldwerten in Unity-Einheiten
 * `bounds`, `category`, `pivot`, `seed`; `"static": true` heißt reine Deko
+* `colliders` (nur wo nötig): fertige Kollisionsformen, siehe [Collider](#collider)
 
 ```json
 { "script": "Door",
@@ -205,6 +207,39 @@ im Spielprojekt einen Editor-Import für diese JSON-Dateien an die vorhandenen B
 zweiter Prompt dort ergänzt die Mechanik, für die das Spiel noch kein Script hat: Item-Sockel, Laser mit Spiegeln,
 Druckplatte, Rohr-Puzzle, Kamera-Schwenk, Leiter, Sprung-/Teleporter-Pad, Förderband, Lift-Knöpfe und
 Leerlauf-Animationen für Drohne und Roboterarm.
+
+## Collider
+
+Die FBX enthält keine Collider. Für die meisten Modelle reicht die Hülle, die `AssetRegistry` bzw. der Import
+anlegt. Bei begehbaren und bewegten Teilen ist sie falsch (Treppe als Block, Steg mit Geländer-Hülle, Luke ohne
+Öffnung). Diese Typen schreiben deshalb eigene Formen in die `<Name>.cubegen.json`:
+
+```json
+"colliders": [
+  { "type": "box", "part": null,    "center": [0, 0.6, 0.1], "size": [1.2, 0.3, 0.21], "rotation": [0, 0, 0, 1] },
+  { "type": "box", "part": "Panel", "center": [0, -0.03, -0.5], "size": [1.0, 0.06, 1.0], "rotation": [0, 0, 0, 1] },
+  { "type": "mesh", "part": "Deck", "convex": true }
+]
+```
+
+* `part`: Teil, an dem der Collider hängt und mit dem er sich bewegt (Deckel, Lift-Deck, Kraftfeld …), `null` = Wurzel.
+* `center` / `size` in Unity-Koordinaten relativ zum Pivot des Teils; `rotation` = Unity-Quaternion (x, y, z, w).
+  Ein `BoxCollider` kann sich nicht drehen: gedrehte Boxen (Rampe, Wendeltreppe) bekommen ein eigenes Kind-Objekt.
+* `mesh`: `MeshCollider` auf dem Mesh des Teils (`convex` = Unity bildet die konvexe Hülle).
+* Fehlt `colliders`, bleibt alles wie bisher (Hülle). Zerstörte Varianten (`--damage destroyed`) haben keine.
+
+| Typ | Collider |
+|---|---|
+| `stairs` | eine Box je Stufe; Rampe: schräge Box auf der Fläche + gestapelte Boxen darunter; Geländer als Zaun |
+| `spiral_stairs` | eine gedrehte Platte je Stufe, Podest, Mast, Zaun außen |
+| `catwalk` | nur die Deck-Platte, Geländer und Stützen einzeln (unter dem Steg bleibt frei) |
+| `platform`, `floating_island` | `mesh` (konvex) auf `Deck` bzw. `Island` |
+| `floor_tile` | Deck-Platte |
+| `hatch`, `floor_grate` | Rahmen und Schachtwände einzeln (der Schacht bleibt offen), Deckel / Rost auf `Panel` |
+| `vent_shaft` | Boden, Decke und geschlossene Seiten (innen begehbar), Gitter auf `Grille` |
+| `lift` | Sockel, Säulen, Träger, Deck mit Geländer auf `Deck` (fährt mit) |
+| `force_field`, `crusher`, `cage` | Rahmen; `Field` / Pressenkopf `Panel` / Käfigtür `Panel` mit eigenem Collider |
+| `railing`, `shock_plate`, `saw_blade` | flache Box statt Hülle (Geländer, Bodenplatte + Spulen, Gehäuse + Blatt) |
 
 ## Parameter & Stil
 
@@ -385,6 +420,28 @@ Code.
 # Rätsel-Erweiterung: Knöpfe, Zahnräder, Kraftfeld, Tresor + die passenden Items
 python -m cubegen generate --recipe recipes/escape_extras.json
 python -m cubegen generate --seed 7 --types gear_puzzle,spare_part --count 4 --param spare_part.kind=gear
+```
+
+## Fallen, Rätsel, Bau-Kit, Items & Geräte
+
+17 weitere Typen. Alle nutzen die vorhandenen Scripts (oder sind statisch), die begehbaren haben
+[Collider](#collider).
+
+| Kategorie | Typen |
+|---|---|
+| `puzzle` – Fallen | `crusher` (Presse: `Door` lässt den Kopf `Panel` auf die Bodenplatte fallen, `openOffset` = (0, −Hub, 0)), `saw_blade` (Sägeblatt `Rotor` mit `Rotator` in einem Bodengehäuse, Warnlicht blinkt), `steam_vent` (Bodenrost oder geplatztes Rohr; leeres `Steam` = Partikel-Emitter nach Unity-oben, optional Absperrventil `Wheel`), `shock_plate` (Strom-Bodenplatte mit Glow-Raster und Spulen) |
+| `puzzle` – Rätsel | `combination_lock` (Zahlenschloss: 3–5 Ringe `Dial_<n>`, `Rotatable` mit 36°-Schritten, Code in `meta.code`), `sliding_puzzle` (Schieberätsel 3×3 / 4×4: `Tile_<n>`, lösbar gemischt, Anordnung in `meta.layout`, Raster in `meta.pitch_m`), `balance_scale` (Waage: `Beam` neigt sich, Schalen `Pan_A` / `Pan_B` mit `Slot_A` / `Slot_B`), `freq_dial` (Frequenz-Regler: Oszilloskop `Screen`, Knöpfe `Dial_<n>`), `switch_panel` (Schalterpult: Kippschalter `Switch_<n>`, Zielmuster in `meta.pattern`) |
+| `environment` – Bau-Kit | `spiral_stairs` (Wendeltreppe 270°/360°/450° mit Handlauf und Podest), `railing` (Geländerstück 1/2/4 m: Stäbe, Holme oder Glas), `cage` (Gitterkäfig, Tür `Panel` schwenkt per `Rotatable` auf, Schloss-Licht `Glow` an der Tür) |
+| `props` – Items (`ItemPickup`) | `flashlight` (Taschenlampe oder Laterne), `key` (Bart-, moderner oder Röhrenschlüssel, optional Anhänger), `cable_reel` (Kabelrolle, optional auf Spule) |
+| `props` – Geräte (statisch) | `coffee_machine` (auf Theke oder stehend), `vending_machine` (Getränke- / Snackautomat) |
+
+* Schon vorhanden und deshalb nicht neu: T-/Kreuzstück (`pipe_bend`), Luftschleuse (`door` Stil `airlock`),
+  Schreibtisch (`table` Stil `desk`), Fass (`canister`), Lochwand (`workbench` mit `pegboard`).
+* **Wandmontiert** (`combination_lock`, `sliding_puzzle`, `freq_dial`, `switch_panel`): Rückseite an der Wand bei
+  y = +0,1, Pivot am Boden darunter.
+
+```bash
+python -m cubegen generate --recipe recipes/traps_riddles.json
 ```
 
 ## Texturen (optional)

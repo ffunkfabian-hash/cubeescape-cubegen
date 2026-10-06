@@ -32,6 +32,11 @@ Ein externer Generator (cubegen) legt neue Modelle als Assets/Art/Models/<Name>.
      "parts":  {"panels": ["Panel","Panel_B"], "statusLights": ["StatusLight_Front","StatusLight_Back"],
                 "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left","Frame_Right","Frame_Top"]},
      "fields": {"openOffset": [1.25,0,0], "speed": 1.8}}
+  ],
+  "colliders": [                        // optional, nur bei begehbaren / bewegten Typen
+    {"type": "box", "part": null, "center": [x,y,z], "size": [x,y,z], "rotation": [x,y,z,w]},
+    {"type": "box", "part": "Panel", ...},           // hängt am Teil, bewegt sich mit ihm
+    {"type": "mesh", "part": "Deck", "convex": true}  // MeshCollider auf dem Mesh des Teils
   ]
 }
 
@@ -61,14 +66,25 @@ Weitere Regeln:
 - Rotator dreht endlos. Für antenna/radar und Lüfter ist das richtig; camera hat deshalb standardmäßig
   speed 0 (steht), service_robot bekommt für den Kopf nur mit head_speed > 0 einen Rotator. Einen Rotator
   mit speed 0 trotzdem anlegen (deaktiviert), damit ein späteres Schwenk-Script ihn ersetzen kann.
-- Collider: statische Modelle bekommen über AssetRegistry eine BoxCollider-Hülle. Für begehbare Typen
-  (stairs, catwalk, floor_tile, platform, floating_island) ist das falsch (Treppe als Block, Steg mit
-  Geländer-Hülle): prüfe, wie AssetRegistry das macht, und schlage MeshCollider bzw. Box-Collider aus den
-  "bounds" der einzelnen Teile vor (Deck ohne Rail). Wand- und Deckenteile (pivot "wall") brauchen nur
-  Collider, wenn man sie berühren kann.
+- Collider: statische Modelle bekommen über AssetRegistry eine BoxCollider-Hülle. Hat die JSON "colliders",
+  ersetzen diese die Hülle - bei Prefabs mit Script UND bei statischen Modellen (prüfe, wie AssetRegistry die
+  Hülle anlegt, und lies dort die JSON neben der FBX mit). Regeln:
+  - "part": null = Wurzel, sonst das Teil (Transform per Name). Der Collider bewegt sich mit dem Teil (Luken-Deckel,
+    Lift-Deck, Kraftfeld, Pressenkopf, Käfigtür); bewegte Teile brauchen wie bisher einen kinematischen Rigidbody.
+  - "box": center / size in Unity-Koordinaten relativ zum Teil. rotation ist ein Quaternion (x, y, z, w). Bei
+    (0, 0, 0, 1) den BoxCollider direkt auf das Teil legen (center / size setzen). Sonst ein Kind-Objekt
+    "Collider_<n>" mit localPosition = center, localRotation = new Quaternion(x, y, z, w) und einem BoxCollider
+    (center 0, size = size) - BoxCollider selbst kann nicht drehen (Rampe, Wendeltreppe, Treppengeländer).
+  - "mesh": MeshCollider mit sharedMesh = Mesh des Teils, convex wie angegeben (platform, floating_island).
+  - Gibt es kein "colliders", bleibt alles wie bisher. Wand- und Deckenteile (pivot "wall") brauchen nur
+    Collider, wenn man sie berühren kann.
+  Typen mit "colliders": stairs, spiral_stairs, catwalk, platform, floor_tile, floating_island, hatch,
+  floor_grate, vent_shaft (innen begehbar), lift, force_field, crusher, cage, railing, shock_plate, saw_blade.
 - Weitere Typen mit den vorhandenen Scripts:
   - Door bewegt auch force_field (panels = ["Field"], openOffset nach unten: das Feld verschwindet im Boden;
-    Field braucht einen BoxCollider aus seinen "bounds", solange es zu ist) und shutter (Rolltor, nach oben).
+    sein Collider steht in "colliders" mit part "Field") und shutter (Rolltor, nach oben).
+  - Door bewegt auch crusher: panels = ["Panel"] (Pressenkopf), openOffset = (0, -Hub, 0) - "offen" heißt hier
+    zugeschlagen, der Kopf landet auf der Bodenplatte. Der Takt kommt aus der Spiel-Logik.
   - Rotatable.step darf negativ sein: hatch klappt den Deckel "Panel" mit negativem step um Unity right nach
     oben. Kinder eines bewegten Teils übernehmen ("parent"): hatch "Wheel" unter "Panel"; safe "Wheel",
     "Glow" und "Screen" unter "Panel" (Tür). safe hat zwei Rotatables: Rad (interactive, target = Code-Ziffer)
@@ -80,8 +96,16 @@ Weitere Regeln:
   - Leere oder Teile ohne Script, die erhalten bleiben müssen: "Button" / "Button_<n>" (button, intercom:
     werden beim Drücken ~1,5 cm Richtung Wand geschoben), "Plug" (cable_plug), "Grille" (vent_shaft),
     "Gun" (turret, Kind von "Turret"), "Leg_<n>" (spider_bot, Pivot an der Hüfte), "Head" (android).
-  - Begehbar: hatch und floor_grate (Oberkante bei y = 0) und vent_shaft (innen begehbar) brauchen
-    MeshCollider bzw. Box-Collider aus den "bounds" der Teile statt einer Hülle - wie stairs / catwalk.
+  - Weitere Rotatables: combination_lock (je Ring "Dial_<n>" einer, axis right, step 36, target = Ziffer),
+    freq_dial ("Dial_<n>", axis forward), switch_panel ("Switch_<n>", zwei Stellungen), cage (Tür "Panel",
+    axis up, negativer step, interactive false - der Käfig geht per Signal auf; "Glow" ist Kind von "Panel"),
+    balance_scale ("Beam", interactive false; "Pan_A" / "Pan_B" sind Kinder von "Beam", darauf die leeren
+    "Slot_A" / "Slot_B"). Mehrere Rotatables teilen sich ein "Glow".
+  - saw_blade: Rotator am Blatt "Rotor" (axis forward) + SignalLight. steam_vent: leeres "Steam" ist der
+    Ansatzpunkt für ein Partikelsystem (nach Unity-oben); optional Rotatable am Absperrventil "Wheel".
+  - sliding_puzzle: "Tile_<n>" ohne Script (Mechanik im zweiten Prompt), Anordnung in meta.layout, Raster
+    meta.pitch_m; SignalIndicator am "Glow".
+  - Items mit ItemPickup: auch flashlight, key, cable_reel.
 
 Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten M_*-Materialien):
 - "tiled": Materialien MT_<Name> (z. B. MT_Metal), beschrieben in <Texturordner>/CubeEscape_Textures.json:
@@ -104,7 +128,8 @@ Aufgabe:
    aus einer festen Rezeptzeile – genauso wie die bestehenden Rezepte für Door_Sliding, Machine_Small,
    Valve, EmergencyLight usw.
 3. Modelle mit "static": true bekommen kein Prefab mit Scripts (sie gehören nach Art/Models/Library/<Kategorie>
-   und werden von AssetRegistry registriert) - ihre MT_/MTA_-Materialien aus Schritt 5 aber trotzdem.
+   und werden von AssetRegistry registriert) - ihre MT_/MTA_-Materialien aus Schritt 5 aber trotzdem, und ihre
+   "colliders" (siehe oben) statt der BoxCollider-Hülle.
 4. Keine Änderungen an Laufzeit-Scripts. Fehlende Teile: Warnung ins Log, Modell überspringen.
 5. Materialien: MT_*/MTA_* NICHT auf M_* remappen, sondern aus den JSON-Angaben als URP/Lit-Materialien
    anlegen (Albedo -> Base Map, Normal -> Normal Map, MetallicSmoothness -> Metallic Map mit Smoothness aus
@@ -190,5 +215,22 @@ Mechaniken:
 18. Wachgeschütz (turret): wie Mechanik 5 schwenken (Turret ±60°), "Gun" zielt auf den Spieler, wenn er im
     Sichtkegel ist (Glow -> Blink, Signal / Schaden nach Spiel-Logik). spider_bot: Beine "Leg_<n>" im
     Wechsel leicht anheben (prozedurale Laufanimation), nur visuell.
+19. Fallen (crusher, saw_blade, steam_vent, shock_plate): Schadenszone als Trigger (crusher: unter "Panel",
+    nur während der Kopf fällt; saw_blade: um das Blatt; steam_vent: Kegel über "Steam"; shock_plate: über
+    "Body"). Ein-/Ausschalten per Signal (z. B. Sicherung, Hebel), dabei SignalLight bzw. Rotator mit
+    an/aus. crusher: Takt-Script, das die Door abwechselnd öffnet/schließt (Pause als Feld). steam_vent: das
+    Absperrventil (Rotatable an "Wheel" auf target) stoppt Dampf und Schaden.
+20. Schieberätsel (sliding_puzzle): Klick auf ein "Tile_<n>" neben der Lücke schiebt es um meta.pitch_m in
+    die Lücke (Unity X / Y der Wandfläche, ~0,15 s). Startanordnung aus meta.layout (0 = Lücke). Gelöst =
+    Tile_1..Tile_<n*n-1> zeilenweise von oben links, Lücke unten rechts -> SignalIndicator an, Signal.
+21. Waage (balance_scale): Items auf "Slot_A" / "Slot_B" ablegen (wie Item-Sockel, Mechanik 1); Gewicht pro
+    item.kind als Feld. Stellung = Vorzeichen der Differenz (-1 / 0 / +1) auf das Rotatable an "Beam";
+    "Pan_A" / "Pan_B" gegen die Balkenneigung zurückdrehen, damit die Schalen waagrecht hängen. Gleich
+    schwer -> Signal.
+22. Frequenz-Regler (freq_dial): je weiter die Knöpfe vom target entfernt sind, desto unruhiger flackert der
+    "Screen" (Material-Emission oder UV-Scroll); alle auf target -> ruhig, SignalIndicator an, Signal.
+23. Taschenlampe (flashlight): aufgehoben -> Taste schaltet ein Spot-Light an der Kamera; "Glow" der
+    Lampe wechselt dabei M_GlowCyan/M_GlowOrange <-> M_RobotDark. key: wie keycard als Schlüssel-Item
+    (item.kind "key"), öffnet z. B. cage oder safe.
 Am Ende: Liste der neuen Scripts, welche Typen sie nutzen, und welche Felder der Import jetzt setzt.
 ````

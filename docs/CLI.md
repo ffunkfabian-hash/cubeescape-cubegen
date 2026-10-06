@@ -30,7 +30,7 @@ cubegen doctor
 | Befehl | Wofür |
 |---|---|
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
-| `python3 -m cubegen list` | alle 104 Modelltypen nach Kategorie (`--json` für Skripte) |
+| `python3 -m cubegen list` | alle 121 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
 | `python3 -m cubegen doctor` | Installation prüfen |
 

@@ -150,6 +150,7 @@ def platform(rng, a):
         rng.random()  # former railing roll - kept for seed stability, platforms have no railing any more
     if p.bool("stripes", 0.3, warning=True):
         stripes(deck, size * 0.8, (0, -size / 2 + 0.12, 0.006), count=6, width=0.12)
+    a.mesh_collider("Deck")  # convex hull of slab + underside = the real shape, flat top
 
 
 @model("wall", "Wall", "environment", "Wall module 2 or 4 m long, 3 m high, 0.5 m thick: panel layouts, glow lines, pipes",

@@ -15,8 +15,9 @@ from cubegen.seeds import MAX_SEED, model_seed, parse_seed  # noqa: E402
 
 SEEDS_PER_TYPE = 40
 MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirror", "Plate", "Deck", "Head",
-                "Turret", "Arm_Lower", "Arm_Upper", "Gripper", "Button", "Prism", "Field", "Plug", "Gun", "Grille")
-MOVING_PREFIXES = ("Rotor_", "Roller_", "Gear_", "Button_", "Leg_")
+                "Turret", "Arm_Lower", "Arm_Upper", "Gripper", "Button", "Prism", "Field", "Plug", "Gun", "Grille",
+                "Beam")
+MOVING_PREFIXES = ("Rotor_", "Roller_", "Gear_", "Button_", "Leg_", "Dial_", "Tile_", "Switch_", "Pan_")
 # fields every behaviour of a game script must carry (see docs/UNITY_INTEGRATION.md)
 SCRIPT_FIELDS = {
     "Door": ({"panels", "statusLights", "upperFrame", "colliders"}, {"openOffset", "speed"}),
@@ -101,7 +102,7 @@ class SeedTests(unittest.TestCase):
 
 class ModelTests(unittest.TestCase):
     def test_registry(self):
-        self.assertGreaterEqual(len(model_types()), 104)
+        self.assertGreaterEqual(len(model_types()), 121)
         for entry in REGISTRY.values():
             self.assertTrue(entry.description)
             self.assertIn(entry.pivot, ("floor", "top", "center", "wall"))
@@ -311,6 +312,169 @@ class ModelTests(unittest.TestCase):
         asset = generate_asset("crate", 123)
         self.assertEqual(asset.stats()["triangles"], 348)
         self.assertAlmostEqual(asset.objects[0].mesh.verts[0][0], -0.4157090796552833, places=12)
+
+
+WALKABLE = ("stairs", "catwalk", "platform", "floor_tile", "floating_island", "hatch", "floor_grate", "vent_shaft",
+            "lift", "force_field", "spiral_stairs", "railing", "cage", "crusher", "shock_plate")
+
+
+def box_corners(c):
+    from itertools import product
+
+    from cubegen.geometry import euler_matrix, mat_mul_vec
+    rot = euler_matrix(*c.rot)
+    for sx, sy, sz in product((-1, 1), repeat=3):
+        v = mat_mul_vec(rot, (sx * c.size[0] / 2, sy * c.size[1] / 2, sz * c.size[2] / 2))
+        yield tuple(c.center[i] + v[i] for i in range(3))
+
+
+class ColliderTests(unittest.TestCase):
+    def test_walkable_types_have_colliders(self):
+        for model_type in WALKABLE:
+            for seed in range(SEEDS_PER_TYPE):
+                self.assertTrue(generate_asset(model_type, seed).colliders, f"{model_type} {seed}")
+
+    def test_colliders_stay_inside_the_model(self):
+        for model_type in model_types():
+            for seed in range(SEEDS_PER_TYPE):
+                asset = generate_asset(model_type, seed)
+                lo, hi = asset.bbox()
+                for c in asset.colliders:
+                    if c.part is not None:
+                        self.assertIsNotNone(asset.get(c.part), f"{model_type} {seed} {c.part}")
+                    if c.kind == "mesh":
+                        self.assertFalse(asset.get(c.part).is_empty)
+                        continue
+                    self.assertTrue(all(v > 0 for v in c.size))
+                    for corner in box_corners(c):
+                        for i in range(3):
+                            self.assertTrue(lo[i] - 0.1 <= corner[i] <= hi[i] + 0.1,
+                                            f"{model_type} {seed} {c.part} {corner}")
+
+    def test_unity_rotation_matches_the_mesh_transform(self):
+        import itertools
+        import random
+
+        from cubegen.asset import to_unity, unity_rotation
+        from cubegen.geometry import euler_matrix, mat_mul_vec
+
+        def rotate(q, v):  # v' = q v q* (Unity's Quaternion * Vector3)
+            x, y, z, w = q
+            t = (2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0]))
+            return (v[0] + w * t[0] + y * t[2] - z * t[1], v[1] + w * t[1] + z * t[0] - x * t[2],
+                    v[2] + w * t[2] + x * t[1] - y * t[0])
+
+        rng = random.Random(5)
+        for _ in range(100):
+            rot = [rng.uniform(-math.pi, math.pi) for _ in range(3)]
+            q = unity_rotation(rot)
+            self.assertAlmostEqual(sum(c * c for c in q), 1.0, places=5)
+            for corner in itertools.product((-1, 1), repeat=3):
+                blender = mat_mul_vec(euler_matrix(*rot), corner)
+                unity = rotate(q, to_unity(corner))
+                for a, b in zip(to_unity(blender), unity):
+                    self.assertAlmostEqual(a, b, places=3)
+        self.assertEqual(unity_rotation((0.0, 0.0, 0.0)), (0.0, 0.0, 0.0, 1.0))
+
+    def test_collider_data(self):
+        from cubegen.pipeline import rig_data
+        hatch = generate_asset("hatch", 4)
+        data = hatch.collider_data()
+        lid = [c for c in data if c["part"] == "Panel"]
+        self.assertEqual(len(lid), 1)
+        self.assertEqual(lid[0]["type"], "box")
+        panel = hatch.get("Panel")
+        lo, hi = panel.mesh.bbox()
+        self.assertAlmostEqual(lid[0]["size"][0], hi[0] - lo[0], delta=0.03)  # Unity X = lid width
+        self.assertAlmostEqual(lid[0]["size"][1], 0.06, places=4)             # Unity Y = lid thickness
+        spec = {"type": "hatch", "seed": 4, "style": {}}
+        self.assertEqual(rig_data(hatch, spec, 1)["colliders"], data)
+        self.assertNotIn("colliders", rig_data(generate_asset("crate", 4), {"type": "crate", "seed": 4}, 1))
+        self.assertEqual(generate_asset("platform", 1).collider_data(),
+                         [{"type": "mesh", "part": "Deck", "convex": True}])
+
+    def test_colliders_follow_scale_and_damage(self):
+        from cubegen.params import Style
+        a, b = generate_asset("stairs", 3), generate_asset("stairs", 3, scale=2.0)
+        for ca, cb in zip(a.colliders, b.colliders):
+            self.assertEqual(cb.size, tuple(v * 2 for v in ca.size))
+        self.assertFalse(generate_asset("stairs", 3, style=Style(damage="destroyed")).colliders)
+        self.assertTrue(generate_asset("stairs", 3, style=Style(damage="damaged")).colliders)
+
+    def test_ramp_has_no_gaps(self):
+        stairs = generate_asset("stairs", 0, params={"style": "ramp", "rails": "none"})
+        run, rise = stairs.meta["run_m"], stairs.get("Body").mesh.bbox()[1][2]
+        # sample points just under the slope: each one lies in some collider box
+        for k in range(1, 20):
+            y = -run / 2 + run * k / 20
+            z = rise * k / 20 - 0.05
+            inside = False
+            for c in stairs.colliders:
+                (x0, y0, z0), (x1, y1, z1) = [tuple(min(p[i] for p in box_corners(c)) for i in range(3)),
+                                              tuple(max(p[i] for p in box_corners(c)) for i in range(3))]
+                if c.rot == (0.0, 0.0, 0.0) and y0 <= y <= y1 and z0 <= z <= z1:
+                    inside = True
+                elif c.rot != (0.0, 0.0, 0.0):  # slope box: distance below the slope plane < thickness
+                    slope = c.rot[0]
+                    depth = (rise * (y + run / 2) / run - z) * math.cos(slope)
+                    inside = inside or 0 <= depth <= c.size[2] + 1e-6
+            self.assertTrue(inside, (y, z))
+
+
+class NewTypeTests(unittest.TestCase):
+    def test_traps(self):
+        for seed in range(SEEDS_PER_TYPE):
+            crusher = generate_asset("crusher", seed)
+            door = crusher.behaviours[0]
+            self.assertEqual(door["script"], "Door")
+            self.assertLess(door["fields"]["openOffset"][1], 0)  # slams down
+            head = crusher.get("Panel").mesh.bbox()[0][2]
+            self.assertAlmostEqual(head + door["fields"]["openOffset"][1], 0.08, places=3)  # lands on the plate
+            saw = generate_asset("saw_blade", seed)
+            self.assertEqual({b["script"] for b in saw.behaviours}, {"Rotator", "SignalLight"})
+            self.assertTrue(generate_asset("steam_vent", seed).get("Steam").is_empty)
+
+    def test_riddles(self):
+        for seed in range(SEEDS_PER_TYPE):
+            lock = generate_asset("combination_lock", seed)
+            dials = [b for b in lock.behaviours if b["script"] == "Rotatable"]
+            self.assertEqual(len(dials), lock.meta["dials"])
+            self.assertEqual("".join(str(b["fields"]["target"]) for b in dials), lock.meta["code"])
+
+            puzzle = generate_asset("sliding_puzzle", seed)
+            n = puzzle.meta["grid"]
+            flat = [v for row in puzzle.meta["layout"] for v in row]
+            self.assertEqual(sorted(flat), list(range(n * n)))
+            self.assertNotEqual(flat, list(range(1, n * n)) + [0])
+            tiles = [v for v in flat if v]
+            inversions = sum(1 for i in range(len(tiles)) for j in range(i + 1, len(tiles)) if tiles[i] > tiles[j])
+            gap_row_from_bottom = n - flat.index(0) // n
+            solvable = inversions % 2 == 0 if n % 2 else (inversions + gap_row_from_bottom) % 2 == 1
+            self.assertTrue(solvable, puzzle.meta["layout"])
+            self.assertEqual({o.name for o in puzzle.meshes() if o.name.startswith("Tile_")},
+                             {f"Tile_{i}" for i in range(1, n * n)})
+
+            scale = generate_asset("balance_scale", seed)
+            self.assertEqual(scale.get("Pan_A").parent, "Beam")
+            self.assertEqual(scale.get("Slot_B").parent, "Pan_B")
+
+            panel = generate_asset("switch_panel", seed)
+            self.assertEqual([b["fields"]["target"] for b in panel.behaviours if b["script"] == "Rotatable"],
+                             panel.meta["pattern"])
+
+    def test_more_items_and_kit(self):
+        for t in ("flashlight", "key", "cable_reel"):
+            self.assertEqual(REGISTRY[t].pivot, "center")
+            for seed in range(SEEDS_PER_TYPE):
+                self.assertEqual([b["script"] for b in generate_asset(t, seed).behaviours], ["ItemPickup"])
+        for seed in range(SEEDS_PER_TYPE):
+            cage = generate_asset("cage", seed)
+            self.assertEqual(cage.get("Glow").parent, "Panel")
+            self.assertTrue(any(c.part == "Panel" for c in cage.colliders))
+            stairs = generate_asset("spiral_stairs", seed)
+            self.assertGreaterEqual(len(stairs.colliders), stairs.meta["steps"] + 2)
+        for t in ("railing", "coffee_machine", "vending_machine"):
+            self.assertFalse(generate_asset(t, 2).behaviours)  # static decoration
 
 
 if __name__ == "__main__":
