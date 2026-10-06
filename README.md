@@ -55,11 +55,16 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
-* **Stil (alle Typen)**: Größe, Raster, Glow-Farbe, Material, Warnfarbe, Abnutzung, Detail, Icon-Kamera.
+* **Stil (alle Typen)**: Raum-Thema, Größe, Raster, Glow-Farbe, Material, Warnfarbe, Abnutzung, Detail,
+  Icon-Kamera. Das **Thema** (beliebiger Text) würfelt Glow-Farbe, Material, Abnutzung und Warnfarbe einmal für
+  alle Modelle, damit ein Raum zusammenpasst.
 * **Varianten-Raster**: z. B. 12 Varianten nebeneinander, beschriftet. Gute Varianten im Viewport anklicken
   (Shift = mehrere) und **Auswahl exportieren**. **Als Vorschau** übernimmt die Variante des aktiven Objekts.
-* **Export für Unity**: Modell-, Icon- und Ausgabeordner, Präfix, FBX/GLB/OBJ, Icons + Kontaktbogen. Der Export
-  läuft im Hintergrund (Blender bleibt bedienbar) und nutzt exakt die Pipeline der Kommandozeile. Ein Export aus dem
+  **Nur unterschiedliche** überspringt Varianten, die wie eine frühere aussehen.
+* **Export für Unity**: Modell-, Icon- und Ausgabeordner, Präfix, FBX/GLB/OBJ, Icons + Kontaktbogen, LODs für
+  statische Modelle, **Parallel** (mehrere Blender-Prozesse) und **Alles neu bauen** (sonst werden unveränderte
+  Modelle übernommen). Der Export läuft im Hintergrund (Blender bleibt bedienbar) und nutzt exakt die Pipeline der
+  Kommandozeile. Ein Export aus dem
   Add-on ergibt also dieselben Dateien wie `python -m cubegen generate --seed 42 --pick crate:3 --prefix Gen_`.
   Der Knopf **CLI** kopiert genau diesen Befehl.
 
@@ -126,6 +131,15 @@ python -m cubegen generate --seed 42 --pick crate:3,door:7 --prefix Gen_
 # erst ansehen, was entstehen würde (ohne Blender)
 python -m cubegen generate --seed 42 --types door,pipe --count 3 --dry-run
 
+# ein Raum aus einem Guss, nur Varianten, die sich wirklich unterscheiden
+python -m cubegen generate --seed 7 --theme labor-3 --types crate,machine,wall --count 6 --unique
+
+# alle Typen, Deko mit Sparstufe (LOD), 4 Blender-Prozesse; erneut ausgeführt baut es nur Geändertes
+python -m cubegen generate --seed 42 --count 3 --lods --jobs 4
+
+# Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte
+python -m cubegen check
+
 # alle Typen
 python -m cubegen list
 ```
@@ -159,6 +173,21 @@ Mit `--library-dir` (im Add-on: Feld „Bibliothek“) sortiert der Generator da
 Das Präfix (`--prefix Gen_`) verhindert Namenskollisionen mit den handgebauten Modellen. Unity-Importeinstellungen
 gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselben Namen behält sie also.
 
+## Reproduzierbarkeit & Qualität
+
+* **Gleicher Seed = gleiches Modell**, auch nach Updates und mit anderer Python-Version. `tests/golden.json`
+  enthält Fingerabdrücke aller Typen; der Test schlägt fehl, sobald sich ein Modell ändert. Der Zufall läuft über
+  einen eigenen, eingefrorenen Würfel (`StableRandom`), und Summen werden so gerechnet, dass Blenders Python 3.11
+  und Python 3.9 bis 3.13 bitgenau dieselben Dateien bauen. CI testet mit 3.9, 3.11 und 3.13.
+* **Neue Details ohne alte Seeds zu ändern**: Ein Builder würfelt Neues aus einem eigenen Strom,
+  `a.sub("name")`, statt aus `rng`. Sonst würden alle späteren Würfe verrutschen.
+* **`python -m cubegen check`** meldet pro Typ die Dreiecke gegen das Budget der Kategorie, Draw Calls,
+  flackernde Flächen (Z-Fighting) und wie viele Varianten sich wirklich unterscheiden. Bekannte flackernde
+  Flächen bestehender Typen stehen in `tests/quality_baseline.json`. Sie zu beheben würde deren Seeds ändern, also
+  passiert das nur bewusst; schlimmer werden darf es nicht, neue Typen dürfen keine haben.
+* Absichtlich ein Modell geändert? `python3 tests/golden_cases.py --update` schreibt beide Referenzdateien neu
+  (und in den CHANGELOG gehört, welche Seeds anders aussehen).
+
 ## Animation & Unity-Scripts
 
 Im Spiel gibt es **keine Animation-Clips**: Animationsimport ist abgeschaltet, alles läuft prozedural über Scripts
@@ -169,6 +198,14 @@ Felder. Der Generator liefert deshalb keine Keyframes, sondern neben jeder FBX e
 * `behaviours`: welches vorhandene Script welche Teile steuert, mit den Feldwerten in Unity-Einheiten
 * `bounds`, `category`, `pivot`, `seed`; `"static": true` heißt reine Deko
 * `colliders` (nur wo nötig): fertige Kollisionsformen, siehe [Collider](#collider)
+* `lods` (nur mit `--lods`, nur statische Modelle): Die FBX enthält jedes Teil als `<Teil>_LOD0` und `<Teil>_LOD1`
+  (Unity baut daraus beim Import die LODGroup); `parts` und `colliders` nennen die Teile ohne Endung
+* `style`: der Stil, mit dem das Modell gebaut wurde (ein Thema ist darin schon aufgelöst)
+
+Die FBX und ihre `<Name>.cubegen.json` stimmen immer überein: Nach jedem Export liest der Generator die FBX zurück
+und vergleicht Eltern, lokale Pivots, Rotation (immer 0) und Vertices. Bei einer Abweichung bricht er ab. (Bis
+0.7.0 hatten Teile ab der dritten Ebene, `balance_scale` `Slot_A`/`Slot_B`, `robot_arm` `Arm_Upper`/`Gripper`
+und `turret` `Glow`, wegen eines Fehlers in Blenders FBX-Export falsche Pivots und 90° Drehung.)
 
 ```json
 { "script": "Door",
@@ -270,6 +307,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 
 | Option | Werte | Wirkung |
 |---|---|---|
+| `--theme` | beliebiger Text | Raum-Thema: würfelt Glow-Farbe, Material, Abnutzung und Warnfarbe einmal für alle Modelle; einzeln festgelegte Werte gehen vor |
 | `--size` | S / M / L | Größen aus dem unteren / mittleren / oberen Drittel der Bereiche |
 | `--snap` | z. B. 0.5 | Hauptmaße auf Vielfache runden (Radien: der Durchmesser), passend zum Modulraster |
 | `--glow` | cyan / red / orange | feste Farbe für Deko-Glow. Status-Teile (Maschine, Generator, Terminal, Tür) behalten ihre Zustandsfarbe |

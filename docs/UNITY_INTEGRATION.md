@@ -37,7 +37,11 @@ Ein externer Generator (cubegen) legt neue Modelle als Assets/Art/Models/<Name>.
     {"type": "box", "part": null, "center": [x,y,z], "size": [x,y,z], "rotation": [x,y,z,w]},
     {"type": "box", "part": "Panel", ...},           // hängt am Teil, bewegt sich mit ihm
     {"type": "mesh", "part": "Deck", "convex": true}  // MeshCollider auf dem Mesh des Teils
-  ]
+  ],
+  "lods": {                             // optional (--lods), nur bei "static": true
+    "objects": "<part>_LOD<level>",
+    "levels": [{"suffix": "_LOD0", "triangles": 384}, {"suffix": "_LOD1", "triangles": 152}]
+  }
 }
 
 Vorkommende behaviours (Script → parts → fields):
@@ -116,6 +120,15 @@ Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten 
   "textures": {"mode": "baked", "baked": {"Albedo": ..., "Normal": ..., "MetallicSmoothness": ...}}
 Glow-/Status-Materialien (M_Glow*, M_Crystal, M_Glass) sind nie texturiert und bleiben M_*.
 Modelle mit "static": true (auch zerstörte Varianten und die Ruinen-Typen) haben keine Scripts.
+
+LODs (nur wenn die JSON "lods" hat, nur statische Modelle): In der FBX heißt jedes Teil <Teil>_LOD0 und
+<Teil>_LOD1, deshalb legt Unitys Model-Importer die LODGroup selbst an. "parts" und "colliders" nennen die
+Teile ohne Endung: Ein Teil "Body" ist in der FBX "Body_LOD0" (Collider, Materialien, Bounds von LOD0
+nehmen), "Body_LOD1" ist nur die Sparstufe. Nichts an der LODGroup ändern.
+
+Die FBX passt immer exakt zur JSON (cubegen liest jede FBX nach dem Export zurück und vergleicht Eltern,
+localPosition, Rotation 0 und Vertices). Weicht ein importiertes Modell trotzdem ab: nicht die Toleranz
+lockern, sondern das Modell ablehnen und melden.
 
 Aufgabe:
 1. Prüfe zuerst, ob die Feldnamen oben zu den echten Feldern der Scripts passen. Liste jede Abweichung

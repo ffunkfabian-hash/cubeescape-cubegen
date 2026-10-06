@@ -25,13 +25,14 @@ pip install "git+https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_ge
 cubegen doctor
 ```
 
-## 2. Die vier Befehle
+## 2. Die fünf Befehle
 
 | Befehl | Wofür |
 |---|---|
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
 | `python3 -m cubegen list` | alle 121 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
+| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 13) |
 | `python3 -m cubegen doctor` | Installation prüfen |
 
 `--help` geht überall: `python3 -m cubegen generate --help`.
@@ -68,7 +69,14 @@ python3 -m cubegen generate --seed 42 --types crate,socket,drone --count 3 --dry
 | `--types` | `--types door,wall,pillar` | nur diese Typen (`--types all` = alle) |
 | `--count` | `--count 4` | Varianten pro Typ: `_000` … `_003` |
 | `--pick` | `--pick crate:3,door:7` | genau diese Varianten (gleiche Namen und Seeds wie mit `--count`) |
+| `--unique` | `--count 12 --unique` | Varianten überspringen, die wie eine frühere aussehen |
 | ohne `--types`/`--pick`/Rezept | | je 1 Variante von **allen** Typen |
+
+**Doppelte vermeiden:** Bei manchen Typen (Kamera, Laser-Spiegel, Taschenlampe …) sehen Varianten mit
+verschiedenen Seeds fast gleich aus. `--unique` nimmt nur Varianten, die sich von allen vorherigen unterscheiden:
+andere Teile, andere Materialien oder Dreiecke, oder Maße, die um mehr als 8 % bzw. 3 cm abweichen.
+Die Namen bleiben die ihres Index (`LaserMirror_000`, `_001`, `_002`, `_003`, `_006` …), also lässt sich jede
+Variante mit `--pick` genau so wieder bauen. Im Add-on heißt das „Nur unterschiedliche“.
 
 Ablauf in der Praxis: erst viele Varianten ansehen, dann die guten gezielt exportieren.
 
@@ -85,6 +93,9 @@ python3 -m cubegen generate --seed 7 --pick pipe_fitting:2,pipe_fitting:9 --pref
 * Gleiche Kommandozeile = gleiche Dateien. `--count` erhöhen oder Typen hinzufügen ändert keine bestehenden
   Assets (`Crate_002` bleibt `Crate_002`).
 * Ohne `--seed` wird gewürfelt; der Seed steht dann in der ersten Zeile der Ausgabe und im `manifest.json`.
+* Gleicher Seed = gleiches Modell, auch mit einer anderen Python-Version: Blender (Python 3.11) und die
+  Kommandozeile (3.9 bis 3.13) bauen bitgenau dieselben Modelle. Die Tests prüfen das mit Fingerabdrücken
+  aller Typen (`tests/golden.json`).
 
 ## 6. Eigenschaften festlegen (`--param`)
 
@@ -109,8 +120,19 @@ python3 -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-
     --warning none --wear light --detail low
 ```
 
+**Raum-Thema:** Statt alles einzeln festzulegen, gib dem Raum ein Thema. Das ist ein beliebiger Name, aus dem
+Glow-Farbe, Material, Abnutzung und Warnfarbe einmal für alle Modelle gewürfelt werden. So passen alle Teile
+eines Raums zusammen:
+
+```bash
+python3 -m cubegen generate --seed 7 --theme labor-3 --types crate,machine,pipe,wall --count 4
+# theme 'labor-3': glow red, material wall, wear light, warning per asset
+python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln festgelegt geht vor
+```
+
 | Option | Werte | Wirkung |
 |---|---|---|
+| `--theme` | beliebiger Text | würfelt Glow-Farbe, Material, Abnutzung, Warnfarbe einmal für alle |
 | `--size` | S / M / L | kleine / mittlere / große Varianten |
 | `--snap` | z. B. 0.5 | Hauptmaße auf Vielfache runden (passt ins Modulraster) |
 | `--glow` | cyan / red / orange | Deko-Glow in einer Farbe; Status-Lichter behalten ihre Zustandsfarbe |
@@ -132,6 +154,13 @@ python3 -m cubegen generate --seed 7 --prefix Gen_ \
 * `--models-dir`: Modelle mit Script (Tür, Ventil, Sockel, Drohne …) - dort lädt sie `AddModel`.
 * `--library-dir`: reine Deko (`"static": true`) automatisch nach `Library/<Kategorie>`.
 * `--prefix Gen_` verhindert Namenskollisionen mit den handgebauten Modellen.
+* `--lods`: Deko ohne Script bekommt eine zweite, sparsamere Stufe in derselben FBX (Teile `<Teil>_LOD0` /
+  `<Teil>_LOD1`). Unity baut daraus beim Import automatisch eine LODGroup. Die Sparstufe ist dasselbe Modell mit
+  `--detail low`, im Median 30 % weniger Dreiecke, bei Wänden bis knapp 70 %. Sie entsteht nur, wenn sie mindestens
+  15 % spart. Modelle mit Script bekommen keine, weil sich deren Teile in der Sparstufe nicht mitbewegen würden.
+* Jede exportierte FBX wird nach dem Export zurückgelesen und mit ihrer `<Name>.cubegen.json` verglichen
+  (Eltern, Pivots, Rotation 0, Vertices). Weicht etwas ab, bricht der Export mit einer Meldung ab, statt eine
+  Datei zu schreiben, die Unity ablehnen würde.
 * Den Editor-Import für Unity baust du mit dem Prompt aus [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 
 ## 9. Rezepte (Batches als Datei)
@@ -145,19 +174,27 @@ python3 -m cubegen generate --recipe recipes/building_kit.json --models-dir ../C
 
 ```json
 {
+  "_comment": "Level 3, Labor",
   "seed": "level-3",
   "formats": ["fbx"],
   "prefix": "Gen_",
-  "style": { "snap": 0.5, "wear": "light" },
+  "unique": true,
+  "style": { "theme": "labor-3", "snap": 0.5 },
   "params": { "door": { "style": "airlock", "width": 2.0 } },
-  "models": { "door": 3, "wall": 4, "socket": 2 }
+  "models": { "door": [0, 7], "wall": 4, "socket": 2 }
 }
 ```
 
+`models` nimmt eine Anzahl (`"wall": 4`) oder bestimmte Varianten (`"door": [0, 7]`, wie `--pick`). Schlüssel,
+die mit `_` beginnen, sind Kommentare.
+
 Weitere Schlüssel: `scale`, `blend`, `render`, `engine`, `render_size`, `samples`, `icon_size`,
 `icon_background`, `icon_azimuth`, `icon_elevation`, `icon_zoom`, `models_dir`, `library_dir`, `icons_dir`,
-`textures`, `texture_size`, `texture_set`, `textures_dir`, `out`. Optionen auf der Kommandozeile überschreiben
-das Rezept (z. B. `--seed`, `--count`, `--models-dir`).
+`textures`, `texture_size`, `texture_set`, `textures_dir`, `unique`, `lods`, `jobs`, `out`. Optionen auf der
+Kommandozeile überschreiben das Rezept (z. B. `--seed`, `--count`, `--models-dir`).
+
+Rezepte werden geprüft: Ein Tippfehler bricht mit einem Hinweis ab, statt still ignoriert zu werden, z. B.
+`unknown key 'stlye' (did you mean 'style'?)`.
 
 ## 10. Texturen (optional)
 
@@ -188,14 +225,44 @@ Deckenteile (`ceiling_panel`, `hanging_crystals`) werden automatisch von unten g
 ```bash
 # nur FBX + JSON, schnell
 python3 -m cubegen generate --seed 42 --types all --no-render --no-blend
+# 4 Blender-Prozesse gleichzeitig
+python3 -m cubegen generate --seed 42 --types all --count 3 --jobs 4
 # reines Python: OBJ + MTL
 python3 -m cubegen generate --seed 42 --types crate --no-blender
 ```
 
+**Nur Geändertes neu bauen:** Ein erneuter Lauf in denselben Ausgabeordner exportiert und rendert nur Modelle,
+die sich geändert haben. Den Ausschlag geben Seed, Parameter, Stil, Formate, Render- und Textur-Einstellungen,
+Blender-Version und der cubegen-Code selbst. Unverändertes wird übernommen
+(`unchanged since the last run: 240 asset(s)`). Fehlen alle Änderungen, startet Blender gar nicht erst.
+`--force` baut alles neu.
+
+**Parallel:** `--jobs 4` verteilt die Modelle auf 4 Blender-Prozesse; ein weiterer baut nur die Übersichts-.blend.
+Das Ergebnis ist dasselbe wie mit einem Prozess. Wie viele sich lohnen, hängt von CPU-Kernen und Render-Engine ab.
+
 `--no-blender` braucht nur Python (und ImageMagick für die Material-Übersicht). Es entstehen OBJ-Dateien ohne
 Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 
-## 13. Probleme lösen
+## 13. Qualität prüfen
+
+```bash
+python3 -m cubegen check                      # alle Typen, je 10 Varianten von Seed 42
+python3 -m cubegen check --types door,laser_mirror --count 20 --detail high
+python3 -m cubegen check --json > quality.json
+```
+
+| Spalte | Bedeutung |
+|---|---|
+| `tris` / `budget` | höchste Dreieckszahl der Varianten / Budget der Kategorie (bei `--detail high` × 1,5) |
+| `draws` | Draw Calls: Materialien pro Objekt, summiert (`*` = mehr als 16) |
+| `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
+| `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
+
+Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen sind
+Warnungen. Sie in bestehenden Typen zu beheben würde deren Seeds verändern; die Tests sorgen dafür, dass es
+nicht schlimmer wird und neue Typen gar keine haben.
+
+## 14. Probleme lösen
 
 | Meldung / Problem | Lösung |
 |---|---|
@@ -205,6 +272,9 @@ Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 | `unknown parameter` / Wert außerhalb | `python3 -m cubegen params TYP` zeigt Namen und Bereiche |
 | Previews schwarz / sehr langsam | `--engine cycles --samples 16` oder `--no-render` |
 | Blender-Fehler ohne Details | mit `-v` erneut starten, dann steht die Blender-Ausgabe im Terminal |
+| `unknown key '…' (did you mean …)` | Tippfehler im Rezept oder in `style` |
+| `… does not match its rig data` | Blender hat eine FBX geschrieben, die nicht zur `.cubegen.json` passt (z. B. eine neue Blender-Version mit geändertem FBX-Export). Bitte mit der Meldung als Issue melden |
+| Modell sieht nach einem Update anders aus | sollte nicht passieren (`tests/golden.json`); sonst bitte melden |
 
 ## Alle Optionen
 
@@ -217,7 +287,9 @@ Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 | `--types` | alle | Typen, kommagetrennt, oder `all` |
 | `--count` | 1 | Varianten pro Typ |
 | `--pick` | – | einzelne Varianten `TYP:INDEX,…` |
+| `--unique` | – | ähnlich aussehende Varianten überspringen |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
+| `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
 | `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage` | Seed | Stil, siehe Abschnitt 7 |
 | `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen, siehe Abschnitt 10 |
 | `--out` | `output/seed_<seed>` | Ausgabeordner |
@@ -225,6 +297,9 @@ Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 | `--formats` | fbx | `fbx`, `glb`, `gltf`, `obj`, kommagetrennt |
 | `--prefix` | – | Namenspräfix, z. B. `Gen_` |
 | `--scale` | 1.0 | Skalierung (1 = Meter) |
+| `--lods` | – | Sparstufe für statische Modelle (`_LOD0` / `_LOD1`), siehe Abschnitt 8 |
+| `--jobs` | 1 | Blender-Prozesse gleichzeitig |
+| `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |
 | `--no-blender` | – | reines Python, nur OBJ |
