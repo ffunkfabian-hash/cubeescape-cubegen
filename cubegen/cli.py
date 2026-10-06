@@ -488,7 +488,8 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--generation", type=int, choices=list(GENERATIONS),
                     help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
                          "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part; "
-                         "3 adds empties for sound and effects (Audio_*, FX_*)")
+                         "3 (cubegen 0.10.0) adds empties for sound and effects (Audio_*, FX_*) and colliders for "
+                         "every solid piece")
     tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
     tx.add_argument("--textures", choices=["none", "tiled", "baked", "palette"],
                     help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas; "

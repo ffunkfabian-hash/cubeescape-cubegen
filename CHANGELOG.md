@@ -1,10 +1,12 @@
 # Changelog
 
-## Unveröffentlicht
+## 0.10.0 – 2026-10-06
 
-Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus,
-symmetrisches Schwenken, vier neue Familien mit Requisiten, Zustand `fractured`, Text auf Modellen, Anker für Ton und
-Effekte, 35 neue Typen (jetzt 164).
+Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus mit acht
+Farbpaletten, symmetrisches Schwenken, vier neue Familien mit Requisiten, Zustand `fractured`, Text auf Modellen,
+Anker für Ton und Effekte, 35 neue Typen (jetzt 164). Dazu die Prüfung, dass Collider die Geometrie abdecken,
+Korrekturen an `archway` und `solar_panel` und schnellere Tests. Standard ist Modell-Generation 3; `--generation 1`
+baut die Modelle von 0.9.0 bitgleich nach, `--generation 2` den Stand vor den Ankern.
 
 ### Einrasten im Blender-Add-on
 
