@@ -163,6 +163,7 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--wear` | none / light / heavy | Schutt, lose Platten, Kabel um das Modell |
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
 | `--damage` | intact / damaged / destroyed | beschädigt bzw. Ruine (statisch, ohne Scripts) |
+| `--generation` | 1 / 2 | Modell-Generation (Standard 2); 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
 
 ## 8. Modellfamilien und Bau-Kits
 
@@ -371,7 +372,7 @@ schon, bevor er Dateien schreibt.
 | `--unique` | – | ähnlich aussehende Varianten überspringen |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
-| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage` | Seed | Stil, siehe Abschnitt 7 |
+| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 2) | Stil, siehe Abschnitt 7 |
 | `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen, siehe Abschnitt 10 |
 | `--out` | `output/seed_<seed>` | Ausgabeordner |
 | `--models-dir`, `--library-dir`, `--icons-dir` | im Ausgabeordner | Zielordner, siehe Abschnitt 8 |

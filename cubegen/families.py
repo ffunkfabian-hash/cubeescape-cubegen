@@ -212,8 +212,10 @@ def resolve(family: Optional[Dict[str, Any]], recipe: Optional[Dict[str, Any]], 
     values.update({k: v for k, v in recipe.items() if k not in ("family", "dims", "description", "_path", "params",
                                                                 "style", "variant_params")})
     style = dict((match or {}).get("style") or {})
+    if match and "generation" not in style:  # sidecars without a generation were built by cubegen 0.9.0 or older
+        style["generation"] = 1
     style = {k: v for k, v in style.items() if v is not None and k in ("material", "glow", "warning", "wear",
-                                                                       "detail", "snap", "theme")}
+                                                                       "detail", "snap", "theme", "generation")}
     style.update(family.get("style", {}))
     style.update(recipe.get("style", {}))
     style.update(extra_style or {})
@@ -608,7 +610,7 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
     """Members must share material, glow, warning paint, wear, detail, snapping and textures."""
     from .params import Style
 
-    keys = ("material", "glow", "warning", "wear", "detail", "snap", "theme")
+    keys = ("material", "glow", "warning", "wear", "detail", "snap", "theme", "generation")
     looks = {}
     for spec in specs:
         style = Style.from_dict(spec.get("style")).resolved()

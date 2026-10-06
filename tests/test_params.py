@@ -130,6 +130,38 @@ class StyleTests(unittest.TestCase):
             machine = generate_asset("machine", seed, style=Style(glow="cyan"))
             self.assertEqual(set(machine.get("Glow").mesh.roles), {"M_GlowRed"})
 
+    def test_generation(self):
+        from cubegen.params import LATEST_GENERATION
+        from cubegen.pipeline import build_spec, plan_models
+        from cubegen.quality import z_fighting
+
+        self.assertEqual(Style().generation, LATEST_GENERATION)
+        self.assertEqual(Style.from_dict({"generation": "1"}).generation, 1)
+        with self.assertRaises(ValueError):
+            Style(generation=3).validate()
+        old = generate_asset("door", 0, style=Style(generation=1))
+        new = generate_asset("door", 0)
+        self.assertTrue(z_fighting(old, pivot="floor"))  # 0.9.0: the frame's warning band flickers
+        self.assertFalse(z_fighting(new, pivot="floor"))
+        cfg = build_config(make_parser().parse_args(["generate", "--types", "door", "--generation", "1"]))
+        self.assertEqual(cfg.style.generation, 1)
+        self.assertEqual(build_spec(plan_models(cfg)[0]).digest(),
+                         generate_asset("door", plan_models(cfg)[0]["seed"], plan_models(cfg)[0]["name"],
+                                        style=Style(generation=1)).digest())
+        import io
+        from contextlib import redirect_stderr
+
+        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):  # argparse: only 1 or 2
+            make_parser().parse_args(["generate", "--generation", "3"])
+
+    def test_match_rebuilds_old_sidecars_as_generation_1(self):
+        from cubegen.families import resolve
+
+        rig = {"model": "Gen_Pipe_000", "type": "pipe", "seed": 1, "params": {"radius": 0.18}, "style": {}}
+        self.assertEqual(resolve(None, None, match=rig)["values"]["style"]["generation"], 1)
+        rig["style"] = {"generation": 2}
+        self.assertEqual(resolve(None, None, match=rig)["values"]["style"]["generation"], 2)
+
     def test_readme_lists_every_parameter(self):
         # README.md's table is generated from the registry: python3 tools/param_table.py --write
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))

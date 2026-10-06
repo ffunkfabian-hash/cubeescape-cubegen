@@ -108,10 +108,12 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         damage_asset(asset, seed, style.damage, entry.pivot)
         if style.damage == "destroyed":  # a ruin is static decoration with a hull collider
             asset.colliders = []
-    fix_z_fighting(asset, entry.pivot)  # flush details would flicker in the game: lift them 2 mm
+    if style.generation >= 2:
+        fix_z_fighting(asset, entry.pivot)  # flush details would flicker in the game: lift them 2 mm
     if style.wear != "none" and entry.pivot == "floor":
         apply_wear(asset, seed, style.wear)
-        fix_z_fighting(asset, entry.pivot, only=("Wear",))  # wear never changes the model itself
+        if style.generation >= 2:
+            fix_z_fighting(asset, entry.pivot, only=("Wear",))  # wear never changes the model itself
     if scale != 1.0:
         asset.scale(scale)
     asset.meta.setdefault("type", model_type)

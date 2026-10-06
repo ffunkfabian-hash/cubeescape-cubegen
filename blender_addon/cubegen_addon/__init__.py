@@ -129,6 +129,8 @@ def _explicit_style(s):
         out["detail"] = st.detail
     if st.damage != "intact":
         out["damage"] = st.damage
+    if st.generation != params_mod.LATEST_GENERATION:
+        out["generation"] = st.generation
     return out
 
 
@@ -166,6 +168,7 @@ def _cli_command(s):
     flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear),
               ("--detail", style.detail if style.detail != "normal" else None),
               ("--damage", style.damage if style.damage != "intact" else None),
+              ("--generation", style.generation if style.generation != params_mod.LATEST_GENERATION else None),
               ("--textures", s.textures if s.textures != "none" else None),
               ("--lods", s.lods),  # True = flag without value
               ("--texture-set", s.texture_set or None)]
@@ -202,7 +205,7 @@ def _style(s):
         glow=None if s.glow_color in unset else s.glow_color,
         material=None if s.material_style in unset else s.material_style,
         warning=None if s.warning in unset else s.warning, wear=None if s.wear in unset else s.wear,
-        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None,
+        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None, generation=int(s.generation),
     )
 
 
@@ -578,6 +581,11 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     damage: EnumProperty(name="Zustand", update=_on_change, default="intact", items=[
         ("intact", "Intakt", ""), ("damaged", "Beschädigt", "Dellen, abgeschlagene Kleinteile, tote Deko-LEDs"),
         ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts")])
+    generation: EnumProperty(name="Generation", update=_on_change, default=str(params_mod.LATEST_GENERATION),
+                             items=[("2", "2 (aktuell)", "Keine flackernden Flächen, 2 Materialien pro beweglichem Teil"),
+                                    ("1", "1 (wie 0.9.0)", "Baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach")],
+                             description="Modell-Generation: Korrekturen, die bestehende Seeds verändern, gelten erst "
+                                         "ab ihrer Generation")
     textures: EnumProperty(name="Texturen", update=_on_change, default="none", items=[
         ("none", "Keine", "Einfarbige M_-Materialien wie bisher (Standard)"),
         ("tiled", "Kachel", "ImageMagick-Kacheltexturen als MT_-Materialien (1 Kachel = 1 m)"),
@@ -1005,7 +1013,8 @@ class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
             rolled = params_mod.theme_style(s.theme)
             col.label(text=f"Thema: {rolled['glow']}, {rolled['material']}, Abnutzung {rolled['wear']}, "
                            f"Warnfarbe {rolled['warning'] or 'Seed'}", icon="INFO")
-        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage"):
+        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage",
+                     "generation"):
             col.prop(s, name)
         self.layout.label(text="Icon-Kamera")
         row = self.layout.row(align=True)

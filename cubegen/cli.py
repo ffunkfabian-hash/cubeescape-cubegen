@@ -13,7 +13,7 @@ from . import __version__
 from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
-from .params import Style, parse_param_overrides
+from .params import GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
 
@@ -25,7 +25,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme"}
+                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme", "generation": "generation"}
 
 
 def _csv(value: str) -> List[str]:
@@ -272,7 +272,7 @@ def cmd_params(args) -> int:
     print("global: --theme TEXT  --size S|M|L  --snap 0.5  --glow cyan|red|orange")
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
-    print("        --damage intact|damaged|destroyed")
+    print("        --damage intact|damaged|destroyed  --generation 1|2")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
@@ -436,6 +436,9 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--detail", choices=["low", "normal", "high"], help="low: no bevels, fewer cylinder sides")
     st.add_argument("--damage", choices=["intact", "damaged", "destroyed"],
                     help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library)")
+    st.add_argument("--generation", type=int, choices=list(GENERATIONS),
+                    help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
+                         "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part")
     tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
     tx.add_argument("--textures", choices=["none", "tiled", "baked"],
                     help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas")

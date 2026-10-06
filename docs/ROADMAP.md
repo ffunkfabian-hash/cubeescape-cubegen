@@ -36,7 +36,6 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
   siehe CHANGELOG.)
 - [ ] **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
   und der Unity-Import lesen, statt sie doppelt zu pflegen.
-- [ ] **Blender in der CI:** Die 7 Blender-Tests (Add-on, echter FBX-Export) werden heute übersprungen.
 - [ ] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, im Typ-Menü kennzeichnen.
 
 ## 3. Erweiterungen

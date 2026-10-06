@@ -124,6 +124,7 @@ def sliding_puzzle(rng, a):
     cube(glow, (size * 0.5, 0.02, 0.02), (0, yf - 0.02, z + size / 2 + 0.01), STATUS[p.option("status")])
     board = _shuffled(n, rng, 40 + n * 20)
     tile_mat = p.material(["M_Platform", "M_Wall", "M_Metal"])
+    pip_mat = None if p.style.generation >= 2 else "M_RobotDark"  # 2: pips in the row colour (2 materials)
     for cell, number in enumerate(board):
         if number == 0:
             continue
@@ -135,7 +136,8 @@ def sliding_puzzle(rng, a):
         cube(tile, (t * 0.8, 0.006, t * 0.12), (center[0], center[1] - 0.017, center[2] + t * 0.3), ROW_COLOURS[sr])
         for k in range(sc + 1):
             px = center[0] - (sc * t * 0.2) / 2 + k * t * 0.2
-            cube(tile, (t * 0.12, 0.006, t * 0.12), (px, center[1] - 0.017, center[2] - t * 0.1), ROW_COLOURS[sr])
+            cube(tile, (t * 0.12, 0.006, t * 0.12), (px, center[1] - 0.017, center[2] - t * 0.1),
+                 pip_mat or ROW_COLOURS[sr])
     a.meta.update({"grid": n, "pitch_m": round(pitch, 4), "layout": [board[i * n:(i + 1) * n] for i in range(n)],
                    "solved": "Tile_1..Tile_<n*n-1> row by row from the top left, gap bottom right"})
     _indicator(a, note="tiles slide by pitch_m (Unity X / Y) into the gap; solved -> on")

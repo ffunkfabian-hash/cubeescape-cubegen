@@ -211,6 +211,11 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
 
 ## Reproduzierbarkeit & Qualität
 
+* **Modell-Generationen**: Korrekturen, die bestehende Seeds sichtbar verändern, gelten erst ab einer neuen
+  Generation (`--generation`, Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“). Generation 1 baut
+  die Modelle von cubegen 0.9.0 bitgleich nach (nur die korrigierte Tür-Verdrahtung der Luftschleuse bleibt),
+  Generation 2 ist der Standard. `--match` baut ein vorhandenes Modell in seiner Generation nach (Sidecars ohne
+  `style.generation` stammen aus Generation 1).
 * **Gleicher Seed = gleiches Modell**, auch nach Updates und mit anderer Python-Version. `tests/golden.json`
   enthält Fingerabdrücke aller Typen; der Test schlägt fehl, sobald sich ein Modell ändert. Der Zufall läuft über
   einen eigenen, eingefrorenen Würfel (`StableRandom`), und Summen werden so gerechnet, dass Blenders Python 3.11
@@ -359,6 +364,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `--wear` | none / light / heavy | Brocken, lose Platten, abgerissenes Kabel als eigenes Teil `Wear` (verändert das Modell selbst nicht) |
 | `--detail` | low / normal / high | low: keine Fasen, weniger Zylinder-Seiten; high: rundere Zylinder |
 | `--damage` | intact / damaged / destroyed | Zustand, siehe „Zerstörung & Ruinen“ |
+| `--generation` | 1 / 2 (Standard 2) | Modell-Generation: 1 baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach, 2 ohne flackernde Flächen und mit 2 Materialien pro beweglichem Teil (Rezept: `"style": {"generation": 1}`) |
 | `--icon-angle`, `--icon-zoom` | z. B. `=-25,15`, 1.3 | Kamera für Previews und Icons (Azimut, Elevation wie die `ICONS`-Tabelle des Spiels) |
 
 **Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich; alle Typen, erzeugt mit

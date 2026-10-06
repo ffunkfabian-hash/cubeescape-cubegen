@@ -43,6 +43,8 @@ CASES = (
     ("destroyed", 4, {"damage": "destroyed"}),
     ("themed", 8, {"theme": "labor-3"}),
 )
+# generation 1 (= cubegen 0.9.0, verified against its golden.json: identical except door's corrected wiring)
+CASES += tuple((f"gen1_{name}", seed, dict(style, generation=1)) for name, seed, style in CASES)
 
 
 def compute():
