@@ -13,25 +13,19 @@ import math
 
 from ..geometry import prism, torus
 from ..params import Param
-from .common import ALONG_X, ALONG_Y, cube, cyl, deg, gear, rotated, strut, valve_wheel
+from .common import ALONG_X, ALONG_Y, cube, cyl, deg, gear, item_pickup, pickup_params, rotated, strut, valve_wheel
 from .registry import model
 
 
 def _pickup(a):
-    parts = [o.name for o in a.meshes()]
-    a.behaviour("ItemPickup", {"model": parts}, {"spin": a.p.option("spin")},
-                note="ItemPickup turns the whole model around world Y and lets it float")
-
-
-def _spin_param():
-    return Param("spin", "float", "Drehtempo im Level (°/s)", lo=0, hi=360, unity=True, default=45)
+    item_pickup(a, [o.name for o in a.meshes()])
 
 
 @model("tool", "Tool", "props", "Inventory item: wrench, crowbar, pliers or screwdriver (pivot in the centre)",
        pivot="center", params=[
            Param("kind", "choice", "Art", choices=("wrench", "crowbar", "pliers", "screwdriver")),
            Param("length", "float", "Länge (m)", lo=0.15, hi=0.9, size=True),
-           _spin_param(),
+           *pickup_params(),
        ])
 def tool(rng, a):
     p = a.p
@@ -90,7 +84,7 @@ def tool(rng, a):
 @model("clue", "Clue", "props", "Inventory item with a hint: tablet, paper note, datapad or audio log "
        "(pivot in the centre)", pivot="center", params=[
            Param("kind", "choice", "Art", choices=("tablet", "note", "datapad", "audio_log")),
-           _spin_param(),
+           *pickup_params(),
        ])
 def clue(rng, a):
     p = a.p
@@ -141,7 +135,7 @@ def clue(rng, a):
        "(pivot in the centre)", pivot="center", params=[
            Param("kind", "choice", "Art", choices=("gear", "lens", "crystal", "valve_wheel", "coil")),
            Param("size", "float", "Größe (m)", lo=0.08, hi=0.4, size=True),
-           _spin_param(),
+           *pickup_params(),
        ])
 def spare_part(rng, a):
     p = a.p
@@ -188,7 +182,7 @@ def spare_part(rng, a):
        "centre)", pivot="center", params=[
            Param("kind", "choice", "Art", choices=("torch", "lantern")),
            Param("length", "float", "Länge (m)", lo=0.12, hi=0.45, size=True),
-           _spin_param(),
+           *pickup_params(),
        ])
 def flashlight(rng, a):
     p = a.p
@@ -225,7 +219,7 @@ def flashlight(rng, a):
            Param("style", "choice", "Art", choices=("bit", "modern", "tubular")),
            Param("length", "float", "Länge (m)", lo=0.06, hi=0.3, size=True),
            Param("tag", "bool", "Anhänger"),
-           _spin_param(),
+           *pickup_params(),
        ])
 def key(rng, a):
     p = a.p
@@ -266,7 +260,7 @@ def key(rng, a):
        "(pivot in the centre)", pivot="center", params=[
            Param("radius", "float", "Radius (m)", lo=0.06, hi=0.25, size=True, snap_factor=4),
            Param("spool", "bool", "Auf Spule"),
-           _spin_param(),
+           *pickup_params(),
        ])
 def cable_reel(rng, a):
     p = a.p

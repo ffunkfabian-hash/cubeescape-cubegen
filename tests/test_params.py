@@ -34,6 +34,8 @@ def sample_values(prm):
         return [True, False]
     if prm.kind == "int":
         return [int(prm.lo), int(prm.hi)]
+    if prm.kind == "text":
+        return ["energy_cell", "Key Card 2"]
     return [prm.lo, (prm.lo + prm.hi) / 2, prm.hi]
 
 
@@ -49,7 +51,7 @@ class ParamTests(unittest.TestCase):
             used = set()
             for seed in range(40):
                 used |= set(generate_asset(t, seed).meta["params"])
-            declared = {p.name for p in REGISTRY[t].params}
+            declared = {p.name for p in REGISTRY[t].params if p.kind != "text"}  # text: only written when given
             self.assertEqual(declared - used, set(), f"{t}: declared but never read")
 
     def test_every_param_value_builds_valid_models(self):
@@ -63,6 +65,19 @@ class ParamTests(unittest.TestCase):
                             used = asset.meta["params"]
                             if prm.name in used:  # conditional ones (rotor_speed without flywheel) aren't read
                                 self.assertEqual(used[prm.name], prm.parse(value))
+
+    def test_item_id(self):
+        pickups = [t for t in model_types()
+                   if any(b["script"] == "ItemPickup" for b in generate_asset(t, 0).behaviours)]
+        self.assertEqual(len(pickups), 8)
+        for t in pickups:
+            fields = generate_asset(t, 0).behaviours[0]["fields"]
+            self.assertNotIn("itemId", fields, t)  # never invented
+            given = generate_asset(t, 0, params={"item_id": "servo_battery"})
+            self.assertEqual(given.behaviours[0]["fields"]["itemId"], "servo_battery", t)
+            self.assertEqual(given.digest() != generate_asset(t, 0).digest(), True)
+        with self.assertRaises(ValueError):
+            REGISTRY["key"].param("item_id").parse("  ")
 
     def test_override_only_changes_its_property(self):
         base = generate_asset("crate", 5).meta["params"]

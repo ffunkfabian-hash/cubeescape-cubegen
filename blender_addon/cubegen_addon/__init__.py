@@ -26,6 +26,7 @@ import importlib
 import math
 import os
 import random
+import shlex
 import sys
 import threading
 import traceback
@@ -108,7 +109,7 @@ def _cli_command(s):
     if s.prefix:
         cmd += f" --prefix {s.prefix}"
     for name, value in _overrides(s).get(s.model_type, {}).items():
-        cmd += f" --param {s.model_type}.{name}={value}"
+        cmd += " --param " + shlex.quote(f"{s.model_type}.{name}={value}")
     style = _style(s)
     theme = f'"{style.theme}"' if style.theme and not style.theme.replace("-", "").replace("_", "").isalnum() \
         else style.theme
@@ -130,7 +131,11 @@ def _overrides(s):
         group = getattr(s.type_params, entry.name)
         values = {}
         for prm in entry.params:
-            if prm.kind in ("choice", "bool"):
+            if prm.kind == "text":
+                value = getattr(group, prm.name).strip()
+                if value:
+                    values[prm.name] = value
+            elif prm.kind in ("choice", "bool"):
                 value = getattr(group, prm.name)
                 if value != SEED:
                     values[prm.name] = value
@@ -347,6 +352,9 @@ def _make_use_update(model_type, name):
 
 
 def _param_annotations(model_type, prm):
+    if prm.kind == "text":  # e.g. item_id: empty = not given
+        return {prm.name: StringProperty(name=prm.label, default="", description=prm.description,
+                                         update=_on_param_change)}
     seed_label = "Standard" if (prm.unity or prm.default is not None) else "Seed"
     seed_item = (SEED, seed_label, "Nicht festgelegt: vom Seed bestimmt (Unity-Werte: Standard des Generators)")
     if prm.kind in ("choice", "bool"):
@@ -563,7 +571,9 @@ class CUBEGEN_OT_reset_params(bpy.types.Operator):
         live, s.live = s.live, False
         group = getattr(s.type_params, s.model_type)
         for prm in models.REGISTRY[s.model_type].params:
-            if prm.kind in ("choice", "bool"):
+            if prm.kind == "text":
+                setattr(group, prm.name, "")
+            elif prm.kind in ("choice", "bool"):
                 setattr(group, prm.name, SEED)
             else:
                 setattr(group, "use_" + prm.name, False)
@@ -781,7 +791,10 @@ class CUBEGEN_PT_params(_Panel, bpy.types.Panel):
         col = layout.column(align=True)
         for prm in entry.params:
             row = col.row(align=True)
-            if prm.kind in ("choice", "bool"):
+            if prm.kind == "text":
+                row.prop(group, prm.name)
+                fixed = True
+            elif prm.kind in ("choice", "bool"):
                 row.prop(group, prm.name)
                 fixed = getattr(group, prm.name) != SEED
             else:

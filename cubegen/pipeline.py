@@ -132,20 +132,14 @@ def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None
     return specs
 
 
-def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[str, str]] = None) -> Dict:
-    """Everything a Unity prefab builder needs besides the FBX, in Unity coordinates.
-
-    Animations are not baked into the FBX: the game's scripts move parts with
-    fields set by the prefab builders, so this file carries those values.
-    """
-    entry = REGISTRY[spec["type"]]
+def _part_entries(asset, material_map: Optional[Dict[str, str]], suffix: str = "") -> List[Dict]:
     parts = []
     for o in asset.objects:
         parent = asset.get(o.parent) if o.parent else None
         local = tuple(o.pivot[i] - (parent.pivot[i] if parent else 0.0) for i in range(3))
         entry_part = {
-            "name": o.name,
-            "parent": o.parent,
+            "name": o.name + suffix,
+            "parent": o.parent + suffix if o.parent else None,
             "localPosition": list(to_unity(local)),
             "empty": o.is_empty,
             "materials": [] if o.is_empty else sorted({(material_map or {}).get(r, r) for r in o.mesh.roles}),
@@ -156,7 +150,30 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
             entry_part["bounds"] = {"center": list(to_unity(center)),
                                     "size": [abs(c) for c in to_unity((bx1 - bx0, by1 - by0, bz1 - bz0))]}
         parts.append(entry_part)
-    lo, hi = asset.bbox()
+    return parts
+
+
+def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[str, str]] = None,
+             lod=None) -> Dict:
+    """Everything a Unity prefab builder needs besides the FBX, in Unity coordinates.
+
+    Animations are not baked into the FBX: the game's scripts move parts with
+    fields set by the prefab builders, so this file carries those values.
+    With ``lod`` (static models, ``--lods``) the parts are named as in the FBX:
+    ``<part>_LOD0`` and ``<part>_LOD1``; colliders sit on LOD0. Only keys of the
+    Unity reader's contract are written (see docs/UNITY_INTEGRATION.md).
+    """
+    entry = REGISTRY[spec["type"]]
+    if lod is None:
+        parts = _part_entries(asset, material_map)
+        lo, hi = asset.bbox()
+    else:
+        parts = _part_entries(asset, material_map, "_LOD0") + _part_entries(lod, material_map, "_LOD1")
+        (a0, a1), (b0, b1) = asset.bbox(), lod.bbox()
+        lo, hi = tuple(min(a0[i], b0[i]) for i in range(3)), tuple(max(a1[i], b1[i]) for i in range(3))
+    colliders = asset.collider_data()
+    if lod is not None:
+        colliders = [dict(c, part=c["part"] + "_LOD0" if c["part"] else None) for c in colliders]
     center = to_unity(tuple((lo[i] + hi[i]) / 2 for i in range(3)))
     size = to_unity(tuple(hi[i] - lo[i] for i in range(3)))
     return {
@@ -174,12 +191,12 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
         "parts": parts,
         "behaviours": asset.behaviours,
         # explicit collision shapes (walkable pieces, moving lids / decks); missing = use a box hull
-        **({"colliders": asset.collider_data()} if asset.colliders else {}),
+        **({"colliders": colliders} if asset.colliders else {}),
     }
 
 
 def lod_data(asset, lod) -> Dict:
-    """``"lods"`` of <Name>.cubegen.json: the FBX objects are <part>_LOD0 / <part>_LOD1."""
+    """``"lods"`` of a manifest entry (not in the sidecar: the Unity reader rejects unknown root keys)."""
     return {"objects": "<part>_LOD<level>", "note": "Unity builds the LODGroup on import from the _LOD names",
             "levels": [{"suffix": "_LOD0", "triangles": asset.stats()["triangles"]},
                        {"suffix": "_LOD1", "triangles": lod.stats()["triangles"]}]}
@@ -437,9 +454,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 asset_map = material_map
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
-                rig = rig_data(asset, spec, config.seed, asset_map)
-                if spec.get("lod"):
-                    rig["lods"] = lod_data(asset, build_spec(lod_spec(spec)))
+                rig = rig_data(asset, spec, config.seed, asset_map,
+                               lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
                 if textures:
                     rig["textures"] = {"mode": config.textures,
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),

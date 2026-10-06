@@ -110,7 +110,7 @@ class Param:
     """A tunable property of a model type (used for CLI help, add-on fields and validation)."""
 
     name: str
-    kind: str                      # float | int | choice | bool
+    kind: str                      # float | int | choice | bool | text
     label: str                     # German UI label
     description: str = ""
     lo: Optional[float] = None     # float / int: allowed override range
@@ -123,6 +123,11 @@ class Param:
 
     def parse(self, value: Any) -> Any:
         """Convert a CLI / recipe / UI value and check it."""
+        if self.kind == "text":
+            text = str(value).strip()
+            if not text or len(text) > 100 or any(ord(c) < 32 for c in text):
+                raise ValueError(f"{self.name}: expected a text of 1-100 characters, got {value!r}")
+            return text
         if self.kind == "bool":
             if isinstance(value, bool):
                 return value
@@ -151,6 +156,8 @@ class Param:
             rng = " | ".join(str(c) for c in self.choices)
         elif self.kind == "bool":
             rng = "true | false"
+        elif self.kind == "text":
+            rng = "TEXT"
         else:
             rng = f"{self.lo:g} .. {self.hi:g}"
         tags = " [Unity]" if self.unity else ""
@@ -225,8 +232,13 @@ class ParamReader:
         return self._result(name, rolled)
 
     def option(self, name: str) -> Any:
-        """Not rolled at all - the declared default unless overridden (e.g. Unity script values)."""
+        """Not rolled at all - the declared default unless overridden (e.g. Unity script values).
+
+        An option without default that wasn't given (``item_id``) returns None and isn't recorded.
+        """
         spec = self._spec(name)
+        if spec.default is None and name not in self.overrides:
+            return None
         return self._result(name, spec.default)
 
     # -- style --------------------------------------------------------------------

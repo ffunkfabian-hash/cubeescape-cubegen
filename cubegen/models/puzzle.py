@@ -16,7 +16,8 @@ import math
 
 from ..geometry import lathe
 from ..params import Param
-from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, rotated, stripes, valve_wheel
+from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, item_pickup, pickup_params, rotated, stripes, \
+    valve_wheel
 from .registry import model
 
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
@@ -198,7 +199,7 @@ def battery_bank(rng, a):
 @model("keycard", "Keycard", "props", "Inventory item: key card, key fob or mechanical key (pivot in the centre)",
        pivot="center", params=[
            Param("kind", "choice", "Art", choices=("card", "fob", "key")),
-           Param("spin", "float", "Drehtempo im Level (°/s)", lo=0, hi=360, unity=True, default=45),
+           *pickup_params(),
        ])
 def keycard(rng, a):
     p = a.p
@@ -225,8 +226,7 @@ def keycard(rng, a):
         for i in range(rng.randint(2, 4)):  # teeth
             cube(body, (0.025, 0.025, r * 0.4), (length / 2 - 0.03 - i * 0.04, 0, -r * 0.3), "M_Metal")
         cyl(lights, r * 0.45, 0.034, (-length / 2 + r, 0, 0), glow, sides=8, rot=ALONG_Y)
-    a.behaviour("ItemPickup", {"model": ["Body", "Glow"]}, {"spin": p.option("spin")},
-                note="ItemPickup turns the whole model around world Y and lets it float")
+    item_pickup(a, ["Body", "Glow"])
 
 
 # --------------------------------------------------------------------------

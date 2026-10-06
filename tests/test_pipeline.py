@@ -60,12 +60,15 @@ class OBJFallbackTest(unittest.TestCase):
             self.assertIn("o Wall_LOD0", obj)
             self.assertIn("o Wall_LOD1", obj)
             rig = json.loads(read(os.path.join(out, "models", "Wall_000.cubegen.json")))
-            levels = rig["lods"]["levels"]
+            self.assertNotIn("lods", rig)  # the Unity reader rejects unknown root keys
+            names = [p["name"] for p in rig["parts"]]  # the parts are named as in the FBX
+            self.assertEqual(names, ["Wall_LOD0", "Glow_LOD0", "Wall_LOD1", "Glow_LOD1"])
+            manifest = json.loads(read(os.path.join(out, "manifest.json")))
+            levels = next(m for m in manifest["models"] if m["name"] == "Wall_000")["lods"]["levels"]
             self.assertEqual([lv["suffix"] for lv in levels], ["_LOD0", "_LOD1"])
             self.assertLess(levels[1]["triangles"], levels[0]["triangles"] * 0.85)
-            self.assertEqual(rig["parts"][0]["name"], "Wall")  # rig data keeps the plain part names
             door = json.loads(read(os.path.join(out, "models", "Door_000.cubegen.json")))
-            self.assertNotIn("lods", door)  # scripted: no LODs
+            self.assertEqual(door["parts"][0]["name"], "Frame_Left")  # scripted: no LODs
             self.assertNotIn("_LOD", read(os.path.join(out, "models", "Door_000.obj")))
         self.assertEqual(main(["generate", "--seed", "1", "--types", "wall", "--lods", "--textures", "baked",
                                "--no-blender", "--out", out]), 2)

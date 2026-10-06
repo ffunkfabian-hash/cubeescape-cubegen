@@ -138,6 +138,16 @@ bpy.ops.cubegen.reset_params()
 assert s.type_params.door.style == addon.SEED and not s.type_params.door.use_width
 s.detail, s.wear = "normal", addon.SEED
 
+# --- item id (ItemPickup.itemId): text field, only written when given ----------------------
+s.model_type = "keycard"
+assert "keycard" not in addon._overrides(s)
+s.type_params.keycard.item_id = "Key Card 2"
+assert addon._overrides(s)["keycard"] == {"item_id": "Key Card 2"}, addon._overrides(s)
+assert "--param 'keycard.item_id=Key Card 2'" in addon._cli_command(s), addon._cli_command(s)
+bpy.ops.cubegen.reset_params()
+assert s.type_params.keycard.item_id == ""
+s.model_type = "door"
+
 # --- room theme: the add-on's style = the CLI's --theme ------------------------------------
 s.theme = "labor-3"
 style = addon._style(s).resolved()
