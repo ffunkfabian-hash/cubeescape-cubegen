@@ -36,7 +36,8 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
   Korrekturen für flackernde Flächen und Draw Calls.
 - [x] **Ein gemeinsamer Vertrag:** `cubegen/contract.json` hält die Regeln des Unity-Imports, `contract.py` liest
   sie, `python -m cubegen contract --out <Datei>` gibt sie an Unity weiter (Unity-Seite: ToDo 17).
-- [ ] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, im Typ-Menü kennzeichnen.
+- [x] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, stehen im Typ-Menü mit Warnsymbol und
+  Grund; ist so ein Typ gewählt, nennt das Panel den Grund.
 
 ## 3. Erweiterungen
 
@@ -77,7 +78,8 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
    aktuellen Stand ohne die Ausnahme neu laufen lassen, erwartet: 0 Ablehnungen.
 2. **Neu exportieren und importieren**, sobald die Korrekturen in `main` sind: Luftschleusen (Sidecar) und die
    Typen, deren Geometrie sich für die flackernden Flächen und Draw Calls um 2 mm bzw. im Material geändert hat
-   (Liste im CHANGELOG). Gleiche Namen, die Prefabs behalten ihre GUIDs.
+   (Liste im CHANGELOG). Gleiche Namen, die Prefabs behalten ihre GUIDs. Wer die bisherigen Dateien behalten will,
+   exportiert mit `--generation 1` (bitgleich zu 0.9.0).
 3. **8 offene Item-IDs:** `ItemData` für Akku, Datenchip, Sicherung, Keycards, Werkzeuge und Hinweise festlegen,
    dann im Rezept per `item_id` setzen (cubegen erfindet keine IDs).
 

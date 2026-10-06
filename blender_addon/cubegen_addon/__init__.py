@@ -79,6 +79,22 @@ _TYPE_ITEMS = [
     (e.name, f"{e.title}", f"{e.description} ({e.category})")
     for e in sorted(models.REGISTRY.values(), key=lambda e: (e.category, e.name))
 ]
+_TYPE_ITEMS_BY_FAMILY = {}  # Blender needs the enum items kept alive while they are shown
+
+
+def _type_items(self, context):
+    """The type menu: types that can't follow the chosen family's measures get a warning icon and the reason.
+    Same identifiers and numbers as _TYPE_ITEMS, so saved files keep their type."""
+    misfits = _family_misfits(self) if getattr(self, "family", NO_FAMILY) != NO_FAMILY else {}
+    key = getattr(self, "family", NO_FAMILY)
+    if key not in _TYPE_ITEMS_BY_FAMILY:
+        _TYPE_ITEMS_BY_FAMILY[key] = [
+            (ident, name, f"Passt nicht zur Familie {key}: {misfits[ident]}" if ident in misfits else desc,
+             "ERROR" if ident in misfits else "NONE", i)
+            for i, (ident, name, desc) in enumerate(_TYPE_ITEMS)]
+    return _TYPE_ITEMS_BY_FAMILY[key]
+
+
 _INFO = {}  # last preview: shown in the panel
 NO_FAMILY = "__none__"
 _FAMILY_ITEMS = [(NO_FAMILY, "Keine", "Ohne Familie: alles vom Seed bzw. den eigenen Einstellungen")] + [
@@ -509,7 +525,7 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     family: EnumProperty(name="Familie", items=_FAMILY_ITEMS, update=_on_change,
                          description="Modellfamilie: gemeinsame Maße (Wand, Öffnungen, Stege, Treppen, Rohre), "
                                      "Materialien und Kit - wie --family auf der Kommandozeile")
-    model_type: EnumProperty(name="Typ", items=_TYPE_ITEMS, update=_on_change)
+    model_type: EnumProperty(name="Typ", items=_type_items, update=_on_change)
     master_seed: StringProperty(name="Master-Seed", default="42", update=_on_change,
                                 description="Zahl oder Text, wie --seed auf der Kommandozeile")
     variant: IntProperty(name="Variante", default=0, min=0, max=9999, soft_max=99, update=_on_change,
@@ -912,6 +928,9 @@ class CUBEGEN_PT_main(_Panel, bpy.types.Panel):
         s = _settings(context)
         layout = self.layout
         layout.prop(s, "model_type")
+        misfit = _family_misfits(s).get(s.model_type)
+        if misfit:  # the preview can't follow the family's measures
+            layout.label(text=f"Passt nicht zur Familie {s.family}: {misfit}", icon="ERROR")
         layout.prop(s, "master_seed")
         row = layout.row(align=True)
         op = row.operator("cubegen.step", text="", icon="TRIA_LEFT")

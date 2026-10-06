@@ -2,6 +2,27 @@
 
 ## Unveröffentlicht
 
+### Modell-Generationen
+
+* `--generation 1|2` (Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“, Standard 2): Korrekturen,
+  die bestehende Seeds verändern, gelten erst ab ihrer Generation. Generation 1 baut die Modelle von cubegen 0.9.0
+  bitgleich nach (geprüft gegen die Fingerabdrücke von 0.9.0, alle Typen; nur die korrigierte Verdrahtung der
+  Luftschleuse bleibt). Generation 2 enthält die Korrekturen für flackernde Flächen und Draw Calls (unten).
+* Der Sidecar nennt die Generation unter `style.generation`. `--match` baut ein vorhandenes Modell in seiner
+  Generation nach; Sidecars ohne diesen Eintrag stammen aus Generation 1.
+
+### Gemeinsamer Vertrag mit dem Unity-Import
+
+* `cubegen/contract.json` enthält die Regeln des Unity-Imports (Schlüssel, Rollen, Feldtypen, Regeln, Collider,
+  Toleranzen, Dateigrenzen); `contract.py` liest sie von dort. Neu geprüft: höchstens 4 MiB, 64 Ebenen, keine
+  doppelten Schlüssel.
+* `python -m cubegen contract --out <Datei>` gibt dieselbe Datei an den Unity-Import weiter.
+
+### Add-on: Typ-Menü
+
+* Typen, die nicht zur gewählten Familie passen, stehen im Typ-Menü mit Warnsymbol und Grund; das Panel nennt
+  den Grund, wenn so ein Typ gewählt ist.
+
 ### Unity-Prüfung bei jedem Export
 
 * `cubegen/contract.py` lief bisher nur in den Tests. Jetzt prüft `generate` alle Sidecars mit den Regeln des
