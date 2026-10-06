@@ -17,6 +17,7 @@ PACKAGE = os.path.join(ROOT, "cubegen")
 
 
 def build(out_path: str) -> str:
+    out_path = os.path.abspath(out_path)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.write(os.path.join(ADDON, "__init__.py"), "cubegen_addon/__init__.py")
@@ -31,5 +32,10 @@ def build(out_path: str) -> str:
 
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "dist", "cubegen_blender_addon.zip")
+    args = sys.argv[1:]
+    if len(args) > 1 or (args and not args[0].endswith(".zip")):
+        # zsh (macOS) passes a trailing "# comment" on as arguments unless interactivecomments is set
+        sys.exit(f"usage: python3 tools/build_addon.py [OUT.zip] (got {' '.join(args)!r}; "
+                 "copied a '# comment' along? Run the command without it)")
+    target = args[0] if args else os.path.join(ROOT, "dist", "cubegen_blender_addon.zip")
     print(build(target))

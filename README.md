@@ -41,7 +41,8 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 * [ImageMagick](https://imagemagick.org) 6 (`convert`/`montage`) oder 7 (`magick`)
 
 ```bash
-python -m cubegen doctor      # prüft Blender, ImageMagick und die Render-Engines
+# prüft Blender, ImageMagick und die Render-Engines
+python -m cubegen doctor
 ```
 
 ## Blender-Add-on (GUI)
@@ -65,7 +66,8 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 **Installieren**
 
 ```bash
-python3 tools/build_addon.py          # -> dist/cubegen_blender_addon.zip
+# baut dist/cubegen_blender_addon.zip
+python3 tools/build_addon.py
 ```
 
 In Blender: *Edit › Preferences › Add-ons › Install…* (ab 4.2: Pfeil-Menü oben rechts › *Install from Disk…*), die
@@ -99,6 +101,9 @@ und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen:
 
 Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
 
+Die `#`-Zeilen in den Beispielen sind Kommentare. Die zsh auf dem Mac kennt sie im Terminal nur nach
+`setopt interactivecomments`; sonst einfach nur die Befehlszeilen kopieren.
+
 ```bash
 # alle 121 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
@@ -121,7 +126,8 @@ python -m cubegen generate --seed 42 --pick crate:3,door:7 --prefix Gen_
 # erst ansehen, was entstehen würde (ohne Blender)
 python -m cubegen generate --seed 42 --types door,pipe --count 3 --dry-run
 
-python -m cubegen list        # alle Typen
+# alle Typen
+python -m cubegen list
 ```
 
 Ohne Blender (z. B. CI oder schnelles Iterieren) schreibt `--no-blender` OBJ + MTL in reinem Python – gleiche
@@ -248,7 +254,8 @@ der Variante ändert: Ein Parameter würfelt intern immer weiter wie bisher, nur
 Parameter liefern alle Seeds exakt dieselben Modelle wie vorher.
 
 ```bash
-python -m cubegen params            # alle Parameter (python -m cubegen params door: nur Türen)
+# alle Parameter (python -m cubegen params door: nur Türen)
+python -m cubegen params
 
 # Airlock-Tür mit 2 m Öffnung und langsamerem Öffnen, sonst wie Variante 3 von Seed 42
 python -m cubegen generate --seed 42 --pick door:3 --param door.style=airlock \

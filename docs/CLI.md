@@ -73,8 +73,10 @@ python3 -m cubegen generate --seed 42 --types crate,socket,drone --count 3 --dry
 Ablauf in der Praxis: erst viele Varianten ansehen, dann die guten gezielt exportieren.
 
 ```bash
-python3 -m cubegen generate --seed 7 --types pipe_fitting --count 12 --no-blend     # ansehen
-python3 -m cubegen generate --seed 7 --pick pipe_fitting:2,pipe_fitting:9 --prefix Gen_   # behalten
+# ansehen
+python3 -m cubegen generate --seed 7 --types pipe_fitting --count 12 --no-blend
+# behalten
+python3 -m cubegen generate --seed 7 --pick pipe_fitting:2,pipe_fitting:9 --prefix Gen_
 ```
 
 ## 5. Seeds
@@ -160,8 +162,10 @@ das Rezept (z. B. `--seed`, `--count`, `--models-dir`).
 ## 10. Texturen (optional)
 
 ```bash
-python3 -m cubegen generate --seed 42 --textures tiled --texture-size 1024     # Kacheltexturen, 1 Kachel = 1 m
-python3 -m cubegen generate --seed 42 --types machine --textures baked          # pro Asset gebacken (langsamer)
+# Kacheltexturen, 1 Kachel = 1 m
+python3 -m cubegen generate --seed 42 --textures tiled --texture-size 1024
+# pro Asset gebacken (langsamer)
+python3 -m cubegen generate --seed 42 --types machine --textures baked
 ```
 
 Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Details in der README.
@@ -182,8 +186,10 @@ Deckenteile (`ceiling_panel`, `hanging_crystals`) werden automatisch von unten g
 ## 12. Schnell und ohne Blender
 
 ```bash
-python3 -m cubegen generate --seed 42 --types all --no-render --no-blend    # nur FBX + JSON, schnell
-python3 -m cubegen generate --seed 42 --types crate --no-blender            # reines Python: OBJ + MTL
+# nur FBX + JSON, schnell
+python3 -m cubegen generate --seed 42 --types all --no-render --no-blend
+# reines Python: OBJ + MTL
+python3 -m cubegen generate --seed 42 --types crate --no-blender
 ```
 
 `--no-blender` braucht nur Python (und ImageMagick für die Material-Übersicht). Es entstehen OBJ-Dateien ohne
