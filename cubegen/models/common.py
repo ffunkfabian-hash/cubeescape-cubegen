@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 
-from ..geometry import Mesh, box, chamfer_box, cylinder, euler_matrix, mat_mul_vec
+from ..geometry import Mesh, basis_matrix, box, chamfer_box, cylinder, euler_matrix, mat_mul_vec, v_cross, v_len, \
+    v_norm, v_sub
 from ..params import DETAIL
 
 ALONG_X = (0.0, math.pi / 2, 0.0)   # rotate a Z cylinder so it runs along X
@@ -108,3 +109,56 @@ def rotated(rot, v):
 
 def add_vec(a, b):
     return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
+
+
+def strut(mesh: Mesh, start, end, radius: float, material: str, sides: int = 6, radius_end=None):
+    """Cylinder from point ``start`` to point ``end`` (legs, cables, braces, limbs)."""
+    d = v_sub(end, start)
+    length = v_len(d)
+    if length < 1e-6:
+        return None
+    z = v_norm(d)
+    helper = (0.0, 0.0, 1.0) if abs(z[2]) < 0.9 else (1.0, 0.0, 0.0)
+    x = v_norm(v_cross(helper, z))
+    y = v_cross(z, x)  # right-handed basis: keeps the normals pointing outwards
+    prim = cylinder(radius, length, detail_sides(sides), material, radius_top=radius_end, align_flat=False)
+    mid = ((start[0] + end[0]) / 2, (start[1] + end[1]) / 2, (start[2] + end[2]) / 2)
+    return mesh.add(prim, loc=mid, basis=basis_matrix(x, y, z))
+
+
+def gear(mesh: Mesh, center, radius: float, thickness: float, material: str, hub: str = "M_RobotDark",
+         phase: float = 0.0) -> int:
+    """A gear in the XZ plane facing the front (-Y): disc, teeth on the pitch ``radius`` and a hub.
+
+    Returns the number of teeth (about one per 6 cm of circumference, at least 8).
+    """
+    cx, cy, cz = center
+    teeth = max(8, int(round(2 * math.pi * radius / 0.06 / 2)) * 2)
+    tooth = min(0.05, radius * 0.25)
+    cyl(mesh, radius - tooth * 0.5, thickness, center, material, sides=max(10, min(teeth, 16)), rot=ALONG_Y)
+    for i in range(teeth):
+        a = phase + 2 * math.pi * i / teeth
+        cube(mesh, (2 * math.pi * radius / teeth * 0.5, thickness, tooth * 1.2),
+             (cx + math.cos(a) * radius, cy, cz + math.sin(a) * radius), material, rot=(0, math.pi / 2 - a, 0))
+    cyl(mesh, radius * 0.3, thickness * 1.6, center, hub, sides=8, rot=ALONG_Y)
+    if radius > 0.12:  # lightening holes as dark plugs on the front
+        for i in range(4):
+            a = phase + math.pi / 4 + i * math.pi / 2
+            hole = (cx + math.cos(a) * radius * 0.58, cy, cz + math.sin(a) * radius * 0.58)
+            cyl(mesh, radius * 0.16, thickness * 1.1, hole, hub, sides=6, rot=ALONG_Y)
+    return teeth
+
+
+def flat_wheel(mesh: Mesh, center, radius: float, rim: str = "M_HazardOrange", spokes: int = 3):
+    """A valve wheel lying flat (XY plane, axis = Z) - on hatches and tank lids."""
+    cx, cy, cz = center
+    cyl(mesh, 0.05, 0.08, center, "M_RobotDark", sides=8)
+    n = 10
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        cube(mesh, (0.045, 2 * math.pi * radius / n * 1.05, 0.045),
+             (cx + math.cos(a) * radius, cy + math.sin(a) * radius, cz), rim, rot=(0, 0, a))
+    for i in range(spokes):
+        a = 2 * math.pi * i / spokes
+        cube(mesh, (radius, 0.035, 0.035), (cx + math.cos(a) * radius / 2, cy + math.sin(a) * radius / 2, cz),
+             "M_Metal", rot=(0, 0, a))

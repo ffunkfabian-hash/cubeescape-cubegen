@@ -1,17 +1,19 @@
-"""Robots: drones, service robots and robot arms (``M_RobotBody`` / ``M_RobotDark``).
+"""Robots: drones, service robots, robot arms, sentry turrets, spider bots and androids
+(``M_RobotBody`` / ``M_RobotDark``).
 
 Joints are separate parts with their pivot in the joint and a parent chain,
 so Unity can animate them: drone propellers ``Rotor_<n>``; robot arm
-``Turret`` -> ``Arm_Lower`` -> ``Arm_Upper`` -> ``Gripper``; service robot
-``Head``.
+``Turret`` -> ``Arm_Lower`` -> ``Arm_Upper`` -> ``Gripper``; service robot and
+android ``Head``; sentry ``Turret`` -> ``Gun``; spider bot ``Leg_<n>`` (pivot at the hip).
 """
 
 from __future__ import annotations
 
 import math
 
+from ..geometry import sphere
 from ..params import Param
-from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, rotated
+from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, rotated, strut
 from .registry import model
 
 
@@ -218,3 +220,177 @@ def robot_arm(rng, a):
         a.behaviour("Rotator", {"target": "Turret"}, {"axis": "up", "speed": speed})
     a.behaviour("SignalIndicator", {"renderers": ["Glow"]}, {"offMaterial": "M_RobotDark", "onMaterial": glow},
                 note="joints: Turret (Unity up), Arm_Lower / Arm_Upper (Unity right), Gripper")
+
+
+@model("turret", "Turret", "robots", "Sentry turret on a tripod or pedestal: turning Turret with a tilting Gun "
+       "(child), laser sight", params=[
+           Param("mount", "choice", "Unterbau", choices=("tripod", "pedestal")),
+           Param("barrels", "choice", "Läufe", choices=(1, 2)),
+           Param("size", "float", "Größe (m)", lo=0.3, hi=1.5, size=True),
+           Param("shield", "bool", "Schutzschild"),
+           Param("speed", "float", "Schwenk-Tempo (°/s, 0 = steht)", lo=0, hi=360, unity=True, default=0,
+                 description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
+           Param("mode", "choice", "Visier-Modus", choices=("Steady", "Pulse", "Blink"), unity=True, default="Steady"),
+       ])
+def turret(rng, a):
+    p = a.p
+    mount = p.choice("mount", ["tripod", "pedestal"])
+    s = p.float("size", 0.6, 1.0)
+    shell = p.material(["M_RobotBody", "M_Wall", "M_RobotDark", "M_HazardOrange"])
+    body = a.part("Body")
+    a.meta["mount"] = mount
+    if mount == "tripod":
+        top = s * 0.8
+        for k in range(3):
+            ang = deg(90 + 120 * k)
+            strut(body, (0, 0, top - 0.05), (math.cos(ang) * s * 0.6, math.sin(ang) * s * 0.6, 0.02), s * 0.035,
+                  "M_RobotDark", sides=6)
+            cube(body, (s * 0.12, s * 0.12, 0.04), (math.cos(ang) * s * 0.6, math.sin(ang) * s * 0.6, 0.02), "M_Metal")
+        cyl(body, s * 0.12, s * 0.15, (0, 0, top - 0.05), "M_Metal", sides=8)
+    else:
+        top = s * 0.9
+        cyl(body, s * 0.45, 0.1, (0, 0, 0.05), "M_RobotDark", sides=8, bevel=0.02)
+        cyl(body, s * 0.18, top - 0.1, (0, 0, 0.1 + (top - 0.1) / 2), shell, sides=8, radius_top=s * 0.14)
+    center = (0.0, 0.0, top)
+    yaw = a.part("Turret", pivot=center)
+    cyl(yaw, s * 0.2, s * 0.08, (0, 0, top + s * 0.04), "M_RobotDark", sides=10)
+    for sx in (-1, 1):  # yoke arms
+        cube(yaw, (s * 0.06, s * 0.2, s * 0.35), (sx * s * 0.26, 0, top + s * 0.2), shell, bevel=0.01)
+    if p.bool("shield", 0.5):
+        cube(yaw, (s * 0.7, s * 0.04, s * 0.4), (0, -s * 0.24, top + s * 0.25), "M_Metal", bevel=0.01,
+             rot=(deg(-10), 0, 0))
+        cube(yaw, (s * 0.25, s * 0.045, s * 0.12), (0, -s * 0.245, top + s * 0.25), "M_Ground")  # gun port
+    trunnion = (0.0, 0.0, top + s * 0.3)
+    gun = a.part("Gun", pivot=trunnion, parent="Turret")
+    cube(gun, (s * 0.42, s * 0.5, s * 0.26), (0, s * 0.02, trunnion[2]), shell, bevel=0.02)
+    cyl(gun, s * 0.05, s * 0.5, (0, 0, trunnion[2]), "M_Metal", sides=6, rot=ALONG_X)  # trunnion pin
+    n = p.choice("barrels", [1, 2])
+    for k in range(n):
+        x = 0.0 if n == 1 else (k - 0.5) * s * 0.18
+        cyl(gun, s * 0.045, s * 0.45, (x, -s * 0.45, trunnion[2] - s * 0.02), "M_RobotDark", sides=8, rot=ALONG_Y)
+        cyl(gun, s * 0.06, s * 0.08, (x, -s * 0.66, trunnion[2] - s * 0.02), "M_Metal", sides=8, rot=ALONG_Y)
+    cube(gun, (s * 0.12, s * 0.3, s * 0.18), (s * 0.3, 0.0, trunnion[2] - s * 0.04), "M_Warning", bevel=0.01)  # ammo
+    cyl(a.part("Glow", parent="Gun"), s * 0.03, s * 0.03, (0, -s * 0.25, trunnion[2] + s * 0.1), "M_GlowRed",
+        sides=8, rot=ALONG_Y)
+    a.meta["barrels"] = n
+    a.behaviour("Rotator", {"target": "Turret"}, {"axis": "up", "speed": p.option("speed")},
+                note="yaw around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep); Gun tilts "
+                     "around Unity right")
+    a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
+
+
+@model("spider_bot", "SpiderBot", "robots", "Crawling spider robot: body, 4 or 6 legs (Leg_<n>, pivot at the hip), "
+       "eye cluster, optional sensor", params=[
+           Param("legs", "choice", "Beine", choices=(4, 6)),
+           Param("size", "float", "Größe (m)", lo=0.2, hi=1.5, size=True),
+           Param("sensor", "choice", "Aufsatz", choices=("none", "antenna", "dish")),
+           Param("mode", "choice", "Augen-Modus", choices=("Steady", "Pulse", "Blink"), unity=True, default="Pulse"),
+       ])
+def spider_bot(rng, a):
+    p = a.p
+    n = p.choice("legs", [4, 6, 6])
+    s = p.float("size", 0.4, 0.8)
+    shell = p.material(["M_RobotDark", "M_RobotBody", "M_Wall", "M_HazardOrange"])
+    glow = p.glow(weights=(0.4, 0.5, 0.1))
+    body = a.part("Body")
+    zb = s * rng.uniform(0.45, 0.6)
+    body.add(sphere(1.0, 8, 4, shell), loc=(0, s * 0.1, zb), scale=(s * 0.35, s * 0.45, s * 0.22))
+    body.add(sphere(1.0, 8, 4, "M_RobotDark"), loc=(0, -s * 0.32, zb - s * 0.02), scale=(s * 0.2, s * 0.16, s * 0.14))
+    eyes = a.part("Glow")
+    for ex, ez in ((-0.07, 0.04), (0.07, 0.04), (-0.04, -0.03), (0.04, -0.03)):
+        cyl(eyes, s * 0.03, 0.02, (ex * s, -s * 0.47, zb + ez * s), glow, sides=6, rot=ALONG_Y)
+    cube(body, (s * 0.3, s * 0.4, 0.03), (0, s * 0.15, zb + s * 0.22), "M_Metal")  # back plate
+    half = n // 2
+    for i in range(n):
+        side = -1 if i < half else 1
+        k = i % half
+        fy = (k - (half - 1) / 2) * s * 0.35
+        hip = (side * s * 0.3, fy, zb)
+        spread = (k - (half - 1) / 2) * 0.5
+        knee = (side * s * 0.65, fy + spread * s * 0.3, zb + s * 0.25)
+        foot = (side * s * 0.95, fy + spread * s * 0.6, 0.0)
+        leg = a.part(f"Leg_{i + 1}", pivot=hip)
+        cyl(leg, s * 0.06, s * 0.08, hip, "M_Metal", sides=6, rot=ALONG_X)
+        strut(leg, hip, knee, s * 0.04, shell, sides=6)
+        leg.add(sphere(s * 0.05, 6, 3, "M_RobotDark"), loc=knee)
+        strut(leg, knee, foot, s * 0.035, "M_RobotDark", sides=6, radius_end=s * 0.015)
+    sensor = p.choice("sensor", ["none", "antenna", "dish"])
+    if sensor == "antenna":
+        cyl(body, 0.01, s * 0.4, (s * 0.1, s * 0.25, zb + s * 0.4), "M_Metal", sides=6)
+        cube(a.part("Lights"), (0.03, 0.03, 0.03), (s * 0.1, s * 0.25, zb + s * 0.6), "M_GlowRed")
+    elif sensor == "dish":
+        cyl(body, s * 0.04, s * 0.12, (0, s * 0.2, zb + s * 0.28), "M_Metal", sides=6)
+        cyl(body, s * 0.14, 0.03, (0, s * 0.2, zb + s * 0.36), "M_Platform", sides=8, radius_top=s * 0.18,
+            rot=(deg(-30), 0, 0))
+    a.meta.update({"legs": n, "sensor": sensor})
+    a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")},
+                note="Leg_<n> have their pivot at the hip, ready for a walk animation")
+
+
+@model("android", "Android", "robots", "Humanoid android, standing or slumped against a wall (broken): Head with "
+       "glowing visor, chest core", params=[
+           Param("pose", "choice", "Haltung", choices=("standing", "slumped")),
+           Param("height", "float", "Größe (m)", lo=1.2, hi=2.4, size=True),
+           Param("visor", "choice", "Gesicht", choices=("visor", "eyes")),
+       ])
+def android(rng, a):
+    p = a.p
+    pose = p.choice("pose", ["standing", "standing", "slumped"])
+    H = p.float("height", 1.6, 2.0)
+    shell = p.material(["M_RobotBody", "M_Platform", "M_Wall", "M_RobotDark"])
+    joint = "M_RobotDark" if shell != "M_RobotDark" else "M_Metal"
+    glow = p.glow(weights=(0.7, 0.2, 0.1)) if pose == "standing" else "M_GlowRed"
+    body, lights = a.part("Body"), a.part("Glow")
+    u = H / 1.8  # proportions of a 1.8 m figure
+    a.meta["pose"] = pose
+    if pose == "standing":
+        hip_z, lean, sit = 0.95 * u, 0.0, False
+    else:
+        hip_z, lean, sit = 0.16 * u, deg(-20), True
+    pelvis = (0.0, 0.0, hip_z)
+    up = lambda dz: add_vec(pelvis, rotated((lean, 0, 0), (0, 0, dz)))  # noqa: E731 - along the leaning spine
+    cube(body, (0.32 * u, 0.2 * u, 0.16 * u), pelvis, joint, bevel=0.02, rot=(lean, 0, 0))
+    chest = up(0.38 * u)
+    cube(body, (0.44 * u, 0.26 * u, 0.42 * u), chest, shell, bevel=0.04, rot=(lean, 0, 0))
+    cube(body, (0.2 * u, 0.2 * u, 0.2 * u), up(0.13 * u), joint, rot=(lean, 0, 0))  # waist
+    cyl(lights, 0.06 * u, 0.04, add_vec(chest, rotated((lean, 0, 0), (0, -0.13 * u, 0.04 * u))), glow, sides=8,
+        rot=(lean + math.pi / 2, 0, 0))
+    neck = up(0.64 * u)
+    cyl(body, 0.05 * u, 0.1 * u, neck, joint, sides=6, rot=(lean, 0, 0))
+    tilt = (lean, deg(rng.uniform(-25, 25)) if sit else 0.0, 0.0)
+    head = a.part("Head", pivot=neck)
+    hc = add_vec(neck, rotated(tilt, (0, 0, 0.15 * u)))
+    cube(head, (0.2 * u, 0.24 * u, 0.24 * u), hc, shell, bevel=0.04, rot=tilt)
+    if p.choice("visor", ["visor", "eyes"]) == "visor":
+        cube(lights, (0.17 * u, 0.02, 0.05 * u), add_vec(hc, rotated(tilt, (0, -0.12 * u, 0.02 * u))), glow, rot=tilt)
+    else:
+        for sx in (-1, 1):
+            cyl(lights, 0.025 * u, 0.02, add_vec(hc, rotated(tilt, (sx * 0.05 * u, -0.12 * u, 0.02 * u))), glow,
+                sides=6, rot=(tilt[0] + math.pi / 2, tilt[1], 0))
+    for sx in (-1, 1):
+        shoulder = add_vec(up(0.55 * u), (sx * 0.27 * u, 0, 0))
+        body.add(sphere(0.07 * u, 6, 3, joint), loc=shoulder)
+        if sit:
+            elbow = (sx * 0.38 * u, shoulder[1] - 0.05 * u, shoulder[2] - 0.28 * u)
+            hand = (sx * 0.45 * u, shoulder[1] - 0.25 * u, 0.04 * u)
+        else:
+            elbow = (sx * 0.32 * u, 0.02 * u, shoulder[2] - 0.3 * u)
+            hand = (sx * 0.34 * u, -0.06 * u, shoulder[2] - 0.6 * u)
+        strut(body, shoulder, elbow, 0.05 * u, shell, sides=6)
+        body.add(sphere(0.05 * u, 6, 3, joint), loc=elbow)
+        strut(body, elbow, hand, 0.042 * u, shell, sides=6)
+        cube(body, (0.07 * u, 0.06 * u, 0.1 * u), hand, joint)
+        hip = (sx * 0.1 * u, 0.0, hip_z - 0.05 * u)
+        if sit:
+            knee = (sx * 0.14 * u, -0.45 * u, 0.12 * u + rng.uniform(0, 0.15) * u)
+            foot = (sx * 0.17 * u, -0.85 * u, 0.06 * u)
+        else:
+            knee = (sx * 0.11 * u, -0.02 * u, 0.5 * u)
+            foot = (sx * 0.12 * u, 0.0, 0.07 * u)
+        strut(body, hip, knee, 0.065 * u, shell, sides=6)
+        body.add(sphere(0.06 * u, 6, 3, joint), loc=knee)
+        strut(body, knee, foot, 0.055 * u, shell, sides=6)
+        cube(body, (0.1 * u, 0.2 * u, 0.07 * u), (foot[0], foot[1] - 0.05 * u, max(foot[2], 0.035 * u)), joint,
+             bevel=0.01)
+    a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": "Steady" if pose == "standing" else "Blink"},
+                note="slumped = broken: red flickering eyes")

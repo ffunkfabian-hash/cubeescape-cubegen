@@ -66,6 +66,22 @@ Weitere Regeln:
   Geländer-Hülle): prüfe, wie AssetRegistry das macht, und schlage MeshCollider bzw. Box-Collider aus den
   "bounds" der einzelnen Teile vor (Deck ohne Rail). Wand- und Deckenteile (pivot "wall") brauchen nur
   Collider, wenn man sie berühren kann.
+- Weitere Typen mit den vorhandenen Scripts:
+  - Door bewegt auch force_field (panels = ["Field"], openOffset nach unten: das Feld verschwindet im Boden;
+    Field braucht einen BoxCollider aus seinen "bounds", solange es zu ist) und shutter (Rolltor, nach oben).
+  - Rotatable.step darf negativ sein: hatch klappt den Deckel "Panel" mit negativem step um Unity right nach
+    oben. Kinder eines bewegten Teils übernehmen ("parent"): hatch "Wheel" unter "Panel"; safe "Wheel",
+    "Glow" und "Screen" unter "Panel" (Tür). safe hat zwei Rotatables: Rad (interactive, target = Code-Ziffer)
+    und Tür (interactive false - geht auf, wenn das Schloss gelöst ist).
+  - gear_puzzle: ein Rotator je "Gear_<n>", Tempo nach Übersetzung und gegenläufig. Diese Rotatoren
+    deaktiviert anlegen; sie laufen erst, wenn das Werk vollständig ist. Fehlt ein Rad, gibt es "Slot".
+  - laser_splitter: leere Teile "Beam_A" / "Beam_B" sind Kinder von "Prism" (Strahlausgänge).
+  - Machine mit needsPower false (transformer, reactor_core) ist eine Energiequelle.
+  - Leere oder Teile ohne Script, die erhalten bleiben müssen: "Button" / "Button_<n>" (button, intercom:
+    werden beim Drücken ~1,5 cm Richtung Wand geschoben), "Plug" (cable_plug), "Grille" (vent_shaft),
+    "Gun" (turret, Kind von "Turret"), "Leg_<n>" (spider_bot, Pivot an der Hüfte), "Head" (android).
+  - Begehbar: hatch und floor_grate (Oberkante bei y = 0) und vent_shaft (innen begehbar) brauchen
+    MeshCollider bzw. Box-Collider aus den "bounds" der Teile statt einer Hülle - wie stairs / catwalk.
 
 Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten M_*-Materialien):
 - "tiled": Materialien MT_<Name> (z. B. MT_Metal), beschrieben in <Texturordner>/CubeEscape_Textures.json:
@@ -152,5 +168,27 @@ Mechaniken:
     leicht; Roboterarm bewegt Arm_Lower / Arm_Upper (Unity right) und Turret (Unity up) mit langsamen
     Sinuswellen um die Ruhepose, Gripper öffnet/schließt. Rein visuell, abschaltbar.
 
+11. Knöpfe (button, intercom): Interaktion drückt "Button" bzw. "Button_<n>" kurz 0,015 m Richtung Wand
+    (Unity -Z) und sendet ein Signal. Knopfreihe: Reihenfolge als Feld (Code-Rätsel), richtige Folge ->
+    SignalIndicator an.
+12. Zahnradwerk (gear_puzzle): Item-Sockel (Mechanik 1) für "Slot" mit spare_part kind "gear"
+    (meta.missing_gear.radius ≈ spare_part params.size). Eingesetzt -> Rotatoren aller Gear_<n> an,
+    SignalIndicator an, Signal. Ohne fehlendes Rad: startet per Signal (z. B. Kurbel / lever).
+13. Laser-Teiler (laser_splitter): in Mechanik 2 einbauen - trifft der Strahl "Prism", gehen zwei neue
+    Strahlen von "Beam_A" und "Beam_B" in deren Vorwärtsrichtung aus (Beam_B: Unity right des Prismas).
+14. Steckfeld (cable_plug): Spieler nimmt "Plug" (ausblenden, gilt als gehaltenes Kabelende) und steckt es
+    in eine Buchse "Slot_<n>": Stecker dort zeigen. Richtig = meta.target_slot (gleiche Farbe) ->
+    SignalIndicator an, Signal; falsch -> kurz rot blinken.
+15. Scanner (scanner): params.kind "card" -> braucht ein keycard-Item im Inventar, "hand"/"retina" ->
+    Spieler steht davor und hält die Interaktion ~1,5 s (Scan-Glow pulsiert dabei schneller), danach
+    SignalIndicator an + Signal.
+16. Tresor (safe): Rad (Rotatable an "Wheel") auf der Code-Ziffer bzw. Keypad-Code richtig -> Tür-Rotatable
+    auslösen; im "Slot" liegt ein Item (Feld: welches Prefab).
+17. Werkzeuge (tool) als Schlüssel: kind "crowbar" hebelt "Grille" von vent_shaft und den Rost "Panel" von
+    floor_grate auf (Teil fällt als Rigidbody heraus), "wrench" dreht Ventile ohne Rad, spare_part
+    "valve_wheel" setzt ein fehlendes Ventilrad ein. clue-Items zeigen beim Aufheben einen Text (Feld).
+18. Wachgeschütz (turret): wie Mechanik 5 schwenken (Turret ±60°), "Gun" zielt auf den Spieler, wenn er im
+    Sichtkegel ist (Glow -> Blink, Signal / Schaden nach Spiel-Logik). spider_bot: Beine "Leg_<n>" im
+    Wechsel leicht anheben (prozedurale Laufanimation), nur visuell.
 Am Ende: Liste der neuen Scripts, welche Typen sie nutzen, und welche Felder der Import jetzt setzt.
 ````

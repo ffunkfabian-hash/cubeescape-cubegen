@@ -1,5 +1,5 @@
 """Station furniture and small props: lockers, shelves, workbenches, tool carts, cryo pods, chairs,
-gas bottle racks, fire extinguishers, first aid kits, barriers, pallets and signs.
+gas bottle racks, fire extinguishers, first aid kits, barriers, pallets, signs, beds, tables, bins and toolboxes.
 
 Static decoration (no game scripts) - goes into Art/Models/Library/Props.
 """
@@ -579,3 +579,248 @@ def sign(rng, a):
             x, zz, horizontal = pos[k]
             cube(sym, (dw, 0.012, t) if horizontal else (t, 0.012, dh / 2), (x, y, z + zz), ink)
         a.meta["digit"] = digit
+
+
+@model("bed", "Bed", "props", "Crew bed: cot, bunk bed with ladder or medical bed with raised back and monitor",
+       params=[
+           Param("style", "choice", "Art", choices=("cot", "bunk", "medical")),
+           Param("length", "float", "Länge (m)", lo=1.6, hi=2.4, size=True),
+           Param("blanket", "bool", "Decke"),
+           Param("lamp", "bool", "Leselampe"),
+       ])
+def bed(rng, a):
+    p = a.p
+    style = p.choice("style", ["cot", "bunk", "medical"])
+    length = p.float("length", 1.9, 2.1)
+    width = rng.uniform(0.8, 1.0)
+    frame = p.material(["M_Metal", "M_RobotDark", "M_Wall", "M_Platform"])
+    body = a.part("Body")
+    blanket_mat = rng.choice(["M_HazardOrange", "M_Wall", "M_RobotDark", "M_RobotBody"])
+    has_blanket = p.bool("blanket", 0.7)
+    a.meta["style"] = style
+
+    def mattress(z, back=0.0):
+        cube(body, (length - 0.1, width - 0.08, 0.04), (0, 0, z), frame)  # slatted base
+        if back > 0:  # raised back part (head end at +X)
+            cube(body, (length * 0.6, width - 0.1, 0.14), (-length * 0.18, 0, z + 0.09), "M_PortalPanel", bevel=0.03)
+            hinge_x = length * 0.12
+            seg = length * 0.32
+            cube(body, (seg, width - 0.1, 0.14),
+                 (hinge_x + math.cos(back) * seg / 2, 0, z + 0.09 + math.sin(back) * seg / 2), "M_PortalPanel",
+                 bevel=0.03, rot=(0, -back, 0))
+            pz = z + 0.2 + math.sin(back) * seg * 0.75
+            cube(body, (0.12, width * 0.5, 0.1), (hinge_x + math.cos(back) * seg * 0.7, 0, pz), "M_Platform",
+                 bevel=0.03, rot=(0, -back, 0))
+            return
+        cube(body, (length - 0.12, width - 0.1, 0.14), (0, 0, z + 0.09), "M_PortalPanel", bevel=0.03)
+        cube(body, (0.3, width * 0.55, 0.1), (length / 2 - 0.25, 0, z + 0.2), "M_Platform", bevel=0.03)  # pillow
+        if has_blanket:
+            bl = length * rng.uniform(0.45, 0.65)
+            cube(body, (bl, width - 0.04, 0.03), (-length / 2 + bl / 2 + 0.04, 0, z + 0.17), blanket_mat, bevel=0.01)
+            cube(body, (bl, 0.03, 0.2), (-length / 2 + bl / 2 + 0.04, -width / 2 + 0.03, z + 0.08), blanket_mat)
+
+    levels = [0.45] if style != "bunk" else [0.4, 1.45]
+    top = levels[-1] + 0.4
+    for sx in (-1, 1):  # posts
+        for sy in (-1, 1):
+            cube(body, (0.06, 0.06, top), (sx * (length / 2 - 0.03), sy * (width / 2 - 0.03), top / 2), frame)
+    for z in levels:
+        for sy in (-1, 1):
+            cube(body, (length, 0.05, 0.1), (0, sy * (width / 2 - 0.025), z - 0.02), frame)
+        mattress(z, deg(rng.uniform(25, 45)) if style == "medical" else 0.0)
+    for sx in (-1, 1):  # head and foot boards
+        cube(body, (0.04, width - 0.06, 0.35), (sx * (length / 2 - 0.03), 0, top - 0.2), frame)
+    if style == "bunk":
+        lx = -length / 2 + 0.35
+        for x in (lx - 0.18, lx + 0.18):
+            cube(body, (0.04, 0.04, top - 0.1), (x, -width / 2 - 0.06, (top - 0.1) / 2), "M_Metal")
+        for k in range(4):
+            cube(body, (0.4, 0.04, 0.03), (lx, -width / 2 - 0.06, 0.35 + k * 0.3), "M_Metal")
+        cube(body, (length, 0.04, 0.2), (0, -width / 2 + 0.02, levels[1] + 0.25), frame)  # fall guard
+    if style == "medical":
+        for sx in (-1, 1):  # castors
+            for sy in (-1, 1):
+                cyl(body, 0.05, 0.04, (sx * (length / 2 - 0.03), sy * (width / 2 - 0.03), 0.05), "M_RobotDark",
+                    sides=8, rot=ALONG_Y)
+        mx = length / 2 + 0.25
+        cyl(body, 0.03, 1.3, (mx, width * 0.3, 0.65), "M_Metal", sides=6)
+        cube(body, (0.06, 0.32, 0.24), (mx, width * 0.3, 1.35), "M_RobotDark", bevel=0.01, rot=(0, 0, deg(-20)))
+        cube(a.part("Screen"), (0.01, 0.26, 0.18), (mx - 0.035, width * 0.3, 1.35), "M_GlowCyan",
+             rot=(0, 0, deg(-20)))
+    if p.bool("lamp", 0.4):
+        lz = levels[0] + 0.75 if style == "bunk" else top + 0.25
+        cyl(body, 0.015, 0.25 if style != "bunk" else 0.04, (length / 2 - 0.03, 0, lz - 0.12), "M_Metal", sides=6)
+        cube(body, (0.16, 0.12, 0.06), (length / 2 - 0.1, 0, lz), "M_RobotDark")
+        cube(a.part("Lights"), (0.12, 0.08, 0.01), (length / 2 - 0.1, 0, lz - 0.035), "M_GlowOrange")
+
+
+@model("table", "Table", "props", "Table: four-leg table, desk with drawers and monitor (Screen), round pedestal "
+       "table or lab table with a shelf; optional clutter", params=[
+           Param("style", "choice", "Art", choices=("table", "desk", "round", "lab")),
+           Param("width", "float", "Breite (m)", lo=0.6, hi=3.0, size=True),
+           Param("clutter", "bool", "Kleinkram oben"),
+       ])
+def table(rng, a):
+    p = a.p
+    style = p.choice("style", ["table", "desk", "round", "lab"])
+    w = p.float("width", 1.0, 1.8)
+    d = w * rng.uniform(0.45, 0.6) if style != "round" else w
+    h = rng.uniform(0.74, 0.8) if style != "lab" else rng.uniform(0.88, 0.95)
+    mat = p.material(["M_Wall", "M_Metal", "M_Platform", "M_RobotDark"])
+    body = a.part("Body")
+    a.meta["style"] = style
+    if style == "round":
+        r = w / 2
+        cyl(body, r, 0.05, (0, 0, h - 0.025), mat, sides=12, bevel=0.01)
+        cyl(body, 0.07, h - 0.08, (0, 0, (h - 0.05) / 2), "M_Metal", sides=8)
+        cyl(body, r * 0.45, 0.05, (0, 0, 0.025), "M_RobotDark", sides=8)
+        if rng.random() < 0.5:
+            cyl(a.part("Lights"), r * 1.01, 0.015, (0, 0, h - 0.035), p.glow(), sides=12)
+    else:
+        cube(body, (w, d, 0.05), (0, 0, h - 0.025), mat, bevel=0.01)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                if style == "desk" and sx > 0:
+                    continue
+                cube(body, (0.05, 0.05, h - 0.05), (sx * (w / 2 - 0.05), sy * (d / 2 - 0.05), (h - 0.05) / 2),
+                     "M_RobotDark" if style != "lab" else "M_Metal")
+        if style == "desk":  # drawer block on the right, monitor and keyboard
+            bw = min(0.45, w * 0.35)
+            cube(body, (bw, d - 0.06, h - 0.05), (w / 2 - bw / 2 - 0.02, 0, (h - 0.05) / 2), mat, bevel=0.01)
+            for k in range(3):
+                zz = 0.15 + k * (h - 0.2) / 3
+                cube(body, (bw - 0.06, 0.02, (h - 0.2) / 3 - 0.04), (w / 2 - bw / 2 - 0.02, -d / 2 + 0.02, zz + 0.1),
+                     "M_RobotDark")
+                cube(body, (0.1, 0.03, 0.02), (w / 2 - bw / 2 - 0.02, -d / 2, zz + 0.15), "M_Metal")
+            mw = min(0.6, w * 0.4)
+            cube(body, (0.15, 0.12, 0.02), (-w * 0.1, d * 0.2, h + 0.01), "M_RobotDark")
+            cube(body, (0.04, 0.04, 0.2), (-w * 0.1, d * 0.2, h + 0.1), "M_RobotDark")
+            cube(body, (mw, 0.04, mw * 0.6), (-w * 0.1, d * 0.2 - 0.02, h + 0.2 + mw * 0.3), "M_RobotDark", bevel=0.01)
+            cube(a.part("Screen"), (mw * 0.9, 0.01, mw * 0.5), (-w * 0.1, d * 0.2 - 0.045, h + 0.2 + mw * 0.3),
+                 p.glow(weights=(0.8, 0.05, 0.15)))
+            cube(body, (0.45, 0.15, 0.02), (-w * 0.1, -d * 0.2, h + 0.01), "M_Wall")
+        elif style == "lab":  # lower shelf, stripes
+            cube(body, (w - 0.1, d - 0.1, 0.03), (0, 0, 0.2), mat)
+            cube(body, (w, 0.02, 0.04), (0, -d / 2 - 0.005, h - 0.03), "M_Warning")
+        else:
+            for sy in (-1, 1):
+                cube(body, (w - 0.1, 0.03, 0.08), (0, sy * (d / 2 - 0.05), h - 0.09), "M_RobotDark")
+    if p.bool("clutter", 0.6):
+        for _ in range(rng.randint(2, 5)):
+            x, y = rng.uniform(-w * 0.35, w * 0.35), rng.uniform(-d * 0.3, d * 0.3)
+            if style == "round" and math.hypot(x, y) > w * 0.4:
+                continue
+            kind = rng.random()
+            if kind < 0.35:  # cup
+                cyl(body, 0.04, 0.1, (x, y, h + 0.05), rng.choice(["M_Platform", "M_HazardOrange", "M_Metal"]),
+                    sides=8)
+            elif kind < 0.7:  # papers
+                cube(body, (0.21, 0.29, 0.01), (x, y, h + 0.005), "M_PortalPanel", rot=(0, 0, rng.uniform(-0.5, 0.5)))
+            else:  # small box / device
+                cube(body, (0.15, 0.1, 0.06), (x, y, h + 0.03), rng.choice(BOX_MATS), bevel=0.01,
+                     rot=(0, 0, rng.uniform(-0.5, 0.5)))
+
+
+@model("bin", "Bin", "props", "Waste bin: round, square, a recycling row with coloured lids or a hazard bin; "
+       "optional open lid and trash", params=[
+           Param("style", "choice", "Art", choices=("round", "square", "recycling", "hazard")),
+           Param("height", "float", "Höhe (m)", lo=0.3, hi=1.4, size=True),
+           Param("open", "bool", "Deckel offen"),
+           Param("trash", "bool", "Müll daneben"),
+       ])
+def waste_bin(rng, a):
+    p = a.p
+    style = p.choice("style", ["round", "square", "recycling", "hazard"])
+    h = p.float("height", 0.6, 1.0)
+    body = a.part("Body")
+    is_open = p.bool("open", 0.3)
+    a.meta["style"] = style
+    if style == "recycling":
+        n = rng.randint(2, 3)
+        w = h * 0.55
+        lids = rng.sample(["M_HazardOrange", "M_Warning", "M_GlowCyan", "M_Platform", "M_GlowRed"], n)
+        for i, lid in enumerate(lids):
+            x = (i - (n - 1) / 2) * (w + 0.04)
+            cube(body, (w, w, h), (x, 0, h / 2), p.styled("M_RobotDark", ["M_RobotDark", "M_Wall", "M_Metal"]),
+                 bevel=0.02)
+            cube(a.part("Lights") if lid.startswith("M_Glow") else body, (w + 0.02, w + 0.02, 0.05),
+                 (x, 0, h + 0.025), lid, bevel=0.01)
+            cube(body, (w * 0.5, 0.02, 0.06), (x, -w / 2 - 0.005, h * 0.75), "M_Platform")  # label
+        return
+    mat = "M_Warning" if style == "hazard" else p.material(["M_Metal", "M_Wall", "M_RobotDark", "M_HazardOrange"])
+    r = h * rng.uniform(0.28, 0.36)
+    if style == "round":
+        cyl(body, r * 0.9, h, (0, 0, h / 2), mat, sides=10, radius_top=r, bevel=0.01)
+        cyl(body, r * 1.04, 0.05, (0, 0, h - 0.025), "M_RobotDark", sides=10)
+    else:
+        cube(body, (2 * r, 2 * r, h), (0, 0, h / 2), mat, bevel=0.02)
+        cube(body, (2 * r + 0.03, 2 * r + 0.03, 0.05), (0, 0, h - 0.025), "M_RobotDark")
+    if style == "hazard":  # black band and a symbol
+        cube(body, (2 * r + 0.01, 2 * r + 0.01, h * 0.12), (0, 0, h * 0.35), "M_RobotDark")
+        cube(body, (r * 0.7, 0.01, r * 0.7), (0, -r - 0.006, h * 0.65), "M_RobotDark", rot=(0, deg(45), 0))
+    lid_mat = "M_RobotDark" if style != "hazard" else "M_Warning"
+    if is_open:  # lid hinged at the back, standing up
+        cube(body, (2 * r, 0.04, 2 * r), (0, r + 0.02, h + r), lid_mat, bevel=0.01, rot=(deg(-15), 0, 0))
+        for _ in range(rng.randint(2, 4)):  # trash sticking out
+            pos = (rng.uniform(-r, r) * 0.5, rng.uniform(-r, r) * 0.5, h)
+            mat = rng.choice(["M_PortalPanel", "M_Ground", "M_HazardOrange"])
+            cube(body, (r * 0.4, r * 0.3, r * 0.3), pos, mat, rot=(rng.uniform(0, 1), rng.uniform(0, 1), 0))
+    else:
+        if style == "round":
+            cyl(body, r * 1.02, 0.06, (0, 0, h + 0.03), lid_mat, sides=10, radius_top=r * 0.6)
+        else:
+            cube(body, (2 * r, 2 * r, 0.05), (0, 0, h + 0.025), lid_mat, bevel=0.01)
+    if p.bool("trash", 0.35):
+        for _ in range(rng.randint(2, 4)):
+            ang = rng.uniform(0, 2 * math.pi)
+            dist = r * rng.uniform(1.3, 1.9)
+            s = r * rng.uniform(0.25, 0.45)
+            cube(body, (s, s * 0.8, s * 0.6), (math.cos(ang) * dist, math.sin(ang) * dist, s * 0.3),
+                 rng.choice(["M_PortalPanel", "M_Ground", "M_Wall", "M_HazardOrange"]),
+                 rot=(deg(rng.uniform(-20, 20)), deg(rng.uniform(-20, 20)), rng.uniform(0, math.pi)))
+
+
+@model("toolbox", "Toolbox", "props", "Toolbox: carry case, roller chest with drawers or an open box with tools",
+       params=[
+           Param("style", "choice", "Art", choices=("case", "chest", "open")),
+           Param("width", "float", "Breite (m)", lo=0.3, hi=1.2, size=True),
+       ])
+def toolbox(rng, a):
+    p = a.p
+    style = p.choice("style", ["case", "chest", "open"])
+    w = p.float("width", 0.45, 0.8)
+    mat = p.material(["M_HazardOrange", "M_Warning", "M_RobotDark", "M_Wall"])
+    body = a.part("Body")
+    a.meta["style"] = style
+    if style == "chest":
+        d, h = w * 0.5, w * rng.uniform(0.9, 1.3)
+        cube(body, (w, d, h), (0, 0, 0.08 + h / 2), mat, bevel=0.02)
+        n = rng.randint(3, 6)
+        for k in range(n):
+            z = 0.08 + h * 0.08 + k * h * 0.84 / n
+            cube(body, (w - 0.06, 0.02, h * 0.84 / n - 0.03), (0, -d / 2 - 0.005, z + h * 0.42 / n), "M_RobotDark")
+            cube(body, (w * 0.5, 0.03, 0.02), (0, -d / 2 - 0.02, z + h * 0.42 / n + 0.02), "M_Metal")
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                cyl(body, 0.04, 0.03, (sx * (w / 2 - 0.06), sy * (d / 2 - 0.06), 0.04), "M_RobotDark", sides=8,
+                    rot=ALONG_Y)
+        cube(body, (w + 0.02, d + 0.02, 0.04), (0, 0, 0.1 + h), "M_RobotDark", bevel=0.01)
+        return
+    d, h = w * 0.42, w * 0.38
+    cube(body, (w, d, h), (0, 0, h / 2), mat, bevel=0.015)
+    cube(body, (w + 0.01, d + 0.01, 0.03), (0, 0, h * 0.75), "M_RobotDark")
+    for sx in (-1, 1):  # latches
+        cube(body, (0.05, 0.02, 0.06), (sx * w * 0.3, -d / 2 - 0.01, h * 0.75), "M_Metal")
+    if style == "case":
+        for sx in (-1, 1):
+            cube(body, (0.03, 0.03, 0.08), (sx * w * 0.2, 0, h + 0.04), "M_RobotDark")
+        cube(body, (w * 0.45, 0.04, 0.03), (0, 0, h + 0.08), "M_RobotDark")
+    else:  # open: lid folded back, tray with tools
+        cube(body, (w, 0.03, d), (0, d / 2 + 0.02, h + d / 2 - 0.02), mat, bevel=0.01, rot=(deg(-10), 0, 0))
+        cube(body, (w - 0.04, d - 0.04, 0.02), (0, 0, h - 0.02), "M_RobotDark")
+        for k in range(rng.randint(2, 4)):  # tool handles sticking out
+            x = -w * 0.35 + k * w * 0.22
+            y = rng.uniform(-d, d) * 0.2
+            mat = rng.choice(["M_HazardOrange", "M_Metal", "M_Warning"])
+            cube(body, (0.04, 0.03, 0.12), (x, y, h + 0.03), mat,
+                 rot=(deg(rng.uniform(-30, 30)), deg(rng.uniform(-20, 20)), 0))

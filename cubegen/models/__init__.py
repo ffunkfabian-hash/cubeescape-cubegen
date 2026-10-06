@@ -3,4 +3,5 @@
 from .registry import REGISTRY, ModelType, asset_name, generate_asset, model, model_types  # noqa: F401
 
 # Importing the modules registers their model types.
-from . import environment, furniture, industrial, kit, nature, props, puzzle, robots, ruins, tech  # noqa: F401,E402
+from . import (environment, furniture, industrial, items, kit, machinery, mechanisms,  # noqa: F401,E402
+               nature, props, puzzle, robots, ruins, structure, tech)
