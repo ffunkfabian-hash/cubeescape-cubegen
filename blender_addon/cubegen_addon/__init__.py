@@ -118,8 +118,9 @@ def _cli_command(s):
               ("--detail", style.detail if style.detail != "normal" else None),
               ("--damage", style.damage if style.damage != "intact" else None),
               ("--textures", s.textures if s.textures != "none" else None),
+              ("--lods", s.lods),  # True = flag without value
               ("--texture-set", s.texture_set or None)]
-    return cmd + "".join(f" {flag} {value}" for flag, value in flags if value)
+    return cmd + "".join(f" {flag}" if value is True else f" {flag} {value}" for flag, value in flags if value)
 
 
 def _overrides(s):
@@ -306,7 +307,7 @@ def make_configs(context, picks):
             prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
             models_dir=export_dir, icons_dir=bpy.path.abspath(s.icons_dir).strip() or None,
             library_dir=bpy.path.abspath(s.library_dir).strip() or None,
-            params=_overrides(s), style=_style(s),
+            params=_overrides(s), style=_style(s), lods=s.lods,
             icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
             textures=s.textures, texture_size=int(s.texture_size), texture_set=s.texture_set.strip(),
             textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
@@ -412,6 +413,9 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     fmt_fbx: BoolProperty(name="FBX", default=True)
     fmt_glb: BoolProperty(name="GLB", default=False)
     fmt_obj: BoolProperty(name="OBJ", default=False)
+    lods: BoolProperty(name="LODs (statische Modelle)", default=False,
+                       description="Statische Deko bekommt eine zweite, sparsamere Stufe in derselben FBX "
+                                   "(Teile <Teil>_LOD0 / <Teil>_LOD1, Unity baut die LODGroup beim Import)")
     render_icons: BoolProperty(name="Icons + Kontaktbogen", default=True,
                                description="Previews rendern und mit ImageMagick Icons erzeugen")
 
@@ -858,7 +862,9 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
             row.prop(s, "texture_size", text="")
             row.prop(s, "texture_set", text="Set")
             box.prop(s, "textures_dir")
-        layout.prop(s, "render_icons")
+        row = layout.row(align=True)
+        row.prop(s, "render_icons")
+        row.prop(s, "lods")
         col = layout.column(align=True)
         col.enabled = not s.running
         col.scale_y = 1.3

@@ -21,7 +21,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "unique")
+                  "unique", "lods")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -137,6 +137,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
     values["style"] = Style.from_dict(style)
     if args.unique:
         values["unique"] = True
+    if args.lods:
+        values["lods"] = True
     if args.icon_angle:
         az, _, el = args.icon_angle.partition(",")
         values["icon_azimuth"] = float(az)
@@ -285,6 +287,9 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--formats", type=_csv, help=f"export formats: {', '.join(FORMATS)} (default fbx)")
     g.add_argument("--prefix", help="prefix for asset names, e.g. 'Gen_' -> Gen_Crate_000")
     g.add_argument("--scale", type=float, help="uniform scale factor (default 1.0 = metres)")
+    g.add_argument("--lods", action="store_true",
+                   help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
+                        "(Unity builds the LODGroup on import)")
     g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
     g.add_argument("--no-rig-data", action="store_true",
                    help="don't write <Name>.cubegen.json (parts, pivots, script wiring for Unity)")

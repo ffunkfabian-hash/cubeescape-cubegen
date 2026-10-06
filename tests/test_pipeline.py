@@ -52,6 +52,24 @@ class OBJFallbackTest(unittest.TestCase):
             self.assertGreater(panel["localPosition"][1], 0.5)  # Unity Y = up
             self.assertTrue(json.loads(read(os.path.join(out, "models", "Crate_000.cubegen.json")))["static"])
 
+    def test_lods(self):
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "wall,door", "--lods", "--no-blender", "--out", out])
+            self.assertEqual(code, 0)
+            obj = read(os.path.join(out, "models", "Wall_000.obj"))
+            self.assertIn("o Wall_LOD0", obj)
+            self.assertIn("o Wall_LOD1", obj)
+            rig = json.loads(read(os.path.join(out, "models", "Wall_000.cubegen.json")))
+            levels = rig["lods"]["levels"]
+            self.assertEqual([lv["suffix"] for lv in levels], ["_LOD0", "_LOD1"])
+            self.assertLess(levels[1]["triangles"], levels[0]["triangles"] * 0.85)
+            self.assertEqual(rig["parts"][0]["name"], "Wall")  # rig data keeps the plain part names
+            door = json.loads(read(os.path.join(out, "models", "Door_000.cubegen.json")))
+            self.assertNotIn("lods", door)  # scripted: no LODs
+            self.assertNotIn("_LOD", read(os.path.join(out, "models", "Door_000.obj")))
+        self.assertEqual(main(["generate", "--seed", "1", "--types", "wall", "--lods", "--textures", "baked",
+                               "--no-blender", "--out", out]), 2)
+
     def test_same_seed_same_files(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             for out in (a, b):
@@ -78,6 +96,17 @@ class BlenderTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out, "contact_sheet.png")))
             self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
 
+
+    def test_fbx_lods(self):
+        from cubegen.fbxread import unity_locals
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "crate,turret", "--lods", "--no-render", "--out", out])
+            self.assertEqual(code, 0)  # the worker checked both levels against the rig data
+            crate = unity_locals(os.path.join(out, "models", "Crate_000.fbx"))
+            self.assertEqual(sorted(crate), ["Body_LOD0", "Body_LOD1", "Glow_LOD0", "Glow_LOD1"])
+            self.assertLess(len(crate["Body_LOD1"]["vertices"]), len(crate["Body_LOD0"]["vertices"]))
+            self.assertIn("Glow", unity_locals(os.path.join(out, "models", "Turret_000.fbx")))
 
     def test_fbx_pivots_match_rig_data(self):
         # cubegen 0.7.0: parts nested two levels deep (Slot_A, Arm_Upper, Glow) had wrong pivots and a 90 deg

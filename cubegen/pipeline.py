@@ -32,6 +32,7 @@ class BatchConfig:
     models: Dict[str, Union[int, List[int]]]  # type -> count (indices 0..n-1) or explicit variant indices
     out_dir: str
     unique: bool = False           # counts: skip variants that look like an earlier one (see variety.py)
+    lods: bool = False             # static models: + low detail level, FBX objects <part>_LOD0 / _LOD1
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -87,6 +88,8 @@ class BatchConfig:
             raise ValueError("texture set: letters, digits and _ only")
         if self.icon_zoom <= 0:
             raise ValueError("icon zoom must be > 0")
+        if self.lods and self.textures == "baked":
+            raise ValueError("--lods can't be combined with --textures baked (the atlas is baked per object)")
 
 
 def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
@@ -169,10 +172,34 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
     }
 
 
+def lod_data(asset, lod) -> Dict:
+    """``"lods"`` of <Name>.cubegen.json: the FBX objects are <part>_LOD0 / <part>_LOD1."""
+    return {"objects": "<part>_LOD<level>", "note": "Unity builds the LODGroup on import from the _LOD names",
+            "levels": [{"suffix": "_LOD0", "triangles": asset.stats()["triangles"]},
+                       {"suffix": "_LOD1", "triangles": lod.stats()["triangles"]}]}
+
+
 def build_spec(spec: Dict):
     """The asset a planned spec describes (same call as inside Blender)."""
     return generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"], params=spec.get("params"),
                           style=Style.from_dict(spec.get("style")))
+
+
+LOD_MIN_SAVING = 0.15  # a LOD1 must have at least 15 % fewer triangles, else it isn't worth a level
+
+
+def lod_spec(spec: Dict) -> Dict:
+    """LOD1 of a spec: the same model with detail "low" (same rolls: no bevels, fewer cylinder sides)."""
+    return dict(spec, style=dict(spec.get("style") or {}, detail="low"))
+
+
+def wants_lod(spec: Dict, asset=None) -> bool:
+    """LODs only for static models (scripts move parts by name - a LOD1 copy would stand still)."""
+    asset = asset or build_spec(spec)
+    if asset.behaviours or (spec.get("style") or {}).get("detail") == "low":
+        return False
+    lod = build_spec(lod_spec(spec))
+    return lod.stats()["triangles"] <= (1.0 - LOD_MIN_SAVING) * asset.stats()["triangles"]
 
 
 def _rel(path: Optional[str], base: str) -> Optional[str]:
@@ -197,6 +224,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     # scripted assets -> models dir (where the game's AddModel loads them), static decoration -> library
     for spec in specs:
         spec["models_dir"] = dirs["models"]
+        if config.lods:
+            spec["lod"] = wants_lod(spec)
         if config.library_dir:
             asset = build_spec(spec)
             if not asset.behaviours:
@@ -258,7 +287,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         for spec in specs:
             asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
-            write_obj(asset, path, "CubeEscape_Materials.mtl", material_map)
+            write_obj(asset, path, "CubeEscape_Materials.mtl", material_map,
+                      lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
 
@@ -290,6 +320,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
                 rig = rig_data(asset, spec, config.seed, asset_map)
+                if spec.get("lod"):
+                    rig["lods"] = lod_data(asset, build_spec(lod_spec(spec)))
                 if textures:
                     rig["textures"] = {"mode": config.textures,
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
@@ -309,6 +341,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "pivots": {o.name: [round(c, 4) for c in o.pivot] for o in asset.objects if any(o.pivot)},
             "behaviours": asset.behaviours,
             "stats": asset.stats(),
+            **({"lods": lod_data(asset, build_spec(lod_spec(spec)))} if spec.get("lod") else {}),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
         })
     cfg = asdict(config)

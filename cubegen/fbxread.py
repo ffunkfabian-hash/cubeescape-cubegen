@@ -141,36 +141,37 @@ def unity_locals(path):
     return result
 
 
-def check_asset(path, asset, tolerance=1e-4):
+def check_asset(path, asset, tolerance=1e-4, suffix=""):
     """Differences between the FBX at ``path`` and ``asset`` (parents, local pivots, rotation 0, scale 1).
 
-    Empty list = consistent.
+    ``suffix``: the objects are named ``<part><suffix>`` (LOD levels, ``_LOD1``). Empty list = consistent.
     """
     from .asset import to_unity
 
     found = unity_locals(path)
     problems = []
     for o in asset.objects:
-        info = found.get(o.name)
+        info = found.get(o.name + suffix)
         if info is None:
-            problems.append(f"{o.name}: missing in the FBX")
+            problems.append(f"{o.name}{suffix}: missing in the FBX")
             continue
         parent = asset.get(o.parent) if o.parent else None
         expected = to_unity(tuple(o.pivot[i] - (parent.pivot[i] if parent else 0.0) for i in range(3)))
-        if info["parent"] != o.parent:
-            problems.append(f"{o.name}: parent {info['parent']!r} in the FBX, expected {o.parent!r}")
+        expected_parent = o.parent + suffix if o.parent else None
+        if info["parent"] != expected_parent:
+            problems.append(f"{o.name}{suffix}: parent {info['parent']!r} in the FBX, expected {expected_parent!r}")
         if any(abs(a - b) > tolerance for a, b in zip(info["position"], expected)):
-            problems.append(f"{o.name}: local position {info['position']} in the FBX, expected {expected}")
+            problems.append(f"{o.name}{suffix}: local position {info['position']} in the FBX, expected {expected}")
         if any(abs(r) > 1e-3 for r in info["rotation"]):
-            problems.append(f"{o.name}: rotation {info['rotation']} in the FBX, expected 0")
+            problems.append(f"{o.name}{suffix}: rotation {info['rotation']} in the FBX, expected 0")
         if any(abs(s - 1.0) > 1e-4 for s in info["scale"]):
-            problems.append(f"{o.name}: scale {info['scale']} in the FBX, expected 1")
+            problems.append(f"{o.name}{suffix}: scale {info['scale']} in the FBX, expected 1")
         if not o.is_empty:  # the exporter may drop unused vertices: every FBX vertex must be one of the mesh's
             wanted = {tuple(round(c, 3) + 0.0 for c in to_unity(v)) for v in o.local_verts()}
             off = [v for v in info["vertices"] if tuple(round(c, 3) + 0.0 for c in v) not in wanted
                    and min(max(abs(a - b) for a, b in zip(v, w)) for w in wanted) > max(tolerance, 2e-3)]
             if not info["vertices"]:
-                problems.append(f"{o.name}: no mesh in the FBX")
+                problems.append(f"{o.name}{suffix}: no mesh in the FBX")
             elif off:
-                problems.append(f"{o.name}: {len(off)} vertices away from the mesh, e.g. {off[0]}")
+                problems.append(f"{o.name}{suffix}: {len(off)} vertices away from the mesh, e.g. {off[0]}")
     return problems
