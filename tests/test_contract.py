@@ -114,6 +114,47 @@ class ContractTests(unittest.TestCase):
                     self.assertEqual(main(["check", "--export", models]), 1)
             self.assertIn("speed", buf.getvalue())
 
+    def test_contract_file(self):
+        # cubegen/contract.json holds the rules; the command hands the same file to the Unity import
+        import io
+        import json
+        import tempfile
+        from contextlib import redirect_stdout
+
+        from cubegen.cli import main
+        from cubegen.contract import CONTRACT, CONTRACT_FILE
+
+        self.assertEqual(CONTRACT["contract"], "cubegen-sidecar")
+        for name, b in CONTRACT["behaviours"].items():
+            self.assertTrue(set(b["fields"].values()) <= set(CONTRACT["field_types"]), name)
+            self.assertTrue(set(b["moves"]) <= set(b["required"]) | set(b["optional"]), name)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "Editor", "cubegen_contract.json")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["contract", "--out", out]), 0)
+            self.assertEqual(json.load(open(out)), json.load(open(CONTRACT_FILE)))
+
+    def test_file_rules(self):
+        import json
+        import tempfile
+
+        from cubegen.contract import read_sidecar
+
+        spec, good = next((s, d) for s, d in sidecars(42, 1) if s["type"] == "crate")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "x.cubegen.json")
+            json.dump(good, open(path, "w"))
+            self.assertEqual(read_sidecar(path)[1], [])
+            open(path, "w").write(json.dumps(good)[:-1] + ', "model": "again"}')
+            self.assertIn("duplicate", read_sidecar(path)[1][0])
+            deep = 1
+            for _ in range(70):
+                deep = [deep]
+            json.dump(dict(good, params={"deep": deep}), open(path, "w"))
+            self.assertIn("nested", read_sidecar(path)[1][0])
+            open(path, "w").write("{" + " " * (4 * 1024 * 1024) + "}")
+            self.assertIn("bytes", read_sidecar(path)[1][0])
+
     def test_detects_violations(self):
         spec, good = next((s, d) for s, d in sidecars(42, 1) if s["type"] == "door")
         self.assertEqual(check_sidecar(good)[0], [])

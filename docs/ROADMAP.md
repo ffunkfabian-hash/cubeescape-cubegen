@@ -31,11 +31,11 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
 - [x] **`window_wall` und `wall_corner` mit Höhe, Dicke und Brüstung als Parameter**, Eckwand in allen Kits
   (mit Bug 4 erledigt).
 - [x] **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle (mit Bug 6 erledigt).
-- [ ] **Versionsschalter** (`--generation 2`, Rezept `"generation": 2`): künftige Korrekturen, ohne bestehende
-  Seeds zu verändern. (Die Korrekturen für Z-Fighting und Draw Calls haben die betroffenen Modelle geändert,
-  siehe CHANGELOG.)
-- [ ] **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
-  und der Unity-Import lesen, statt sie doppelt zu pflegen.
+- [x] **Versionsschalter:** `--generation` (Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“).
+  Generation 1 baut die Modelle von cubegen 0.9.0 bitgleich nach, Generation 2 (Standard) enthält die
+  Korrekturen für flackernde Flächen und Draw Calls.
+- [x] **Ein gemeinsamer Vertrag:** `cubegen/contract.json` hält die Regeln des Unity-Imports, `contract.py` liest
+  sie, `python -m cubegen contract --out <Datei>` gibt sie an Unity weiter (Unity-Seite: ToDo 17).
 - [ ] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, im Typ-Menü kennzeichnen.
 
 ## 3. Erweiterungen
@@ -107,3 +107,6 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 15. **Statische Library-Prefabs als Static markieren** (Static Batching): Der Draw-Call-Bericht zählt bei
     statischen Modellen ein Material einmal und geht davon aus.
 16. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt.
+17. **Gemeinsamer Vertrag:** Der `CubegenImporter` liest `cubegen_contract.json`
+    (`python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json`) statt eigener
+    Listen für Schlüssel, Rollen, Feldtypen und Toleranzen.

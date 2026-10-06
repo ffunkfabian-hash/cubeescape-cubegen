@@ -1,8 +1,10 @@
 """The Unity importer's sidecar contract, checked in Python (Cube Escape: Docs/CUBEGEN_IMPORT.md).
 
 The game's editor import (``CubegenImporter``) skips a model when its
-``<Name>.cubegen.json`` breaks the contract or disagrees with the FBX. This
-module applies the same rules before a file leaves the generator:
+``<Name>.cubegen.json`` breaks the contract or disagrees with the FBX. The rules
+live in ``cubegen/contract.json`` (machine-readable, shared with the Unity import:
+``python -m cubegen contract --out <file>``); this module applies them before a
+file leaves the generator:
 
 * only the known root keys, part keys, behaviours, roles and fields
 * values of the right type (vectors with exactly three finite numbers ...)
@@ -18,34 +20,38 @@ module applies the same rules before a file leaves the generator:
 
 from __future__ import annotations
 
+import json
 import math
 import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
-ROOT_KEYS = {"model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours", "seed", "masterSeed",
-             "generator", "params", "style", "textures", "collision", "colliders"}
-ROOT_REQUIRED = ("model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours")
-PART_KEYS = {"name", "parent", "localPosition", "empty", "materials", "bounds"}
-PART_REQUIRED = ("name", "parent", "localPosition", "empty", "materials")
-PIVOTS = ("floor", "top", "center", "wall")
-AXES = ("right", "up", "forward")
-SIGNAL_MODES = ("Steady", "Blink", "Pulse", "Rotate", "Status")
+CONTRACT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contract.json")
+
+
+def load_contract(path: str = CONTRACT_FILE) -> Dict:
+    """The machine-readable contract (``cubegen/contract.json``) - the same file the Unity import can read."""
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+CONTRACT = load_contract()
+ROOT_KEYS = set(CONTRACT["root"]["keys"])
+ROOT_REQUIRED = tuple(CONTRACT["root"]["required"])
+PART_KEYS = set(CONTRACT["part"]["keys"])
+PART_REQUIRED = tuple(CONTRACT["part"]["required"])
+PIVOTS = tuple(CONTRACT["root"]["pivots"])
+AXES = tuple(CONTRACT["axes"])
+SIGNAL_MODES = tuple(CONTRACT["signal_modes"])
+RULES = CONTRACT["rules"]
+TOL = CONTRACT["tolerances"]
 
 # script -> (required roles, optional roles, allowed fields)
 BEHAVIOURS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[str, ...]]] = {
-    "Door": (("panels", "statusLights", "colliders"), ("upperFrame",),
-             ("openOffset", "secondOffset", "speed", "startsOpen", "upperFrame")),
-    "Machine": (("body", "glow"), ("rotor", "damage", "colliders"), ("needsPower",)),
-    "Rotator": (("target",), ("colliders",), ("axis", "speed", "arc")),
-    "Rotatable": (("target", "glow"), ("body", "colliders"), ("axis", "step", "speed", "target", "interactive")),
-    "SignalLight": (("glow",), ("rotor", "body", "colliders"),
-                    ("mode", "color", "brightness", "startsOn", "lightPosition", "range", "intensity")),
-    "SignalIndicator": (("renderers",), ("body", "colliders"), ("offMaterial", "onMaterial")),
-    "ItemPickup": (("model",), (), ("spin", "itemId")),
+    name: (tuple(b["required"]), tuple(b["optional"]), tuple(b["fields"])) for name, b in CONTRACT["behaviours"].items()
 }
-BEHAVIOUR_KEYS = {"script", "parts", "fields", "note"}
+BEHAVIOUR_KEYS = set(CONTRACT["behaviour_keys"])
 
-POSITION_TOL = 0.01
+POSITION_TOL = TOL["position_m"]
 
 
 def _num(x) -> bool:
@@ -91,7 +97,7 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
         errors.append(f"model: {data['model']!r} is not a single path segment")
     elif file_name and os.path.basename(file_name).split(".cubegen.json")[0] != data["model"]:
         errors.append(f"model: {data['model']!r} does not match the file name {os.path.basename(file_name)!r}")
-    if not _segment(data["category"]) or data["category"] == "Generated":
+    if not _segment(data["category"]) or data["category"] in CONTRACT["root"]["reserved_categories"]:
         errors.append(f"category: {data['category']!r} not allowed")
     if data["pivot"] not in PIVOTS:
         errors.append(f"pivot: {data['pivot']!r} not in {PIVOTS}")
@@ -107,11 +113,11 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
     for key in ("seed", "masterSeed"):
         if key in data and not (isinstance(data[key], int) and not isinstance(data[key], bool)):
             errors.append(f"{key}: expected an integer")
-    if "collision" in data and data["collision"] not in ("envelope", "mesh", "parts", "none"):
+    if "collision" in data and data["collision"] not in CONTRACT["root"]["collision_modes"]:
         errors.append(f"collision: {data['collision']!r} not allowed")
     if "textures" in data:
         tex = data["textures"]
-        if not isinstance(tex, dict) or tex.get("mode") not in ("tiled", "baked") or \
+        if not isinstance(tex, dict) or tex.get("mode") not in CONTRACT["root"]["texture_modes"] or \
                 not isinstance(tex.get("manifest"), str):
             errors.append("textures: expected {mode: tiled|baked, manifest: path}")
 
@@ -205,30 +211,30 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
                 errors.append(f"{where}: unknown field {name!r}")
         errors += _check_fields(where, script, fields, roles)
 
-        motion = []
+        motion = [n for role in CONTRACT["behaviours"][script]["moves"] for n in _role_parts(roles.get(role)) or []]
         if script == "Door":
-            motion = _role_parts(roles.get("panels")) or []
-            if not 1 <= len(motion) <= 2:
-                errors.append(f"{where}: one or two panels")
-            if len(motion) == 2 and all(n in parts for n in motion) and _vec(fields.get("openOffset")):
+            lo, hi = RULES["door_panels"]
+            if not lo <= len(motion) <= hi:
+                errors.append(f"{where}: {lo} to {hi} panels")
+            if RULES["door_leaves_move_apart"] and len(motion) == 2 and all(n in parts for n in motion) and \
+                    _vec(fields.get("openOffset")):
                 errors += _check_leaves(where, [parts[n]["localPosition"] for n in motion], fields)
             upper = roles.get("upperFrame")
-            if upper is not None and _role_parts(upper) != ["Frame_Top"]:
-                errors.append(f"{where}: role upperFrame only accepts Frame_Top")
-        elif script in ("Rotator", "Rotatable"):
-            motion = _role_parts(roles.get("target")) or []
+            if upper is not None and _role_parts(upper) != RULES["door_upper_frame"]:
+                errors.append(f"{where}: role upperFrame only accepts {', '.join(RULES['door_upper_frame'])}")
         elif script == "SignalLight" and fields.get("mode") == "Rotate":
-            if "rotor" not in roles:
+            if RULES["signal_light_rotate_needs_rotor"] and "rotor" not in roles:
                 errors.append(f"{where}: mode Rotate needs a rotor")
             motion = _role_parts(roles.get("rotor")) or []
         for n in motion:
-            if n in moved and not (moved[n] == "Rotator" and script == "Rotator" and False):
+            if n in moved and RULES["one_motion_controller_per_transform"]:
                 errors.append(f"{where}: {n!r} is already moved by {moved[n]}")
             moved[n] = script
             moving.update([n] + children(n))
         if script == "ItemPickup" and "itemId" not in fields:
             kind = (data.get("params") or {}).get("kind")
-            if not (data["type"] == "item" and kind == "energy_cell"):
+            free = RULES["item_pickup_without_id"]
+            if not (data["type"] == free["type"] and kind == free["params.kind"]):
                 open_items.append(f"{data['model']}: ItemPickup needs fields.itemId (type {data['type']})")
 
     # -- colliders -----------------------------------------------------------
@@ -237,7 +243,7 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
         if not isinstance(c, dict) or c.get("type") not in ("box", "mesh"):
             errors.append(f"{where}: expected a box or mesh collider")
             continue
-        keys = {"type", "part", "center", "size", "rotation"} if c["type"] == "box" else {"type", "part", "convex"}
+        keys = set(CONTRACT["colliders"][c["type"]])
         if set(c) != keys:
             errors.append(f"{where}: keys {sorted(c)} - expected {sorted(keys)}")
             continue
@@ -251,12 +257,12 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
                 continue
             if min(c["size"]) <= 0:
                 errors.append(f"{where}: size must be positive")
-            if abs(math.sqrt(sum(q * q for q in c["rotation"])) - 1.0) > 1e-3:
+            if abs(math.sqrt(sum(q * q for q in c["rotation"])) - 1.0) > TOL["quaternion_norm"]:
                 errors.append(f"{where}: rotation is not a normalised quaternion")
         else:
             if part is None or parts[part]["empty"]:
                 errors.append(f"{where}: a mesh collider needs a mesh part")
-            elif part in moving and c["convex"] is not True:
+            elif part in moving and c["convex"] is not True and CONTRACT["colliders"]["moving_mesh_must_be_convex"]:
                 errors.append(f"{where}: {part!r} moves - its mesh collider must be convex")
     return errors, open_items
 
@@ -279,38 +285,34 @@ def _check_fields(where, script, fields, roles) -> List[str]:
     def bad(name, what):
         errors.append(f"{where}: field {name!r} {what}")
 
+    types = CONTRACT["behaviours"][script]["fields"]
     for name, value in fields.items():
-        if name in ("openOffset", "secondOffset", "lightPosition"):
-            if not _vec(value):
-                bad(name, "needs three numbers")
-        elif name in ("startsOpen", "upperFrame", "needsPower", "interactive", "startsOn"):
-            if not isinstance(value, bool):
-                bad(name, "must be true/false")
-        elif name == "axis":
-            if value not in AXES:
-                bad(name, f"must be one of {AXES}")
-        elif name == "mode":
-            if value not in SIGNAL_MODES:
-                bad(name, f"must be one of {SIGNAL_MODES}")
-        elif name == "target" and script == "Rotatable":
-            if not isinstance(value, int) or isinstance(value, bool):
-                bad(name, "must be an integer")
-        elif name in ("offMaterial", "onMaterial", "itemId", "color"):
-            if not isinstance(value, str) or not value:
-                bad(name, "must be text")
-        elif not _num(value):
+        kind = types.get(name)
+        if kind == "vec3" and not _vec(value):
+            bad(name, "needs three numbers")
+        elif kind == "bool" and not isinstance(value, bool):
+            bad(name, "must be true/false")
+        elif kind == "axis" and value not in AXES:
+            bad(name, f"must be one of {AXES}")
+        elif kind == "mode" and value not in SIGNAL_MODES:
+            bad(name, f"must be one of {SIGNAL_MODES}")
+        elif kind == "int" and (not isinstance(value, int) or isinstance(value, bool)):
+            bad(name, "must be an integer")
+        elif kind == "text" and (not isinstance(value, str) or not value.strip()):
+            bad(name, "must be text")
+        elif kind == "number" and not _num(value):
             bad(name, "must be a number")
-    if script == "Door" and "speed" in fields and _num(fields["speed"]) and fields["speed"] <= 0:
+    if script == "Door" and RULES["door_speed_positive"] and _num(fields.get("speed")) and fields["speed"] <= 0:
         bad("speed", "must be positive")
-    if script == "Rotatable" and _num(fields.get("step", 90)) and not 1 <= abs(fields.get("step", 90)) <= 360:
-        bad("step", "magnitude must be 1-360")
-    if script == "Rotator" and _num(fields.get("arc", 0)) and not 0 <= fields.get("arc", 0) < 360:
-        bad("arc", "must be 0 (full turns) or below 360")
-    light = [k for k in ("lightPosition", "range", "intensity") if k in fields]
-    if light and len(light) != 3:
-        bad("lightPosition/range/intensity", "only together")
-    if script == "ItemPickup" and "itemId" in fields and not str(fields["itemId"]).strip():
-        bad("itemId", "must not be empty")
+    lo, hi = RULES["rotatable_step_abs"]
+    if script == "Rotatable" and _num(fields.get("step", 90)) and not lo <= abs(fields.get("step", 90)) <= hi:
+        bad("step", f"magnitude must be {lo}-{hi}")
+    if script == "Rotator" and _num(fields.get("arc", 0)) and not 0 <= fields.get("arc", 0) < RULES["rotator_arc_below"]:
+        bad("arc", f"must be 0 (full turns) or below {RULES['rotator_arc_below']}")
+    together = RULES["signal_light_fields_together"]
+    light = [k for k in together if k in fields]
+    if light and len(light) != len(together):
+        bad("/".join(together), "only together")
     return errors
 
 
@@ -325,7 +327,8 @@ def check_fbx(data, fbx_path: str) -> List[str]:
     found = unity_locals(fbx_path)
     errors = []
     for name, info in found.items():
-        if any(abs(r) > 1e-3 for r in info["rotation"]) or any(abs(s - 1) > 1e-4 for s in info["scale"]):
+        if any(abs(r) > TOL["fbx_rotation"] for r in info["rotation"]) or \
+                any(abs(s - 1) > TOL["fbx_scale"] for s in info["scale"]):
             errors.append(f"FBX {name!r}: rotation {info['rotation']} / scale {info['scale']} (expected 0 / 1)")
 
     def world(name) -> Tuple[float, float, float]:
@@ -367,7 +370,7 @@ def _bounds_diff(what, bounds, points: Sequence[Sequence[float]]) -> List[str]:
     hi = [max(p[i] for p in points) for i in range(3)]
     center = [(lo[i] + hi[i]) / 2 for i in range(3)]
     size = [hi[i] - lo[i] for i in range(3)]
-    tol = 0.025 + 0.01 * math.sqrt(sum(s * s for s in bounds["size"]))
+    tol = TOL["bounds_m"] + TOL["bounds_relative"] * math.sqrt(sum(s * s for s in bounds["size"]))
     off = max(max(abs(a - b) for a, b in zip(center, bounds["center"])),
               max(abs(a - b) for a, b in zip(size, bounds["size"])))
     if off > tol:
@@ -376,17 +379,55 @@ def _bounds_diff(what, bounds, points: Sequence[Sequence[float]]) -> List[str]:
     return []
 
 
+def read_sidecar(path: str) -> Tuple[Optional[Dict], List[str]]:
+    """A sidecar file with the importer's file rules: size, nesting depth, no duplicate keys, valid JSON."""
+    rules = CONTRACT["file"]
+    size = os.path.getsize(path)
+    if size > rules["max_bytes"]:
+        return None, [f"file: {size} bytes > {rules['max_bytes']}"]
+    duplicates: List[str] = []
+
+    def pairs(items):
+        seen = {}
+        for key, value in items:
+            if key in seen:
+                duplicates.append(key)
+            seen[key] = value
+        return seen
+
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh, object_pairs_hook=pairs)
+    except (ValueError, RecursionError) as exc:
+        return None, [f"file: not valid JSON ({exc})"]
+    errors = []
+    if duplicates and not rules["duplicate_keys"]:
+        errors.append(f"file: duplicate key(s) {sorted(set(duplicates))}")
+
+    def depth(value, level=1):
+        if isinstance(value, dict):
+            return max([level] + [depth(v, level + 1) for v in value.values()])
+        if isinstance(value, list):
+            return max([level] + [depth(v, level + 1) for v in value])
+        return level - 1
+
+    if depth(data) > rules["max_depth"]:
+        errors.append(f"file: nested deeper than {rules['max_depth']} levels")
+    return data, errors
+
+
 def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
     """Every ``*.cubegen.json`` below ``models_dir`` (with its FBX if there is one): {model: {errors, open}}."""
-    import json
-
     result = {}
     for folder, _, files in os.walk(models_dir):
         for name in sorted(f for f in files if f.endswith(".cubegen.json")):
             path = os.path.join(folder, name)
-            with open(path, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
+            data, file_errors = read_sidecar(path)
+            if data is None:
+                result[name[: -len(".cubegen.json")]] = {"errors": file_errors, "open": []}
+                continue
             errors, open_items = check_sidecar(data, path)
+            errors = file_errors + errors
             fbx = path[: -len(".cubegen.json")] + ".fbx"
             if not errors and os.path.isfile(fbx):
                 errors += check_fbx(data, fbx)
@@ -394,4 +435,5 @@ def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
     return result
 
 
-__all__ = ["check_sidecar", "check_fbx", "check_export", "BEHAVIOURS", "ROOT_KEYS"]
+__all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_contract", "CONTRACT", "CONTRACT_FILE",
+           "BEHAVIOURS", "ROOT_KEYS"]

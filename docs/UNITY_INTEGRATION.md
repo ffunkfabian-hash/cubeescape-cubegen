@@ -243,6 +243,21 @@ Mechaniken:
 Am Ende: Liste der neuen Scripts, welche Typen sie nutzen, und welche Felder der Import jetzt setzt.
 ````
 
+## Gemeinsamer Vertrag (`cubegen_contract.json`)
+
+Die Regeln des Imports stehen maschinenlesbar in `cubegen/contract.json`: erlaubte Wurzel- und Teil-Schlüssel,
+Pflichtfelder, Pivots, Kategorien, Rollen und Feldtypen je Script, welche Rollen ein Teil bewegen, Regeln wie
+„ein bis zwei Türblätter“ oder „Schritt 1–360°“, Collider-Schlüssel, Toleranzen (1 cm, 2,5 cm + 1 %) und
+Dateigrenzen (4 MiB, 64 Ebenen, keine doppelten Schlüssel). `cubegen/contract.py` prüft jeden Export damit.
+
+```bash
+python3 -m cubegen contract --out ../CubeEscape/Assets/Editor/Cubegen/cubegen_contract.json
+```
+
+Liest der `CubegenImporter` diese Datei statt eigener Listen, laufen Generator und Import nicht mehr auseinander:
+Eine neue Rolle oder ein neues Feld wird an einer Stelle eingetragen (`version` erhöhen), beide Seiten prüfen
+danach gleich. Bis dahin ist die Datei die Referenz zum Abgleich mit `Docs/CUBEGEN_IMPORT.md`.
+
 ## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
 
 Abgeglichen mit `Docs/CUBEGEN_IMPORT.md` des Spiels (Stand 6. Oktober 2026). cubegen prüft jeden Sidecar

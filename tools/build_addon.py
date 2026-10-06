@@ -24,7 +24,8 @@ def build(out_path: str) -> str:
         for folder, dirs, files in os.walk(PACKAGE):
             dirs[:] = [d for d in dirs if d != "__pycache__"]
             for name in sorted(files):
-                if name.endswith(".py") or (name.endswith(".json") and os.path.basename(folder) == "family_data"):
+                if name.endswith(".py") or (name.endswith(".json") and (os.path.basename(folder) == "family_data"
+                                                                          or name == "contract.json")):
                     src = os.path.join(folder, name)
                     rel = os.path.relpath(src, ROOT)
                     zf.write(src, os.path.join("cubegen_addon", rel).replace(os.sep, "/"))

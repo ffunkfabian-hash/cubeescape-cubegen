@@ -357,6 +357,22 @@ def cmd_export_check(args) -> int:
     return 1 if any(r["errors"] for r in result.values()) or not result else 0
 
 
+def cmd_contract(args) -> int:
+    """The Unity import contract as JSON (cubegen/contract.json) - for the game's importer."""
+    import shutil
+
+    from .contract import CONTRACT_FILE
+
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        shutil.copyfile(CONTRACT_FILE, args.out)
+        print(f"contract -> {args.out}")
+    else:
+        with open(CONTRACT_FILE, "r", encoding="utf-8") as fh:
+            sys.stdout.write(fh.read())
+    return 0
+
+
 def cmd_families(args) -> int:
     """Built-in families with their measures and kit."""
     from .families import DIMS, family_files, load_family
@@ -496,6 +512,10 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--export", metavar="DIR", help="instead: check an exported models folder against the Unity "
                                                    "import contract (every .cubegen.json, with its FBX)")
     c.set_defaults(func=cmd_check)
+
+    ct = sub.add_parser("contract", help="the Unity import contract as JSON (shared with the game's importer)")
+    ct.add_argument("--out", help="write it to this file (e.g. <Unity>/Assets/Editor/Cubegen/cubegen_contract.json)")
+    ct.set_defaults(func=cmd_contract)
 
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")
     f.add_argument("--dims", action="store_true", help="list the measures and the parameters they set")

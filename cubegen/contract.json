@@ -1,0 +1,107 @@
+{
+  "contract": "cubegen-sidecar",
+  "version": 1,
+  "source": "Cube Escape Docs/CUBEGEN_IMPORT.md, 6 October 2026",
+  "note": "The rules of the Unity import (CubegenImporter) for <Name>.cubegen.json. cubegen/contract.py checks every export with this file; the Unity import can read the same file (python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json).",
+  "file": {
+    "max_bytes": 4194304,
+    "max_depth": 64,
+    "duplicate_keys": false
+  },
+  "root": {
+    "keys": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours", "seed", "masterSeed",
+             "generator", "params", "style", "textures", "collision", "colliders"],
+    "required": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours"],
+    "reserved_categories": ["Generated"],
+    "pivots": ["floor", "top", "center", "wall"],
+    "collision_modes": ["envelope", "mesh", "parts", "none"],
+    "texture_modes": ["tiled", "baked"]
+  },
+  "part": {
+    "keys": ["name", "parent", "localPosition", "empty", "materials", "bounds"],
+    "required": ["name", "parent", "localPosition", "empty", "materials"]
+  },
+  "behaviour_keys": ["script", "parts", "fields", "note"],
+  "field_types": {
+    "vec3": "three finite numbers (Unity coordinates, metres)",
+    "bool": "true / false",
+    "int": "integer",
+    "number": "finite number",
+    "text": "non-empty text",
+    "axis": "one of axes",
+    "mode": "one of signal_modes"
+  },
+  "axes": ["right", "up", "forward"],
+  "signal_modes": ["Steady", "Blink", "Pulse", "Rotate", "Status"],
+  "behaviours": {
+    "Door": {
+      "required": ["panels", "statusLights", "colliders"],
+      "optional": ["upperFrame"],
+      "fields": {"openOffset": "vec3", "secondOffset": "vec3", "speed": "number", "startsOpen": "bool",
+                 "upperFrame": "bool"},
+      "moves": ["panels"]
+    },
+    "Machine": {
+      "required": ["body", "glow"],
+      "optional": ["rotor", "damage", "colliders"],
+      "fields": {"needsPower": "bool"},
+      "moves": []
+    },
+    "Rotator": {
+      "required": ["target"],
+      "optional": ["colliders"],
+      "fields": {"axis": "axis", "speed": "number", "arc": "number"},
+      "moves": ["target"]
+    },
+    "Rotatable": {
+      "required": ["target", "glow"],
+      "optional": ["body", "colliders"],
+      "fields": {"axis": "axis", "step": "number", "speed": "number", "target": "int", "interactive": "bool"},
+      "moves": ["target"]
+    },
+    "SignalLight": {
+      "required": ["glow"],
+      "optional": ["rotor", "body", "colliders"],
+      "fields": {"mode": "mode", "color": "text", "brightness": "number", "startsOn": "bool", "lightPosition": "vec3",
+                 "range": "number", "intensity": "number"},
+      "moves": []
+    },
+    "SignalIndicator": {
+      "required": ["renderers"],
+      "optional": ["body", "colliders"],
+      "fields": {"offMaterial": "text", "onMaterial": "text"},
+      "moves": []
+    },
+    "ItemPickup": {
+      "required": ["model"],
+      "optional": [],
+      "fields": {"spin": "number", "itemId": "text"},
+      "moves": []
+    }
+  },
+  "rules": {
+    "door_panels": [1, 2],
+    "door_upper_frame": ["Frame_Top"],
+    "door_speed_positive": true,
+    "door_leaves_move_apart": true,
+    "rotatable_step_abs": [1, 360],
+    "rotator_arc_below": 360,
+    "signal_light_rotate_needs_rotor": true,
+    "signal_light_fields_together": ["lightPosition", "range", "intensity"],
+    "one_motion_controller_per_transform": true,
+    "item_pickup_without_id": {"type": "item", "params.kind": "energy_cell"}
+  },
+  "colliders": {
+    "box": ["type", "part", "center", "size", "rotation"],
+    "mesh": ["type", "part", "convex"],
+    "moving_mesh_must_be_convex": true
+  },
+  "tolerances": {
+    "position_m": 0.01,
+    "bounds_m": 0.025,
+    "bounds_relative": 0.01,
+    "quaternion_norm": 0.001,
+    "fbx_rotation": 0.001,
+    "fbx_scale": 0.0001
+  }
+}

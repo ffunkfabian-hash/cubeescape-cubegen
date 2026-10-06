@@ -233,7 +233,9 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
 * **Unity-Vertrag**: `cubegen/contract.py` prüft bei jedem Export jeden Sidecar mit den Regeln des Spiel-Imports
   (`Docs/CUBEGEN_IMPORT.md`), bevor Blender startet, und danach gegen die echte FBX. Ein Verstoß bricht den
   Export mit allen Fundstellen ab; offene Item-IDs stehen als Hinweis im Log. Einen fertigen Export-Ordner prüft
-  `python -m cubegen check --export <Ordner>`.
+  `python -m cubegen check --export <Ordner>`. Die Regeln stehen maschinenlesbar in `cubegen/contract.json`
+  (Schlüssel, Rollen, Feldtypen, Toleranzen, Dateigrenzen); `python -m cubegen contract --out <Datei>` gibt
+  dieselbe Datei an den Unity-Import weiter, damit beide Seiten nach denselben Regeln prüfen.
 * **Item-IDs**: `--param keycard.item_id=<ID>` schreibt `ItemPickup.fields.itemId`; cubegen erfindet keine IDs.
 
 ## Animation & Unity-Scripts
