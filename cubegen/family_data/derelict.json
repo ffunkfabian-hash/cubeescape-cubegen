@@ -10,6 +10,7 @@
     "detail": "normal",
     "damage": "damaged"
   },
+  "palette": "derelict",
   "dims": {
     "wall_height": 3.0,
     "wall_thickness": 0.5,

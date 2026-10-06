@@ -265,6 +265,12 @@ rig = json.load(open(os.path.join(out, "Models", "Gen_Machine_001.cubegen.json")
 assert next(p["materials"] for p in rig["parts"] if p["name"] == "Body") == ["MP_Palette"]
 assert "textures" not in rig  # the sidecar contract has no palette mode: the material name is enough
 assert os.path.isfile(os.path.join(out, "Models", "Textures", "MP_Palette_Albedo.png"))
+s.palette = "rust"  # a colour palette: same model, its own material
+mats = {slot.material.name for slot in bpy.data.objects["Gen_Machine_001.Body"].material_slots}
+print("PALETTE_RUST", mats)
+assert mats == {"MP_Palette_Rust"}, mats
+assert "--palette rust" in addon._cli_command(s), addon._cli_command(s)
+s.palette = "family"
 s.textures = "none"
 s.generation = "2"
 assert "Gen_Machine_001.Audio_Hum" not in bpy.data.objects

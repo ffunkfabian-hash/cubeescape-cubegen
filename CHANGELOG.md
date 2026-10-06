@@ -87,6 +87,22 @@ Effekte, 35 neue Typen (jetzt 164).
   sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
   `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
 
+### Farbpaletten für den Paletten-Modus
+
+* Sieben neue Farbpaletten neben `standard` (den Farben des Spiels): `rust` (Gießerei: Brauntöne, Bernstein-Glow),
+  `frost` (Kryo: Eisblau, Weiß), `toxic` (Reaktor: Grüngrau, Säuregrün), `medical` (Krankenstation: Weiß, Mint),
+  `derelict` (Wrack: ausgeblichen, schwaches Licht), `greenhouse` (Moosgrün, Erde, warmes Licht), `neon` (Violett,
+  Magenta, Cyan). `palette.COLOR_PALETTES`; Bild: `docs/palettes.png`.
+* `generate --palette NAME` (schaltet `--textures palette` ein), in Rezepten und Familien `"palette": NAME`, im
+  Add-on „Farbpalette“ (Standard: die Palette der Familie). Neuer Befehl `cubegen palettes` (`--swatches DATEI`:
+  eine Zeile Farbfelder pro Palette).
+* Alle Paletten teilen die Farbzellen: Die Modelle sind gleich, nur das Material heißt `MP_Palette_<Name>` mit
+  eigenen Bildern und `CubeEscape_Palette_<Name>.json` (mehrere Paletten passen in einen Texturordner). Glas und von
+  Scripts umgefärbte Teile behalten wie bisher ihr `M_…`-Material. `standard` bleibt `MP_Palette`.
+* Familien bringen eine passende Palette mit, die nur im Paletten-Modus gilt (bisherige Exporte bleiben gleich):
+  `foundry` → `rust`, `lab` → `frost`, `reactor` → `toxic`, `medbay` → `medical`, `derelict` → `derelict`,
+  `greenhouse` → `greenhouse`.
+
 ### Behoben: `solar_panel` - Stützen falsch herum
 
 * Beim Unterbau `frame` waren die Stützen genau umgekehrt bemessen: Die Fläche steigt nach hinten (+Y) an, die

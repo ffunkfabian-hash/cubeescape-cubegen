@@ -269,6 +269,12 @@ class FractureTests(unittest.TestCase):
                 self.assertEqual(broken.digest(), generate_asset(t, seed, style=Style(damage="fractured")).digest())
 
 
+def families_with_palette():
+    from cubegen.families import family_files, load_family
+
+    return {name for name, path in family_files().items() if load_family(path).get("palette")}
+
+
 class PaletteTests(unittest.TestCase):
     def test_cells(self):
         uvs = {m: palette.uv(m) for m in palette.ORDER}
@@ -319,6 +325,71 @@ class PaletteTests(unittest.TestCase):
             self.assertIn(f"vt {u:.6f} {v:.6f}", obj)
             with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
                 self.assertEqual(json.load(fh)["textures"]["mode"], "palette")
+
+    def test_color_palettes(self):
+        from cubegen.materials import MATERIALS
+
+        self.assertEqual(palette.palette_names()[0], "standard")
+        self.assertEqual(palette.palette_material(None), "MP_Palette")
+        self.assertEqual(palette.palette_material("Rust"), "MP_Palette_Rust")
+        self.assertTrue(palette.is_palette_material("MP_Palette_Neon"))
+        self.assertFalse(palette.is_palette_material("M_Metal"))
+        with self.assertRaises(ValueError):
+            palette.check_palette("bogus")
+        self.assertEqual(palette.palette_colors("standard"), MATERIALS)
+        seen = set()
+        for name, entry in palette.COLOR_PALETTES.items():
+            colors = entry["colors"]
+            self.assertEqual(set(colors), set(MATERIALS) - {"M_Glass"}, name)  # glass keeps its own material
+            for rgb in colors.values():
+                self.assertTrue(all(0.0 <= c <= 1.0 for c in rgb), name)
+            table = palette.palette_colors(name)
+            self.assertEqual({m: v[1:3] for m, v in table.items()}, {m: v[1:3] for m, v in MATERIALS.items()})
+            red, cyan = table["M_GlowRed"][0], table["M_GlowCyan"][0]
+            self.assertGreater(red[0], max(red[1], red[2]) + 0.3, name)  # alarm red stays red
+            self.assertNotEqual(red, cyan, name)
+            key = tuple(table[m][0] for m in palette.ORDER)
+            self.assertNotIn(key, seen, name)
+            seen.add(key)
+            if entry.get("family"):
+                self.assertIn(entry["family"], families_with_palette())
+        # the same model in another palette: same UVs, only the material name changes
+        door = generate_asset("door", 1)
+        pm = palette.material_map(door, "neon")
+        self.assertEqual(pm("Panel", "M_Metal"), "MP_Palette_Neon")
+        self.assertEqual(pm("StatusLight_Front", "M_GlowRed"), "M_GlowRed")
+
+    def test_color_palette_export(self):
+        with tempfile.TemporaryDirectory() as out:
+            self.assertEqual(main(["generate", "--seed", "3", "--types", "crate", "--no-blender", "--palette", "neon",
+                                   "--out", out]), 0)  # --palette implies --textures palette
+            tex = os.path.join(out, "models", "Textures")
+            self.assertEqual(sorted(os.listdir(tex)), ["CubeEscape_Palette_Neon.json", "MP_Palette_Neon_Albedo.png",
+                                                       "MP_Palette_Neon_Emission.png",
+                                                       "MP_Palette_Neon_MetallicSmoothness.png"])
+            with open(os.path.join(tex, "CubeEscape_Palette_Neon.json"), encoding="utf-8") as fh:
+                info = json.load(fh)
+            self.assertEqual((info["name"], info["palette"]), ("MP_Palette_Neon", "neon"))
+            self.assertEqual(info["cells"]["M_Metal"]["uv"], list(palette.uv("M_Metal")))
+            with open(os.path.join(out, "models", "Crate_000.obj"), encoding="utf-8") as fh:
+                self.assertIn("usemtl MP_Palette_Neon", fh.read())
+            with open(os.path.join(out, "models", "CubeEscape_Materials.mtl"), encoding="utf-8") as fh:
+                self.assertIn("map_Kd Textures/MP_Palette_Neon_Albedo.png", fh.read())
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
+                textures = json.load(fh)["textures"]
+            self.assertEqual((textures["material"], textures["palette"]), ("MP_Palette_Neon", "neon"))
+            sheet = os.path.join(out, "swatches.png")
+            self.assertEqual(main(["palettes", "--swatches", sheet]), 0)
+            with open(sheet, "rb") as fh:
+                self.assertEqual(struct.unpack(">II", fh.read()[16:24]), (24 * len(palette.ORDER),
+                                                                         24 * len(palette.palette_names())))
+        with tempfile.TemporaryDirectory() as out:  # a family's palette applies in palette mode only
+            self.assertEqual(main(["generate", "--family", "foundry", "--types", "crate", "--no-blender",
+                                   "--textures", "palette", "--out", out]), 0)
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
+                self.assertEqual(json.load(fh)["textures"]["material"], "MP_Palette_Rust")
+        self.assertEqual(main(["generate", "--types", "crate", "--no-blender", "--palette", "neon",
+                               "--textures", "tiled"]), 2)  # a colour palette needs palette mode
 
 
 class SnappingTests(unittest.TestCase):

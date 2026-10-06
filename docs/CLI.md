@@ -35,6 +35,7 @@ cubegen doctor
 | `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Collider, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
 | `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
 | `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
+| `python3 -m cubegen palettes` | Farbpaletten des Paletten-Modus (`--swatches DATEI`: Farbfelder zum Vergleichen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
 
 `--help` geht überall: `python3 -m cubegen generate --help`.
@@ -289,10 +290,23 @@ python3 -m cubegen generate --seed 42 --types machine --textures baked
 # ein Material mit Farbpalette pro Modell: 1 Draw Call (reines Python, auch mit --no-blender)
 python3 -m cubegen generate --seed 42 --textures palette
 python3 -m cubegen check --palette        # Draw Calls im Paletten-Modus
+# eine andere Farbpalette (schaltet den Paletten-Modus mit ein): Material MP_Palette_Rust
+python3 -m cubegen generate --seed 42 --palette rust
+python3 -m cubegen palettes --swatches palettes.png   # alle Paletten, eine Zeile Farbfelder pro Palette
 ```
 
 Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Im Paletten-Modus behalten Glas
 und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Material. Details in der README.
+
+**Farbpaletten** (`--palette NAME`): `standard` (die Farben des Spiels, `MP_Palette`), `rust`, `frost`, `toxic`,
+`medical`, `derelict`, `greenhouse`, `neon`. Alle Paletten haben dieselben Farbzellen, die Modelle sind also
+identisch, nur das Material heißt `MP_Palette_<Name>` und hat eigene Bilder (`MP_Palette_<Name>_Albedo.png` …,
+`CubeEscape_Palette_<Name>.json`). Mehrere Paletten können im selben Texturordner liegen. Familien bringen eine
+passende Palette mit (`foundry` → `rust`, `lab` → `frost`, `reactor` → `toxic`, `medbay` → `medical`, `derelict`
+→ `derelict`, `greenhouse` → `greenhouse`); sie gilt nur, wenn der Paletten-Modus gewählt ist
+(`--family foundry --textures palette`). In Rezepten und Familien: `"palette": "neon"`.
+
+![Farbpaletten](palettes.png)
 
 ## 12. Previews und Icons
 
@@ -394,6 +408,7 @@ schon, bevor er Dateien schreibt.
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
 | `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 3) | Stil, siehe Abschnitt 7 |
 | `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen (none / tiled / baked / palette), siehe Abschnitt 11 |
+| `--palette` | standard | Farbpalette im Paletten-Modus (schaltet ihn ein), siehe Abschnitt 11 |
 | `--out` | `output/seed_<seed>` | Ausgabeordner |
 | `--models-dir`, `--library-dir`, `--icons-dir` | im Ausgabeordner | Zielordner, siehe Abschnitt 8 |
 | `--formats` | fbx | `fbx`, `glb`, `gltf`, `obj`, kommagetrennt |

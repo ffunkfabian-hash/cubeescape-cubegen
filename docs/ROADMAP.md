@@ -127,7 +127,8 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 **Für die Erweiterungen aus Phase 3** (Details in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md))
 
 18. **Paletten-Material:** einmal `MP_Palette` aus `CubeEscape_Palette.json` anlegen (Albedo, MetallicSmoothness,
-    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt.
+    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt. Für jede genutzte
+    Farbpalette ebenso `MP_Palette_<Name>` aus `CubeEscape_Palette_<Name>.json` (z. B. `MP_Palette_Rust`).
 19. **Bruchstücke** (`style.damage` = `fractured`): solche Prefabs nicht als Static markieren; bei Zerstörung jedem
     `Fragment_<nn>` einen Rigidbody geben (Collider: konvexe Mesh-Collider aus dem Sidecar).
 20. **Anker** `Audio_*` / `FX_*`: `AudioSource` bzw. Partikelsystem nach Namen anhängen (Tabelle in

@@ -14,6 +14,7 @@ from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
 from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
+from .palette import palette_names
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
 
@@ -21,7 +22,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "unique", "lods", "jobs")
+                  "palette", "unique", "lods", "jobs")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -184,9 +185,13 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
         "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
         "library_dir": args.library_dir, "textures": args.textures, "texture_size": args.texture_size,
-        "texture_set": args.texture_set, "textures_dir": args.textures_dir,
+        "texture_set": args.texture_set, "textures_dir": args.textures_dir, "palette": args.palette,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
+    if args.palette:  # a colour palette means palette mode
+        if values.get("textures", "none") not in ("none", "palette") and args.textures:
+            raise ValueError(f"--palette needs --textures palette (not {args.textures})")
+        values["textures"] = "palette"
     values["params"] = merged["params"]
     values["variant_params"] = {t: v for t, v in merged["variant_params"].items() if t in models}
     values["param_sources"] = resolved["param_sources"]
@@ -397,6 +402,27 @@ def cmd_families(args) -> int:
     return 0
 
 
+def cmd_palettes(args) -> int:
+    """Colour palettes of palette mode (``--textures palette --palette NAME``)."""
+    from .families import family_files, load_family
+    from .palette import COLOR_PALETTES, DEFAULT_PALETTE, palette_material, palette_names, write_swatches
+
+    used = {}
+    for name, path in family_files().items():
+        fam = load_family(path)
+        if fam.get("palette"):
+            used.setdefault(fam["palette"], []).append(name)
+    for name in palette_names():
+        entry = COLOR_PALETTES.get(name, {"description": "die Farben des Spiels (M_-Materialien)"})
+        families = f"  (Familie: {', '.join(used[name])})" if name in used else ""
+        print(f"{name:<11} {palette_material(name):<22} {entry['description']}{families}")
+    if args.swatches:
+        write_swatches(args.swatches)
+        print(f"swatches ({', '.join(palette_names())}, one row each) -> {args.swatches}")
+    print(f"\nuse: python -m cubegen generate --palette NAME ...  (default {DEFAULT_PALETTE})")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     ok = True
     print(f"python        {sys.version.split()[0]} ({sys.executable})")
@@ -470,6 +496,8 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
+    tx.add_argument("--palette", metavar="NAME", help="colour palette for palette mode (implies --textures palette): "
+                                                     f"{', '.join(palette_names())} -> material MP_Palette_<Name>")
     g.add_argument("--icon-angle", help="preview/icon camera 'AZIMUTH,ELEVATION' in degrees (default 33,31)")
     g.add_argument("--icon-zoom", type=float, help="preview/icon zoom, > 1 = closer (default 1)")
     g.add_argument("--out", help="output directory (default output/seed_<seed>)")
@@ -531,6 +559,10 @@ def make_parser() -> argparse.ArgumentParser:
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")
     f.add_argument("--dims", action="store_true", help="list the measures and the parameters they set")
     f.set_defaults(func=cmd_families)
+
+    pl = sub.add_parser("palettes", help="list the colour palettes of palette mode (--swatches FILE: compare them)")
+    pl.add_argument("--swatches", metavar="PNG", help="write one row of colour squares per palette to this file")
+    pl.set_defaults(func=cmd_palettes)
 
     d = sub.add_parser("doctor", help="check Blender and ImageMagick installation")
     d.add_argument("--blender")

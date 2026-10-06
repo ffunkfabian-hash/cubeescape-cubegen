@@ -743,6 +743,13 @@ beweglichem Teil plus seine Statuslichter. `python -m cubegen check --palette` z
 `MP_Palette_Albedo.png`, `_MetallicSmoothness.png`, `_Emission.png` und `CubeEscape_Palette.json` (Zellen, UVs,
 Emissionsstärke); der Sidecar nennt `MP_Palette` als Material der Teile, sein Schema bleibt unverändert.
 
+**Farbpaletten**: `--palette rust` (Add-on: „Farbpalette“) färbt die Palettentextur um: `rust`, `frost`, `toxic`,
+`medical`, `derelict`, `greenhouse`, `neon` neben `standard` (den Farben des Spiels). Die Modelle bleiben gleich,
+nur das Material heißt `MP_Palette_<Name>`; ein Raum bekommt so eine andere Stimmung, ohne neue Modelle. Die
+Familien bringen eine passende Palette mit. `python -m cubegen palettes` listet sie.
+
+![Farbpaletten](docs/palettes.png)
+
 Glow-, Kristall- und Glas-Materialien werden nie texturiert, weil die Scripts des Spiels sie umschalten. Texturierte
 Materialien haben **eigene Namen** (`MT_…`, `MTA_…`). Dadurch bleiben deine handgebauten Assets mit `M_…`
 unverändert.
@@ -841,7 +848,7 @@ cubegen/
 ├── families.py       Modellfamilien: Maße, Auflösung, Anschlüsse, Passungsprüfung
 ├── family_data/      mitgelieferte Familien (station, foundry, lab, medbay, derelict, greenhouse, reactor)
 ├── snapping.py       Einrasten an Anschlusspunkten (für das Add-on, reines Python)
-├── palette.py        Paletten-Modus: ein Material MP_Palette pro Modell, PNG-Schreiber
+├── palette.py        Paletten-Modus: ein Material MP_Palette pro Modell, Farbpaletten, PNG-Schreiber
 ├── contract.py       Sidecar-Vertrag des Unity-Imports (+ Prüfung gegen die FBX)
 ├── fbxread.py        FBX-Leser (Hierarchie, Transformationen, Vertices) für die Prüfungen
 ├── quality.py        Qualitätsbericht (Dreiecke, Draw Calls, Z-Fighting)

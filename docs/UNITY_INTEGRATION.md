@@ -356,6 +356,9 @@ Metallic `MP_Palette_MetallicSmoothness.png` (R = Metallic, A = Smoothness, line
 `MP_Palette_Emission.png` × `emission` aus `CubeEscape_Palette.json`; alle drei mit Filter Mode **Point** und ohne
 Mipmaps (sonst laufen die Farbzellen ineinander). Der Sidecar hat dafür keinen `textures`-Eintrag (der Vertrag
 kennt nur `tiled`/`baked`); der Materialname genügt für das Remapping.
+Farbpaletten (`--palette rust` …) heißen `MP_Palette_<Name>` mit eigenen Bildern `MP_Palette_<Name>_Albedo.png` …
+und `CubeEscape_Palette_<Name>.json`; die Zellen und UVs sind dieselben. Pro Palette ein Material wie oben anlegen.
+Ein Raum wechselt die Stimmung, indem man das Material tauscht (oder mit einer anderen Palette exportiert).
 
 **Schwenken** (`camera.sweep`, `turret.sweep`): `Rotator` mit `arc` = Winkel. cubegen baut den Kopf bzw. das
 Geschütz um −arc/2 (Unity-Gier) vorgedreht, damit ein Schwenk von 0 bis `arc` in Richtung `speed` symmetrisch

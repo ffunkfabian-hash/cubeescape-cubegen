@@ -9,6 +9,7 @@
     "wear": "none",
     "detail": "high"
   },
+  "palette": "frost",
   "textures": "tiled",
   "texture_set": "lab",
   "dims": {

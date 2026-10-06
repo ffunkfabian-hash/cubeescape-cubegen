@@ -168,6 +168,13 @@ def _effective(s, model_type, kit_params=None, resolved=None):
     return params, params_mod.Style.from_dict(r["values"]["style"])
 
 
+def _palette_name(s):
+    """The colour palette of palette mode: chosen in the panel, else the family's, else the standard one."""
+    if s.palette != "family":
+        return s.palette
+    return (_family(s) or {}).get("palette") or palette_mod.DEFAULT_PALETTE
+
+
 def _cli_command(s):
     seed = s.master_seed if s.master_seed.isdigit() else f'"{s.master_seed}"'
     cmd = f"python3 -m cubegen generate --seed {seed} --pick {s.model_type}:{s.variant}"
@@ -188,7 +195,8 @@ def _cli_command(s):
               ("--generation", style.generation if style.generation != params_mod.LATEST_GENERATION else None),
               ("--textures", s.textures if s.textures != "none" else None),
               ("--lods", s.lods),  # True = flag without value
-              ("--texture-set", s.texture_set or None)]
+              ("--texture-set", s.texture_set or None),
+              ("--palette", s.palette if s.textures == "palette" and s.palette != "family" else None)]
     return cmd + "".join(f" {flag}" if value is True else f" {flag} {value}" for flag, value in flags if value)
 
 
@@ -242,13 +250,13 @@ def _new_collection(context, name, parent=None):
     return coll
 
 
-PALETTE = "__palette__"  # material map marker: the palette material per part (palette_mod.material_map)
+PALETTE = "__palette__:"  # material map marker + palette name: the palette material per part (palette_mod.material_map)
 
 
 def _build(asset, coll, s, variant, material_map=None):
     model_type = asset.meta["type"]
-    if material_map == PALETTE:
-        material_map = palette_mod.material_map(asset)
+    if isinstance(material_map, str) and material_map.startswith(PALETTE):
+        material_map = palette_mod.material_map(asset, material_map[len(PALETTE):])
     objects = builder.build_collection(
         asset, coll, object_name=lambda part: f"{asset.name}.{part}", material_map=material_map,
         tags={"cubegen_type": model_type, "cubegen_seed": str(asset.meta["seed"])},
@@ -343,11 +351,13 @@ def _preview_material_map(context):
     if s.textures == "none":
         return None
     if s.textures == "palette":  # one material per model, written in pure Python
-        if "palette" not in _TEXTURE_CACHE:
-            folder = os.path.join(DEFAULT_OUT, "texture_cache", "palette")
-            _TEXTURE_CACHE["palette"] = palette_mod.write_palette(folder, log=print)
-        builder.create_palette_material(_TEXTURE_CACHE["palette"])
-        return PALETTE
+        name = _palette_name(s)
+        key = ("palette", name)
+        if key not in _TEXTURE_CACHE:
+            folder = os.path.join(DEFAULT_OUT, "texture_cache", f"palette_{name}")
+            _TEXTURE_CACHE[key] = palette_mod.write_palette(folder, log=print, name=name)
+        builder.create_palette_material(_TEXTURE_CACHE[key])
+        return PALETTE + name
     key = (s.texture_set, int(s.texture_size))
     if key not in _TEXTURE_CACHE:
         prefs = context.preferences.addons[__name__].preferences
@@ -534,7 +544,7 @@ def make_configs(context, picks, kit_params=None):
             style=params_mod.Style.from_dict(fam_values["style"]), lods=s.lods, jobs=s.jobs, force=s.force,
             icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
             textures=textures, texture_size=int(s.texture_size), texture_set=texture_set,
-            textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
+            palette=_palette_name(s), textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
             blender=bpy.app.binary_path, magick=prefs.magick_path.strip() or None,
         ))
     return configs
@@ -699,8 +709,15 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
         ("none", "Keine", "Einfarbige M_-Materialien wie bisher (Standard)"),
         ("tiled", "Kachel", "ImageMagick-Kacheltexturen als MT_-Materialien (1 Kachel = 1 m)"),
         ("baked", "Gebacken", "Kachel + pro Asset gebackener Atlas mit Schmutz (MTA_<Asset>); Vorschau zeigt Kachel"),
-        ("palette", "Palette", "Ein Material MP_Palette mit Farbpaletten-Textur pro Modell: 1 Draw Call "
-                               "(Glas und von Scripts umgefärbte Teile behalten ihr Material)")])
+        ("palette", "Palette", "Ein Material MP_Palette (bzw. MP_Palette_<Name>) mit Farbpaletten-Textur pro "
+                               "Modell: 1 Draw Call (Glas und von Scripts umgefärbte Teile behalten ihr Material)")])
+    palette: EnumProperty(name="Farbpalette", update=_on_change, default="family", items=[
+        ("family", "Familie", "Die Farbpalette der gewählten Familie, ohne Familie die Farben des Spiels")]
+        + [(n, palette_mod.COLOR_PALETTES[n]["title"] if n in palette_mod.COLOR_PALETTES else "Standard",
+            palette_mod.COLOR_PALETTES[n]["description"] if n in palette_mod.COLOR_PALETTES
+            else "Die Farben des Spiels (M_-Materialien), Material MP_Palette")
+           for n in palette_mod.palette_names()],
+        description="Farben im Paletten-Modus: gleiche Modelle, eigenes Material MP_Palette_<Name>")
     texture_size: EnumProperty(name="Auflösung", update=_on_change, default="512", items=[
         ("256", "256 px", ""), ("512", "512 px", ""), ("1024", "1024 px", ""), ("2048", "2048 px", "")])
     texture_set: StringProperty(name="Textur-Set", default="", update=_on_change,
@@ -1231,6 +1248,8 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         row.prop(s, "fmt_obj", toggle=True)
         box = layout.box()
         box.prop(s, "textures")
+        if s.textures == "palette":
+            box.prop(s, "palette")
         if s.textures != "none":
             row = box.row(align=True)
             row.prop(s, "texture_size", text="")

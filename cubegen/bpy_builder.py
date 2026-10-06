@@ -7,7 +7,7 @@ import bpy
 
 from .geometry import box_uvs
 from .materials import MATERIALS, srgb_to_linear
-from .palette import PALETTE_MATERIAL, resolve, uv as palette_uv
+from .palette import is_palette_material, resolve, uv as palette_uv
 
 
 def _input(node, *names):
@@ -87,7 +87,7 @@ def create_textured_materials(textures):
 
 
 def create_palette_material(palette):
-    """``MP_Palette`` from the palette maps (``palette.write_palette``): point-sampled colour, metallic and
+    """``MP_Palette`` (or ``MP_Palette_<Name>``) from the palette maps (``palette.write_palette``): point-sampled colour, metallic and
     smoothness, emission for the glow cells."""
     name = palette["name"]
     mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
@@ -183,7 +183,7 @@ def make_mesh(name, asset_object, material_map=None):
             poly.use_smooth = False  # flat shading = crisp low-poly look
         except AttributeError:  # newer Blender: from_pydata already creates flat faces
             pass
-        if roles[fi] == PALETTE_MATERIAL:  # palette mode: the centre of the colour's cell
+        if is_palette_material(roles[fi]):  # palette mode: the centre of the colour's cell
             uvs = [palette_uv(src.roles[fi])] * len(src.faces[fi])
         else:
             uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
