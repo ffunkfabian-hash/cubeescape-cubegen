@@ -110,6 +110,30 @@ class NewTypeTests(unittest.TestCase):
             self.assertAlmostEqual(cons["top"]["pos"][2], ramp.meta["rise_m"], places=4)
             self.assertAlmostEqual(cons["top"]["pos"][1] - cons["bottom"]["pos"][1], ramp.meta["run_m"], places=4)
 
+    def test_solar_panel_legs_carry_the_array(self):
+        # the legs once ran the wrong way: the front ones stuck through the array, the back ones ended below it
+        for tilt in (10, 35, 60):
+            for seed in range(4):
+                panel = generate_asset("solar_panel", seed, params={"mount": "frame", "tilt": tilt})
+                array = panel.get("Array").mesh
+                slab = array.parts[0]
+                def area(fi):
+                    a, b, c = (array.verts[i] for i in array.faces[fi][:3])
+                    return math.dist(a, b) * math.dist(b, c)  # the slab's faces are rectangles
+
+                down = [fi for fi in range(slab.f0, slab.f1) if array.face_normal(fi)[2] < 0]
+                bottom = max(down, key=area)  # the underside, not the front edge (which points down too)
+                n = array.face_normal(bottom)
+                p0 = array.verts[array.faces[bottom][0]]
+                body = panel.get("Body").mesh
+                legs = [part for part in body.parts if body.part_bbox(part)[1][0] - body.part_bbox(part)[0][0] < 0.07]
+                self.assertEqual(len(legs), 4)
+                for leg in legs:
+                    (x0, y0, _), (x1, y1, top) = body.part_bbox(leg)
+                    tip = ((x0 + x1) / 2, (y0 + y1) / 2, top)
+                    gap = sum(n[i] * (tip[i] - p0[i]) for i in range(3))
+                    self.assertAlmostEqual(gap, 0.0, delta=0.002, msg=(tilt, seed, tip))
+
     def test_archway_flush_with_posts(self):
         # the infill above the passage once sat half a wall thickness behind the posts
         for shape in ("round", "pointed", "chamfer", "flat"):

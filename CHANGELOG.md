@@ -87,6 +87,13 @@ Effekte, 35 neue Typen (jetzt 164).
   sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
   `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
 
+### Behoben: `solar_panel` - Stützen falsch herum
+
+* Beim Unterbau `frame` waren die Stützen genau umgekehrt bemessen: Die Fläche steigt nach hinten (+Y) an, die
+  vorderen Stützen waren aber die langen - sie stachen durch die Zellen, die hinteren endeten in der Luft. Jetzt
+  enden alle vier an der Unterseite der Fläche (auch bei 60° Neigung); ein Test prüft das. Die Statusleuchte hing
+  beim Bodengestell frei in der Luft, jetzt sitzt sie am vorderen rechten Bein.
+
 ### Prüfung: Collider decken die Geometrie ab
 
 * `cubegen check` meldet massive Geometrie, die kein Collider abdeckt - der Spieler liefe hinein

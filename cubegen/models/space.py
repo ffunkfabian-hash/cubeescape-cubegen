@@ -98,8 +98,8 @@ def solar_panel(rng, a):
         cube(body, (0.2, 0.15, 0.25), (0, 0.06, h * 0.5), "M_Wall")  # inverter box
     else:
         for x in (-1, 1):
-            for y in (-1, 1):
-                top = h + y * d * math.sin(tilt) / 2 * -1
+            for y in (-1, 1):  # up to the underside of the array, which climbs towards +Y
+                top = h + 0.08 + y * d * 0.4 * math.sin(tilt) - 0.025 / math.cos(tilt)
                 cube(body, (0.06, 0.06, top), (x * w * 0.4, y * d * math.cos(tilt) * 0.4, top / 2), "M_Metal")
     rot = (tilt, 0.0, 0.0)
     array = a.part("Array")
@@ -111,7 +111,8 @@ def solar_panel(rng, a):
             off = ((i + 0.5) / cols - 0.5) * w, ((j + 0.5) / rows - 0.5) * d
             cube(array, (w / cols * 0.92, d / rows * 0.92, 0.012), add_vec(center, rotated(rot, (off[0], off[1], 0.03))),
                  "M_RobotDark" if (i + j) % 2 else "M_Glass", rot=rot)
-    cube(a.part("Glow"), (0.04, 0.02, 0.04), (0.08, -0.08, h * 0.5 if mount == "mast" else 0.25), "M_GlowCyan")
+    light = (0.08, -0.08, h * 0.5) if mount == "mast" else (w * 0.4, -d * math.cos(tilt) * 0.4 - 0.04, 0.25)
+    cube(a.part("Glow"), (0.04, 0.02, 0.04), light, "M_GlowCyan")  # on the mast / on the front right leg
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": "Pulse"}, note="charging indicator")
     a.meta.update({"mount": mount, "cells": cols * rows})
 
