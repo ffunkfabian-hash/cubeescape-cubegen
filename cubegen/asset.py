@@ -179,6 +179,18 @@ class Asset:
         if parent is not None and self.get(parent) is None:
             raise ValueError(f"parent {parent!r} must be created before its children")
 
+    def prune(self) -> None:
+        """Drop mesh objects without faces. One that still has children becomes an empty instead:
+        the hierarchy and the children's pivots stay intact (e.g. a broken-off arm segment)."""
+        kept: List[AssetObject] = []
+        for obj in reversed(self.objects):  # children come after their parents
+            if obj.mesh is not None and not obj.mesh.faces:
+                if not any(k.parent == obj.name for k in kept):
+                    continue
+                obj.mesh = None
+            kept.append(obj)
+        self.objects = kept[::-1]
+
     def get(self, name: str) -> Optional[AssetObject]:
         return next((o for o in self.objects if o.name == name), None)
 

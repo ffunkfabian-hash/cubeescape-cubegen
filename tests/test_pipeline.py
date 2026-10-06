@@ -148,6 +148,31 @@ class BlenderTest(unittest.TestCase):
             self.assertLess(len(crate["Body_LOD1"]["vertices"]), len(crate["Body_LOD0"]["vertices"]))
             self.assertIn("Glow", unity_locals(os.path.join(out, "models", "Turret_000.fbx")))
 
+    def test_unity_contract_audit_all_types(self):
+        # the reproduction of the Unity audit: cubegen 0.7.0 had 3 rejected models (wrong FBX pivots) here
+        import copy
+
+        from cubegen.contract import check_export, check_fbx
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "all", "--count", "1", "--prefix", "Gen_Audit070_",
+                         "--no-render", "--no-blend", "--out", out, "--jobs", "2"])
+            self.assertEqual(code, 0)
+            models = os.path.join(out, "models")
+            result = check_export(models)
+            self.assertEqual(len(result), 121)
+            self.assertEqual({k: v["errors"] for k, v in result.items() if v["errors"]}, {})
+            self.assertEqual(sorted(k for k, v in result.items() if v["open"]),
+                             sorted(f"Gen_Audit070_{t}_000" for t in ("CableReel", "Clue", "Flashlight", "Item", "Key",
+                                                                     "Keycard", "SparePart", "Tool")))
+            for name, part in (("BalanceScale", "Slot_A"), ("RobotArm", "Arm_Upper"), ("Turret", "Glow")):
+                rig = json.loads(read(os.path.join(models, f"Gen_Audit070_{name}_000.cubegen.json")))
+                fbx = os.path.join(models, f"Gen_Audit070_{name}_000.fbx")
+                broken = copy.deepcopy(rig)  # the check must notice a pivot that is 2 cm off
+                entry = next(p for p in broken["parts"] if p["name"] == part)
+                entry["localPosition"][1] += 0.02
+                self.assertTrue(any(part in e for e in check_fbx(broken, fbx)), name)
+
     def test_fbx_pivots_match_rig_data(self):
         # cubegen 0.7.0: parts nested two levels deep (Slot_A, Arm_Upper, Glow) had wrong pivots and a 90 deg
         # rotation in the FBX. Unity rejects such models - FBX and <Name>.cubegen.json must agree exactly.

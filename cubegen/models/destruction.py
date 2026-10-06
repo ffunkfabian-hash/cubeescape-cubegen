@@ -139,7 +139,7 @@ def damage_asset(asset, seed: int, level: str, pivot: str) -> None:
                 remove.append(part)
         if remove:
             mesh.remove_parts(remove)
-    asset.objects = [o for o in asset.objects if o.mesh is None or o.mesh.faces]
+    asset.prune()
     _kill_lights(asset, rng, 1.0)
     asset.behaviours = []                        # a ruin does nothing: static decoration
     if pivot in ("floor", "wall"):

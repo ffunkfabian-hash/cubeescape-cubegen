@@ -90,7 +90,12 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         entry.build(rng, asset)
     finally:
         DETAIL.reset(token)
-    asset.objects = [o for o in asset.objects if o.mesh is None or o.mesh.faces]
+    asset.prune()
+    for b in asset.behaviours:  # a part without geometry is gone: no script may point at it
+        for role, value in b["parts"].items():
+            for name in value if isinstance(value, list) else [value]:
+                if asset.get(name) is None:
+                    raise ValueError(f"{model_type}: {b['script']}.{role} names {name!r}, which has no geometry")
     for c in asset.colliders:
         if c.part is not None and asset.get(c.part) is None:
             raise ValueError(f"{model_type}: collider on {c.part!r}, but that part has no geometry")
