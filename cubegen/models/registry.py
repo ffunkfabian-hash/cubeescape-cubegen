@@ -80,6 +80,7 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         raise KeyError(f"unknown model type {model_type!r}; available: {', '.join(model_types())}") from exc
     style = style or Style()
     style.validate()
+    style = style.resolved()
     rng = StableRandom(seed)
     asset = Asset(name or f"{entry.title}_{seed}")
     asset.p = ParamReader(rng, entry.params, params, style)

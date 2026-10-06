@@ -34,6 +34,7 @@ CASES = (
     ("high_detail", 7, {"detail": "high", "material": "light", "glow": "orange"}),
     ("damaged", 3, {"damage": "damaged", "wear": "light"}),
     ("destroyed", 4, {"damage": "destroyed"}),
+    ("themed", 8, {"theme": "labor-3"}),
 )
 
 
@@ -55,7 +56,7 @@ def main(argv):
         sys.exit("usage: python3 tests/golden_cases.py --update")
     old = load() if os.path.isfile(GOLDEN) else {}
     new = compute()
-    changed = sorted(t for t in new if t in old and old[t] != new[t])
+    changed = sorted(t for t in new if t in old and any(new[t].get(c) != d for c, d in old[t].items()))
     added = sorted(t for t in new if t not in old)
     with open(GOLDEN, "w", encoding="utf-8") as fh:
         json.dump(new, fh, indent=1, sort_keys=True)

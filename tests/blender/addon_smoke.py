@@ -136,7 +136,15 @@ print("RIG", rig["params"], rig["style"]["detail"])
 assert rig["params"]["style"] == "airlock" and rig["style"]["wear"] == "light"
 bpy.ops.cubegen.reset_params()
 assert s.type_params.door.style == addon.SEED and not s.type_params.door.use_width
-s.detail, s.wear = "normal", "none"
+s.detail, s.wear = "normal", addon.SEED
+
+# --- room theme: the add-on's style = the CLI's --theme ------------------------------------
+s.theme = "labor-3"
+style = addon._style(s).resolved()
+expected = addon.params_mod.theme_style("labor-3")
+assert (style.glow, style.material, style.wear) == (expected["glow"], expected["material"], expected["wear"]), style
+assert '--theme labor-3' in addon._cli_command(s), addon._cli_command(s)
+s.theme = ""
 
 # --- textures (selection field) + destroyed state + ruins ---------------------------------
 s.model_type = "crate"

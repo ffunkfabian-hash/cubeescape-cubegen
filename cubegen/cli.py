@@ -25,7 +25,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
 RECIPE_KEYS = ("seed", "models", "params", "style", "out") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail", "damage": "damage"}
+                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme"}
 
 
 def _csv(value: str) -> List[str]:
@@ -163,6 +163,10 @@ def cmd_generate(args) -> int:
     config = build_config(args)
     config.validate()
     print(f"cubegen {__version__} | seed {config.seed} | out {config.out_dir}")
+    if config.style.theme is not None:
+        r = config.style.resolved()
+        print(f"theme {config.style.theme!r}: glow {r.glow}, material {r.material}, wear {r.wear}, "
+              f"warning {r.warning or 'per asset'}")
     if args.dry_run:
         for spec in plan_models(config, log=lambda m: print("  " + m)):
             st = build_spec(spec).stats()
@@ -201,7 +205,8 @@ def cmd_params(args) -> int:
         for p in entry.params:
             print(f"  {t}.{p.describe()}")
         print()
-    print("global: --size S|M|L  --snap 0.5  --glow cyan|red|orange  --material-style metal|wall|dark|light")
+    print("global: --theme TEXT  --size S|M|L  --snap 0.5  --glow cyan|red|orange")
+    print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
     print("        --damage intact|damaged|destroyed")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
@@ -253,6 +258,8 @@ def make_parser() -> argparse.ArgumentParser:
                    help="fix a parameter instead of rolling it, e.g. door.style=airlock (repeatable; "
                         "list: python -m cubegen params)")
     st = g.add_argument_group("style (all types)")
+    st.add_argument("--theme", help="room theme (any text, e.g. lab-3): rolls glow, material style, wear and "
+                                    "warning paint once for all assets; explicit options win")
     st.add_argument("--size", choices=["S", "M", "L"], help="size class: small / medium / large variants")
     st.add_argument("--snap", type=float, help="round main dimensions to multiples of this many metres (e.g. 0.5)")
     st.add_argument("--glow", choices=["cyan", "red", "orange"], help="fixed colour for decorative glow")

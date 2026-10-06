@@ -128,6 +128,25 @@ class StyleTests(unittest.TestCase):
             plain = generate_asset(t, 2)
             self.assertEqual(fingerprint(plain), [f for f in fingerprint(worn) if f[0] != "Wear"])
 
+    def test_theme(self):
+        from cubegen.params import theme_style
+
+        self.assertEqual(theme_style("labor-3"), theme_style(" labor-3 "))
+        rolled = [theme_style(f"room-{i}") for i in range(40)]
+        for key in ("glow", "material", "wear", "warning"):
+            self.assertGreater(len({r[key] for r in rolled}), 1, key)
+        themed = Style(theme="labor-3").resolved()
+        self.assertEqual((themed.glow, themed.material, themed.wear, themed.warning),
+                         tuple(theme_style("labor-3")[k] for k in ("glow", "material", "wear", "warning")))
+        explicit = Style(theme="labor-3", glow="orange", wear="none").resolved()  # explicit settings win
+        self.assertEqual((explicit.glow, explicit.wear, explicit.material), ("orange", "none", themed.material))
+        self.assertEqual(Style().resolved().wear, "none")
+        a = generate_asset("crate", 3, style=Style(theme="labor-3"))
+        b = generate_asset("crate", 3, style=Style(**{k: v for k, v in themed.to_dict().items() if k != "theme"}))
+        self.assertEqual(a.digest(), b.digest())  # a theme is exactly its rolled settings
+        with self.assertRaises(ValueError):
+            Style(theme="  ").validate()
+
     def test_style_validation(self):
         with self.assertRaises(ValueError):
             generate_asset("crate", 1, style=Style(size="XL"))

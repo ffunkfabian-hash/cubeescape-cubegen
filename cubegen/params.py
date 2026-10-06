@@ -12,13 +12,17 @@ Two kinds of settings:
   ``wall.length`` ...), set with ``--param door.style=airlock``
 * global :class:`Style` settings for all types (size class, grid snapping,
   glow colour, material style, warning paint, wear, detail level)
+
+A *theme* (``Style.theme``, any text) rolls glow colour, material style, wear
+and warning paint once for the whole batch, so all assets of a room match.
+Settings given explicitly win over the theme.
 """
 
 from __future__ import annotations
 
 import contextvars
 import difflib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, Optional, Sequence, Tuple
 
 GLOW = {"cyan": "M_GlowCyan", "red": "M_GlowRed", "orange": "M_GlowOrange"}
@@ -40,9 +44,10 @@ class Style:
     glow: Optional[str] = None       # cyan | red | orange for decorative glow (status parts keep their state colour)
     material: Optional[str] = None   # metal | wall | dark | light - preferred body material where it is an option
     warning: Optional[str] = None    # none | always - warning stripes / bands
-    wear: str = "none"               # none | light | heavy - rubble, loose plates, torn cables around the model
+    wear: Optional[str] = None       # none | light | heavy - rubble, loose plates, torn cables (None = none / theme)
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
     damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts)
+    theme: Optional[str] = None      # any text: rolls glow, material, wear and warning once for all assets
 
     def validate(self) -> None:
         checks = [
@@ -50,7 +55,7 @@ class Style:
             ("glow", self.glow, (None, *GLOW)),
             ("material", self.material, (None, *MATERIAL_STYLES)),
             ("warning", self.warning, (None, "none", "always")),
-            ("wear", self.wear, ("none", "light", "heavy")),
+            ("wear", self.wear, (None, "none", "light", "heavy")),
             ("detail", self.detail, ("low", "normal", "high")),
             ("damage", self.damage, ("intact", "damaged", "destroyed")),
         ]
@@ -59,6 +64,18 @@ class Style:
                 raise ValueError(f"style {name}: {value!r} not in {', '.join(str(a) for a in allowed if a)}")
         if self.snap < 0:
             raise ValueError("style snap must be >= 0")
+        if self.theme is not None and not str(self.theme).strip():
+            raise ValueError("style theme must not be empty")
+
+    def resolved(self) -> "Style":
+        """The style the builders use: theme rolls filled into the settings left open, wear None -> none."""
+        style = self
+        if self.theme is not None:
+            rolled = theme_style(self.theme)
+            style = replace(self, **{k: v for k, v in rolled.items() if getattr(self, k) is None})
+        if style.wear is None:
+            style = replace(style, wear="none")
+        return style
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -73,6 +90,19 @@ class Style:
                 hint = f" (did you mean {close[0]!r}?)" if close else ""
                 raise ValueError(f"style: unknown key {key!r}{hint}; allowed: {', '.join(fields)}")
         return cls(**data)
+
+
+def theme_style(theme) -> Dict[str, Optional[str]]:
+    """What a theme rolls (always all four, in this order - fixing one setting never changes the others)."""
+    from .seeds import StableRandom, derive_seed
+
+    rng = StableRandom(derive_seed(0, "theme", str(theme).strip()))
+    return {
+        "glow": rng.choices(["cyan", "red", "orange"], weights=[5, 2, 3])[0],
+        "material": rng.choice(["metal", "wall", "dark", "light"]),
+        "wear": rng.choices(["none", "light", "heavy"], weights=[5, 3, 2])[0],
+        "warning": rng.choices([None, "none", "always"], weights=[6, 2, 2])[0],  # None: every asset rolls
+    }
 
 
 @dataclass
@@ -236,4 +266,5 @@ def parse_param_overrides(items: Sequence[str]) -> Dict[str, Dict[str, str]]:
     return result
 
 
-__all__ = ["Param", "ParamReader", "Style", "DETAIL", "GLOW", "MATERIAL_STYLES", "parse_param_overrides"]
+__all__ = ["Param", "ParamReader", "Style", "DETAIL", "GLOW", "MATERIAL_STYLES", "parse_param_overrides",
+           "theme_style"]

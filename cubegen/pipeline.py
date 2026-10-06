@@ -160,7 +160,7 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
         "masterSeed": master_seed,
         "static": not asset.behaviours,
         "params": asset.meta.get("params", {}),
-        "style": spec.get("style", {}),
+        "style": Style.from_dict(spec.get("style")).resolved().to_dict(),  # as built (theme filled in)
         "bounds": {"center": list(center), "size": [abs(c) for c in size]},
         "parts": parts,
         "behaviours": asset.behaviours,

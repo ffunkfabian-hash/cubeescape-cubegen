@@ -110,9 +110,11 @@ def _cli_command(s):
     for name, value in _overrides(s).get(s.model_type, {}).items():
         cmd += f" --param {s.model_type}.{name}={value}"
     style = _style(s)
-    flags = [("--size", style.size), ("--glow", style.glow), ("--material-style", style.material),
-             ("--warning", style.warning)]
-    flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear if style.wear != "none" else None),
+    theme = f'"{style.theme}"' if style.theme and not style.theme.replace("-", "").replace("_", "").isalnum() \
+        else style.theme
+    flags = [("--theme", theme), ("--size", style.size), ("--glow", style.glow),
+             ("--material-style", style.material), ("--warning", style.warning)]
+    flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear),
               ("--detail", style.detail if style.detail != "normal" else None),
               ("--damage", style.damage if style.damage != "intact" else None),
               ("--textures", s.textures if s.textures != "none" else None),
@@ -145,7 +147,8 @@ def _style(s):
         size=None if s.size_class in unset else s.size_class, snap=float(s.snap),
         glow=None if s.glow_color in unset else s.glow_color,
         material=None if s.material_style in unset else s.material_style,
-        warning=None if s.warning in unset else s.warning, wear=s.wear, detail=s.detail, damage=s.damage,
+        warning=None if s.warning in unset else s.warning, wear=None if s.wear in unset else s.wear,
+        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None,
     )
 
 
@@ -420,15 +423,19 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
         ("0", "Aus", "Maße nicht runden"), ("0.25", "0,25 m", ""), ("0.5", "0,5 m", ""), ("1.0", "1 m", ""),
         ("2.0", "2 m", "")], description="Hauptmaße auf Vielfache runden (passt ins Modulraster)")
     glow_color: EnumProperty(name="Glow-Farbe", update=_on_change, items=[
-        (SEED, "Seed", "Glow-Farbe vom Seed"), ("cyan", "Cyan", ""), ("red", "Rot", ""), ("orange", "Orange", "")],
+        (SEED, "Seed", "Glow-Farbe vom Thema, sonst vom Seed"), ("cyan", "Cyan", ""), ("red", "Rot", ""), ("orange", "Orange", "")],
         description="Für Deko-Glow; Status-Teile (Maschine, Terminal, Tür) behalten ihre Zustandsfarbe")
     material_style: EnumProperty(name="Material", update=_on_change, items=[
-        (SEED, "Seed", "Material vom Seed"), ("metal", "Metall", "M_Metal bevorzugen"),
+        (SEED, "Seed", "Material vom Thema, sonst vom Seed"), ("metal", "Metall", "M_Metal bevorzugen"),
         ("wall", "Wand", "M_Wall bevorzugen"), ("dark", "Dunkel", "M_RobotDark bevorzugen"),
         ("light", "Hell", "M_Platform / M_RobotBody bevorzugen")])
     warning: EnumProperty(name="Warnfarbe", update=_on_change, items=[
-        (SEED, "Seed", "Warnstreifen/-bänder vom Seed"), ("none", "Keine", ""), ("always", "Immer", "")])
-    wear: EnumProperty(name="Abnutzung", update=_on_change, default="none", items=[
+        (SEED, "Seed", "Warnstreifen/-bänder vom Thema, sonst vom Seed"), ("none", "Keine", ""), ("always", "Immer", "")])
+    theme: StringProperty(name="Thema", default="", update=_on_change,
+                          description="Raum-Thema (beliebiger Text, z. B. labor-3): würfelt Glow-Farbe, Material, "
+                                      "Abnutzung und Warnfarbe einmal für alle Modelle. Feste Einstellungen gehen vor")
+    wear: EnumProperty(name="Abnutzung", update=_on_change, default=SEED, items=[
+        (SEED, "Thema", "Vom Thema bestimmt, ohne Thema: keine"),
         ("none", "Keine", ""), ("light", "Leicht", "Ein paar Brocken und eine lose Platte"),
         ("heavy", "Stark", "Mehr Trümmer, Platten und ein abgerissenes Kabel")])
     detail: EnumProperty(name="Detail", update=_on_change, default="normal", items=[
@@ -789,6 +796,11 @@ class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
     def draw(self, context):
         s = _settings(context)
         col = self.layout.column(align=True)
+        col.prop(s, "theme")
+        if s.theme.strip():
+            rolled = params_mod.theme_style(s.theme)
+            col.label(text=f"Thema: {rolled['glow']}, {rolled['material']}, Abnutzung {rolled['wear']}, "
+                           f"Warnfarbe {rolled['warning'] or 'Seed'}", icon="INFO")
         for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage"):
             col.prop(s, name)
         self.layout.label(text="Icon-Kamera")
