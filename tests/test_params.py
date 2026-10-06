@@ -51,7 +51,8 @@ class ParamTests(unittest.TestCase):
             used = set()
             for seed in range(40):
                 used |= set(generate_asset(t, seed).meta["params"])
-            declared = {p.name for p in REGISTRY[t].params if p.kind != "text"}  # text: only written when given
+            # text and quiet options are only written when given
+            declared = {p.name for p in REGISTRY[t].params if p.kind != "text" and not p.quiet}
             self.assertEqual(declared - used, set(), f"{t}: declared but never read")
 
     def test_every_param_value_builds_valid_models(self):

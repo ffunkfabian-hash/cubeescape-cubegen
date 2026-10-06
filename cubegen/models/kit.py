@@ -39,6 +39,120 @@ def slope_colliders(a, width, run, rise, center_x=0.0, layer=0.5):
             a.collider((width, run / 2 - y0, z1 - z0), (center_x, (y0 + run / 2) / 2, (z0 + z1) / 2))
 
 
+STAIR_LAYOUTS = ("straight", "landing", "quarter", "switchback")
+STEP_RISE, STEP_RUN, SWITCHBACK_GAP = 0.2, 0.3, 0.1
+
+
+def stair_flights(layout, w, rise):
+    """Geometry of a stair layout: flights [(axis, sign, x, y, z0, steps)] (start of the first step,
+    climbing along axis*sign), landing (x0, x1, y0, y1, z), bottom and top connector ((x, y, z), direction)."""
+    steps = max(2, int(round(rise / STEP_RISE)))
+    sh = rise / steps
+    n1 = steps // 2
+    n2 = steps - n1
+    zl = n1 * sh
+    run1 = n1 * STEP_RUN
+    if layout == "landing":
+        y0 = -(steps * STEP_RUN + w) / 2
+        flights = [("y", 1, 0.0, y0, 0.0, n1), ("y", 1, 0.0, y0 + run1 + w, zl, n2)]
+        landing = (-w / 2, w / 2, y0 + run1, y0 + run1 + w, zl)
+        top = ((0.0, y0 + run1 + w + n2 * STEP_RUN, rise), (0, 1))
+        bottom = ((0.0, y0, 0.0), (0, -1))
+    elif layout == "quarter":
+        y0 = -(run1 + w) / 2
+        ya = y0 + run1
+        flights = [("y", 1, 0.0, y0, 0.0, n1), ("x", 1, w / 2, ya + w / 2, zl, n2)]
+        landing = (-w / 2, w / 2, ya, ya + w, zl)
+        top = ((w / 2 + n2 * STEP_RUN, ya + w / 2, rise), (1, 0))
+        bottom = ((0.0, y0, 0.0), (0, -1))
+    else:  # switchback: up along +Y on the left, turn on the landing, up along -Y on the right
+        xo = (w + SWITCHBACK_GAP) / 2
+        y0 = -(run1 + w) / 2
+        ya = y0 + run1
+        flights = [("y", 1, -xo, y0, 0.0, n1), ("y", -1, xo, ya, zl, n2)]
+        landing = (-xo - w / 2, xo + w / 2, ya, ya + w, zl)
+        top = ((xo, ya - n2 * STEP_RUN, rise), (0, -1))
+        bottom = ((-xo, y0, 0.0), (0, -1))
+    return {"steps": steps, "step_rise": sh, "flights": flights, "landing": landing, "top": top, "bottom": bottom}
+
+
+def _stairs_layout(rng, a, p, layout, w, rise, mat, glow):
+    """Stairs with a landing, a quarter turn or a switchback (solid steps, like the straight flight)."""
+    body = a.part("Body")
+    geo = stair_flights(layout, w, rise)
+    sh = geo["step_rise"]
+    a.meta.update({"style": "stairs", "layout": layout, "steps": geo["steps"], "step_rise_m": round(sh, 4)})
+    edges = p.bool("glow_edges", 0.4)
+    lights = a.part("Glow") if edges else None
+    k = 0
+    for axis, sign, x, y, z0, n in geo["flights"]:
+        for i in range(n):
+            h = z0 + sh * (i + 1)
+            d = (i + 0.5) * STEP_RUN * sign
+            cx, cy = (x + d, y) if axis == "x" else (x, y + d)
+            size = (STEP_RUN, w, h) if axis == "x" else (w, STEP_RUN, h)
+            cube(body, size, (cx, cy, h / 2), "M_RobotDark" if k % 2 else mat)
+            a.collider(size, (cx, cy, h / 2))
+            nose = (-STEP_RUN * 0.375 * sign)
+            nsize = (STEP_RUN * 0.25, w + 0.02, 0.02) if axis == "x" else (w + 0.02, STEP_RUN * 0.25, 0.02)
+            cube(body, nsize, (cx + nose, cy, h + 0.01) if axis == "x" else (cx, cy + nose, h + 0.01), "M_Metal")
+            if edges:
+                e = -STEP_RUN / 2 * sign - 0.01 * sign
+                esize = (0.02, w * 0.8, 0.02) if axis == "x" else (w * 0.8, 0.02, 0.02)
+                cube(lights, esize, (cx + e, cy, h - 0.03) if axis == "x" else (cx, cy + e, h - 0.03), glow)
+            k += 1
+    lx0, lx1, ly0, ly1, zl = geo["landing"]
+    cube(body, (lx1 - lx0, ly1 - ly0, zl), ((lx0 + lx1) / 2, (ly0 + ly1) / 2, zl / 2), mat)
+    a.collider((lx1 - lx0, ly1 - ly0, zl), ((lx0 + lx1) / 2, (ly0 + ly1) / 2, zl / 2))
+    cube(body, (lx1 - lx0 - 0.1, ly1 - ly0 - 0.1, 0.02), ((lx0 + lx1) / 2, (ly0 + ly1) / 2, zl + 0.01), "M_Metal")
+    rails = p.choice("rails", ["none", "left", "both"])
+    if rails != "none":
+        for axis, sign, x, y, z0, n in geo["flights"]:
+            run = n * STEP_RUN
+            sides = (-1, 1) if rails == "both" else ((-1,) if axis == "y" and x <= 0 else (1,))
+            for s in sides:
+                _flight_rail(body, a, axis, sign, x, y, z0, run, n * sh, w, s)
+        _landing_rails(body, a, layout, geo["landing"], w)
+    if p.bool("stripes", 0.3, warning=True):
+        (bx, by, _), _ = geo["bottom"]
+        stripes(body, w * 0.9, (bx, by - 0.005, 0.06), count=max(3, int(w * 3)), width=0.01, height=0.1)
+
+
+def _flight_rail(body, a, axis, sign, x, y, z0, run, rise, w, side):
+    """Sloped railing on one side of a flight (posts, top and middle bar) with its fence collider."""
+    slope = math.atan2(rise, run)
+    ln = math.hypot(run, rise)
+    if axis == "y":
+        rx, mid = x + side * (w / 2 + 0.05), (x + side * (w / 2 + 0.05), y + sign * run / 2, z0 + rise / 2)
+    else:
+        rx, mid = None, (x + sign * run / 2, y + side * (w / 2 + 0.05), z0 + rise / 2)
+    for t in (0.05, 0.5, 0.95):
+        d = run * t * sign
+        px, py = (rx, y + d) if axis == "y" else (x + d, mid[1])
+        cube(body, (0.05, 0.05, 1.0), (px, py, z0 + rise * t + 0.5), "M_Metal")
+    rot = (slope * sign, 0, 0) if axis == "y" else (0, -slope * sign, 0)
+    for zoff, th in ((1.0, 0.06), (0.5, 0.04)):
+        size = (th, ln, th) if axis == "y" else (ln, th, th)
+        cube(body, size, (mid[0], mid[1], mid[2] + zoff), "M_Metal", rot=rot)
+    fence = max(0.2, (run - math.sin(slope)) / math.cos(slope))
+    a.collider((0.08, fence, 1.0) if axis == "y" else (fence, 0.08, 1.0), (mid[0], mid[1], mid[2] + 0.5), rot=rot)
+
+
+def _landing_rails(body, a, layout, landing, w):
+    """Flat railing on the open edges of a landing (the flights' ends stay open)."""
+    x0, x1, y0, y1, z = landing
+    o = 0.05
+    if layout == "landing":
+        runs = [((x0 - o, y0), (x0 - o, y1)), ((x1 + o, y0), (x1 + o, y1))]
+    elif layout == "quarter":
+        runs = [((x0 - o, y0), (x0 - o, y1 + o)), ((x0 - o, y1 + o), (x1, y1 + o))]
+    else:
+        runs = [((x0 - o, y0), (x0 - o, y1 + o)), ((x0 - o, y1 + o), (x1 + o, y1 + o)), ((x1 + o, y0), (x1 + o, y1 + o))]
+    for start, end in runs:
+        size, center = rail_run(body, start, end, 1.0, z0=z)
+        a.collider(size, center)
+
+
 def _wall_trims(m, length, along_x=True):
     """Base and top trims of the 3 m wall module (same sizes as ``wall``)."""
     for size, z in (((length, 0.56, 0.25), 0.125), ((length, 0.60, 0.15), 2.95)):
@@ -53,6 +167,9 @@ def _wall_trims(m, length, along_x=True):
            Param("rails", "choice", "Geländer", choices=("none", "left", "both")),
            Param("glow_edges", "bool", "Glow-Kanten"),
            Param("stripes", "bool", "Warnstreifen unten"),
+           Param("layout", "choice", "Lauf", choices=STAIR_LAYOUTS, default="straight", quiet=True,
+                 description="gerade, mit Zwischenpodest (landing), mit Vierteldrehung (quarter) oder "
+                             "gegenläufig mit Wendepodest (switchback); Podeste immer Treppenbreite tief"),
        ])
 def stairs(rng, a):
     p = a.p
@@ -61,6 +178,10 @@ def stairs(rng, a):
     rise = p.float("rise", 1.0, 3.0)
     mat = p.material(["M_Metal", "M_Wall", "M_Platform"])
     glow = p.glow()
+    layout = p.option("layout")
+    if layout != "straight":
+        _stairs_layout(rng, a, p, layout, w, rise, mat, glow)
+        return
     body = a.part("Body")
     steps = max(2, int(round(rise / 0.2)))
     run = steps * 0.3 if style == "stairs" else rise * 2.2
@@ -150,13 +271,23 @@ def ladder(rng, a):
     a.meta.update({"rungs": n, "cage": cage})
 
 
+CATWALK_SHAPES = ("straight", "corner", "tee", "cross", "landing", "end")
+# arms of the shapes: directions in which the walkway leaves the centre (connectors at +-length/2)
+CATWALK_ARMS = {"straight": ((-1, 0), (1, 0)), "corner": ((-1, 0), (0, 1)), "tee": ((-1, 0), (1, 0), (0, 1)),
+                "cross": ((-1, 0), (1, 0), (0, 1), (0, -1)), "landing": ((-1, 0), (1, 0)), "end": ((-1, 0),)}
+
+
 @model("catwalk", "Catwalk", "environment", "Catwalk / bridge segment (walkable top at z = 0): grating, rails, "
-       "glow edges, optional supports", pivot="top", params=[
+       "glow edges, optional supports; L, T, cross, landing and end pieces", pivot="top", params=[
            Param("length", "choice", "Länge (m)", choices=(2.0, 4.0)),
            Param("width", "choice", "Breite (m)", choices=(1.0, 2.0)),
            Param("rails", "choice", "Geländer", choices=("both", "one", "none")),
            Param("supports", "float", "Stützen-Länge (m, 0 = keine)", lo=0.0, hi=4.0),
            Param("glow", "bool", "Glow-Kanten"),
+           Param("shape", "choice", "Form", choices=CATWALK_SHAPES, default="straight", quiet=True,
+                 description="L-Stück (corner), T-Stück, Kreuz, Podest (landing) oder Endstück mit "
+                             "Abschlussgeländer; Anschlüsse immer bei +-Länge/2"),
+           Param("rail_height", "float", "Geländerhöhe (m)", lo=0.8, hi=1.4, default=1.0, quiet=True),
        ])
 def catwalk(rng, a):
     p = a.p
@@ -165,6 +296,10 @@ def catwalk(rng, a):
     deck = a.part("Deck")
     frame = p.material(["M_RobotDark", "M_Metal", "M_HazardOrange"])
     a.meta.update({"length_m": length, "width_m": width})
+    shape, rail_h = p.option("shape"), p.option("rail_height")
+    if shape != "straight" or rail_h != 1.0:
+        _catwalk_shape(rng, a, p, shape, length, width, frame, rail_h)
+        return
     for s in (-1, 1):  # side beams
         cube(deck, (length, 0.08, 0.2), (0, s * (width / 2 - 0.04), -0.1), frame, bevel=0.01)
     for x in (-length / 2 + 0.04, length / 2 - 0.04):
@@ -194,6 +329,119 @@ def catwalk(rng, a):
                 cube(deck, (0.1, 0.1, sup), (x, s * (width / 2 - 0.1), -0.2 - sup / 2), "M_RobotDark")
                 a.collider((0.1, 0.1, sup), (x, s * (width / 2 - 0.1), -0.2 - sup / 2), part="Deck")
             cube(deck, (0.08, width - 0.2, 0.08), (x, 0, -0.2 - sup * 0.6), "M_RobotDark")
+        a.meta["supports_m"] = round(sup, 3)
+
+
+def _catwalk_segments(shape, length, width):
+    """Deck rectangles (x0, x1, y0, y1) of a catwalk shape, the hub first."""
+    hw, hl = width / 2, length / 2
+    if shape == "landing":
+        return [(-hl, hl, -hl, hl)]
+    if shape in ("straight", "end"):
+        return [(-hl, hl, -hw, hw)]
+    rects = [(-hw, hw, -hw, hw)]
+    for dx, dy in CATWALK_ARMS[shape]:
+        if hl - hw < 1e-6:
+            continue
+        if dx:
+            rects.append((-hl, -hw, -hw, hw) if dx < 0 else (hw, hl, -hw, hw))
+        else:
+            rects.append((-hw, hw, -hl, -hw) if dy < 0 else (-hw, hw, hw, hl))
+    return rects
+
+
+def _catwalk_rail_lines(shape, length, width):
+    """Rail runs ((x0, y0), (x1, y1)) along the outer edges, leaving every connector open."""
+    hw, hl, inset = width / 2, length / 2, 0.04
+    if shape == "landing":  # square: closed at front/back, gaps of the walkway width on the sides
+        lines = [((-hl, -hl + inset), (hl, -hl + inset)), ((-hl, hl - inset), (hl, hl - inset))]
+        for x in (-hl + inset, hl - inset):
+            lines += [((x, -hl), (x, -hw)), ((x, hw), (x, hl))]
+        return [ln for ln in lines if abs(ln[1][0] - ln[0][0]) + abs(ln[1][1] - ln[0][1]) > 0.05]
+    if shape in ("straight", "end"):
+        lines = [((-hl + 0.05, s * (hw - inset)), (hl - 0.05, s * (hw - inset))) for s in (-1, 1)]
+        if shape == "end":  # closing rail across the far end
+            lines.append(((hl - inset, -hw + 0.05), (hl - inset, hw - 0.05)))
+        return lines
+    arms = set(CATWALK_ARMS[shape])
+    lines = []
+    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        if (dx, dy) in arms:  # both sides of the arm, from the hub to the connector
+            if dx:
+                xa, xb = (-hl + 0.05, -hw) if dx < 0 else (hw, hl - 0.05)
+                lines += [((xa, s * (hw - inset)), (xb, s * (hw - inset))) for s in (-1, 1)]
+            else:
+                ya, yb = (-hl + 0.05, -hw) if dy < 0 else (hw, hl - 0.05)
+                lines += [((s * (hw - inset), ya), (s * (hw - inset), yb)) for s in (-1, 1)]
+        else:  # closed side of the hub
+            if dx:
+                lines.append(((dx * (hw - inset), -hw), (dx * (hw - inset), hw)))
+            else:
+                lines.append(((-hw, dy * (hw - inset)), (hw, dy * (hw - inset))))
+    return [ln for ln in lines if abs(ln[1][0] - ln[0][0]) + abs(ln[1][1] - ln[0][1]) > 0.05]
+
+
+def rail_run(m, start, end, height=1.0, material="M_Metal", z0=0.0):
+    """Railing between two points at floor height z0 (axis-aligned): posts about every metre, top and
+    middle bar. Returns size and centre of its fence collider."""
+    (x0, y0), (x1, y1) = start, end
+    along_x = abs(x1 - x0) >= abs(y1 - y0)
+    ln = abs(x1 - x0) if along_x else abs(y1 - y0)
+    posts = max(2, int(round(ln)) + 1)
+    for i in range(posts):
+        t = i / (posts - 1)
+        cube(m, (0.07, 0.07, height), (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + height / 2), material,
+             bevel=0.01)
+    for z in (height, height * 0.5):
+        size = (ln, 0.06, 0.06) if along_x else (0.06, ln, 0.06)
+        cube(m, size, ((x0 + x1) / 2, (y0 + y1) / 2, z0 + z), material, bevel=0.01)
+    return ((ln, 0.08, height + 0.03) if along_x else (0.08, ln, height + 0.03)), \
+        ((x0 + x1) / 2, (y0 + y1) / 2, z0 + (height + 0.03) / 2)
+
+
+def _catwalk_shape(rng, a, p, shape, length, width, frame, rail_h):
+    """Catwalk shapes beyond the straight segment (same rolls as the straight one, so materials match)."""
+    deck = a.part("Deck")
+    rects = _catwalk_segments(shape, length, width)
+    for x0, x1, y0, y1 in rects:
+        sx, sy = x1 - x0, y1 - y0
+        along_x = sx >= sy
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        for s in (-1, 1):  # edge beams along the long sides
+            if along_x:
+                cube(deck, (sx, 0.08, 0.2), (cx, cy + s * (sy / 2 - 0.04), -0.1), frame, bevel=0.01)
+            else:
+                cube(deck, (0.08, sy, 0.2), (cx + s * (sx / 2 - 0.04), cy, -0.1), frame, bevel=0.01)
+        n = max(2, int((sx if along_x else sy) / 0.12))
+        for i in range(n):  # grating bars across
+            f = -0.5 + (i + 0.5) / n
+            if along_x:
+                cube(deck, (0.04, sy - 0.16, 0.04), (cx + f * (sx - 0.1), cy, -0.03), "M_Metal")
+            else:
+                cube(deck, (sx - 0.16, 0.04, 0.04), (cx, cy + f * (sy - 0.1), -0.03), "M_Metal")
+        a.collider((sx, sy, 0.2), (cx, cy, -0.1), part="Deck")
+    a.meta["shape"] = shape
+    if p.bool("glow", 0.5):
+        glow = p.glow()
+        lights = a.part("Glow")
+        for (x0, y0), (x1, y1) in _catwalk_rail_lines(shape, length, width):
+            along_x = abs(x1 - x0) >= abs(y1 - y0)
+            size = (abs(x1 - x0) * 0.9, 0.02, 0.04) if along_x else (0.02, abs(y1 - y0) * 0.9, 0.04)
+            off = (0, 0.05 if y0 > 0 else -0.05) if along_x else (0.05 if x0 > 0 else -0.05, 0)
+            cube(lights, size, ((x0 + x1) / 2 + off[0], (y0 + y1) / 2 + off[1], -0.08), glow)
+    rails = p.choice("rails", ["both", "both", "one", "none"])
+    if rails != "none":  # shapes: rails on every open edge ("one" counts as both)
+        r = a.part("Rail")
+        for start, end in _catwalk_rail_lines(shape, length, width):
+            size, center = rail_run(r, start, end, rail_h)
+            a.collider(size, center, part="Rail")
+    sup = p.value("supports", rng.choice([0.0, 0.0, rng.uniform(1.0, 3.0)]))
+    if sup > 0.05:
+        x0, x1, y0, y1 = rects[0]
+        for x in (x0 + 0.3, x1 - 0.3):
+            for y in (y0 + 0.1, y1 - 0.1):
+                cube(deck, (0.1, 0.1, sup), (x, y, -0.2 - sup / 2), "M_RobotDark")
+                a.collider((0.1, 0.1, sup), (x, y, -0.2 - sup / 2), part="Deck")
         a.meta["supports_m"] = round(sup, 3)
 
 

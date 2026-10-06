@@ -120,6 +120,8 @@ class Param:
     snap_factor: float = 1.0       # radius = 2: snap the diameter, not the radius
     unity: bool = False            # value of a game script (goes to <Name>.cubegen.json)
     default: Any = None            # for options that are not rolled (e.g. Unity values)
+    quiet: bool = False            # option: only recorded in "params" when set (variants added later: the
+                                   # default builds the model as before, its params stay unchanged)
 
     def parse(self, value: Any) -> Any:
         """Convert a CLI / recipe / UI value and check it."""
@@ -237,8 +239,8 @@ class ParamReader:
         An option without default that wasn't given (``item_id``) returns None and isn't recorded.
         """
         spec = self._spec(name)
-        if spec.default is None and name not in self.overrides:
-            return None
+        if name not in self.overrides and (spec.default is None or spec.quiet):
+            return spec.default
         return self._result(name, spec.default)
 
     # -- style --------------------------------------------------------------------

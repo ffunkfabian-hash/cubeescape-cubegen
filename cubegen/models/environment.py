@@ -153,61 +153,168 @@ def platform(rng, a):
     a.mesh_collider("Deck")  # convex hull of slab + underside = the real shape, flat top
 
 
-@model("wall", "Wall", "environment", "Wall module 2 or 4 m long, 3 m high, 0.5 m thick: panel layouts, glow lines, pipes",
-       params=[
+def door_frame_outer(style: str, width: float, height: float):
+    """Outer size of a door's frame (= the wall opening a door of this style needs): width, height."""
+    post, top = DOOR_STYLES[style][2], DOOR_STYLES[style][9]
+    return width + 2 * post, height + (top if top is not None else post)
+
+
+WALL_OPENINGS = ("none", "door", "window", "pipe")
+
+
+@model("wall", "Wall", "environment", "Wall module 2 or 4 m long, 3 m high, 0.5 m thick: panel layouts, glow lines, "
+       "pipes; optional opening for a door, a window or a pipe", params=[
            Param("length", "choice", "Länge (m)", choices=(2.0, 4.0)),
            Param("layout", "choice", "Panel-Layout", choices=("tall", "split", "grid", "vent")),
            Param("lines", "choice", "Glow-Linien", choices=("top", "both", "vertical")),
            Param("pipe", "bool", "Rohr vorne"),
            Param("pipe_height", "float", "Rohr-Höhe (m)", lo=0.2, hi=2.8, description="Nur mit Rohr"),
            Param("stripes", "bool", "Warnstreifen unten"),
+           Param("height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0, quiet=True),
+           Param("thickness", "float", "Wandstärke (m)", lo=0.2, hi=1.0, default=0.5, quiet=True),
+           Param("opening", "choice", "Öffnung", choices=WALL_OPENINGS, default="none", quiet=True,
+                 description="Ausschnitt für eine Tür (Rahmenmaß der Tür), ein Fenster oder ein Rohr"),
+           Param("opening_x", "float", "Öffnung Versatz (m)", lo=-4.0, hi=4.0, default=0.0, quiet=True),
+           Param("door_style", "choice", "Tür-Stil", choices=tuple(sorted(DOOR_STYLES)), default="sliding",
+                 quiet=True, description="Nur mit Türöffnung: bestimmt das Rahmenmaß"),
+           Param("door_width", "float", "Tür Breite (m)", lo=0.6, hi=8.0, default=2.0, quiet=True),
+           Param("door_height", "float", "Tür Höhe (m)", lo=1.2, hi=8.0, default=2.6, quiet=True),
+           Param("window_width", "float", "Fenster Breite (m)", lo=0.4, hi=3.6, default=1.6, quiet=True),
+           Param("window_height", "float", "Fenster Höhe (m)", lo=0.4, hi=2.5, default=1.2, quiet=True),
+           Param("window_sill", "float", "Fenster Brüstung (m)", lo=0.2, hi=2.0, default=1.0, quiet=True),
+           Param("duct_radius", "float", "Rohrdurchführung Radius (m)", lo=0.05, hi=0.5, default=0.18, quiet=True),
+           Param("duct_height", "float", "Rohrdurchführung Achshöhe (m)", lo=0.2, hi=2.6, default=0.6, quiet=True),
        ])
 def wall(rng, a):
     p = a.p
     length = p.choice("length", [2.0, 4.0, 4.0])
+    h, t = p.option("height"), p.option("thickness")
+    dh, dt = h - 3.0, t - 0.5   # 0.0 for the standard module: the classic wall, bit for bit
+    hs = h / 3.0                # panel heights scale with the wall
+    opening = p.option("opening")
+    hole = _wall_hole(p, opening, length, h) if opening != "none" else None
+    if hole is not None and hole["length"] != length:
+        length = hole["length"]
+        p.used["length"] = length
     m, lights = a.part("Wall"), a.part("Glow")
     glow = p.glow()
-    cube(m, (length, 0.5, 3.0), (0, 0, 1.5), p.styled("M_Wall", ["M_Wall", "M_Metal"]), bevel=0.03)
-    cube(m, (length, 0.56, 0.25), (0, 0, 0.125), "M_RobotDark", bevel=0.01)
-    cube(m, (length, 0.60, 0.15), (0, 0, 2.95), "M_RobotDark", bevel=0.01)
+    mat = p.styled("M_Wall", ["M_Wall", "M_Metal"])
+    if hole is None:
+        cube(m, (length, 0.5 + dt, 3.0 + dh), (0, 0, 1.5 + dh / 2), mat, bevel=0.03)
+        cube(m, (length, 0.56 + dt, 0.25), (0, 0, 0.125), "M_RobotDark", bevel=0.01)
+        cube(m, (length, 0.60 + dt, 0.15), (0, 0, 2.95 + dh), "M_RobotDark", bevel=0.01)
+    else:
+        _wall_with_hole(a, m, mat, length, h, t, hole)
     layout = p.choice("layout", ["tall", "split", "grid", "vent"])
     a.meta.update({"length_m": length, "layout": layout})
+    clear = (lambda x0, x1, z0, z1: True) if hole is None else hole["clear"]
     for i in range(int(length // 2)):
         x = -length / 2 + 1 + i * 2
-        for y in (-0.26, 0.26):
+        if not clear(x - 0.9, x + 0.9, 0.0, h):
+            continue
+        for y in (-0.26 - dt / 2, 0.26 + dt / 2):
             if layout == "tall":
-                cube(m, (1.7, 0.04, 1.8), (x, y, 1.35), "M_Ground", bevel=0.01)
+                cube(m, (1.7, 0.04, 1.8 * hs), (x, y, 1.35 * hs), "M_Ground", bevel=0.01)
             elif layout == "split":
-                cube(m, (1.7, 0.04, 1.1), (x, y, 1.0), "M_Ground", bevel=0.01)
-                cube(m, (1.7, 0.04, 0.5), (x, y, 2.0), "M_Ground", bevel=0.01)
+                cube(m, (1.7, 0.04, 1.1 * hs), (x, y, 1.0 * hs), "M_Ground", bevel=0.01)
+                cube(m, (1.7, 0.04, 0.5 * hs), (x, y, 2.0 * hs), "M_Ground", bevel=0.01)
             elif layout == "grid":
                 for dx in (-0.45, 0.45):
                     for z in (0.85, 1.85):
-                        cube(m, (0.8, 0.04, 0.85), (x + dx, y, z), "M_Ground", bevel=0.01)
+                        cube(m, (0.8, 0.04, 0.85 * hs), (x + dx, y, z * hs), "M_Ground", bevel=0.01)
             else:
-                cube(m, (1.7, 0.04, 1.8), (x, y, 1.35), "M_Ground", bevel=0.01)
+                cube(m, (1.7, 0.04, 1.8 * hs), (x, y, 1.35 * hs), "M_Ground", bevel=0.01)
                 if y < 0:  # vent grille on the front only
                     for k in range(6):
                         cube(m, (1.2, 0.05, 0.04), (x, y - 0.02, 0.8 + k * 0.12), "M_RobotDark", rot=(deg(30), 0, 0))
     lines = p.choice("lines", ["top", "both", "vertical"])
-    for y in (-0.285, 0.285):
-        if lines in ("top", "both"):
-            cube(lights, (length - 0.4, 0.02, 0.05), (0, y, 2.45), glow)
-        if lines == "both":
-            cube(lights, (length - 0.4, 0.02, 0.04), (0, y, 0.32), glow)
+    for y in (-0.285 - dt / 2, 0.285 + dt / 2):
+        for z, th in (((2.45 + dh, 0.05),) if lines in ("top", "both") else ()) + \
+                (((0.32, 0.04),) if lines == "both" else ()):
+            for x0, x1 in _free_spans(-length / 2 + 0.2, length / 2 - 0.2, z - th, z + th, hole):
+                cube(lights, (x1 - x0, 0.02, th), ((x0 + x1) / 2, y, z), glow)
         if lines == "vertical":
             for i in range(int(length // 2) + 1):
                 x = -length / 2 + i * 2
                 x = max(-length / 2 + 0.1, min(length / 2 - 0.1, x))
-                cube(lights, (0.04, 0.02, 2.2), (x, y, 1.45), glow)
+                if clear(x - 0.05, x + 0.05, 0.35, 2.55 + dh):
+                    cube(lights, (0.04, 0.02, 2.2 + dh), (x, y, 1.45 + dh / 2), glow)
     if p.bool("pipe", 0.3):  # pipe along the front
         z = p.value("pipe_height", rng.uniform(0.5, 2.2))
-        cyl(m, 0.07, length, (0, -0.4, z), "M_Metal", rot=ALONG_X)
+        spans = _free_spans(-length / 2, length / 2, z - 0.1, z + 0.1, hole)
+        for x0, x1 in spans:
+            cyl(m, 0.07, x1 - x0, ((x0 + x1) / 2, -0.4 - dt / 2, z), "M_Metal", rot=ALONG_X)
         for x in (-length / 2 + 0.4, length / 2 - 0.4):
-            cube(m, (0.08, 0.16, 0.08), (x, -0.32, z), "M_RobotDark")
+            if any(x0 <= x <= x1 for x0, x1 in spans):
+                cube(m, (0.08, 0.16, 0.08), (x, -0.32 - dt / 2, z), "M_RobotDark")
         a.meta["pipe"] = True
-    if p.bool("stripes", 0.2, warning=True):
-        stripes(m, length * 0.9, (0, -0.29, 0.125), count=int(length * 2), width=0.02, height=0.2)
+    if p.bool("stripes", 0.2, warning=True) and (hole is None or hole["z0"] > 0.3):
+        stripes(m, length * 0.9, (0, -0.29 - dt / 2, 0.125), count=int(length * 2), width=0.02, height=0.2)
+    if hole is not None:
+        a.meta["opening"] = {k: v for k, v in hole.items() if k not in ("clear", "length")}
+
+
+def _free_spans(x0, x1, z0, z1, hole):
+    """Parts of [x0, x1] a horizontal strip at z0..z1 can cover without crossing the opening (+10 cm)."""
+    if hole is None or z1 <= hole["z0"] - 0.1 or z0 >= hole["z1"] + 0.1:
+        return [(x0, x1)]
+    spans = [(x0, min(x1, hole["x0"] - 0.1)), (max(x0, hole["x1"] + 0.1), x1)]
+    return [(a, b) for a, b in spans if b - a > 0.15]
+
+
+def _wall_hole(p, opening, length, h):
+    """Rectangle of the opening (x0, x1, z0, z1) and the wall length it needs (the 2 m grid, at least)."""
+    x = p.option("opening_x")
+    if opening == "door":
+        style = p.option("door_style")
+        w, oh = door_frame_outer(style, p.option("door_width"), p.option("door_height"))
+        z0, z1, extra = 0.0, oh, {"door_style": style, "door_width": p.option("door_width"),
+                                  "door_height": p.option("door_height")}
+    elif opening == "window":
+        w = p.option("window_width")
+        z0 = p.option("window_sill")
+        z1, extra = z0 + p.option("window_height"), {}
+    else:
+        r = p.option("duct_radius")
+        w = max(0.15, 2 * r * 1.4)  # room for the pipe and its flange
+        zc = p.option("duct_height")
+        z0, z1, extra = zc - w / 2, zc + w / 2, {"duct_radius": r, "duct_height": zc}
+    z1 = min(z1, h - 0.3)  # keep the lintel and the top trim
+    z0 = max(z0, 0.0 if opening == "door" else 0.3)
+    need = w + 0.4
+    full = max(length, 2.0 * math.ceil(need / 2.0 - 1e-9))
+    x = max(-full / 2 + 0.2 + w / 2, min(full / 2 - 0.2 - w / 2, x))
+    hole = {"kind": opening, "x0": x - w / 2, "x1": x + w / 2, "z0": z0, "z1": z1, "length": full,
+            "center_x": x, "width": round(w, 4), "height": round(z1 - z0, 4), **extra}
+    hole["clear"] = lambda a0, a1, b0, b1: a1 <= hole["x0"] - 0.1 or a0 >= hole["x1"] + 0.1 or \
+        b1 <= hole["z0"] - 0.1 or b0 >= hole["z1"] + 0.1
+    return hole
+
+
+def _wall_with_hole(a, m, mat, length, h, t, hole):
+    """Wall body around the opening: separate blocks, framed opening, own colliders (the opening stays free)."""
+    x0, x1, z0, z1 = hole["x0"], hole["x1"], hole["z0"], hole["z1"]
+    blocks = [(-length / 2, x0, 0.0, h), (x1, length / 2, 0.0, h), (x0, x1, 0.0, z0), (x0, x1, z1, h)]
+    for bx0, bx1, bz0, bz1 in blocks:
+        if bx1 - bx0 > 1e-6 and bz1 - bz0 > 1e-6:
+            cube(m, (bx1 - bx0, t, bz1 - bz0), ((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2), mat, bevel=0.03)
+            a.collider((bx1 - bx0, t, bz1 - bz0), ((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2))
+    for tx0, tx1 in ((-length / 2, x0), (x1, length / 2)) if z0 < 0.25 else ((-length / 2, length / 2),):
+        if tx1 - tx0 > 1e-6:  # base trim, interrupted by a door
+            cube(m, (tx1 - tx0, t + 0.06, 0.25), ((tx0 + tx1) / 2, 0, 0.125), "M_RobotDark", bevel=0.01)
+    cube(m, (length, t + 0.10, 0.15), (0, 0, h - 0.05), "M_RobotDark", bevel=0.01)
+    w, oh, cx = x1 - x0, z1 - z0, (x0 + x1) / 2
+    for s in (-1, 1):  # dark frame around the opening, front and back (outside the opening)
+        if z0 > 0:
+            cube(m, (w + 0.12, 0.06, 0.06), (cx, s * (t / 2 + 0.03), z0 - 0.03), "M_RobotDark")
+        cube(m, (w + 0.12, 0.06, 0.06), (cx, s * (t / 2 + 0.03), z1 + 0.03), "M_RobotDark")
+        for x in (x0 - 0.03, x1 + 0.03):
+            cube(m, (0.06, 0.06, oh), (x, s * (t / 2 + 0.03), (z0 + z1) / 2), "M_RobotDark")
+    if hole["kind"] == "window":
+        glass = a.part("Glass")
+        cube(glass, (w, 0.04, oh), (cx, 0, (z0 + z1) / 2), "M_Glass")
+        cube(m, (w, 0.3, 0.05), (cx, -t / 2 - 0.04, z0 + 0.025), "M_Metal")  # sill board in front
+        a.collider((w, 0.04, oh), (cx, 0, (z0 + z1) / 2), part="Glass")
 
 
 @model("pillar", "Pillar", "environment", "Square pillar with base, cap, glow strips and warning band",
