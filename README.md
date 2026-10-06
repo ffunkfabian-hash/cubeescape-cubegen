@@ -40,7 +40,7 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 ## Voraussetzungen
 
 * Python ≥ 3.9 (keine weiteren Pakete)
-* [Blender](https://www.blender.org) ≥ 3.6 (getestet mit 4.0) – wird über `PATH`, `$BLENDER`, `--blender` oder
+* [Blender](https://www.blender.org) ≥ 3.6 (getestet mit 4.0 und 5.2 LTS) – wird über `PATH`, `$BLENDER`, `--blender` oder
   `/Applications/Blender.app/...` gefunden
 * [ImageMagick](https://imagemagick.org) 6 (`convert`/`montage`) oder 7 (`magick`)
 
@@ -218,14 +218,17 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
 * **Neue Details ohne alte Seeds zu ändern**: Ein Builder würfelt Neues aus einem eigenen Strom,
   `a.sub("name")`, statt aus `rng`. Sonst würden alle späteren Würfe verrutschen.
 * **`python -m cubegen check`** meldet pro Typ die Dreiecke gegen das Budget der Kategorie, Draw Calls,
-  flackernde Flächen (Z-Fighting) und wie viele Varianten sich wirklich unterscheiden. Bekannte flackernde
-  Flächen bestehender Typen stehen in `tests/quality_baseline.json`. Sie zu beheben würde deren Seeds ändern, also
-  passiert das nur bewusst; schlimmer werden darf es nicht, neue Typen dürfen keine haben.
+  flackernde Flächen (Z-Fighting) und wie viele Varianten sich wirklich unterscheiden. Flackernde Flächen gibt es
+  keine: Liegt ein Detail (Streifen, Glow-Leiste, Paneel) bündig auf einer anderen Fläche, hebt der Generator die
+  kleinere Fläche um 2 mm an. Draw Calls: höchstens 16 pro Modell, bei Modellen aus vielen einzeln beweglichen
+  Teilen (Platten, Beine, Rollen) 2 pro Teil + 2; statische Modelle zählen ein Material einmal (Static Batching).
+  Die Tests prüfen beides für alle Typen und Zustände.
 * Absichtlich ein Modell geändert? `python3 tests/golden_cases.py --update` schreibt beide Referenzdateien neu
   (und in den CHANGELOG gehört, welche Seeds anders aussehen).
-* **Unity-Vertrag**: `cubegen/contract.py` prüft jeden Sidecar mit den Regeln des Spiel-Imports
-  (`Docs/CUBEGEN_IMPORT.md`) und, wo es eine gibt, gegen die echte FBX. Die Tests exportieren alle Typen
-  und alle Kits als FBX und prüfen sie damit.
+* **Unity-Vertrag**: `cubegen/contract.py` prüft bei jedem Export jeden Sidecar mit den Regeln des Spiel-Imports
+  (`Docs/CUBEGEN_IMPORT.md`), bevor Blender startet, und danach gegen die echte FBX. Ein Verstoß bricht den
+  Export mit allen Fundstellen ab; offene Item-IDs stehen als Hinweis im Log. Einen fertigen Export-Ordner prüft
+  `python -m cubegen check --export <Ordner>`.
 * **Item-IDs**: `--param keycard.item_id=<ID>` schreibt `ItemPickup.fields.itemId`; cubegen erfindet keine IDs.
 
 ## Animation & Unity-Scripts
@@ -358,79 +361,142 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `--damage` | intact / damaged / destroyed | Zustand, siehe „Zerstörung & Ruinen“ |
 | `--icon-angle`, `--icon-zoom` | z. B. `=-25,15`, 1.3 | Kamera für Previews und Icons (Azimut, Elevation wie die `ICONS`-Tabelle des Spiels) |
 
-**Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich)
+**Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich; alle Typen, erzeugt mit
+`python3 tools/param_table.py --write`)
 
+<!-- params:begin -->
 | Typ | Parameter (Wertebereich; 🔗 = Wert für ein Unity-Script) |
 |---|---|
-| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗 |
-| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein) |
-| `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `underside` (frustum / keel), `stripes` (ja/nein) |
-| `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein) |
-| `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
-| `machine` | `width` (0.5–5), `depth` (0.5–5), `height` (0.5–4), `warning_band` (ja/nein), `top` (pistons / stack), `flywheel` (ja/nein), `status` (off / on), `rotor_speed` (0–2000) 🔗 |
-| `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000) 🔗 |
-| `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
-| `vent` | `width` (0.3–4), `height` (0.3–3), `mount_height` (0.2–3), `fan` (ja/nein), `stripes` (ja/nein), `fan_speed` (0–2000) 🔗 |
-| `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
-| `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
-| `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
-| `item` | `kind` (energy_cell / battery / data_chip / fuse), `spin` (0–360) 🔗 |
-| `broken_wall` | `length` (2.0 / 4.0), `remaining` (0.1–1), `hole` (ja/nein), `rebar` (ja/nein) |
-| `cable_mess` | `cables` (1–12), `sparks` (ja/nein) |
-| `crate_pile` | `count` (1–12), `broken` (ja/nein) |
-| `fallen_pillar` | `width` (0.2–2), `segments` (1–5), `stump` (ja/nein) |
-| `girders` | `count` (1–8), `length` (0.5–8) |
-| `rubble_pile` | `radius` (0.3–5), `height` (0.2–3), `chunks` (3–60), `plates` (ja/nein), `rebar` (ja/nein), `cable` (ja/nein) |
-| `scrap_heap` | `radius` (0.3–5), `height` (0.2–3), `pieces` (3–50), `gears` (ja/nein) |
-| `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
-| `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
-| `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
-| `server_rack` | `width` (0.3–3), `depth` (0.3–3), `height` (0.8–4), `double_sided` (ja/nein), `red_ratio` (0–1) |
-| `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on) |
-| `battery_bank` | `bays` (1–8), `height` (0.6–3), `filled` (0–8), `status` (off / on) |
-| `chip_reader` | `mount_height` (0.5–2.5), `screen` (ja/nein), `keys` (ja/nein), `status` (off / on) |
-| `fuse_box` | `slots` (1–6), `mount_height` (0.5–2.5), `lid_angle` (30–180) 🔗, `warning` (ja/nein), `status` (off / on) |
-| `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on) |
-| `laser_emitter` | `height` (0.3–2), `style` (stand / box), `mode` (Steady / Blink / Pulse) 🔗 |
-| `laser_mirror` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7) 🔗 |
-| `laser_receiver` | `height` (0.3–2.5), `mount` (stand / pillar), `status` (off / on) |
-| `lever` | `style` (lever / dial), `mount_height` (0.4–2.5), `positions` (2–8), `speed` (10–1000) 🔗 |
-| `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3) 🔗, `speed` (10–1000) 🔗 |
-| `pressure_plate` | `size` (0.4–3), `shape` (square / round), `stripes` (ja/nein), `status` (off / on) |
-| `socket` | `kind` (energy_cell / battery), `height` (0.3–1.6), `cables` (ja/nein), `stripes` (ja/nein), `status` (off / on) |
-| `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8) 🔗, `speed` (10–1000) 🔗 |
+| `android` | `pose` (standing / slumped), `height` (1.2–2.4), `visor` (visor / eyes) |
 | `antenna` | `style` (mast / radar / dish), `height` (0.8–6), `speed` (0–360) 🔗 |
-| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse) 🔗 |
-| `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
-| `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein) |
-| `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6), `fan_speed` (0–2000) 🔗 |
-| `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein) |
-| `ladder` | `height` (1–6), `width` (0.3–1), `cage` (ja/nein), `hoops` (ja/nein) |
-| `lift` | `size` (1–3), `travel` (0.5–4) 🔗, `speed` (0.1–5) 🔗, `rail` (ja/nein) |
-| `pad` | `kind` (jump / teleport), `radius` (0.4–2), `mode` (Steady / Pulse / Blink) 🔗, `speed` (0–720) 🔗 |
-| `stairs` | `style` (stairs / ramp), `width` (0.6–4), `rise` (0.4–3), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein) |
-| `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
-| `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–2.0), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
-| `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000) 🔗 |
+| `balance_scale` | `width` (0.6–2.4), `height` (0.8–2), `tilt` (3–30, Standard 12) 🔗, `status` (off / on, Standard off) |
 | `barrier` | `style` (gate / jersey / cones), `width` (0.8–4), `lights` (ja/nein) |
-| `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180 bis 180) |
+| `battery_bank` | `bays` (1–8), `height` (0.6–3), `filled` (0–8), `status` (off / on, Standard off) |
+| `bed` | `style` (cot / bunk / medical), `length` (1.6–2.4), `blanket` (ja/nein), `lamp` (ja/nein) |
+| `bin` | `style` (round / square / recycling / hazard), `height` (0.3–1.4), `open` (ja/nein), `trash` (ja/nein) |
+| `breakable_platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `tiles` (2 / 3), `cracks` (1–10), `weak_spots` (ja/nein), `supports` (ja/nein) |
+| `broken_wall` | `length` (2.0 / 4.0), `remaining` (0.1–1), `hole` (ja/nein), `rebar` (ja/nein) |
+| `bulkhead` | `style` (frame / chamfer / ring), `width` (1.2–6), `height` (2–4.5), `pipes` (ja/nein), `stripes` (ja/nein) |
+| `button` | `style` (push / emergency / row), `count` (2–6), `mount_height` (0.5–2.5), `guard` (ja/nein), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `cable_mess` | `cables` (1–12), `sparks` (ja/nein) |
+| `cable_plug` | `sockets` (1–6), `cable_length` (0.2–1.5), `mount_height` (0.8–2.5), `status` (off / on, Standard off) |
+| `cable_reel` | `radius` (0.06–0.25), `spool` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
+| `cage` | `width` (0.8–3), `depth` (0.8–3), `height` (1.2–3), `door_angle` (30–170, Standard 100) 🔗, `status` (off / on, Standard off) |
+| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
+| `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
+| `cargo_container` | `length` (4.0 / 6.0), `width` (2–3.2), `height` (2.4–3.4), `ribs` (ja/nein), `speed` (10–720, Standard 90) 🔗, `interactive` (ja/nein) 🔗 |
+| `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1) |
+| `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6, Standard 3), `fan_speed` (0–2000, Standard 200) 🔗 |
+| `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180–180) |
+| `chip_reader` | `mount_height` (0.5–2.5), `screen` (ja/nein), `keys` (ja/nein), `status` (off / on, Standard off) |
+| `clue` | `kind` (tablet / note / datapad / audio_log), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `coffee_machine` | `style` (counter / standing), `cups` (0–4) |
+| `combination_lock` | `dials` (3–5), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
+| `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000, Standard 180) 🔗 |
+| `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
+| `crate_pile` | `count` (1–12), `broken` (ja/nein) |
+| `crusher` | `width` (0.8–3), `height` (1.4–3.5), `teeth` (ja/nein), `speed` (0.2–20, Standard 6) 🔗 |
 | `cryo_pod` | `pose` (standing / lying), `length` (1.6–3), `occupied` (ja/nein), `frost` (ja/nein) |
+| `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
+| `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
+| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗 |
+| `drone` | `rotors` (2 / 3 / 4), `size` (0.3–1.5), `tool` (none / claw / spotlight), `rotor_speed` (0–3000, Standard 1440) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `extinguisher` | `height` (0.3–1), `holder` (none / stand / cabinet) |
-| `gas_rack` | `bottles` (1–6), `height` (0.6–1.8), `cage` (ja/nein) |
-| `keycard` | `kind` (card / fob / key), `spin` (0–360) 🔗 |
-| `locker` | `count` (1–4), `height` (1.2–2.4), `open` (ja/nein), `bench` (ja/nein) |
-| `medkit` | `style` (box / cabinet), `mount_height` (0.5–2.5), `cross` (red / cyan / white) |
-| `pallet` | `size` (euro / square), `load` (none / crates / sacks / canisters), `straps` (ja/nein) |
-| `shelf` | `width` (0.6–3), `height` (0.8–3), `levels` (2–5), `fill` (0–1) |
-| `sign` | `symbol` (warning / arrow / exit / electric / number), `size` (0.2–1.5), `mount_height` (0.5–3.5), `lit` (ja/nein) |
-| `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
-| `workbench` | `width` (1–3), `pegboard` (ja/nein), `vise` (ja/nein), `lamp` (ja/nein) |
-| `drone` | `rotors` (2 / 3 / 4), `size` (0.3–1.5), `tool` (none / claw / spotlight), `rotor_speed` (0–3000) 🔗, `mode` (Steady / Pulse / Blink) 🔗 |
-| `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180) 🔗 |
-| `service_robot` | `drive` (wheels / treads / hover), `height` (0.5–2.2), `arms` (0 / 1 / 2), `antenna` (ja/nein), `head_speed` (0–180) 🔗 |
+| `fallen_pillar` | `width` (0.2–2), `segments` (1–5), `stump` (ja/nein) |
+| `fan` | `style` (stand / box), `radius` (0.2–1.5), `guard` (ja/nein), `speed` (0–2000, Standard 360) 🔗 |
+| `flashlight` | `kind` (torch / lantern), `length` (0.12–0.45), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `floating_island` | `radius` (0.8–3.5), `depth` (0.6–4), `crystals` (0–10), `glow` (ja/nein) |
-| `hanging_crystals` | `mount_height` (2–6), `crystals` (1–12), `length` (0.3–1.8) |
+| `floor_grate` | `size` (1.0 / 2.0), `depth` (0.2–1.5), `content` (pipes / cables / both), `lights` (ja/nein) |
+| `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein) |
+| `fluid_basin` | `width` (1–8), `depth` (1–8), `rim_height` (0.3–1.5), `fill` (0.1–0.95), `fluid` (water / mud / toxic), `inlet` (ja/nein), `outlet` (ja/nein), `pipe_radius` (0.09 / 0.18 / 0.35, Standard 0.09), `outlet_height` (0.1–2.5) |
+| `force_field` | `style` (field / lasers), `width` (0.8–5), `height` (1.2–4), `speed` (0.1–20, Standard 6) 🔗 |
+| `freq_dial` | `knobs` (1–3), `step` (15 / 30 / 45, Standard 30) 🔗, `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `fuse_box` | `slots` (1–6), `mount_height` (0.5–2.5), `lid_angle` (30–180, Standard 110) 🔗, `warning` (ja/nein), `status` (off / on, Standard off) |
+| `gas_rack` | `bottles` (1–6), `height` (0.6–1.8), `cage` (ja/nein) |
+| `gear_puzzle` | `gears` (2–5), `missing` (ja/nein), `crank` (ja/nein), `mount_height` (0.6–2.5), `speed` (0–720, Standard 60) 🔗, `status` (off / on, Standard off) |
+| `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
+| `girders` | `count` (1–8), `length` (0.5–8) |
+| `hanging_crystals` | `mount_height` (2–6, Standard 3), `crystals` (1–12), `length` (0.3–1.8) |
+| `hatch` | `shape` (square / round), `size` (0.6–2), `ladder` (ja/nein), `lid_angle` (30–180, Standard 110) 🔗, `status` (off / on, Standard off) |
+| `hologram` | `style` (table / pedestal), `kind` (globe / station / cube), `radius` (0.3–1.5), `speed` (0–360, Standard 20) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
+| `hydroponic_bed` | `length` (0.8–4), `tiers` (1–3), `lamp` (ja/nein) |
+| `intercom` | `style` (audio / video), `mount_height` (0.8–2.2), `mode` (Steady / Pulse / Blink, Standard Blink) 🔗 |
+| `item` | `kind` (energy_cell / battery / data_chip / fuse), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `key` | `style` (bit / modern / tubular), `length` (0.06–0.3), `tag` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `keycard` | `kind` (card / fob / key), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on, Standard off) |
+| `ladder` | `height` (1–6), `width` (0.3–1), `cage` (ja/nein), `hoops` (ja/nein) |
+| `laser_emitter` | `height` (0.3–2), `style` (stand / box), `mode` (Steady / Blink / Pulse, Standard Steady) 🔗 |
+| `laser_mirror` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7, Standard 1) 🔗 |
+| `laser_receiver` | `height` (0.3–2.5), `mount` (stand / pillar), `status` (off / on, Standard off) |
+| `laser_splitter` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7, Standard 0) 🔗 |
+| `lever` | `style` (lever / dial), `mount_height` (0.4–2.5), `positions` (2–8), `speed` (10–1000, Standard 120) 🔗 |
+| `lift` | `size` (1–3), `travel` (0.5–4) 🔗, `speed` (0.1–5, Standard 1) 🔗, `rail` (ja/nein) |
+| `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
+| `locker` | `count` (1–4), `height` (1.2–2.4), `open` (ja/nein), `bench` (ja/nein) |
+| `machine` | `width` (0.5–5), `depth` (0.5–5), `height` (0.5–4), `warning_band` (ja/nein), `top` (pistons / stack), `flywheel` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
+| `medkit` | `style` (box / cabinet), `mount_height` (0.5–2.5), `cross` (red / cyan / white) |
+| `monitor_wall` | `columns` (1–4), `rows` (1–3), `screen` (0.3–1.2), `mount_height` (1–3), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
+| `mushroom` | `count` (1–8), `height` (0.2–3), `spots` (ja/nein) |
+| `pad` | `kind` (jump / teleport), `radius` (0.4–2), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗, `speed` (0–720, Standard 90) 🔗 |
+| `pallet` | `size` (euro / square), `load` (none / crates / sacks / canisters), `straps` (ja/nein) |
+| `phase_platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `anchors` (pylons / pedestal / brackets), `pattern` (grid / rings / plain), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
+| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein) |
+| `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000, Standard 180) 🔗 |
+| `pipe_bend` | `kind` (elbow / elbow_up / tee / cross), `radius` (0.09 / 0.18 / 0.35), `arm` (0.5 / 1.0), `axis_height` (0.2–3), `support` (ja/nein) |
+| `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3, Standard 0) 🔗, `speed` (10–1000, Standard 240) 🔗 |
+| `plant` | `kind` (fern / bulbs / spikes), `pot` (round / square / none), `height` (0.3–2.5) |
+| `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `underside` (frustum / keel), `stripes` (ja/nein) |
+| `portal_frame` | `mount` (wall / floor), `width` (0.6–6), `height` (0.6–6), `frame_style` (airlock / blast / elevator / heavy / security / sliding), `surface` (panel / glow), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
+| `pressure_plate` | `size` (0.4–3), `shape` (square / round), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `pump` | `size` (0.1–0.6), `outlet` (up / side), `guard` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–3000, Standard 720) 🔗 |
+| `railing` | `length` (1.0 / 2.0 / 4.0), `height` (0.8–1.4), `style` (bars / rails / glass), `kick` (ja/nein), `glow` (ja/nein) |
+| `reactor_core` | `radius` (0.4–1.8), `height` (1.5–5), `pillars` (3–8), `pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–720, Standard 30) 🔗 |
+| `retractable_bridge` | `length` (2.0 / 4.0), `width` (0.8–3), `rails` (ja/nein), `speed` (0.1–5, Standard 0.8) 🔗, `starts_open` (ja/nein) 🔗 |
+| `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180, Standard 0) 🔗 |
 | `rock` | `size` (0.3–4), `boulders` (1–8), `spire` (ja/nein), `crystals` (0–8) |
+| `rubble_pile` | `radius` (0.3–5), `height` (0.2–3), `chunks` (3–60), `plates` (ja/nein), `rebar` (ja/nein), `cable` (ja/nein) |
+| `safe` | `lock` (dial / keypad), `height` (0.4–1.8), `door_angle` (30–180, Standard 100) 🔗, `code` (0–9, Standard 7) 🔗, `status` (off / on, Standard off) |
+| `saw_blade` | `radius` (0.2–1), `length` (0.6–4), `teeth` (6–24), `speed` (0–2000, Standard 720) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
+| `scanner` | `kind` (hand / retina / card), `mount_height` (0.6–2.5), `screen` (ja/nein), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗, `status` (off / on, Standard off) |
+| `scrap_heap` | `radius` (0.3–5), `height` (0.2–3), `pieces` (3–50), `gears` (ja/nein) |
+| `server_rack` | `width` (0.3–3), `depth` (0.3–3), `height` (0.8–4), `double_sided` (ja/nein), `red_ratio` (0–1) |
+| `service_robot` | `drive` (wheels / treads / hover), `height` (0.5–2.2), `arms` (0 / 1 / 2), `antenna` (ja/nein), `head_speed` (0–180, Standard 0) 🔗 |
+| `shelf` | `width` (0.6–3), `height` (0.8–3), `levels` (2–5), `fill` (0–1) |
+| `shock_plate` | `size` (0.6–4), `coils` (ja/nein), `stripes` (ja/nein), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
+| `shutter` | `style` (roller / grille), `width` (1–6), `height` (1.6–4), `speed` (0.1–10, Standard 1) 🔗 |
+| `sign` | `symbol` (warning / arrow / exit / electric / number), `size` (0.2–1.5), `mount_height` (0.5–3.5), `lit` (ja/nein) |
+| `sliding_puzzle` | `grid` (3 / 4), `tile` (0.08–0.3), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `socket` | `kind` (energy_cell / battery), `height` (0.3–1.6), `cables` (ja/nein), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `spare_part` | `kind` (gear / lens / crystal / valve_wheel / coil), `size` (0.08–0.4), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `spider_bot` | `legs` (4 / 6), `size` (0.2–1.5), `sensor` (none / antenna / dish), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
+| `spike_trap` | `size` (0.6–4), `spike_height` (0.2–1.2), `spacing` (0.15–0.6), `speed` (0.1–20, Standard 4) 🔗, `starts_open` (ja/nein) 🔗 |
+| `spiral_stairs` | `radius` (0.7–2), `rise` (1.5–5), `turn` (270 / 360 / 450), `rail` (ja/nein), `glow` (ja/nein) |
+| `stairs` | `style` (stairs / ramp), `width` (0.6–4), `rise` (0.4–3), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein), `layout` (straight / landing / quarter / switchback, Standard straight) |
+| `stalagmite` | `kind` (cluster / column / crystal), `height` (0.4–4), `count` (1–7) |
+| `steam_vent` | `style` (grate / pipe), `size` (0.3–1.5), `valve` (ja/nein), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
+| `switch_panel` | `switches` (2–8), `rows` (1 / 2), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `table` | `style` (table / desk / round / lab), `width` (0.6–3), `clutter` (ja/nein) |
+| `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
+| `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on, Standard off) |
+| `tool` | `kind` (wrench / crowbar / pliers / screwdriver), `length` (0.15–0.9), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
+| `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |
+| `transformer` | `width` (0.6–3), `height` (0.6–2.5), `bushings` (1–6), `conservator` (ja/nein), `status` (off / on, Standard off) |
+| `turntable` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (round / square), `arrow` (ja/nein), `step` (45 / 90, Standard 90) 🔗, `speed` (10–720, Standard 90) 🔗, `target` (0–7, Standard 1) 🔗, `interactive` (ja/nein) 🔗 |
+| `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (0–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
+| `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8, Standard 2) 🔗, `speed` (10–1000, Standard 180) 🔗 |
+| `vending_machine` | `width` (0.7–1.4), `rows` (3–6), `lit` (ja/nein) |
+| `vent` | `width` (0.3–4), `height` (0.3–3), `mount_height` (0.2–3), `fan` (ja/nein), `stripes` (ja/nein), `fan_speed` (0–2000, Standard 160) 🔗 |
+| `vent_shaft` | `kind` (straight / corner / tee / cross / end), `inner` (0.6–2), `length` (1.0 / 2.0), `glow` (ja/nein), `grille` (ja/nein) |
+| `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5), `opening` (none / door / window / pipe, Standard none), `opening_x` (-4–4, Standard 0), `door_style` (airlock / blast / elevator / heavy / security / sliding, Standard sliding), `door_width` (0.6–8, Standard 2), `door_height` (1.2–8, Standard 2.6), `window_width` (0.4–3.6, Standard 1.6), `window_height` (0.4–2.5, Standard 1.2), `window_sill` (0.2–2, Standard 1), `duct_radius` (0.05–0.5, Standard 0.18), `duct_height` (0.2–2.6, Standard 0.6) |
+| `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
+| `wall_panel` | `length` (2.0 / 4.0), `style` (consoles / pipes / cabinets / panels), `stripes` (ja/nein) |
+| `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–2), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
+| `workbench` | `width` (1–3), `pegboard` (ja/nein), `vise` (ja/nein), `lamp` (ja/nein) |
+<!-- params:end -->
 
 Bedingte Parameter wirken nur, wenn das Teil existiert (z. B. `machine.rotor_speed` nur mit Schwungrad; mit
 `machine.flywheel=true` erzwingst du es). In Rezepten stehen sie unter `"params"` und `"style"`:

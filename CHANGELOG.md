@@ -2,6 +2,50 @@
 
 ## Unveröffentlicht
 
+### Unity-Prüfung bei jedem Export
+
+* `cubegen/contract.py` lief bisher nur in den Tests. Jetzt prüft `generate` alle Sidecars mit den Regeln des
+  Unity-Imports, bevor Blender startet: Ein Verstoß bricht den Export mit allen Fundstellen ab, offene Item-IDs
+  stehen als Hinweis im Log. Nach dem Export wird jede FBX gegen ihren Sidecar geprüft (Pivots, Bounds).
+* Neu: `python -m cubegen check --export <Ordner>` prüft einen fertigen Export-Ordner (Fehlercode 1 bei Fehlern).
+
+### Keine flackernden Flächen mehr
+
+* Liegt ein Detail (Warnstreifen, Glow-Leiste, Paneel, Rahmen) bündig auf einer anderen Fläche mit anderem
+  Material oder an einem anderen Teil, hebt `generate_asset` die kleinere Fläche um 2 mm entlang ihrer Normale an
+  (`quality.fix_z_fighting`). Danach: 0 flackernde Flächen in allen 129 Typen, intakt, beschädigt, zerstört, mit
+  Abnutzung und in allen Detailstufen. Abnutzung verändert das Modell weiterhin nicht.
+* **Geänderte Modelle** (Aussehen gleich, Vertices um 2 mm verschoben, die Dateien ändern sich): die 50 Typen, die
+  0.9.0 mit flackernden Flächen gemeldet hat - `balance_scale`, `battery_bank`, `bed`, `bin`, `broken_wall`,
+  `bulkhead`, `button`, `cable_plug`, `cable_tray`, `cage`, `camera`, `console`, `crate`, `crate_pile`,
+  `cryo_pod`, `door`, `drone`, `extinguisher`, `fallen_pillar`, `floor_grate`, `force_field`, `gear_puzzle`,
+  `hatch`, `hydroponic_bed`, `keycard`, `ladder`, `laser_mirror`, `laser_splitter`, `lift`, `locker`, `medkit`,
+  `pad`, `pipe_fitting`, `plant`, `pump`, `scanner`, `service_robot`, `shutter`, `socket`, `spiral_stairs`,
+  `steam_vent`, `table`, `tool_cart`, `valve`, `vending_machine`, `vent_shaft`, `wall`, `wall_panel`,
+  `window_wall`, `workbench` - und einzelne beschädigte, zerstörte oder abgenutzte Varianten weiterer Typen.
+
+### Draw Calls
+
+* Bewegliche Teile mit drei Materialien haben jetzt zwei: Die Punkte der Schiebeplatten (`sliding_puzzle`) tragen
+  die Zeilenfarbe, die Hüften von `spider_bot` das dunkle Material der Beine, Risse auf einer markierten
+  Bruchplatte (`breakable_platform`) die Warnfarbe. Diese drei Typen sehen dadurch leicht anders aus.
+* Das Budget berücksichtigt, dass einzeln bewegliche Teile in Unity nicht zusammengefasst werden können:
+  16 pro Modell oder 2 pro Teil + 2, Abnutzung kommt hinzu; statische Modelle zählen ein Material einmal (Static
+  Batching). Kein Typ überschreitet es, in keinem Zustand.
+
+### `window_wall` und `wall_corner` folgen den Familien
+
+* Neue Parameter `height` und `thickness` (wie bei `wall`; ohne Angabe bitgleich wie bisher), `window_wall.sill`
+  bis 2 m, die Fensteroberkante folgt der Wandhöhe. `wall_height`, `wall_thickness` und `window_sill` der Familie
+  gelten jetzt auch für sie, `foundry` (4 m) und `lab` (0,3 m) können sie verwenden.
+* Jedes Kit hat eine Eckwand (`wall_corner`, Anschlüsse an den Wandseiten; Passungsprüfung ohne Befund).
+
+### Add-on und Doku
+
+* Add-on: „Von jedem Typ“ und „Alle Typen exportieren“ zählen nur Typen, die zur gewählten Familie passen.
+* README: Parametertabelle aller Typen, erzeugt aus der Registry (`tools/param_table.py --write`; ein Test meldet,
+  wenn sie veraltet); Blender „getestet mit 4.0 und 5.2 LTS“.
+
 ### Behoben: Luftschleuse öffnet sich in Unity nicht
 
 * Bei `door` Stil `airlock` (oben/unten geteilt) stand das untere Blatt zuerst in `panels`. Unity bewegt das

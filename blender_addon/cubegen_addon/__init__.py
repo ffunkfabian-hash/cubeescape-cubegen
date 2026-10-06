@@ -347,10 +347,22 @@ def _grid_params():
     return result
 
 
+_MISFIT_CACHE = {}
+
+
 def _family_misfits(s):
     """{type: reason} for the types that can't follow the chosen family's measures."""
     family = _family(s)
-    return families.misfits(family.get("dims", {}), _all_types()) if family else {}
+    if not family:
+        return {}
+    if s.family not in _MISFIT_CACHE:
+        _MISFIT_CACHE[s.family] = families.misfits(family.get("dims", {}), _all_types())
+    return _MISFIT_CACHE[s.family]
+
+
+def _type_count(s):
+    """Types „Von jedem Typ“ builds: all, without the ones that can't follow the chosen family."""
+    return len(_all_types()) - len(_family_misfits(s))
 
 
 def all_type_entries(s):
@@ -672,7 +684,7 @@ class CUBEGEN_OT_all_types(bpy.types.Operator):
         except ValueError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
-        msg = f"{len(entries)} Modelle gebaut ({len(_all_types()) - len(skipped)} Typen × {s.per_type})"
+        msg = f"{len(entries)} Modelle gebaut ({_type_count(s)} Typen × {s.per_type})"
         if skipped:
             msg += f"; passen nicht zur Familie {s.family}: {', '.join(sorted(skipped))}"
         self.report({"INFO"}, msg)
@@ -1019,7 +1031,7 @@ class CUBEGEN_PT_grid(_Panel, bpy.types.Panel):
         layout.separator()
         row = layout.row(align=True)
         row.prop(s, "per_type")
-        row.operator("cubegen.all_types", text=f"Von jedem Typ ({len(_all_types())} × {s.per_type})",
+        row.operator("cubegen.all_types", text=f"Von jedem Typ ({_type_count(s)} × {s.per_type})",
                      icon="MOD_ARRAY")
         layout.label(text="Gute Varianten im Viewport anklicken (Shift = mehrere)", icon="INFO")
 
@@ -1063,7 +1075,7 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         n = len(selected_variants(context))
         op = col.operator("cubegen.export", text=f"Auswahl exportieren ({n})", icon="EXPORT")
         op.mode = "SELECTED"
-        total = len(_all_types()) * s.per_type
+        total = _type_count(s) * s.per_type
         op = col.operator("cubegen.export", text=f"Alle Typen exportieren ({total})", icon="EXPORT")
         op.mode = "ALL"
         if s.status:

@@ -130,6 +130,15 @@ class StyleTests(unittest.TestCase):
             machine = generate_asset("machine", seed, style=Style(glow="cyan"))
             self.assertEqual(set(machine.get("Glow").mesh.roles), {"M_GlowRed"})
 
+    def test_readme_lists_every_parameter(self):
+        # README.md's table is generated from the registry: python3 tools/param_table.py --write
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+        import param_table
+
+        with open(param_table.README, encoding="utf-8") as fh:
+            self.assertEqual(param_table.readme_table(fh.read()), param_table.table(),
+                             "README parameter table is outdated: python3 tools/param_table.py --write")
+
     def test_detail_and_wear(self):
         for t in model_types():
             low = generate_asset(t, 2, style=Style(detail="low")).stats()["triangles"]

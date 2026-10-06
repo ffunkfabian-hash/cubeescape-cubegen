@@ -5,39 +5,39 @@ Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste
 
 ## 1. Bekannte Bugs
 
-**Offen**
+Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
 
-1. **Unity-Prüfung läuft nicht beim Export.** `cubegen/contract.py` wird nur in den Tests aufgerufen, nicht in
-   `generate`. Changelog und `docs/UNITY_INTEGRATION.md` sagen aber, jeder Sidecar werde vor dem Export geprüft.
-   Mit eigenen Parametern oder einer Familie kann ein Modell entstehen, das Unity ablehnt, ohne Warnung.
-2. **Flackernde Flächen (Z-Fighting) bei 50 Typen**, am stärksten `door` (1,26 m² am `Frame_Top`),
-   `vent_shaft` (58 Paare), `window_wall` (44), `hydroponic_bed` (24), `floor_grate` (18).
-3. **Zu viele Draw Calls (über 16):** `sliding_puzzle` 48, `spider_bot` 23, `conveyor` 21,
-   `breakable_platform` 18, `switch_panel` 17.
-4. **`window_wall` und `wall_corner` passen nicht zu `foundry` und `lab`:** feste Maße (3 m hoch, 0,5 m dick,
-   Brüstung höchstens 1,5 m).
-5. **Add-on:** „Von jedem Typ (129 × n)“ zählt Typen mit, die nicht zur gewählten Familie passen.
-6. **Doku veraltet:** README nennt „getestet mit Blender 4.0“ (im Einsatz: 5.2.2); die Parametertabelle im
-   README fehlt für Teile der Typen seit 0.7 (`python -m cubegen params` ist vollständig).
-
-**Behoben (Unveröffentlicht)**
-
-* Add-on: Vorschau, Raster und „Kit bauen“ brachen mit Familie `foundry` oder `lab` ab.
-* `door` Stil `airlock`: Die beiden Blätter fuhren in Unity durcheinander hindurch, die Tür blieb zu.
+- [x] **Unity-Prüfung lief nicht beim Export.** `cubegen/contract.py` wurde nur in den Tests aufgerufen.
+  → `generate` prüft jeden Sidecar, bevor Blender startet, und jede FBX danach; neu: `check --export <Ordner>`.
+- [x] **Flackernde Flächen (Z-Fighting) bei 50 Typen**, am stärksten `door` (1,26 m² am `Frame_Top`),
+  `vent_shaft`, `window_wall`, `hydroponic_bed`, `floor_grate`.
+  → Bündig aufliegende Details werden um 2 mm angehoben; 0 flackernde Flächen in allen Typen und Zuständen.
+- [x] **Zu viele Draw Calls (über 16):** `sliding_puzzle` 48, `spider_bot` 23, `conveyor` 21,
+  `breakable_platform` 18, `switch_panel` 17.
+  → Bewegliche Teile mit 3 Materialien haben jetzt 2; Budget 16 oder 2 pro Teil + 2, statisch pro Material.
+- [x] **`window_wall` und `wall_corner` passten nicht zu `foundry` und `lab`** (feste 3 m / 0,5 m, Brüstung
+  höchstens 1,5 m). → Höhe und Dicke als Parameter, Brüstung bis 2 m; alle Kits haben eine Eckwand.
+- [x] **Add-on:** „Von jedem Typ (129 × n)“ zählte Typen mit, die nicht zur gewählten Familie passen.
+  → Zählt und exportiert nur passende Typen.
+- [x] **Doku veraltet:** Blender-Version im README; Parametertabelle unvollständig (60 von 129 Typen fehlten).
+  → „getestet mit 4.0 und 5.2 LTS“; die Tabelle wird aus der Registry erzeugt (`tools/param_table.py`), ein Test
+  hält sie vollständig.
+- [x] Add-on: Vorschau, Raster und „Kit bauen“ brachen mit Familie `foundry` oder `lab` ab.
+- [x] `door` Stil `airlock`: Die beiden Blätter fuhren in Unity durcheinander hindurch, die Tür blieb zu.
 
 ## 2. Verbesserungen am bestehenden System
 
-1. **Unity-Prüfung beim Export** (`check_sidecar` vor dem Schreiben, `check_fbx` danach) und
-   `cubegen check --export <Ordner>` für fertige Exporte (`check_export` gibt es schon). Behebt Bug 1.
-2. **Versionsschalter** (`--generation 2`, Rezept `"generation": 2`): Korrekturen wie für Bug 2 und 3 ohne
-   bestehende Seeds zu verändern; alte Exporte bleiben bitgleich.
-3. **`window_wall` und `wall_corner` mit Höhe, Dicke und Brüstung als Parameter**, damit sie allen Familien
-   folgen. Danach bekommen alle Kits eine Eckwand.
-4. **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
-   und der Unity-Import lesen, statt sie doppelt zu pflegen.
-5. **Blender in der CI:** Die 7 Blender-Tests (Add-on, echter FBX-Export) werden heute übersprungen.
-6. **Add-on:** Typen, die nicht zur gewählten Familie passen, im Typ-Menü kennzeichnen und nicht mitzählen.
-7. **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle.
+- [x] **Unity-Prüfung beim Export** und `cubegen check --export <Ordner>` (mit Bug 1 erledigt).
+- [x] **`window_wall` und `wall_corner` mit Höhe, Dicke und Brüstung als Parameter**, Eckwand in allen Kits
+  (mit Bug 4 erledigt).
+- [x] **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle (mit Bug 6 erledigt).
+- [ ] **Versionsschalter** (`--generation 2`, Rezept `"generation": 2`): künftige Korrekturen, ohne bestehende
+  Seeds zu verändern. (Die Korrekturen für Z-Fighting und Draw Calls haben die betroffenen Modelle geändert,
+  siehe CHANGELOG.)
+- [ ] **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
+  und der Unity-Import lesen, statt sie doppelt zu pflegen.
+- [ ] **Blender in der CI:** Die 7 Blender-Tests (Add-on, echter FBX-Export) werden heute übersprungen.
+- [ ] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, im Typ-Menü kennzeichnen.
 
 ## 3. Erweiterungen
 
@@ -76,7 +76,9 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 1. **Audit-Test aktualisieren:** Er erwartet noch 3 Ablehnungen
    (`CUBEGEN_EXPECT_REJECTED=balance_scale,robot_arm,turret`); diese Pivot-Fehler sind seit 0.8.0 behoben. Mit dem
    aktuellen Stand ohne die Ausnahme neu laufen lassen, erwartet: 0 Ablehnungen.
-2. **Luftschleusen neu importieren**, sobald die Korrektur in `main` ist.
+2. **Neu exportieren und importieren**, sobald die Korrekturen in `main` sind: Luftschleusen (Sidecar) und die
+   Typen, deren Geometrie sich für die flackernden Flächen und Draw Calls um 2 mm bzw. im Material geändert hat
+   (Liste im CHANGELOG). Gleiche Namen, die Prefabs behalten ihre GUIDs.
 3. **8 offene Item-IDs:** `ItemData` für Akku, Datenchip, Sicherung, Keycards, Werkzeuge und Hinweise festlegen,
    dann im Rezept per `item_id` setzen (cubegen erfindet keine IDs).
 
@@ -103,4 +105,6 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 
 13. **Werkbank-Freigabe** neuer Gameplay-Prefabs im `AssetMetadata`-Vertrag.
 14. **LOD-Hüllen prüfen:** Collider nur von LOD0.
-15. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt.
+15. **Statische Library-Prefabs als Static markieren** (Static Batching): Der Draw-Call-Bericht zählt bei
+    statischen Modellen ein Material einmal und geht davon aus.
+16. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt.

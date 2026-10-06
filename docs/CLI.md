@@ -32,7 +32,7 @@ cubegen doctor
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
 | `python3 -m cubegen list` | alle 129 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
-| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits |
+| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
 | `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
 
@@ -321,18 +321,23 @@ Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 python3 -m cubegen check                      # alle Typen, je 10 Varianten von Seed 42
 python3 -m cubegen check --types door,laser_mirror --count 20 --detail high
 python3 -m cubegen check --json > quality.json
+python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger Export gegen den Unity-Vertrag
 ```
 
 | Spalte | Bedeutung |
 |---|---|
 | `tris` / `budget` | höchste Dreieckszahl der Varianten / Budget der Kategorie (bei `--detail high` × 1,5) |
-| `draws` | Draw Calls: Materialien pro Objekt, summiert (`*` = mehr als 16) |
+| `draws` | Draw Calls: Materialien pro Objekt, summiert; statische Modelle: ein Material einmal (`*` = über dem Budget: 16, bei vielen beweglichen Teilen 2 pro Teil + 2) |
 | `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
 | `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
 
-Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen sind
-Warnungen. Sie in bestehenden Typen zu beheben würde deren Seeds verändern; die Tests sorgen dafür, dass es
-nicht schlimmer wird und neue Typen gar keine haben.
+Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen gibt es
+keine mehr: Der Generator hebt bündig aufliegende Details um 2 mm an; die Tests prüfen das für alle Typen und
+Zustände.
+
+`check --export <Ordner>` liest jede `<Name>.cubegen.json` darunter (mit ihrer FBX) und prüft sie wie der
+Unity-Import: Fehler führen zu Fehlercode 1, offene Item-IDs werden nur gemeldet. Der Export selbst prüft das
+schon, bevor er Dateien schreibt.
 
 ## 15. Probleme lösen
 
