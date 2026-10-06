@@ -1,10 +1,12 @@
 # Changelog
 
-## Unveröffentlicht
+## 0.10.0 – 2026-10-06
 
-Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus,
-symmetrisches Schwenken, vier neue Familien mit Requisiten, Zustand `fractured`, Text auf Modellen, Anker für Ton und
-Effekte, 35 neue Typen (jetzt 164).
+Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus mit acht
+Farbpaletten, symmetrisches Schwenken, vier neue Familien mit Requisiten, Zustand `fractured`, Text auf Modellen,
+Anker für Ton und Effekte, 35 neue Typen (jetzt 164). Dazu die Prüfung, dass Collider die Geometrie abdecken,
+Korrekturen an `archway` und `solar_panel` und schnellere Tests. Standard ist Modell-Generation 3; `--generation 1`
+baut die Modelle von 0.9.0 bitgleich nach, `--generation 2` den Stand vor den Ankern.
 
 ### Einrasten im Blender-Add-on
 
@@ -86,6 +88,53 @@ Effekte, 35 neue Typen (jetzt 164).
   dem Boden liegen; die Hülle des Rahmens reichte dann quer durch die Türöffnung. Beschädigte Varianten dieser Typen
   sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
   `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
+
+### Schnellere Tests und CI
+
+* `tools/run_tests.py` teilt die Tests in drei etwa gleich lange Gruppen (`models`, `quality`, `rest`) und startet
+  sie parallel: rund 2 statt 6½ Minuten. `--list` zeigt die Gruppen; ein Testmodul, das keine Gruppe nennt, läuft
+  in `rest`, ein neues geht also nie verloren.
+* Die CI startet pro Python-Version (3.9, 3.11, 3.13) eine Gruppe pro Job, 9 Jobs parallel statt 3 nacheinander
+  laufender Gesamtläufe. Die Jobs heißen jetzt `test (<Python>, <Gruppe>)`.
+
+### Farbpaletten für den Paletten-Modus
+
+* Sieben neue Farbpaletten neben `standard` (den Farben des Spiels): `rust` (Gießerei: Brauntöne, Bernstein-Glow),
+  `frost` (Kryo: Eisblau, Weiß), `toxic` (Reaktor: Grüngrau, Säuregrün), `medical` (Krankenstation: Weiß, Mint),
+  `derelict` (Wrack: ausgeblichen, schwaches Licht), `greenhouse` (Moosgrün, Erde, warmes Licht), `neon` (Violett,
+  Magenta, Cyan). `palette.COLOR_PALETTES`; Bild: `docs/palettes.png`.
+* `generate --palette NAME` (schaltet `--textures palette` ein), in Rezepten und Familien `"palette": NAME`, im
+  Add-on „Farbpalette“ (Standard: die Palette der Familie). Neuer Befehl `cubegen palettes` (`--swatches DATEI`:
+  eine Zeile Farbfelder pro Palette).
+* Alle Paletten teilen die Farbzellen: Die Modelle sind gleich, nur das Material heißt `MP_Palette_<Name>` mit
+  eigenen Bildern und `CubeEscape_Palette_<Name>.json` (mehrere Paletten passen in einen Texturordner). Glas und von
+  Scripts umgefärbte Teile behalten wie bisher ihr `M_…`-Material. `standard` bleibt `MP_Palette`.
+* Familien bringen eine passende Palette mit, die nur im Paletten-Modus gilt (bisherige Exporte bleiben gleich):
+  `foundry` → `rust`, `lab` → `frost`, `reactor` → `toxic`, `medbay` → `medical`, `derelict` → `derelict`,
+  `greenhouse` → `greenhouse`.
+
+### Behoben: `solar_panel` - Stützen falsch herum
+
+* Beim Unterbau `frame` waren die Stützen genau umgekehrt bemessen: Die Fläche steigt nach hinten (+Y) an, die
+  vorderen Stützen waren aber die langen - sie stachen durch die Zellen, die hinteren endeten in der Luft. Jetzt
+  enden alle vier an der Unterseite der Fläche (auch bei 60° Neigung); ein Test prüft das. Die Statusleuchte hing
+  beim Bodengestell frei in der Luft, jetzt sitzt sie am vorderen rechten Bein.
+
+### Prüfung: Collider decken die Geometrie ab
+
+* `cubegen check` meldet massive Geometrie, die kein Collider abdeckt - der Spieler liefe hinein
+  (`quality.uncovered_geometry`): jedes geschlossene Teil ab 0,05 m³ und 15 cm Stärke, ein Punktraster im Teil gegen
+  die Kollisionsformen, die der Unity-Import baut (`families.collision_boxes`). Ausgenommen: `Damage`, Türblätter
+  ohne eigene Collider, bei Plattformen alles unter dem Boden. Ein Test prüft alle Typen in allen Zuständen.
+* Gefunden und behoben (neue Typen): `archway` - die Bogenzwickel über dem Durchgang hatten keinen Collider (jetzt
+  eine Treppe aus Boxen über dem Bogen, nie im Durchgang); `ramp` - flache Rampen hatten unter der Gehfläche nur die
+  dünne Schrägbox (jetzt Schichten von höchstens 0,2 m); `ceiling_module` - Träger, Lüftungskasten, Abluftrohr und
+  Dachschrägen bekommen Collider.
+* **Behoben in Generation 3** (Generation 1 und 2 unverändert): `crusher` - Hydraulikzylinder auf dem Querträger;
+  `floating_island` - Kristalle auf der Oberseite; `stairs` Stil `ramp` - Füllung unter der Schräge wie bei `ramp`;
+  beschädigte Modelle (`--damage damaged`) - ein abgeschlagenes Teil, groß genug zum Hineinlaufen, bekommt einen
+  Box-Collider, wenn das Modell eigene Collider hat, sonst bleibt es dran (`cargo_container`, `ceiling_module`,
+  `crusher`, `escape_pod`, `reactor_core`).
 
 ### Neue Typen (jetzt 164)
 
@@ -187,6 +236,17 @@ Effekte, 35 neue Typen (jetzt 164).
 * Jetzt folgen nur die gebauten Typen den Maßen. „Von jedem Typ“ lässt Typen aus, die nicht zur Familie passen,
   und nennt sie; ein einzelner solcher Typ in der Vorschau meldet den Grund, statt einen Traceback zu zeigen.
 * Neu: `families.misfits(dims, types)` liefert die Typen, die bestimmten Maßen nicht folgen können, mit Grund.
+
+### Behoben: `archway` – Wand über dem Durchgang nach hinten versetzt
+
+* Das Wandstück über dem Bogen saß eine halbe Wandstärke hinter den Pfosten (y 0 … t statt −t/2 … t/2): vorn
+  eine Stufe, hinten stand es über, Rahmenleisten und Schlussstein hingen vorn frei vor der Wand, und der
+  Collider über dem Durchgang passte nicht zur Geometrie. Jetzt ist die Wand vorn und hinten bündig, bei allen
+  Bogenformen. Mit diesem Stand exportierte `Archway`-Modelle bitte neu erzeugen; Generation 1 ist nicht
+  betroffen (den Typ gab es in 0.9.0 noch nicht).
+* Der Schlussstein (`round`, `pointed`) hing 5,5 cm unter den Scheitel in den Durchgang, jetzt sitzt er auf dem
+  Scheitel. Die Rahmenleisten lagen mittig auf der Kante und standen 6 cm in die Öffnung, jetzt liegen sie ganz
+  auf der Wandfläche. Ein Test hält den Bogen bündig mit den Pfosten und den Durchgang frei.
 
 ## 0.9.0 – 2026-10-06
 

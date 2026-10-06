@@ -1,12 +1,11 @@
 # Roadmap
 
-Stand: 6. Oktober 2026, cubegen 0.9.0 plus Korrekturen und Erweiterungen (Phase 3 ohne Raum-Generator) unter
-„Unveröffentlicht“ im [CHANGELOG](../CHANGELOG.md).
+Stand: 6. Oktober 2026, cubegen 0.10.0 (Phase 3 ohne Raum-Generator, siehe [CHANGELOG](../CHANGELOG.md)).
 Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste beginnt mit dem Wichtigsten.
 
 ## 1. Bekannte Bugs
 
-Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
+Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
 
 - [x] **Unity-Prüfung lief nicht beim Export.** `cubegen/contract.py` wurde nur in den Tests aufgerufen.
   → `generate` prüft jeden Sidecar, bevor Blender startet, und jede FBX danach; neu: `check --export <Ordner>`.
@@ -25,6 +24,10 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
   hält sie vollständig.
 - [x] Add-on: Vorschau, Raster und „Kit bauen“ brachen mit Familie `foundry` oder `lab` ab.
 - [x] `door` Stil `airlock`: Die beiden Blätter fuhren in Unity durcheinander hindurch, die Tür blieb zu.
+- [x] `archway`: Die Wand über dem Durchgang saß eine halbe Wandstärke hinter den Pfosten; Schlussstein und
+  Rahmenleisten ragten in den Durchgang, die Bogenzwickel hatten keinen Collider.
+- [x] `solar_panel` (Bodengestell): Die Stützen waren falsch herum bemessen, vorne stachen sie durch die Zellen,
+  hinten endeten sie in der Luft.
 
 ## 2. Verbesserungen am bestehenden System
 
@@ -33,16 +36,19 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
   (mit Bug 4 erledigt).
 - [x] **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle (mit Bug 6 erledigt).
 - [x] **Versionsschalter:** `--generation` (Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“).
-  Generation 1 baut die Modelle von cubegen 0.9.0 bitgleich nach, Generation 2 (Standard) enthält die
-  Korrekturen für flackernde Flächen und Draw Calls.
+  Generation 1 baut die Modelle von cubegen 0.9.0 bitgleich nach, Generation 2 enthält die Korrekturen für
+  flackernde Flächen und Draw Calls, Generation 3 (Standard, 0.10.0) dazu Anker und Collider für jedes massive Teil.
 - [x] **Ein gemeinsamer Vertrag:** `cubegen/contract.json` hält die Regeln des Unity-Imports, `contract.py` liest
   sie, `python -m cubegen contract --out <Datei>` gibt sie an Unity weiter (Unity-Seite: ToDo 17).
+- [x] **Collider-Prüfung:** `cubegen check` und ein Test über alle Typen und Zustände melden massive Geometrie
+  außerhalb jedes Colliders (`quality.uncovered_geometry`); die Funde sind behoben.
+- [x] **Schnellere Tests:** `tools/run_tests.py` startet drei gleich lange Gruppen parallel, die CI eine pro Job.
 - [x] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, stehen im Typ-Menü mit Warnsymbol und
   Grund; ist so ein Typ gewählt, nennt das Panel den Grund.
 
 ## 3. Erweiterungen
 
-Punkte 2–8 und alle vorgeschlagenen Modelltypen erledigt (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
+Punkte 2–8 und alle vorgeschlagenen Modelltypen erledigt (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
 
 **Funktionen**
 
@@ -54,7 +60,8 @@ Punkte 2–8 und alle vorgeschlagenen Modelltypen erledigt (Unveröffentlicht, s
    (Steg, Rampe, Tür in Wandöffnung, Rohr, Wandende, Wandabschluss, Sockelleiste, Decke); „Anschlüsse zeigen“ setzt
    Pfeile. Kern: `cubegen/snapping.py`.
 3. [x] **Paletten-Modus:** `--textures palette`, ein Material `MP_Palette` mit Farbpaletten-Textur pro Modell, also
-   ein Draw Call (Glas und von Scripts umgefärbte Teile behalten ihr Material); `check --palette`.
+   ein Draw Call (Glas und von Scripts umgefärbte Teile behalten ihr Material); `check --palette`. Dazu sieben
+   Farbpaletten (`--palette rust|frost|toxic|medical|derelict|greenhouse|neon`, Material `MP_Palette_<Name>`).
 4. [x] **Symmetrisches Schwenken** für `camera` und `turret`: Parameter `sweep`, Rotor um den halben Winkel
    vorgedreht gebaut, `Rotator.arc` = `sweep` (120 = ±60°).
 5. [x] **Weitere Familien:** `medbay`, `derelict`, `greenhouse`, `reactor`, jeweils mit Requisiten im Kit; alle
@@ -88,8 +95,9 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
    aktuellen Stand ohne die Ausnahme neu laufen lassen, erwartet: 0 Ablehnungen.
 2. **Neu exportieren und importieren**, sobald die Korrekturen in `main` sind: Luftschleusen (Sidecar) und die
    Typen, deren Geometrie sich für die flackernden Flächen und Draw Calls um 2 mm bzw. im Material geändert hat
-   (Liste im CHANGELOG). Gleiche Namen, die Prefabs behalten ihre GUIDs. Wer die bisherigen Dateien behalten will,
-   exportiert mit `--generation 1` (bitgleich zu 0.9.0).
+   (Liste im CHANGELOG), dazu `archway`, `ramp`, `ceiling_module`, `solar_panel` und die Typen mit neuen Collidern
+   der Generation 3 (`crusher`, `floating_island`, `stairs` Stil `ramp`). Gleiche Namen, die Prefabs behalten ihre
+   GUIDs. Wer die bisherigen Dateien behalten will, exportiert mit `--generation 1` (bitgleich zu 0.9.0).
 3. **8 offene Item-IDs:** `ItemData` für Akku, Datenchip, Sicherung, Keycards, Werkzeuge und Hinweise festlegen,
    dann im Rezept per `item_id` setzen (cubegen erfindet keine IDs).
 
@@ -127,7 +135,8 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 **Für die Erweiterungen aus Phase 3** (Details in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md))
 
 18. **Paletten-Material:** einmal `MP_Palette` aus `CubeEscape_Palette.json` anlegen (Albedo, MetallicSmoothness,
-    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt.
+    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt. Für jede genutzte
+    Farbpalette ebenso `MP_Palette_<Name>` aus `CubeEscape_Palette_<Name>.json` (z. B. `MP_Palette_Rust`).
 19. **Bruchstücke** (`style.damage` = `fractured`): solche Prefabs nicht als Static markieren; bei Zerstörung jedem
     `Fragment_<nn>` einen Rigidbody geben (Collider: konvexe Mesh-Collider aus dem Sidecar).
 20. **Anker** `Audio_*` / `FX_*`: `AudioSource` bzw. Partikelsystem nach Namen anhängen (Tabelle in
@@ -138,3 +147,14 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
     `meta.sequence`), Wasserstand (`Fluid_<n>` je Ventilschritt anheben), Laserfarbe durch `laser_filter`,
     Symbolplatten-Prüfung, Kranmagnet, Countdown-Zeit (`meta.seconds_total`), Patrouillenwege und Gangarten für
     `patrol_drone`, `vent_crawler`, `robot_dog`, `mech`.
+
+## 5. Nächste Vorschläge
+
+1. **Raum- und Level-Generator** (Erweiterung 1, siehe oben).
+2. **Mehr Abwechslung:** Bei 39 Typen sind von 10 Varianten nicht alle unterscheidbar (`cubegen check`, Spalte
+   `distinct`), am wenigsten bei `ceiling_module` (6/10) sowie `archway`, `camera`, `laser_mirror`,
+   `laser_receiver`, `laser_splitter` und `tool` (je 7/10).
+3. **Draw Calls:** `sliding_puzzle` (33) und `conveyor` (21) liegen im Budget pro beweglichem Teil, sind aber
+   teuer; Teile zusammenlegen oder für sie den Paletten-Modus empfehlen.
+4. **Blender in der CI:** Die 7 Blender-Tests (Add-on-Rauchtest, FBX-Export) laufen auf GitHub nicht; ein eigener
+   Job mit Blender würde das Add-on bei jedem Push prüfen.

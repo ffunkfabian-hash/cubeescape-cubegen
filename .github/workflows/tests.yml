@@ -6,12 +6,15 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.python-version }}, ${{ matrix.group }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         # 3.11 = Blender's Python; the others must build bit-identical models (tests/test_golden.py)
         python-version: ["3.9", "3.11", "3.13"]
+        # groups of about 2 minutes each, see tools/run_tests.py (unlisted test modules run in "rest")
+        group: [models, quality, rest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,4 +23,4 @@ jobs:
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
       - name: Run tests (Blender tests are skipped when Blender is missing)
-        run: python -m unittest discover -s tests -v
+        run: python tools/run_tests.py ${{ matrix.group }}

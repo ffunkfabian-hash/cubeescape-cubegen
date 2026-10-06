@@ -743,6 +743,13 @@ beweglichem Teil plus seine Statuslichter. `python -m cubegen check --palette` z
 `MP_Palette_Albedo.png`, `_MetallicSmoothness.png`, `_Emission.png` und `CubeEscape_Palette.json` (Zellen, UVs,
 Emissionsstärke); der Sidecar nennt `MP_Palette` als Material der Teile, sein Schema bleibt unverändert.
 
+**Farbpaletten**: `--palette rust` (Add-on: „Farbpalette“) färbt die Palettentextur um: `rust`, `frost`, `toxic`,
+`medical`, `derelict`, `greenhouse`, `neon` neben `standard` (den Farben des Spiels). Die Modelle bleiben gleich,
+nur das Material heißt `MP_Palette_<Name>`; ein Raum bekommt so eine andere Stimmung, ohne neue Modelle. Die
+Familien bringen eine passende Palette mit. `python -m cubegen palettes` listet sie.
+
+![Farbpaletten](docs/palettes.png)
+
 Glow-, Kristall- und Glas-Materialien werden nie texturiert, weil die Scripts des Spiels sie umschalten. Texturierte
 Materialien haben **eigene Namen** (`MT_…`, `MTA_…`). Dadurch bleiben deine handgebauten Assets mit `M_…`
 unverändert.
@@ -831,7 +838,9 @@ def beacon_box(rng, a):                       # rng = random.Random(asset-seed),
 Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils bestimmt nur, wo sein Ursprung liegt.
 Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
-zeigende Normalen, Pivot-Konvention und Determinismus.
+zeigende Normalen, Pivot-Konvention, Collider und Determinismus. Schneller: `python3 tools/run_tests.py` startet
+die Tests in drei etwa gleich langen Gruppen parallel (rund 2 statt 6½ Minuten; `--list` zeigt die Gruppen); die
+CI läuft genauso, eine Gruppe pro Job.
 
 ## Projektstruktur
 
@@ -841,7 +850,7 @@ cubegen/
 ├── families.py       Modellfamilien: Maße, Auflösung, Anschlüsse, Passungsprüfung
 ├── family_data/      mitgelieferte Familien (station, foundry, lab, medbay, derelict, greenhouse, reactor)
 ├── snapping.py       Einrasten an Anschlusspunkten (für das Add-on, reines Python)
-├── palette.py        Paletten-Modus: ein Material MP_Palette pro Modell, PNG-Schreiber
+├── palette.py        Paletten-Modus: ein Material MP_Palette pro Modell, Farbpaletten, PNG-Schreiber
 ├── contract.py       Sidecar-Vertrag des Unity-Imports (+ Prüfung gegen die FBX)
 ├── fbxread.py        FBX-Leser (Hierarchie, Transformationen, Vertices) für die Prüfungen
 ├── quality.py        Qualitätsbericht (Dreiecke, Draw Calls, Z-Fighting)
@@ -865,6 +874,7 @@ cubegen/
 └── objwriter.py      OBJ/MTL-Fallback ohne Blender
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
+tools/run_tests.py    Tests in drei Gruppen parallel (wie die CI)
 recipes/              Beispiel-Batches
 tests/                unittest (Blender-/ImageMagick-Tests werden ohne die Tools übersprungen)
 ```

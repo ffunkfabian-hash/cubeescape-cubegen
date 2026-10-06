@@ -38,8 +38,10 @@ DAMAGE_STATES = ("intact", "damaged", "destroyed", "fractured")
 
 #: model generations - what changed in each (existing seeds keep their look within a generation):
 #: 1 = cubegen 0.9.0; 2 = flush details lifted 2 mm (no z-fighting), two materials per moving part;
-#: 3 = empties for sound and effects (Audio_*, FX_*: models/anchors.py); damaged models knock nothing off the
-#: parts Unity builds colliders from (a door frame piece on the floor blocked the passage) - else as in 2
+#: 3 = cubegen 0.10.0: empties for sound and effects (Audio_*, FX_*: models/anchors.py); damaged models knock nothing off the
+#: parts Unity builds colliders from (a door frame piece on the floor blocked the passage); colliders for solid
+#: pieces that had none (crusher cylinder, island crystals, fill under stair ramps, big knocked-off pieces) -
+#: else as in 2
 GENERATIONS = (1, 2, 3)
 LATEST_GENERATION = GENERATIONS[-1]
 

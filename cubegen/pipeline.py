@@ -67,6 +67,8 @@ class BatchConfig:
     #                                | palette (one MP_Palette material per model: 1 draw call, palette.py)
     texture_size: int = 512
     texture_set: str = ""          # name of the texture variant -> material names MT_<set>_<Material>
+    palette: str = ""              # colour palette of palette mode (palette.COLOR_PALETTES) -> MP_Palette_<Name>;
+    #                                "" / "standard" = the game's colours (MP_Palette); ignored in other modes
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
     blender: Optional[str] = None
     magick: Optional[str] = None
@@ -103,6 +105,7 @@ class BatchConfig:
             raise ValueError("texture size must be a power of two >= 64")
         if self.texture_set and not self.texture_set.replace("_", "").isalnum():
             raise ValueError("texture set: letters, digits and _ only")
+        self.palette = palette_mod.check_palette(self.palette)
         if self.icon_zoom <= 0:
             raise ValueError("icon zoom must be > 0")
         if self.jobs < 1:
@@ -434,13 +437,13 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         textures_dir = os.path.abspath(config.textures_dir) if config.textures_dir \
             else os.path.join(dirs["models"], "Textures")
     if config.textures == "palette":  # one material per model: written in pure Python
-        palette = palette_mod.write_palette(textures_dir, log=log)
+        palette = palette_mod.write_palette(textures_dir, log=log, name=config.palette)
     elif config.textures != "none":
         textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
     material_map = {plain: info["name"] for plain, info in textures.items()}
 
     def asset_materials(asset):
-        return palette_mod.material_map(asset) if palette else material_map
+        return palette_mod.material_map(asset, config.palette) if palette else material_map
 
     results: Dict[str, Dict] = {}
     blender_info: Dict[str, object] = {}
@@ -454,7 +457,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         blend_path = os.path.join(out, f"CubeEscape_Generated_{config.seed}.blend") if config.blend else None
         version = blender_version(blender).replace("Blender ", "", 1)
         settings = {"formats": formats, "blender": version, "textures": [config.textures, config.texture_size,
-                                                                         config.texture_set, textures_dir],
+                                                                         config.texture_set, textures_dir]
+                    + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else []),
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
@@ -588,8 +592,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         "material_swatch": _rel(swatch, out),
         "textures": {"mode": config.textures, "dir": _rel(textures_dir, out),
                      "materials": material_map} if textures else
-        ({"mode": "palette", "dir": _rel(textures_dir, out), "material": palette_mod.PALETTE_MATERIAL,
-          "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Palette.json"), out)} if palette else None),
+        ({"mode": "palette", "dir": _rel(textures_dir, out), "material": palette["name"], "palette": config.palette,
+          "manifest": _rel(os.path.join(textures_dir, palette_mod.palette_manifest_name(config.palette)), out)}
+         if palette else None),
         "contact_sheet": _rel(sheet, out),
         "family": family_info,
         "models": entries,

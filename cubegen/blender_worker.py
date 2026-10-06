@@ -62,13 +62,13 @@ def _generate(spec):
                           params=spec.get("params"), style=Style.from_dict(spec.get("style")))
 
 
-def build_asset(spec, material_map=None, palette=False):
+def build_asset(spec, material_map=None, palette=None):
     """Objects of a spec in a new collection. With ``spec["lod"]``: + the low detail build, objects
     named <part>_LOD0 / <part>_LOD1 (LOD1 hidden in previews). Returns (asset, LOD1 asset or None, collection).
-    ``palette``: materials per part from the asset (palette mode)."""
+    ``palette``: name of the colour palette - materials per part from the asset (palette mode)."""
     asset = _generate(spec)
     if palette:
-        material_map = palette_map(asset)
+        material_map = palette_map(asset, palette)
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
     tags = {"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])}
@@ -240,7 +240,7 @@ def run_job(job_path):
     total = len(job["models"])
     for i, spec in enumerate(job["models"], 1):
         t0 = time.time()
-        asset, lod, collection = build_asset(spec, material_map, palette=bool(palette))
+        asset, lod, collection = build_asset(spec, material_map, palette=palette and palette["palette"])
         if spec.get("skip"):  # unchanged / exported by another process: only part of the overview .blend
             _set_aside(collection, asset)
             collections.append(collection)

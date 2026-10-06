@@ -20,24 +20,27 @@ YZ_TO_X = ((0, 0, 1), (1, 0, 0), (0, 1, 0))
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
 
 
-def slope_colliders(a, width, run, rise, center_x=0.0, layer=0.5, center_y=0.0):
-    """Colliders of a solid ramp climbing towards +Y (foot at y = center_y - run/2, z = 0; top at
-    y = center_y + run/2, z = rise).
+def slope_colliders(a, width, run, rise, center_x=0.0, layer=0.5, center_y=0.0, base_z=0.0, direction=1, part=None):
+    """Colliders of a solid ramp climbing towards +Y (foot at y = center_y - run/2, z = base_z; top at
+    y = center_y + run/2, z = base_z + rise); ``direction`` -1 climbs towards -Y.
 
     A thin box lies on the slope (smooth walking); stacked boxes below it fill the
-    wedge, each one ending under the slope, so nothing sticks out of the ramp.
+    wedge, each one ending under the slope, so nothing sticks out of the ramp. Layers
+    of at most 0.2 m leave no gap under the 0.1 m slope box (0.5 m: as up to generation 2).
     """
     slope, ln = math.atan2(rise, run), math.hypot(run, rise)
     t = 0.1
     # box top on the slope plane, shifted along the slope normal (0, -sin, cos) by t/2
-    a.collider((width, ln, t), (center_x, center_y + math.sin(slope) * t / 2, rise / 2 - math.cos(slope) * t / 2),
-               rot=(slope, 0.0, 0.0))
+    a.collider((width, ln, t), (center_x, center_y + direction * math.sin(slope) * t / 2,
+                                base_z + rise / 2 - math.cos(slope) * t / 2),
+               rot=(direction * slope, 0.0, 0.0), part=part)
     layers = max(1, int(math.ceil(rise / layer - 1e-9)))
     for i in range(layers):
         z0, z1 = rise * i / layers, rise * (i + 1) / layers
         y0 = -run / 2 + run * z1 / rise  # where the slope reaches the top of this layer
         if run / 2 - y0 > 0.02:
-            a.collider((width, run / 2 - y0, z1 - z0), (center_x, center_y + (y0 + run / 2) / 2, (z0 + z1) / 2))
+            a.collider((width, run / 2 - y0, z1 - z0),
+                       (center_x, center_y + direction * (y0 + run / 2) / 2, base_z + (z0 + z1) / 2), part=part)
 
 
 STAIR_LAYOUTS = ("straight", "landing", "quarter", "switchback")
@@ -202,7 +205,7 @@ def stairs(rng, a):
                 cube(lights, (w * 0.8, 0.02, 0.02), (0, y - sd / 2 - 0.01, h - 0.03), glow)
     else:
         body.add(prism([(-run / 2, 0.0), (run / 2, 0.0), (run / 2, rise)], w, mat), basis=YZ_TO_X)
-        slope_colliders(a, w, run, rise)
+        slope_colliders(a, w, run, rise, layer=0.2 if p.style.generation >= 3 else 0.5)
         slope = math.atan2(rise, run)
         for i in range(int(run / 0.4)):  # anti-slip bars on the slope
             t = (i + 0.5) * 0.4 / run

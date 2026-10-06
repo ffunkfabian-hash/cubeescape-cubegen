@@ -14,7 +14,7 @@ from typing import Optional
 from .asset import Asset
 from .geometry import box_uvs
 from .materials import MATERIALS, srgb_to_linear
-from .palette import PALETTE_MATERIAL, resolve, uv as palette_uv
+from .palette import is_palette_material, resolve, uv as palette_uv
 
 
 def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Optional[Asset] = None) -> None:
@@ -37,7 +37,7 @@ def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Op
         uv_counts = []
         materials = [resolve(material_map, obj.name, role) for role in mesh.roles]
         for fi, face in enumerate(mesh.faces):
-            if materials[fi] == PALETTE_MATERIAL:  # palette mode: every corner on the centre of the colour's cell
+            if is_palette_material(materials[fi]):  # palette mode: every corner on the centre of the colour's cell
                 uvs = [palette_uv(mesh.roles[fi])] * len(face)
             else:
                 uvs = box_uvs(mesh.face_points(fi), mesh.face_normal(fi))

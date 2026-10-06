@@ -18,6 +18,7 @@ from cubegen.contract import check_sidecar  # noqa: E402
 from cubegen.families import JOINS, RULES, connectors  # noqa: E402
 from cubegen.models import generate_asset, model_types  # noqa: E402
 from cubegen.models.anchors import ANCHORS  # noqa: E402
+from cubegen.models.buildkit import _arch_curve  # noqa: E402
 from cubegen.models.lettering import CHARSET, check_text, strokes, text_width  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 from cubegen.pipeline import rig_data  # noqa: E402
@@ -108,6 +109,48 @@ class NewTypeTests(unittest.TestCase):
             cons = {c["name"]: c for c in connectors(ramp, "ramp")}
             self.assertAlmostEqual(cons["top"]["pos"][2], ramp.meta["rise_m"], places=4)
             self.assertAlmostEqual(cons["top"]["pos"][1] - cons["bottom"]["pos"][1], ramp.meta["run_m"], places=4)
+
+    def test_solar_panel_legs_carry_the_array(self):
+        # the legs once ran the wrong way: the front ones stuck through the array, the back ones ended below it
+        for tilt in (10, 35, 60):
+            for seed in range(4):
+                panel = generate_asset("solar_panel", seed, params={"mount": "frame", "tilt": tilt})
+                array = panel.get("Array").mesh
+                slab = array.parts[0]
+                def area(fi):
+                    a, b, c = (array.verts[i] for i in array.faces[fi][:3])
+                    return math.dist(a, b) * math.dist(b, c)  # the slab's faces are rectangles
+
+                down = [fi for fi in range(slab.f0, slab.f1) if array.face_normal(fi)[2] < 0]
+                bottom = max(down, key=area)  # the underside, not the front edge (which points down too)
+                n = array.face_normal(bottom)
+                p0 = array.verts[array.faces[bottom][0]]
+                body = panel.get("Body").mesh
+                legs = [part for part in body.parts if body.part_bbox(part)[1][0] - body.part_bbox(part)[0][0] < 0.07]
+                self.assertEqual(len(legs), 4)
+                for leg in legs:
+                    (x0, y0, _), (x1, y1, top) = body.part_bbox(leg)
+                    tip = ((x0 + x1) / 2, (y0 + y1) / 2, top)
+                    gap = sum(n[i] * (tip[i] - p0[i]) for i in range(3))
+                    self.assertAlmostEqual(gap, 0.0, delta=0.002, msg=(tilt, seed, tip))
+
+    def test_archway_flush_with_posts(self):
+        # the infill above the passage once sat half a wall thickness behind the posts
+        for shape in ("round", "pointed", "chamfer", "flat"):
+            for seed in range(4):
+                arch = generate_asset("archway", seed, params={"shape": shape, "thickness": 0.6})
+                (_, y0, _), (_, y1, _) = arch.bbox()
+                self.assertAlmostEqual(y0, -y1, places=4, msg=(shape, seed))
+                self.assertLessEqual(y1, 0.3 + 0.05 + 1e-6, (shape, seed))  # wall + keystone overhang
+                # nothing (keystone, frame bands) reaches into the passage; 3 mm = the anti-flicker lift
+                w, oh = arch.meta["opening_m"]
+                curve = _arch_curve(arch.meta["shape"], w, oh)
+                for obj in arch.meshes():
+                    for x, _, z in obj.mesh.verts:
+                        if abs(x) < w / 2 - 0.003 and z > 0.01:
+                            top = next(z1 + (z2 - z1) * (x - x1) / (x2 - x1) if x2 > x1 else max(z1, z2)
+                                       for (x1, z1), (x2, z2) in zip(curve, curve[1:]) if x1 <= x <= x2)
+                            self.assertGreater(z, top - 0.003, (shape, seed, obj.name, x, z))
 
 
 class LetteringTests(unittest.TestCase):
@@ -226,6 +269,12 @@ class FractureTests(unittest.TestCase):
                 self.assertEqual(broken.digest(), generate_asset(t, seed, style=Style(damage="fractured")).digest())
 
 
+def families_with_palette():
+    from cubegen.families import family_files, load_family
+
+    return {name for name, path in family_files().items() if load_family(path).get("palette")}
+
+
 class PaletteTests(unittest.TestCase):
     def test_cells(self):
         uvs = {m: palette.uv(m) for m in palette.ORDER}
@@ -276,6 +325,71 @@ class PaletteTests(unittest.TestCase):
             self.assertIn(f"vt {u:.6f} {v:.6f}", obj)
             with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
                 self.assertEqual(json.load(fh)["textures"]["mode"], "palette")
+
+    def test_color_palettes(self):
+        from cubegen.materials import MATERIALS
+
+        self.assertEqual(palette.palette_names()[0], "standard")
+        self.assertEqual(palette.palette_material(None), "MP_Palette")
+        self.assertEqual(palette.palette_material("Rust"), "MP_Palette_Rust")
+        self.assertTrue(palette.is_palette_material("MP_Palette_Neon"))
+        self.assertFalse(palette.is_palette_material("M_Metal"))
+        with self.assertRaises(ValueError):
+            palette.check_palette("bogus")
+        self.assertEqual(palette.palette_colors("standard"), MATERIALS)
+        seen = set()
+        for name, entry in palette.COLOR_PALETTES.items():
+            colors = entry["colors"]
+            self.assertEqual(set(colors), set(MATERIALS) - {"M_Glass"}, name)  # glass keeps its own material
+            for rgb in colors.values():
+                self.assertTrue(all(0.0 <= c <= 1.0 for c in rgb), name)
+            table = palette.palette_colors(name)
+            self.assertEqual({m: v[1:3] for m, v in table.items()}, {m: v[1:3] for m, v in MATERIALS.items()})
+            red, cyan = table["M_GlowRed"][0], table["M_GlowCyan"][0]
+            self.assertGreater(red[0], max(red[1], red[2]) + 0.3, name)  # alarm red stays red
+            self.assertNotEqual(red, cyan, name)
+            key = tuple(table[m][0] for m in palette.ORDER)
+            self.assertNotIn(key, seen, name)
+            seen.add(key)
+            if entry.get("family"):
+                self.assertIn(entry["family"], families_with_palette())
+        # the same model in another palette: same UVs, only the material name changes
+        door = generate_asset("door", 1)
+        pm = palette.material_map(door, "neon")
+        self.assertEqual(pm("Panel", "M_Metal"), "MP_Palette_Neon")
+        self.assertEqual(pm("StatusLight_Front", "M_GlowRed"), "M_GlowRed")
+
+    def test_color_palette_export(self):
+        with tempfile.TemporaryDirectory() as out:
+            self.assertEqual(main(["generate", "--seed", "3", "--types", "crate", "--no-blender", "--palette", "neon",
+                                   "--out", out]), 0)  # --palette implies --textures palette
+            tex = os.path.join(out, "models", "Textures")
+            self.assertEqual(sorted(os.listdir(tex)), ["CubeEscape_Palette_Neon.json", "MP_Palette_Neon_Albedo.png",
+                                                       "MP_Palette_Neon_Emission.png",
+                                                       "MP_Palette_Neon_MetallicSmoothness.png"])
+            with open(os.path.join(tex, "CubeEscape_Palette_Neon.json"), encoding="utf-8") as fh:
+                info = json.load(fh)
+            self.assertEqual((info["name"], info["palette"]), ("MP_Palette_Neon", "neon"))
+            self.assertEqual(info["cells"]["M_Metal"]["uv"], list(palette.uv("M_Metal")))
+            with open(os.path.join(out, "models", "Crate_000.obj"), encoding="utf-8") as fh:
+                self.assertIn("usemtl MP_Palette_Neon", fh.read())
+            with open(os.path.join(out, "models", "CubeEscape_Materials.mtl"), encoding="utf-8") as fh:
+                self.assertIn("map_Kd Textures/MP_Palette_Neon_Albedo.png", fh.read())
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
+                textures = json.load(fh)["textures"]
+            self.assertEqual((textures["material"], textures["palette"]), ("MP_Palette_Neon", "neon"))
+            sheet = os.path.join(out, "swatches.png")
+            self.assertEqual(main(["palettes", "--swatches", sheet]), 0)
+            with open(sheet, "rb") as fh:
+                self.assertEqual(struct.unpack(">II", fh.read()[16:24]), (24 * len(palette.ORDER),
+                                                                         24 * len(palette.palette_names())))
+        with tempfile.TemporaryDirectory() as out:  # a family's palette applies in palette mode only
+            self.assertEqual(main(["generate", "--family", "foundry", "--types", "crate", "--no-blender",
+                                   "--textures", "palette", "--out", out]), 0)
+            with open(os.path.join(out, "manifest.json"), encoding="utf-8") as fh:
+                self.assertEqual(json.load(fh)["textures"]["material"], "MP_Palette_Rust")
+        self.assertEqual(main(["generate", "--types", "crate", "--no-blender", "--palette", "neon",
+                               "--textures", "tiled"]), 2)  # a colour palette needs palette mode
 
 
 class SnappingTests(unittest.TestCase):
