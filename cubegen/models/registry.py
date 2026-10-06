@@ -84,12 +84,17 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
     finally:
         DETAIL.reset(token)
     asset.objects = [o for o in asset.objects if o.mesh is None or o.mesh.faces]
+    for c in asset.colliders:
+        if c.part is not None and asset.get(c.part) is None:
+            raise ValueError(f"{model_type}: collider on {c.part!r}, but that part has no geometry")
     for obj in asset.meshes():
         for role in set(obj.mesh.roles):
             check_material(role)
     asset.normalize(entry.pivot)
     if style.damage != "intact":
         damage_asset(asset, seed, style.damage, entry.pivot)
+        if style.damage == "destroyed":  # a ruin is static decoration with a hull collider
+            asset.colliders = []
     if style.wear != "none" and entry.pivot == "floor":
         apply_wear(asset, seed, style.wear)
     if scale != 1.0:

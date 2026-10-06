@@ -20,6 +20,25 @@ YZ_TO_X = ((0, 0, 1), (1, 0, 0), (0, 1, 0))
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
 
 
+def slope_colliders(a, width, run, rise, center_x=0.0, layer=0.5):
+    """Colliders of a solid ramp climbing towards +Y (foot at y = -run/2, z = 0; top at y = +run/2, z = rise).
+
+    A thin box lies on the slope (smooth walking); stacked boxes below it fill the
+    wedge, each one ending under the slope, so nothing sticks out of the ramp.
+    """
+    slope, ln = math.atan2(rise, run), math.hypot(run, rise)
+    t = 0.1
+    # box top on the slope plane, shifted along the slope normal (0, -sin, cos) by t/2
+    a.collider((width, ln, t), (center_x, math.sin(slope) * t / 2, rise / 2 - math.cos(slope) * t / 2),
+               rot=(slope, 0.0, 0.0))
+    layers = max(1, int(math.ceil(rise / layer - 1e-9)))
+    for i in range(layers):
+        z0, z1 = rise * i / layers, rise * (i + 1) / layers
+        y0 = -run / 2 + run * z1 / rise  # where the slope reaches the top of this layer
+        if run / 2 - y0 > 0.02:
+            a.collider((width, run / 2 - y0, z1 - z0), (center_x, (y0 + run / 2) / 2, (z0 + z1) / 2))
+
+
 def _wall_trims(m, length, along_x=True):
     """Base and top trims of the 3 m wall module (same sizes as ``wall``)."""
     for size, z in (((length, 0.56, 0.25), 0.125), ((length, 0.60, 0.15), 2.95)):
@@ -54,11 +73,13 @@ def stairs(rng, a):
             h = sh * (i + 1)
             y = -run / 2 + sd * (i + 0.5)
             cube(body, (w, sd, h), (0, y, h / 2), "M_RobotDark" if i % 2 else mat)
+            a.collider((w, sd, h), (0, y, h / 2))  # solid steps (step height ~0.2 m: CharacterController steps up)
             cube(body, (w + 0.02, sd * 0.25, 0.02), (0, y - sd * 0.375, h + 0.01), "M_Metal")  # nosing
             if edges:
                 cube(lights, (w * 0.8, 0.02, 0.02), (0, y - sd / 2 - 0.01, h - 0.03), glow)
     else:
         body.add(prism([(-run / 2, 0.0), (run / 2, 0.0), (run / 2, rise)], w, mat), basis=YZ_TO_X)
+        slope_colliders(a, w, run, rise)
         slope = math.atan2(rise, run)
         for i in range(int(run / 0.4)):  # anti-slip bars on the slope
             t = (i + 0.5) * 0.4 / run
@@ -79,6 +100,9 @@ def stairs(rng, a):
                 cube(body, (0.05, 0.05, 1.0), (x, y, z + 0.5), "M_Metal")
             cube(body, (0.06, ln, 0.06), (x, 0, rise / 2 + 1.0), "M_Metal", rot=(slope, 0, 0))
             cube(body, (0.04, ln, 0.04), (x, 0, rise / 2 + 0.5), "M_Metal", rot=(slope, 0, 0))
+            # railing as a fence; shortened so the tilted box ends where the rails end
+            fence = max(0.2, (run - math.sin(slope)) / math.cos(slope))
+            a.collider((0.08, fence, 1.0), (x, 0, rise / 2 + 0.5), rot=(slope, 0, 0))
     if p.bool("stripes", 0.3, warning=True):
         stripes(body, w * 0.9, (0, -run / 2 - 0.005, 0.06), count=max(3, int(w * 3)), width=0.01, height=0.1)
 
@@ -151,6 +175,7 @@ def catwalk(rng, a):
              "M_Metal")
     for y in (-width / 4, width / 4):
         cube(deck, (length - 0.16, 0.03, 0.08), (0, y, -0.1), "M_Metal")
+    a.collider((length, width, 0.2), (0, 0, -0.1), part="Deck")  # deck only - no hull over rails and supports
     if p.bool("glow", 0.5):
         glow = p.glow()
         lights = a.part("Glow")
@@ -161,11 +186,13 @@ def catwalk(rng, a):
         r = a.part("Rail")
         for s in ((-1, 1) if rails == "both" else (1,)):
             rail(r, length - 0.1, True, s * (width / 2 - 0.04))
+            a.collider((length - 0.1, 0.08, 1.03), (0, s * (width / 2 - 0.04), 0.515), part="Rail")
     sup = p.value("supports", rng.choice([0.0, 0.0, rng.uniform(1.0, 3.0)]))
     if sup > 0.05:
         for x in (-length / 2 + 0.3, length / 2 - 0.3):
             for s in (-1, 1):
                 cube(deck, (0.1, 0.1, sup), (x, s * (width / 2 - 0.1), -0.2 - sup / 2), "M_RobotDark")
+                a.collider((0.1, 0.1, sup), (x, s * (width / 2 - 0.1), -0.2 - sup / 2), part="Deck")
             cube(deck, (0.08, width - 0.2, 0.08), (x, 0, -0.2 - sup * 0.6), "M_RobotDark")
         a.meta["supports_m"] = round(sup, 3)
 
@@ -185,6 +212,7 @@ def floor_tile(rng, a):
     mat = p.material(["M_Platform", "M_Metal", "M_Ground"])
     a.meta.update({"size_m": size, "style": style})
     depth = 0.1 + rng.uniform(0.0, 0.1)
+    a.collider((size, size, depth), (0, 0, -depth / 2), part="Deck")
     if style == "grate":
         for s in (-1, 1):
             cube(m, (size, 0.06, depth), (0, s * (size / 2 - 0.03), -depth / 2), "M_RobotDark")
@@ -392,17 +420,21 @@ def lift(rng, a):
     frame_mat = p.material(["M_RobotDark", "M_Metal", "M_HazardOrange"])
     col_h = travel + 0.6
     cube(a.part("Base"), (s + 0.2, s + 0.2, 0.12), (0, 0, 0.06), "M_RobotDark", bevel=0.02)
+    a.collider((s + 0.2, s + 0.2, 0.12), (0, 0, 0.06), part="Base")
     for side, x in (("Left", -(s / 2 + 0.15)), ("Right", s / 2 + 0.15)):
         f = a.part(f"Frame_{side}")
         cube(f, (0.25, 0.3, col_h), (x, s * 0.3, col_h / 2), frame_mat, bevel=0.02)
+        a.collider((0.25, 0.3, col_h), (x, s * 0.3, col_h / 2), part=f"Frame_{side}")
         cube(f, (0.06, 0.32, col_h - 0.4), (x - math.copysign(0.12, x), s * 0.3, col_h / 2), "M_Warning")
     top = a.part("Frame_Top")
     cube(top, (s + 0.55, 0.3, 0.2), (0, s * 0.3, col_h + 0.1), frame_mat, bevel=0.02)
+    a.collider((s + 0.55, 0.3, 0.2), (0, s * 0.3, col_h + 0.1), part="Frame_Top")
     for side, y in (("Front", s * 0.3 - 0.16), ("Back", s * 0.3 + 0.16)):
         cube(a.part(f"StatusLight_{side}"), (0.4, 0.02, 0.08), (0, y, col_h + 0.1), "M_GlowRed")
     center = (0.0, 0.0, 0.2)
     deck = a.part("Deck", pivot=center)
     cube(deck, (s, s, 0.14), (0, 0, 0.19), p.material(["M_Platform", "M_Metal"]), bevel=0.02)
+    a.collider((s, s, 0.14), (0, 0, 0.19), part="Deck")  # moves with the deck
     stripes(deck, s * 0.9, (0, -s / 2 + 0.08, 0.265), count=6, width=0.1)
     for x in (-s / 2 - 0.02, s / 2 + 0.02):  # guide shoes running in the columns
         cube(deck, (0.08, 0.2, 0.1), (x, s * 0.3, 0.19), "M_RobotDark")
@@ -411,6 +443,7 @@ def lift(rng, a):
             for y in (-s / 2 + 0.04, s / 2 - 0.3):
                 cube(deck, (0.05, 0.05, 0.9), (x, y, 0.26 + 0.45), "M_Metal")
             cube(deck, (0.05, s - 0.3, 0.05), (x, -0.13, 0.26 + 0.9), "M_Metal")
+            a.collider((0.06, s - 0.25, 0.92), (x, -0.13, 0.26 + 0.46), part="Deck")
     a.meta["travel_m"] = travel
     a.behaviour("Door", {"panels": ["Deck"], "statusLights": ["StatusLight_Front", "StatusLight_Back"],
                          "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Base"]},

@@ -51,10 +51,13 @@ def hatch(rng, a):
         cube(body, size, (dx * (s + rim) / 2, dy * (s + rim) / 2, -0.125), frame, bevel=0.015)
         wall = (0.06, s, depth) if dx else (s, 0.06, depth)
         cube(body, wall, (dx * (s / 2 - 0.03), dy * (s / 2 - 0.03), -0.25 - depth / 2), "M_Ground")
+        a.collider(size, (dx * (s + rim) / 2, dy * (s + rim) / 2, -0.125))  # frame: open shaft in the middle
+        a.collider(wall, (dx * (s / 2 - 0.03), dy * (s / 2 - 0.03), -0.25 - depth / 2))
         corner = (s / 2 + rim / 2) * math.sqrt(2)
         cube(glow, (0.05, 0.05, 0.02),
              (math.cos(ang + math.pi / 4) * corner, math.sin(ang + math.pi / 4) * corner, 0.0), status)
     cube(body, (s, s, 0.04), (0, 0, -0.27 - depth), "M_RobotDark")  # dark bottom of the shaft
+    a.collider((s, s, 0.04), (0, 0, -0.27 - depth))
     if p.bool("ladder", 0.6):
         for x in (-0.2, 0.2):
             cube(body, (0.04, 0.05, depth + 0.2), (x, s / 2 - 0.1, -0.15 - depth / 2), "M_Metal")
@@ -62,6 +65,7 @@ def hatch(rng, a):
             cube(body, (0.4, 0.04, 0.03), (0, s / 2 - 0.1, -0.2 - i * 0.3), "M_Metal")
     hinge = (0.0, s / 2, -0.03)
     lid = a.part("Panel", pivot=hinge)
+    a.collider((s, s, 0.06), (0, 0, -0.03), part="Panel")  # closed lid is walkable, swings up with the Panel
     lid_mat = p.material(["M_Metal", "M_Platform", "M_HazardOrange"])
     for x in (-s * 0.3, s * 0.3):  # hinge knuckles
         cyl(body, 0.035, 0.12, (x, s / 2 - 0.01, -0.03), "M_Metal", sides=6, rot=(0, math.pi / 2, 0))
@@ -178,6 +182,8 @@ def vent_shaft(rng, a):
     a.meta.update({"kind": kind, "inner_m": round(inner, 3), "length_m": round(lx, 3)})
     cube(m, (lx, ly, t), (0, 0, t / 2), mat)                       # floor
     cube(m, (lx, ly, t), (0, 0, outer - t / 2), mat)               # roof
+    a.collider((lx, ly, t), (0, 0, t / 2))                         # walkable inside: floor, roof, closed sides
+    a.collider((lx, ly, t), (0, 0, outer - t / 2))
     for side in ("-x", "+x", "-y", "+y"):
         sx = -1 if side[0] == "-" else 1
         along_x = side[1] == "y"
@@ -194,6 +200,7 @@ def vent_shaft(rng, a):
             size = (lx, t, outer) if along_x else (t, ly, outer)
             pos = (0, sx * (ly / 2 - t / 2), outer / 2) if along_x else (sx * (lx / 2 - t / 2), 0, outer / 2)
             cube(m, size, pos, mat)
+            a.collider(size, pos)
             span = lx if along_x else ly
             for k in range(max(1, int(span / 0.5)) + 1):  # outside stiffener ribs
                 f = -span / 2 + 0.06 + k * (span - 0.12) / max(1, int(span / 0.5))
@@ -208,6 +215,7 @@ def vent_shaft(rng, a):
     if p.bool("grille", 0.35, enabled="-x" in opened):  # kick-out grille in front of the -X opening
         center = (-lx / 2 - 0.03, 0.0, outer / 2)
         g = a.part("Grille", pivot=center)
+        a.collider((0.04, inner + 0.06, inner + 0.05), center, part="Grille")
         cube(g, (0.04, inner + 0.06, 0.05), (center[0], 0, outer / 2 + inner / 2), "M_RobotDark")
         cube(g, (0.04, inner + 0.06, 0.05), (center[0], 0, outer / 2 - inner / 2), "M_RobotDark")
         for k in range(7):
@@ -241,9 +249,13 @@ def floor_grate(rng, a):
         dx, dy = round(math.cos(ang)), round(math.sin(ang))
         cube(body, (rim, size, 0.1) if dx else (size, rim, 0.1), (dx * (size - rim) / 2, dy * (size - rim) / 2, -0.05),
              "M_RobotDark")
+        a.collider((rim, size, 0.1) if dx else (size, rim, 0.1), (dx * (size - rim) / 2, dy * (size - rim) / 2, -0.05))
+        a.collider((0.04, inner, depth) if dx else (inner, 0.04, depth),
+                   (dx * (inner / 2 - 0.02), dy * (inner / 2 - 0.02), -0.1 - depth / 2))
         cube(body, (0.04, inner, depth) if dx else (inner, 0.04, depth),
              (dx * (inner / 2 - 0.02), dy * (inner / 2 - 0.02), -0.1 - depth / 2), "M_Ground")
     cube(body, (inner, inner, 0.04), (0, 0, -0.12 - depth), "M_RobotDark")
+    a.collider((inner, inner, 0.04), (0, 0, -0.12 - depth))
     zb = -0.1 - depth
     if content in ("pipes", "both"):
         for i in range(rng.randint(1, 3 if size > 1 else 2)):
@@ -261,6 +273,7 @@ def floor_grate(rng, a):
             cube(a.part("Lights"), (0.12, 0.02, 0.04), (x, -inner / 2 + 0.04, zb + depth * 0.5), glow)
     center = (0.0, 0.0, -0.02)
     grate = a.part("Panel", pivot=center)
+    a.collider((inner, inner, 0.04), center, part="Panel")  # walkable grate, lifts out with the Panel
     for s in (-1, 1):
         cube(grate, (inner - 0.01, 0.04, 0.04), (0, s * (inner / 2 - 0.02), -0.02), "M_Metal")
     n = int(inner / 0.08)

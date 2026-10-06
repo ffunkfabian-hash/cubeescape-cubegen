@@ -238,6 +238,7 @@ def force_field(rng, a):
     for side, x in (("Left", -(width + post) / 2), ("Right", (width + post) / 2)):
         m = a.part(f"Frame_{side}")
         cube(m, (post, depth, height + 0.3), (x, 0, (height + 0.3) / 2), frame, bevel=0.03)
+        a.collider((post, depth, height + 0.3), (x, 0, (height + 0.3) / 2), part=f"Frame_{side}")
         cube(m, (post + 0.08, depth + 0.08, 0.2), (x, 0, 0.1), "M_RobotDark", bevel=0.01)
         inner = x - math.copysign(post / 2, x)
         cube(m, (0.04, depth * 0.4, height * 0.9), (inner, 0, height * 0.48), light)  # emitter strip
@@ -245,6 +246,7 @@ def force_field(rng, a):
             cube(m, (0.03, depth + 0.02, 0.06), (x, 0, height * (0.25 + 0.25 * k)), "M_Warning")
     top = a.part("Frame_Top")
     cube(top, (width, depth * 0.8, 0.3), (0, 0, height + 0.15), frame, bevel=0.03)
+    a.collider((width, depth * 0.8, 0.3), (0, 0, height + 0.15), part="Frame_Top")
     for side, y in (("Front", -(depth * 0.4 + 0.01)), ("Back", depth * 0.4 + 0.01)):
         cube(a.part(f"StatusLight_{side}"), (min(1.0, width * 0.5), 0.02, 0.08), (0, y, height + 0.15), "M_GlowRed")
     sill = rng.random() < 0.6
@@ -259,10 +261,11 @@ def force_field(rng, a):
         for i in range(n):
             cyl(field, 0.018, width, (0, 0, 0.25 + i * (height - 0.4) / (n - 1)), "M_GlowRed", sides=6,
                 rot=(0, math.pi / 2, 0))
+    a.collider((width, 0.1, height), center, part="Field")  # blocks while closed, drops with the field
     a.behaviour("Door", {"panels": ["Field"], "statusLights": ["StatusLight_Front", "StatusLight_Back"],
                          "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Frame_Top"]},
                 {"openOffset": [0.0, -round(height + 0.1, 4), 0.0], "speed": p.option("speed")},
-                note="'open' = the field drops into the floor; give Field a BoxCollider from its bounds")
+                note="'open' = the field drops into the floor; Field carries its own BoxCollider (colliders)")
 
 
 # --------------------------------------------------------------------------

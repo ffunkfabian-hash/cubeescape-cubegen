@@ -104,6 +104,7 @@ def floating_island(rng, a):
     roles = ["M_Ground", "M_Ground", "M_Ground", "M_RobotDark", top_mat]
     part = m.add(lathe(profile, sides, roles, cap_top_role=top_mat, angle_offset=rng.uniform(0, math.pi)))
     _jitter(m, part, rng, r * 0.08, keep=lambda v: v[2] > -0.13)  # keep the top flat
+    a.mesh_collider("Island")  # convex hull: flat top, rough underside
     for _ in range(rng.randint(1, 3)):  # small rocks hanging under the island
         ang = rng.uniform(0, 2 * math.pi)
         dist = r * rng.uniform(0.3, 0.7)
