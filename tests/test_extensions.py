@@ -109,6 +109,15 @@ class NewTypeTests(unittest.TestCase):
             self.assertAlmostEqual(cons["top"]["pos"][2], ramp.meta["rise_m"], places=4)
             self.assertAlmostEqual(cons["top"]["pos"][1] - cons["bottom"]["pos"][1], ramp.meta["run_m"], places=4)
 
+    def test_archway_flush_with_posts(self):
+        # the infill above the passage once sat half a wall thickness behind the posts
+        for shape in ("round", "pointed", "chamfer", "flat"):
+            for seed in range(4):
+                arch = generate_asset("archway", seed, params={"shape": shape, "thickness": 0.6})
+                (_, y0, _), (_, y1, _) = arch.bbox()
+                self.assertAlmostEqual(y0, -y1, places=4, msg=(shape, seed))
+                self.assertLessEqual(y1, 0.3 + 0.05 + 1e-6, (shape, seed))  # wall + keystone overhang
+
 
 class LetteringTests(unittest.TestCase):
     def test_font(self):

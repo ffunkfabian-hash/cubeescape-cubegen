@@ -231,7 +231,7 @@ def archway(rng, a):
         cube(m, (post, t + 0.06, 0.25), (x, 0, 0.125), "M_RobotDark")
         a.collider((post, t, h), (x, 0, h / 2))
     poly = [(-w / 2, h)] + curve + [(w / 2, h)]
-    m.add(prism(poly, t, mat), loc=(0, t / 2, 0), basis=UPRIGHT)
+    m.add(prism(poly, t, mat), basis=UPRIGHT)  # prism is centred: flush with the posts at y = ±t/2
     cube(m, (length, t + 0.08, 0.12), (0, 0, h - 0.06), "M_RobotDark")
     a.collider((w, t, h - oh), (0, 0, (h + oh) / 2))
     # frame band along the passage edge, front and back

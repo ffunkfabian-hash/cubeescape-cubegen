@@ -188,6 +188,14 @@ Effekte, 35 neue Typen (jetzt 164).
   und nennt sie; ein einzelner solcher Typ in der Vorschau meldet den Grund, statt einen Traceback zu zeigen.
 * Neu: `families.misfits(dims, types)` liefert die Typen, die bestimmten Maßen nicht folgen können, mit Grund.
 
+### Behoben: `archway` – Wand über dem Durchgang nach hinten versetzt
+
+* Das Wandstück über dem Bogen saß eine halbe Wandstärke hinter den Pfosten (y 0 … t statt −t/2 … t/2): vorn
+  eine Stufe, hinten stand es über, Rahmenleisten und Schlussstein hingen vorn frei vor der Wand, und der
+  Collider über dem Durchgang passte nicht zur Geometrie. Jetzt ist die Wand vorn und hinten bündig, bei allen
+  Bogenformen. Mit diesem Stand exportierte `Archway`-Modelle bitte neu erzeugen; Generation 1 ist nicht
+  betroffen (den Typ gab es in 0.9.0 noch nicht). Ein Test hält den Bogen bündig mit den Pfosten.
+
 ## 0.9.0 – 2026-10-06
 
 ### Modellfamilien und Bau-Kits
