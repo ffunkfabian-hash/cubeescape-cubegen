@@ -838,7 +838,9 @@ def beacon_box(rng, a):                       # rng = random.Random(asset-seed),
 Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils bestimmt nur, wo sein Ursprung liegt.
 Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
-zeigende Normalen, Pivot-Konvention und Determinismus.
+zeigende Normalen, Pivot-Konvention, Collider und Determinismus. Schneller: `python3 tools/run_tests.py` startet
+die Tests in drei etwa gleich langen Gruppen parallel (rund 2 statt 6½ Minuten; `--list` zeigt die Gruppen); die
+CI läuft genauso, eine Gruppe pro Job.
 
 ## Projektstruktur
 
@@ -872,6 +874,7 @@ cubegen/
 └── objwriter.py      OBJ/MTL-Fallback ohne Blender
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
+tools/run_tests.py    Tests in drei Gruppen parallel (wie die CI)
 recipes/              Beispiel-Batches
 tests/                unittest (Blender-/ImageMagick-Tests werden ohne die Tools übersprungen)
 ```

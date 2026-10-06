@@ -87,6 +87,14 @@ Effekte, 35 neue Typen (jetzt 164).
   sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
   `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
 
+### Schnellere Tests und CI
+
+* `tools/run_tests.py` teilt die Tests in drei etwa gleich lange Gruppen (`models`, `quality`, `rest`) und startet
+  sie parallel: rund 2 statt 6½ Minuten. `--list` zeigt die Gruppen; ein Testmodul, das keine Gruppe nennt, läuft
+  in `rest`, ein neues geht also nie verloren.
+* Die CI startet pro Python-Version (3.9, 3.11, 3.13) eine Gruppe pro Job, 9 Jobs parallel statt 3 nacheinander
+  laufender Gesamtläufe. Die Jobs heißen jetzt `test (<Python>, <Gruppe>)`.
+
 ### Farbpaletten für den Paletten-Modus
 
 * Sieben neue Farbpaletten neben `standard` (den Farben des Spiels): `rust` (Gießerei: Brauntöne, Bernstein-Glow),
