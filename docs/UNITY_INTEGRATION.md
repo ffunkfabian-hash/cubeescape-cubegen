@@ -308,3 +308,10 @@ und Anschlüsse bleiben frei, Geländer sind eigene schmale Boxen.
 9. **LOD-Hüllen**: Statische Modelle mit `--lods` bekommen in Unity automatisch eine LODGroup. Zu prüfen
    ist, dass die Registry-Hülle mit einer LODGroup umgeht (Collider nur von LOD0, `colliders` zeigen auf
    `<Teil>_LOD0`).
+10. **Klappen mit zwei Stellungen**: Die Deckel und Türen von `hatch`, `fuse_box`, `cage` und `safe` nutzen
+    `Rotatable` mit `step` 100°/110° und `target` 1 (zu → offen). Das vorhandene Script dreht zyklisch weiter:
+    Der zweite Klick dreht den Deckel durch den Körper. Nötig ist ein Zwei-Stellungs-Modus (offen ↔ zu) oder ein
+    eigenes Klappen-Script; der Sidecar bleibt dafür unverändert.
+11. **Luftschleuse** (`door` Stil `airlock`): Bis 0.9.0 stand das untere Blatt zuerst in `panels`. Mit dem
+    Standard `secondOffset = -openOffset` fuhren beide Blätter durcheinander hindurch, die Öffnung blieb zu.
+    Jetzt steht das obere Blatt (`Panel_B`) zuerst; mit 0.9.0 exportierte Luftschleusen neu erzeugen.

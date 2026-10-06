@@ -2,6 +2,17 @@
 
 ## Unveröffentlicht
 
+### Behoben: Luftschleuse öffnet sich in Unity nicht
+
+* Bei `door` Stil `airlock` (oben/unten geteilt) stand das untere Blatt zuerst in `panels`. Unity bewegt das
+  zweite Blatt um `-openOffset`: Das untere fuhr nach oben, das obere nach unten, beide durcheinander hindurch,
+  die Öffnung blieb zu. Jetzt steht das obere Blatt (`Panel_B`) zuerst. Geometrie und Teilenamen sind
+  unverändert, nur der Sidecar ändert sich. Mit 0.9.0 exportierte Luftschleusen bitte neu erzeugen.
+* `cubegen/contract.py` prüft jetzt, dass zwei Türblätter auseinanderfahren (mit `secondOffset` oder dessen
+  Standard).
+* Dokumentiert (`docs/UNITY_INTEGRATION.md`): Klappen von `hatch`, `fuse_box`, `cage` und `safe` brauchen in
+  Unity einen Zwei-Stellungs-Modus, das vorhandene `Rotatable` dreht zyklisch weiter.
+
 ### Behoben: Add-on mit Familie `foundry` oder `lab`
 
 * Mit gewählter Familie `foundry` oder `lab` brachen Vorschau, Raster, „Von jedem Typ“ und „Kit bauen“ im Add-on

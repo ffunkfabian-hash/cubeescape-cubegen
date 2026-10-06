@@ -6,7 +6,7 @@ module applies the same rules before a file leaves the generator:
 
 * only the known root keys, part keys, behaviours, roles and fields
 * values of the right type (vectors with exactly three finite numbers ...)
-* referenced parts exist; one motion controller per transform
+* referenced parts exist; one motion controller per transform; two door leaves move apart
 * colliders: positive box sizes, normalised quaternions, convex meshes on moving parts
 * ``ItemPickup`` needs ``fields.itemId`` - except ``item`` with ``params.kind`` ``energy_cell``
   (reported as an *open* assignment, not an error: cubegen never invents item ids)
@@ -210,6 +210,8 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
             motion = _role_parts(roles.get("panels")) or []
             if not 1 <= len(motion) <= 2:
                 errors.append(f"{where}: one or two panels")
+            if len(motion) == 2 and all(n in parts for n in motion) and _vec(fields.get("openOffset")):
+                errors += _check_leaves(where, [parts[n]["localPosition"] for n in motion], fields)
             upper = roles.get("upperFrame")
             if upper is not None and _role_parts(upper) != ["Frame_Top"]:
                 errors.append(f"{where}: role upperFrame only accepts Frame_Top")
@@ -257,6 +259,18 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
             elif part in moving and c["convex"] is not True:
                 errors.append(f"{where}: {part!r} moves - its mesh collider must be convex")
     return errors, open_items
+
+
+def _check_leaves(where, positions, fields) -> List[str]:
+    """Two door leaves must move apart: the second one by ``secondOffset``, by default ``-openOffset``."""
+    first = fields["openOffset"]
+    second = fields.get("secondOffset")
+    second = second if _vec(second) else [-c for c in first]
+    gap = [b - a for a, b in zip(*positions)]
+    opened = [g + s - f for g, s, f in zip(gap, second, first)]
+    if sum(o * g for o, g in zip(opened, gap)) <= sum(g * g for g in gap):
+        return [f"{where}: the two leaves don't move apart (openOffset {first}, secondOffset {second})"]
+    return []
 
 
 def _check_fields(where, script, fields, roles) -> List[str]:

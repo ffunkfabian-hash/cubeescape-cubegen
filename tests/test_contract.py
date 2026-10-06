@@ -61,6 +61,19 @@ class ContractTests(unittest.TestCase):
             errors, open_items = check_sidecar(rig_data(build_spec(spec), spec, 42))
             self.assertEqual((errors, open_items), ([], []), spec["name"])
 
+    def test_split_door_leaves_move_apart(self):
+        # 0.9.0: the airlock's lower leaf rose and the upper one (Unity: secondOffset = -openOffset) sank -
+        # they passed through each other and the opening stayed closed
+        for style in ("airlock", "elevator"):
+            config = BatchConfig(seed=42, models={"door": 12}, out_dir="-", params={"door": {"style": style}})
+            for spec in plan_models(config):
+                data = rig_data(build_spec(spec), spec, 42)
+                door = next(b for b in data["behaviours"] if b["script"] == "Door")
+                self.assertEqual(len(door["parts"]["panels"]), 2, spec["name"])
+                self.assertEqual(check_sidecar(data)[0], [], spec["name"])
+                door["fields"]["openOffset"] = [-c for c in door["fields"]["openOffset"]]
+                self.assertTrue(any("don't move apart" in e for e in check_sidecar(data)[0]), spec["name"])
+
     def test_detects_violations(self):
         spec, good = next((s, d) for s, d in sidecars(42, 1) if s["type"] == "door")
         self.assertEqual(check_sidecar(good)[0], [])
