@@ -42,13 +42,13 @@
   "z_fighting_variants": 0
  },
  "breakable_platform": {
-  "draw_calls": 18,
+  "draw_calls": 3,
   "triangles": 348,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
  "broken_wall": {
-  "draw_calls": 8,
+  "draw_calls": 4,
   "triangles": 320,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -114,7 +114,7 @@
   "z_fighting_variants": 0
  },
  "catwalk": {
-  "draw_calls": 5,
+  "draw_calls": 4,
   "triangles": 1244,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -186,7 +186,7 @@
   "z_fighting_variants": 0
  },
  "cryo_pod": {
-  "draw_calls": 6,
+  "draw_calls": 5,
   "triangles": 372,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -216,13 +216,13 @@
   "z_fighting_variants": 0
  },
  "extinguisher": {
-  "draw_calls": 7,
+  "draw_calls": 6,
   "triangles": 288,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
  "fallen_pillar": {
-  "draw_calls": 6,
+  "draw_calls": 4,
   "triangles": 164,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -246,7 +246,7 @@
   "z_fighting_variants": 0
  },
  "floor_grate": {
-  "draw_calls": 8,
+  "draw_calls": 7,
   "triangles": 572,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -282,7 +282,7 @@
   "z_fighting_variants": 0
  },
  "gas_rack": {
-  "draw_calls": 7,
+  "draw_calls": 5,
   "triangles": 1180,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -300,7 +300,7 @@
   "z_fighting_variants": 0
  },
  "girders": {
-  "draw_calls": 6,
+  "draw_calls": 5,
   "triangles": 236,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -444,7 +444,7 @@
   "z_fighting_variants": 0
  },
  "pallet": {
-  "draw_calls": 6,
+  "draw_calls": 5,
   "triangles": 876,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -582,7 +582,7 @@
   "z_fighting_variants": 0
  },
  "shelf": {
-  "draw_calls": 9,
+  "draw_calls": 6,
   "triangles": 1184,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -606,7 +606,7 @@
   "z_fighting_variants": 0
  },
  "sliding_puzzle": {
-  "draw_calls": 48,
+  "draw_calls": 33,
   "triangles": 1472,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -624,7 +624,7 @@
   "z_fighting_variants": 0
  },
  "spider_bot": {
-  "draw_calls": 23,
+  "draw_calls": 17,
   "triangles": 740,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -690,7 +690,7 @@
   "z_fighting_variants": 0
  },
  "tool_cart": {
-  "draw_calls": 5,
+  "draw_calls": 4,
   "triangles": 400,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -726,7 +726,7 @@
   "z_fighting_variants": 0
  },
  "vending_machine": {
-  "draw_calls": 12,
+  "draw_calls": 11,
   "triangles": 616,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -738,7 +738,7 @@
   "z_fighting_variants": 0
  },
  "vent_shaft": {
-  "draw_calls": 5,
+  "draw_calls": 4,
   "triangles": 420,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -756,7 +756,7 @@
   "z_fighting_variants": 0
  },
  "wall_panel": {
-  "draw_calls": 10,
+  "draw_calls": 9,
   "triangles": 844,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
@@ -768,7 +768,7 @@
   "z_fighting_variants": 0
  },
  "workbench": {
-  "draw_calls": 8,
+  "draw_calls": 6,
   "triangles": 580,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0

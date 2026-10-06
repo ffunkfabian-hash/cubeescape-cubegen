@@ -69,6 +69,19 @@ class BaselineTests(unittest.TestCase):
                     found = z_fighting(generate_asset(t, seed, style=style), pivot=REGISTRY[t].pivot)
                     self.assertEqual(found, [], f"{t} {seed} {style.to_dict()}")
 
+    def test_draw_call_budget_in_any_state(self):
+        # 16 per model, or 2 per object + 2 for models of many separately moving objects; static: per material
+        from cubegen.models import generate_asset, model_types
+        from cubegen.params import Style
+        from cubegen.quality import draw_call_budget, draw_calls
+
+        for style in (Style(), Style(damage="damaged"), Style(damage="destroyed"), Style(wear="heavy"),
+                      Style(detail="high")):
+            for t in model_types():
+                for seed in range(3):
+                    a = generate_asset(t, seed, style=style)
+                    self.assertLessEqual(draw_calls(a), draw_call_budget(a), f"{t} {seed} {style.to_dict()}")
+
     def test_quality_never_gets_worse(self):
         baseline = golden_cases.load(golden_cases.QUALITY)
         current = golden_cases.quality()

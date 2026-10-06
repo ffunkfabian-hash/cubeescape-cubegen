@@ -4,7 +4,7 @@
   they flicker in the game. Only reported when it can show: different materials,
   or different objects (scripts recolour, move or hide whole objects).
 * **Triangles**: per model, against a budget per category.
-* **Draw calls**: one per material per object (Unity sub-meshes).
+* **Draw calls**: one per material per object (Unity sub-meshes); static models: one per material.
 
 All checks are pure Python and work on the assets as built (asset space).
 """
@@ -22,7 +22,8 @@ TRIANGLE_BUDGET = {
     "puzzle": 2500, "nature": 3000,
 }
 DEFAULT_TRIANGLE_BUDGET = 2500
-DRAW_CALL_BUDGET = 16  # materials summed over all objects of a model (a warning: puzzles with tiles need more)
+DRAW_CALL_BUDGET = 16  # materials summed over all objects of a model ...
+DRAW_CALLS_PER_OBJECT = 2  # ... or 2 per object: every object is its own renderer in Unity (moving parts can't merge)
 
 PLANE_TOL = 1e-4   # metres: faces closer than this to the same plane are coplanar
 MIN_OVERLAP = 1e-4  # m^2 (1 cm^2): smaller overlaps don't show
@@ -170,7 +171,19 @@ def fix_z_fighting(asset, pivot: str = "", offset: float = DECAL_OFFSET, passes:
 
 
 def draw_calls(asset) -> int:
+    """One per material per object (Unity sub-meshes). A static model (no scripts) is batched by Unity's static
+    batching (Library prefabs marked Static): one per material."""
+    if not asset.behaviours:
+        return len({r for o in asset.meshes() for r in o.mesh.roles})
     return sum(len(set(o.mesh.roles)) for o in asset.meshes())
+
+
+def draw_call_budget(asset) -> int:
+    """16 per model - or, for models of many objects (tiles, legs, rollers that move on their own and can't be
+    merged), 2 per object plus 2 for the body. Optional wear (``--wear``) comes on top."""
+    objects = [o for o in asset.meshes() if o.name != "Wear"]
+    wear = sum(len(set(o.mesh.roles)) for o in asset.meshes() if o.name == "Wear")
+    return max(DRAW_CALL_BUDGET, DRAW_CALLS_PER_OBJECT * len(objects) + 2) + wear
 
 
 def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0) -> Dict:
@@ -178,17 +191,18 @@ def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0) -> D
     stats = asset.stats()
     budget = int(TRIANGLE_BUDGET.get(category, DEFAULT_TRIANGLE_BUDGET) * budget_scale)
     fights = z_fighting(asset, pivot=pivot)
-    calls = draw_calls(asset)
+    calls, call_budget = draw_calls(asset), draw_call_budget(asset)
     errors, warnings = [], []
     if stats["triangles"] > budget:
         errors.append(f"{stats['triangles']} triangles > budget {budget}")
-    if calls > DRAW_CALL_BUDGET:
-        warnings.append(f"{calls} draw calls > {DRAW_CALL_BUDGET}")
+    if calls > call_budget:
+        warnings.append(f"{calls} draw calls > {call_budget}")
     if fights:
         top = fights[0]
         warnings.append(f"z-fighting: {len(fights)} face pair(s), e.g. {top['a']}/{top['b']} "
                         f"{top['area'] * 1e4:.0f} cm2 ({' vs '.join(top['materials'])})")
-    return {"triangles": stats["triangles"], "budget": budget, "draw_calls": calls, "z_fighting": fights,
+    return {"triangles": stats["triangles"], "budget": budget, "draw_calls": calls, "draw_call_budget": call_budget,
+            "z_fighting": fights,
             "errors": errors, "warnings": warnings}
 
 
@@ -209,6 +223,7 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
             "triangles": max(r["triangles"] for r in rows),
             "budget": rows[0]["budget"],
             "draw_calls": max(r["draw_calls"] for r in rows),
+            "draw_calls_over": sum(1 for r in rows if r["draw_calls"] > r["draw_call_budget"]),
             "z_fighting_pairs": max(fights),
             "z_fighting_variants": sum(1 for f in fights if f),
             "z_fighting_example": next((r["z_fighting"][0] for r in rows if r["z_fighting"]), None),
@@ -218,4 +233,5 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
     return result
 
 
-__all__ = ["check", "report", "z_fighting", "fix_z_fighting", "draw_calls", "TRIANGLE_BUDGET", "DRAW_CALL_BUDGET"]
+__all__ = ["check", "report", "z_fighting", "fix_z_fighting", "draw_calls", "TRIANGLE_BUDGET", "DRAW_CALL_BUDGET",
+           "draw_call_budget"]

@@ -305,7 +305,7 @@ def cmd_check(args) -> int:
     if args.family:
         return cmd_family_check(args)
     from .models import REGISTRY as registry
-    from .quality import DRAW_CALL_BUDGET, report
+    from .quality import DRAW_CALL_BUDGET, DRAW_CALLS_PER_OBJECT, report
     from .seeds import model_seed
 
     types = model_types() if not args.types or args.types == ["all"] else args.types
@@ -324,14 +324,15 @@ def cmd_check(args) -> int:
         for t, r in rows.items():
             zf = f"{r['z_fighting_pairs']} pair(s) in {r['z_fighting_variants']}" if r["z_fighting_pairs"] else "-"
             flag = " !" if r["errors"] else ""
-            draws = f"{r['draw_calls']}{'*' if r['draw_calls'] > DRAW_CALL_BUDGET else ''}"
+            draws = f"{r['draw_calls']}{'*' if r['draw_calls_over'] else ''}"
             print(f"{t:<17}{r['triangles']:>6}{r['budget']:>8}{draws:>7}  {zf:<22}"
                   f"{r['distinct_variants']:>5}/{args.count}{flag}")
         over = [t for t, r in rows.items() if r["errors"]]
         fights = [t for t, r in rows.items() if r["z_fighting_pairs"]]
         print(f"\n{len(over)} type(s) over the triangle budget{': ' + ', '.join(over) if over else ''}")
         print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
-        print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed)")
+        print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed) and more than "
+              f"{DRAW_CALLS_PER_OBJECT} per object")
     return 1 if any(r["errors"] for r in rows.values()) else 0
 
 

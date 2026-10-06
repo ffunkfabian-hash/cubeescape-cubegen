@@ -310,7 +310,7 @@ def spider_bot(rng, a):
         knee = (side * s * 0.65, fy + spread * s * 0.3, zb + s * 0.25)
         foot = (side * s * 0.95, fy + spread * s * 0.6, 0.0)
         leg = a.part(f"Leg_{i + 1}", pivot=hip)
-        cyl(leg, s * 0.06, s * 0.08, hip, "M_Metal", sides=6, rot=ALONG_X)
+        cyl(leg, s * 0.06, s * 0.08, hip, "M_RobotDark", sides=6, rot=ALONG_X)
         strut(leg, hip, knee, s * 0.04, shell, sides=6)
         leg.add(sphere(s * 0.05, 6, 3, "M_RobotDark"), loc=knee)
         strut(leg, knee, foot, s * 0.035, "M_RobotDark", sides=6, radius_end=s * 0.015)
