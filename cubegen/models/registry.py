@@ -21,6 +21,7 @@ from ..materials import check_material
 from ..params import DETAIL, Param, ParamReader, Style
 from ..quality import fix_z_fighting
 from ..seeds import StableRandom
+from .anchors import add_anchors
 from .destruction import damage_asset
 from .wear import apply_wear
 
@@ -105,15 +106,18 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
             check_material(role)
     asset.normalize(entry.pivot)
     if style.damage != "intact":
-        damage_asset(asset, seed, style.damage, entry.pivot)
+        damage_asset(asset, seed, style.damage, entry.pivot, style.generation)
         if style.damage == "destroyed":  # a ruin is static decoration with a hull collider
             asset.colliders = []
     if style.generation >= 2:
-        fix_z_fighting(asset, entry.pivot)  # flush details would flicker in the game: lift them 2 mm
+        # flush details would flicker in the game: lift them 2 mm (fragments: split faces need more passes)
+        fix_z_fighting(asset, entry.pivot, passes=8 if style.damage == "fractured" else 3)
     if style.wear != "none" and entry.pivot == "floor":
         apply_wear(asset, seed, style.wear)
         if style.generation >= 2:
             fix_z_fighting(asset, entry.pivot, only=("Wear",))  # wear never changes the model itself
+    if style.generation >= 3:
+        add_anchors(asset, model_type, style.damage)  # empties for sound and effects (Audio_*, FX_*)
     if scale != 1.0:
         asset.scale(scale)
     asset.meta.setdefault("type", model_type)

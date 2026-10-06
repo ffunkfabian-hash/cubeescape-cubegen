@@ -186,7 +186,9 @@ Mechaniken:
    sind (Anschlüsse aus "note", gedreht um die aktuelle Stellung).
 5. Schwenken (camera "Rotor", service_robot "Head"): Hin- und Herschwenken um Unity up statt Dauer-Drehung,
    ±60° (Kamera) bzw. ±40° (Kopf), Tempo als eigenes Feld (Standard 20 °/s); den Rotator der Kamera
-   (speed 0) dafür ersetzen. Kamera optional mit Sichtkegel:
+   (speed 0) dafür ersetzen. Mit cubegen-Parameter camera.sweep / turret.sweep kommt der Rotor schon um den
+   halben Winkel vorgedreht und mit Rotator.arc = Winkel: dann reicht das vorhandene Rotator.arc.
+   Kamera optional mit Sichtkegel:
    sieht sie den Spieler -> Glow-LED auf Dauerlicht, Signal (Alarm).
 6. Leiter (ladder): Trigger-Volumen vor der Leiter (Front = Unity +Z), Spieler klettert hoch/runter;
    Höhe aus bounds. Nur wenn der Spieler-Controller sich dafür erweitern lässt - sonst vorschlagen.
@@ -330,3 +332,58 @@ und Anschlüsse bleiben frei, Geländer sind eigene schmale Boxen.
 11. **Luftschleuse** (`door` Stil `airlock`): Bis 0.9.0 stand das untere Blatt zuerst in `panels`. Mit dem
     Standard `secondOffset = -openOffset` fuhren beide Blätter durcheinander hindurch, die Öffnung blieb zu.
     Jetzt steht das obere Blatt (`Panel_B`) zuerst; mit 0.9.0 exportierte Luftschleusen neu erzeugen.
+
+## Phase 3: Erweiterungen und Integrationsbedarf
+
+**Schema:** unverändert. Alles Neue sind Teile, Behaviours und Felder, die der Vertrag schon kennt
+(`cubegen/contract.json` ist gleich geblieben). Der Seed-Export aller 164 Typen ergibt 0 Ablehnungen.
+
+**Generation 3 (Standard): Anker für Ton und Effekte.** Neue leere Teile `Audio_<Klang>` und `FX_<Effekt>`
+(`Audio_Hum`, `Audio_Door`, `Audio_Servo`, `Audio_Beep`, `Audio_Alarm`, `Audio_Motor`, `Audio_Zap` …,
+`FX_Steam`, `FX_Sparks`, `FX_Smoke`, `FX_Dust`, `FX_Muzzle`, `FX_Spores`, `FX_Portal` …; Tabelle:
+`cubegen/models/anchors.py`). Sie sind Kinder des Teils, auf dem sie sitzen, und bewegen sich mit ihm. Import:
+nach Namen eine `AudioSource` (Schleife, 3D) bzw. ein Partikelsystem anhängen; Effekte zeigen nach Unity-oben,
+Front-Anker (`FX_Muzzle`) nach Unity-forward. `--generation 2` exportiert ohne Anker, bitgleich wie bisher.
+
+**Bruchstücke** (`style.damage` = `fractured`): Teile `Fragment_01` … (Pivot in der Mitte des Bruchstücks), je
+ein Collider `{"type": "mesh", "part": "Fragment_nn", "convex": true}`, keine Behaviours (`"static": true`). Solche
+Prefabs nicht Static markieren; bei Zerstörung jedem Bruchstück einen Rigidbody (Masse nach Bounds) geben und
+einen kleinen Impuls vom Treffpunkt weg.
+
+**Paletten-Modus** (`--textures palette`): Die Teile nennen `MP_Palette` als Material (Glas, Status- und
+Glow-Teile behalten `M_…`). Einmal ein Material `MP_Palette` anlegen: Albedo `MP_Palette_Albedo.png` (sRGB),
+Metallic `MP_Palette_MetallicSmoothness.png` (R = Metallic, A = Smoothness, linear), Emission
+`MP_Palette_Emission.png` × `emission` aus `CubeEscape_Palette.json`; alle drei mit Filter Mode **Point** und ohne
+Mipmaps (sonst laufen die Farbzellen ineinander). Der Sidecar hat dafür keinen `textures`-Eintrag (der Vertrag
+kennt nur `tiled`/`baked`); der Materialname genügt für das Remapping.
+
+**Schwenken** (`camera.sweep`, `turret.sweep`): `Rotator` mit `arc` = Winkel. cubegen baut den Kopf bzw. das
+Geschütz um −arc/2 (Unity-Gier) vorgedreht, damit ein Schwenk von 0 bis `arc` in Richtung `speed` symmetrisch
+±arc/2 um die Blickrichtung pendelt. Bitte prüfen, dass `Rotator.arc` so arbeitet (sonst: Vorzeichen in
+`cubegen/models/common.py`, `sweep_rotator`). Die Kamera-LED (`Glow`) ist dann Kind von `Rotor`.
+
+**Text:** `sign.text`, `door.label` (eigenes statisches Teil `Label` über der Tür), `countdown.text`,
+`floor_plan.title` sind Geometrie; nichts zu tun. Der Countdown zeigt seine Startzeit (`meta.time`,
+`meta.seconds_total`); für eine laufende Uhr die Ziffern (`Glow`) durch eine TextMesh-Anzeige ersetzen.
+
+### Neue Typen: was der Import heute schon kann
+
+| Typ | Teile | Behaviour (vorhanden) | Status |
+|---|---|---|---|
+| `sequence_panel` | `Button_<n>`, `Light_<n>` (Kind der Taste), `Glow` | je Licht `SignalIndicator` (aus: `M_RobotDark`, an: Tastenfarbe), `SignalLight` Blink | Lichter schaltbar; Folge-Logik fehlt (`meta.sequence`) |
+| `water_level` | `Fluid_<n>` (Pivot unten), `Wheel_<n>`, `Glow` | je Rad `Rotatable` (forward, 90°, Ziel = Zielstand × 4), `SignalLight` | Räder drehbar; `Fluid_<n>` je Schritt um ¼ der Säule (`meta.column_m`) anheben fehlt |
+| `laser_filter` | `Filter` (Pivot auf der Achse), `Glow` | `Rotatable` (up, 90°, Ziel 1) | drehbar; Laserfarbe (`meta.colour`) übernehmen fehlt |
+| `symbol_plate` | `Plate_<n>` (Pivot Mitte), `Glow` | je Platte `Rotatable` (forward, 90°, Ziel = aufrecht) | spielbar, wenn alle Ziele erreicht = gelöst |
+| `crane` | Drehkran: `Jib` mit Kind `Glow` (Magnet); Portalkran: `Trolley` mit `Glow` | `Rotatable` (up, 45°) bzw. `SignalLight` | Drehen spielbar; Magnet (Aufnehmen) und Laufkatze fehlen |
+| `countdown` | `Body`, `Glow` (Ziffern) | `SignalLight` Blink | statische Startzeit |
+| `push_block` | `Body`, optional `Glow` | – (statisch), eine Box als Collider | Schieben (Rigidbody, nur horizontal) und `PressurePlate` fehlen |
+| `escape_pod` | `Panel` (Luke, Pivot am Scharnier), `Glow` | `Rotatable` (up, ±100°, Ziel 1) | Luke wie die Klappen (Zwei-Stellungs-Modus, ToDo 4) |
+| `floodlight` | `Glow` | `SignalLight` mit `lightPosition`, `range`, `intensity` | spielbar |
+| `light_strip`, `emergency_light`, `floor_plan`, `solar_panel`, `cocoon` | `Glow` (+ `Rotor` bei der Rundumleuchte) | `SignalLight` | spielbar |
+| `lab_device` (Zentrifuge) | `Rotor` | `Rotator` (up) | spielbar |
+| `patrol_drone` | `Rotor_1/2`, `Head` mit Kind `Glow` | `Rotator` je Propeller (gegenläufig) und Scanner, `SignalLight` | Flug-/Patrouillenlogik fehlt |
+| `vent_crawler`, `robot_dog`, `mech` | `Leg_<n>` (Pivot Hüfte), `Head`, `Torso`, `Arm_L/R` | `SignalLight` (+ `Rotator` Torso) | Gangarten fehlen |
+
+Statisch mit eigenen Collidern: `ramp` (Schräge + ebenes Ende), `archway` (Pfosten und Sturz, Durchgang frei),
+`ceiling_module` (Platte), `wall_cap` mit Geländer, `collapsed_catwalk` (schräges Deck), `push_block`. Alle anderen
+neuen Typen sind statische Deko mit Hülle.

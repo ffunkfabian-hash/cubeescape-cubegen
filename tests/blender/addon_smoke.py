@@ -209,6 +209,75 @@ addon._TYPE_ITEMS_BY_FAMILY.pop("foundry", None)
 s.family = addon.NO_FAMILY
 s.render_icons = False
 
+# --- snapping: kit parts rest at their connectors ----------------------------------------------
+s.family = "station"
+s.show_connectors = True
+assert bpy.ops.cubegen.kit() == {"FINISHED"}
+walk_a, walk_b = bpy.data.collections["Gen_Catwalk_000"], bpy.data.collections["Gen_Catwalk_001"]
+assert any(o.get("cubegen_connector") == "walk" for o in walk_a.objects), [o.name for o in walk_a.objects]
+yaw_a, origin_a = addon._pose(walk_a)
+near = addon._pose_matrix((yaw_a + 0.3, (origin_a[0] + 4.4, origin_a[1] + 0.3, origin_a[2])))
+delta = near @ addon._pose_matrix(addon._pose(walk_b)).inverted()
+for o in walk_b.objects:  # put catwalk B roughly behind A's +X end, a little turned
+    if o.parent is None:
+        o.matrix_world = delta @ o.matrix_world
+bpy.context.view_layer.update()
+for o in bpy.context.view_layer.objects:
+    o.select_set(False)
+part_a, part_b = bpy.data.objects["Gen_Catwalk_000.Deck"], bpy.data.objects["Gen_Catwalk_001.Deck"]
+part_a.select_set(True)
+part_b.select_set(True)
+bpy.context.view_layer.objects.active = part_b
+assert bpy.ops.cubegen.snap() == {"FINISHED"}
+
+
+def placed(coll):
+    return (coll.name, json.loads(coll["cubegen_connectors"]), addon._pose(coll))
+
+
+joined = addon.snapping.occupied([placed(walk_a), placed(walk_b)])
+print("SNAP_WALK", joined)
+assert ("Gen_Catwalk_000", "walk_+1+0") in joined and len(joined) == 2, joined
+door, wall = bpy.data.collections["Gen_Door_000"], bpy.data.collections["Gen_Wall_001"]
+for o in bpy.context.view_layer.objects:
+    o.select_set(False)
+bpy.data.objects["Gen_Wall_001.Wall"].select_set(True)
+bpy.data.objects["Gen_Door_000.Frame_Top"].select_set(True)
+bpy.context.view_layer.objects.active = bpy.data.objects["Gen_Door_000.Frame_Top"]
+assert bpy.ops.cubegen.snap() == {"FINISHED"}
+joined = addon.snapping.occupied([placed(door), placed(wall)])
+print("SNAP_DOOR", joined)
+assert joined == {("Gen_Door_000", "frame"), ("Gen_Wall_001", "door")}, joined
+s.show_connectors = False
+s.family = addon.NO_FAMILY
+
+# --- palette mode, fractured state, generation 3 anchors -----------------------------------
+s.model_type = "machine"
+s.textures = "palette"
+mats = {slot.material.name for slot in bpy.data.objects["Gen_Machine_001.Body"].material_slots}
+glow = {slot.material.name for slot in bpy.data.objects["Gen_Machine_001.Glow"].material_slots}
+print("PALETTE_PREVIEW", mats, glow)
+assert mats == {"MP_Palette"} and glow == {"M_GlowRed"}, (mats, glow)
+assert "Gen_Machine_001.Audio_Hum" in bpy.data.objects  # generation 3: anchor empties
+result = bpy.ops.cubegen.export(mode="PREVIEW")
+assert result == {"FINISHED"}, s.status
+rig = json.load(open(os.path.join(out, "Models", "Gen_Machine_001.cubegen.json")))
+assert next(p["materials"] for p in rig["parts"] if p["name"] == "Body") == ["MP_Palette"]
+assert "textures" not in rig  # the sidecar contract has no palette mode: the material name is enough
+assert os.path.isfile(os.path.join(out, "Models", "Textures", "MP_Palette_Albedo.png"))
+s.textures = "none"
+s.generation = "2"
+assert "Gen_Machine_001.Audio_Hum" not in bpy.data.objects
+s.generation = "3"
+s.model_type = "crate"
+s.damage = "fractured"
+assert "Gen_Crate_001.Fragment_01" in bpy.data.objects, sorted(o.name for o in bpy.data.objects)
+s.damage = "intact"
+s.model_type = "sign"
+s.type_params.sign.text = "B-12"
+assert addon._INFO["meta"].get("text") == "B-12", addon._INFO["meta"]
+bpy.ops.cubegen.reset_params()
+
 # --- textures (selection field) + destroyed state + ruins ---------------------------------
 s.model_type = "crate"
 s.textures = "tiled"
@@ -270,8 +339,8 @@ class Ctx:
     preferences = bpy.context.preferences
 
 
-panels = (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_family, addon.CUBEGEN_PT_params, addon.CUBEGEN_PT_style,
-          addon.CUBEGEN_PT_grid, addon.CUBEGEN_PT_export)
+panels = (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_family, addon.CUBEGEN_PT_snap, addon.CUBEGEN_PT_params,
+          addon.CUBEGEN_PT_style, addon.CUBEGEN_PT_grid, addon.CUBEGEN_PT_export)
 s.live = False
 for model_type in addon._all_types():  # the parameter panel differs per type
     s.model_type = model_type

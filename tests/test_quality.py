@@ -63,7 +63,8 @@ class BaselineTests(unittest.TestCase):
         from cubegen.models import REGISTRY, generate_asset, model_types
         from cubegen.params import Style
 
-        for style in (Style(damage="damaged"), Style(damage="destroyed"), Style(wear="heavy"), Style(detail="low")):
+        for style in (Style(damage="damaged"), Style(damage="destroyed"), Style(damage="fractured"), Style(wear="heavy"),
+                      Style(detail="low")):
             for t in model_types():
                 for seed in range(3):
                     found = z_fighting(generate_asset(t, seed, style=style), pivot=REGISTRY[t].pivot)
@@ -75,8 +76,8 @@ class BaselineTests(unittest.TestCase):
         from cubegen.params import Style
         from cubegen.quality import draw_call_budget, draw_calls
 
-        for style in (Style(), Style(damage="damaged"), Style(damage="destroyed"), Style(wear="heavy"),
-                      Style(detail="high")):
+        for style in (Style(), Style(damage="damaged"), Style(damage="destroyed"), Style(damage="fractured"),
+                      Style(wear="heavy"), Style(detail="high")):
             for t in model_types():
                 for seed in range(3):
                     a = generate_asset(t, seed, style=style)

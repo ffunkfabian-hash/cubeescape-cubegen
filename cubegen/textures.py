@@ -41,7 +41,7 @@ RECIPES = {
     "M_Warning": "chipped",
     "M_HazardOrange": "chipped",
 }
-TEXTURE_MODES = ("none", "tiled", "baked")
+TEXTURE_MODES = ("none", "tiled", "baked", "palette")  # palette: cubegen/palette.py, no ImageMagick
 BARE_METAL = "#4a4e55"
 
 

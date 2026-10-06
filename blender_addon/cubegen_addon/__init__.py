@@ -60,13 +60,14 @@ def _load_cubegen():
         import cubegen as pkg
     return {name: importlib.import_module(f"{pkg.__name__}.{name}")
             for name in ("models", "seeds", "pipeline", "bpy_builder", "params", "textures", "imagemagick",
-                         "variety", "families")}, \
+                         "variety", "families", "palette", "snapping")}, \
         pkg.__version__
 
 
 _CG, CUBEGEN_VERSION = _load_cubegen()
 models, seeds, pipeline, builder = _CG["models"], _CG["seeds"], _CG["pipeline"], _CG["bpy_builder"]
 params_mod, variety, families = _CG["params"], _CG["variety"], _CG["families"]
+palette_mod, snapping = _CG["palette"], _CG["snapping"]
 textures_mod, magick_mod = _CG["textures"], _CG["imagemagick"]
 SEED = "__seed__"  # enum value: "roll it from the seed" 
 
@@ -241,15 +242,96 @@ def _new_collection(context, name, parent=None):
     return coll
 
 
+PALETTE = "__palette__"  # material map marker: the palette material per part (palette_mod.material_map)
+
+
 def _build(asset, coll, s, variant, material_map=None):
     model_type = asset.meta["type"]
-    builder.build_collection(
+    if material_map == PALETTE:
+        material_map = palette_mod.material_map(asset)
+    objects = builder.build_collection(
         asset, coll, object_name=lambda part: f"{asset.name}.{part}", material_map=material_map,
         tags={"cubegen_type": model_type, "cubegen_seed": str(asset.meta["seed"])},
     )
+    for o in asset.objects:  # the pose of the model in the scene follows from any root object and its pivot
+        if o.parent is None:
+            objects[o.name]["cubegen_pivot"] = list(o.pivot)
     coll["cubegen_type"] = model_type
     coll["cubegen_variant"] = variant
     coll["cubegen_master_seed"] = s.master_seed
+    cons = snapping.connector_data(asset, model_type)
+    coll["cubegen_connectors"] = json.dumps(cons)
+    if s.show_connectors:
+        _connector_arrows(asset.name, coll, cons)
+
+
+def _connector_arrows(name, coll, cons):
+    """An arrow empty per connector (pointing out of the model) - shows where parts snap."""
+    from mathutils import Vector
+
+    for c in cons:
+        arrow = bpy.data.objects.new(f"{name}.@{c['name']}", None)
+        arrow.empty_display_type = "SINGLE_ARROW"
+        arrow.empty_display_size = 0.5
+        arrow.location = c["pos"]
+        arrow.rotation_euler = Vector((0, 0, 1)).rotation_difference(Vector(c["dir"])).to_euler()
+        arrow["cubegen_connector"] = c["kind"]
+        coll.objects.link(arrow)
+
+
+def _pose(coll):
+    """(yaw, origin) of a built model in the scene, from a root object that knows its pivot; None if unknown."""
+    from mathutils import Vector
+
+    for obj in coll.objects:
+        if obj.parent is None and "cubegen_pivot" in obj:
+            mw = obj.matrix_world
+            yaw = mw.to_euler().z
+            pivot = Vector(obj["cubegen_pivot"])
+            origin = mw.translation - mw.to_3x3() @ pivot
+            return yaw, tuple(origin)
+    return None
+
+
+def _pose_matrix(pose):
+    from mathutils import Matrix
+
+    yaw, origin = pose
+    return Matrix.Translation(origin) @ Matrix.Rotation(yaw, 4, "Z")
+
+
+def snap_collection(context, coll, targets, max_distance=None):
+    """Move ``coll`` (all its root objects) so one of its connectors meets the nearest free compatible connector of
+    ``targets``. Returns the snapping result or None."""
+    pose = _pose(coll)
+    if pose is None or "cubegen_connectors" not in coll:
+        return None
+    others = []
+    for t in targets:
+        if t is coll or "cubegen_connectors" not in t:
+            continue
+        tp = _pose(t)
+        if tp is not None:
+            others.append((t.name, json.loads(t["cubegen_connectors"]), tp))
+    result = snapping.snap(json.loads(coll["cubegen_connectors"]), pose, others, moving_id=coll.name,
+                           max_distance=max_distance)
+    if result is None:
+        return None
+    delta = _pose_matrix(result["pose"]) @ _pose_matrix(pose).inverted()
+    for obj in coll.objects:
+        if obj.parent is None:
+            obj.matrix_world = delta @ obj.matrix_world
+    context.view_layer.update()
+    return result
+
+
+def _asset_collections(context):
+    """Every built model in the scene (preview and grid)."""
+    found = []
+    for coll in bpy.data.collections:
+        if "cubegen_connectors" in coll and any(o.name in context.scene.objects for o in coll.objects):
+            found.append(coll)
+    return found
 
 
 _TEXTURE_CACHE = {}
@@ -260,6 +342,12 @@ def _preview_material_map(context):
     s = _settings(context)
     if s.textures == "none":
         return None
+    if s.textures == "palette":  # one material per model, written in pure Python
+        if "palette" not in _TEXTURE_CACHE:
+            folder = os.path.join(DEFAULT_OUT, "texture_cache", "palette")
+            _TEXTURE_CACHE["palette"] = palette_mod.write_palette(folder, log=print)
+        builder.create_palette_material(_TEXTURE_CACHE["palette"])
+        return PALETTE
     key = (s.texture_set, int(s.texture_size))
     if key not in _TEXTURE_CACHE:
         prefs = context.preferences.addons[__name__].preferences
@@ -596,16 +684,23 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
         ("high", "Hoch", "Rundere Zylinder")])
     damage: EnumProperty(name="Zustand", update=_on_change, default="intact", items=[
         ("intact", "Intakt", ""), ("damaged", "Beschädigt", "Dellen, abgeschlagene Kleinteile, tote Deko-LEDs"),
-        ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts")])
+        ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts"),
+        ("fractured", "Bruchstücke", "Sieht intakt aus, besteht aus Bruchstücken Fragment_<n> (konvexe Collider), "
+                                     "die Unity bei Zerstörung herausfallen lässt - statisch, ohne Scripts")])
     generation: EnumProperty(name="Generation", update=_on_change, default=str(params_mod.LATEST_GENERATION),
-                             items=[("2", "2 (aktuell)", "Keine flackernden Flächen, 2 Materialien pro beweglichem Teil"),
+                             items=[("3", "3 (aktuell)", "Wie 2, dazu Anker für Ton und Effekte (Audio_*, FX_*); "
+                                                         "beschädigte Türrahmen verlieren keine Teile mehr"),
+                                    ("2", "2", "Keine flackernden Flächen, 2 Materialien pro beweglichem Teil "
+                                               "(Stand vor den Ankern)"),
                                     ("1", "1 (wie 0.9.0)", "Baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach")],
                              description="Modell-Generation: Korrekturen, die bestehende Seeds verändern, gelten erst "
                                          "ab ihrer Generation")
     textures: EnumProperty(name="Texturen", update=_on_change, default="none", items=[
         ("none", "Keine", "Einfarbige M_-Materialien wie bisher (Standard)"),
         ("tiled", "Kachel", "ImageMagick-Kacheltexturen als MT_-Materialien (1 Kachel = 1 m)"),
-        ("baked", "Gebacken", "Kachel + pro Asset gebackener Atlas mit Schmutz (MTA_<Asset>); Vorschau zeigt Kachel")])
+        ("baked", "Gebacken", "Kachel + pro Asset gebackener Atlas mit Schmutz (MTA_<Asset>); Vorschau zeigt Kachel"),
+        ("palette", "Palette", "Ein Material MP_Palette mit Farbpaletten-Textur pro Modell: 1 Draw Call "
+                               "(Glas und von Scripts umgefärbte Teile behalten ihr Material)")])
     texture_size: EnumProperty(name="Auflösung", update=_on_change, default="512", items=[
         ("256", "256 px", ""), ("512", "512 px", ""), ("1024", "1024 px", ""), ("2048", "2048 px", "")])
     texture_set: StringProperty(name="Textur-Set", default="", update=_on_change,
@@ -618,6 +713,13 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
                                   description="Icon-Kamera: Blickwinkel von oben, Grad")
     icon_zoom: FloatProperty(name="Zoom", default=1.0, min=0.2, max=5.0, description="> 1 = näher heran")
     type_params: PointerProperty(type=CUBEGEN_TypeParams)
+
+    show_connectors: BoolProperty(name="Anschlüsse zeigen", default=False, update=_on_change,
+                                  description="Pfeile an den Anschlusspunkten der gebauten Teile (Wandenden, "
+                                              "Stegenden, Öffnungen, Rohrenden ...); wirkt beim nächsten Bauen")
+    snap_range: FloatProperty(name="Reichweite", default=0.0, min=0.0, soft_max=20.0, unit="LENGTH",
+                              description="Nur Anschlüsse in dieser Entfernung einrasten (0 = den nächsten, egal "
+                                          "wie weit)")
 
     running: BoolProperty(default=False)
     status: StringProperty(default="")
@@ -734,6 +836,36 @@ class CUBEGEN_OT_kit(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         self.report({"INFO"}, f"Kit {s.family}: {len(entries)} Teile gebaut")
+        return {"FINISHED"}
+
+
+class CUBEGEN_OT_snap(bpy.types.Operator):
+    bl_idname = "cubegen.snap"
+    bl_label = "Einrasten"
+    bl_description = ("Das Teil des aktiven Objekts an den nächsten passenden freien Anschluss eines anderen Teils "
+                      "setzen (Stegende an Stegende, Tür in die Wandöffnung, Wandabschluss auf die Wand ...). "
+                      "Andere Teile ausgewählt: nur an diese, sonst an alle gebauten Teile")
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        obj = context.active_object
+        coll = next((c for c in obj.users_collection if "cubegen_connectors" in c), None)
+        if coll is None:
+            self.report({"WARNING"}, "Das aktive Objekt gehört zu keinem gebauten Teil")
+            return {"CANCELLED"}
+        selected = {c for o in context.selected_objects for c in o.users_collection if "cubegen_connectors" in c}
+        targets = [c for c in selected if c is not coll] or _asset_collections(context)
+        s = _settings(context)
+        result = snap_collection(context, coll, targets, s.snap_range or None)
+        if result is None:
+            self.report({"WARNING"}, "Kein freier passender Anschluss gefunden")
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"{coll.name}: {result['connector']} an {result['target']} "
+                              f"{result['target_connector']} ({result['distance']:.2f} m)")
         return {"FINISHED"}
 
 
@@ -982,6 +1114,20 @@ class CUBEGEN_PT_family(_Panel, bpy.types.Panel):
         row.operator("cubegen.export", text="Kit exportieren", icon="EXPORT").mode = "KIT"
 
 
+class CUBEGEN_PT_snap(_Panel, bpy.types.Panel):
+    bl_label = "Einrasten"
+    bl_parent_id = "CUBEGEN_PT_main"
+
+    def draw(self, context):
+        s = _settings(context)
+        layout = self.layout
+        row = layout.row(align=True)
+        row.prop(s, "show_connectors")
+        row.prop(s, "snap_range")
+        layout.operator("cubegen.snap", icon="SNAP_ON")
+        layout.label(text="Teil anklicken (aktiv), optional Ziel-Teile dazu wählen, dann Einrasten", icon="INFO")
+
+
 class CUBEGEN_PT_params(_Panel, bpy.types.Panel):
     bl_label = "Parameter"
     bl_parent_id = "CUBEGEN_PT_main"
@@ -1116,9 +1262,9 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
 CLASSES = (
     *TYPE_PARAM_GROUPS, CUBEGEN_TypeParams, CUBEGEN_Settings, CUBEGEN_Preferences,
     CUBEGEN_OT_preview, CUBEGEN_OT_step, CUBEGEN_OT_grid, CUBEGEN_OT_all_types, CUBEGEN_OT_kit, CUBEGEN_OT_use_active,
-    CUBEGEN_OT_reset_params, CUBEGEN_OT_clear,
+    CUBEGEN_OT_reset_params, CUBEGEN_OT_clear, CUBEGEN_OT_snap,
     CUBEGEN_OT_copy_cli, CUBEGEN_OT_export, CUBEGEN_OT_open_folder,
-    CUBEGEN_PT_main, CUBEGEN_PT_family, CUBEGEN_PT_params, CUBEGEN_PT_style, CUBEGEN_PT_grid, CUBEGEN_PT_export,
+    CUBEGEN_PT_main, CUBEGEN_PT_family, CUBEGEN_PT_snap, CUBEGEN_PT_params, CUBEGEN_PT_style, CUBEGEN_PT_grid, CUBEGEN_PT_export,
 )
 
 

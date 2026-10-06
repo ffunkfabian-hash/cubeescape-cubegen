@@ -11,6 +11,7 @@ import math
 from ..geometry import prism
 from ..params import Param
 from .common import ALONG_X, ALONG_Y, cube, cyl, deg, stripes
+from .lettering import add_text, check_text, text_width
 from .registry import model
 
 BOX_MATS = ["M_RobotDark", "M_Wall", "M_Metal", "M_HazardOrange", "M_Platform"]
@@ -528,6 +529,9 @@ SIGN_SYMBOLS = ("warning", "arrow", "exit", "electric", "number")
            Param("size", "float", "Größe (m)", lo=0.2, hi=1.5, size=True),
            Param("mount_height", "float", "Mitte über Boden (m)", lo=0.5, hi=3.5),
            Param("lit", "bool", "Beleuchtet (Glow)"),
+           Param("text", "text", "Beschriftung", quiet=True,
+                 description="Text statt Symbol, z. B. B-12 (A-Z, Ä Ö Ü, 0-9, - + . : / _ ' ! #, bis 16 Zeichen); "
+                             "das Schild wird so breit wie der Text"),
        ])
 def sign(rng, a):
     p = a.p
@@ -539,15 +543,26 @@ def sign(rng, a):
     body = a.part("Body")
     sym = a.part("Glow") if lit else body
     glow = p.glow() if lit else None
+    number_mat = p.material(["M_Platform", "M_RobotDark", "M_HazardOrange"])
+    text = p.option("text")
+    if text:  # a label instead of the symbol: room number, sector, warning text
+        text = check_text(text, max_len=16)
+        symbol = "text"
     plate_mat = {"warning": "M_Warning", "electric": "M_Warning", "arrow": "M_RobotDark", "exit": "M_RobotDark",
-                 "number": p.material(["M_Platform", "M_RobotDark", "M_HazardOrange"])}[symbol]
+                 "number": number_mat, "text": number_mat}[symbol]
     ink = glow or ("M_RobotDark" if plate_mat in ("M_Warning", "M_Platform", "M_HazardOrange") else "M_Platform")
     w = s * (1.6 if symbol in ("arrow", "exit") else 1.0)
+    if text:
+        letters = s * 0.45
+        w = max(s * 0.8, text_width(text, letters) + s * 0.35)
     cube(body, (w + 0.04, 0.04, s + 0.04), (0, 0.08, z), "M_RobotDark", bevel=0.01)
     cube(body, (w, 0.02, s), (0, 0.05, z), plate_mat)
     y = 0.03
     a.meta["symbol"] = symbol
-    if symbol == "warning":
+    if text:
+        add_text(sym, text, (0, 0.04, z), letters, 0.016, ink)
+        a.meta["text"] = text
+    elif symbol == "warning":
         tri = [(-s * 0.4, -s * 0.33), (s * 0.4, -s * 0.33), (0.0, s * 0.37)]
         sym.add(prism(tri, 0.012, ink), loc=(0, y, z), basis=UPRIGHT)
         cube(body, (s * 0.07, 0.016, s * 0.28), (0, y - 0.004, z + s * 0.0), plate_mat)  # exclamation mark

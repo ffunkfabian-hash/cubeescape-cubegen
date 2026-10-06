@@ -16,8 +16,8 @@ import math
 
 from ..geometry import lathe
 from ..params import Param
-from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, item_pickup, pickup_params, rotated, stripes, \
-    valve_wheel
+from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, item_pickup, pickup_params, prerotate, rotated, \
+    stripes, sweep_param, sweep_rotator, valve_wheel
 from .registry import model
 
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
@@ -557,6 +557,7 @@ def keypad(rng, a):
            Param("speed", "float", "Dreh-Tempo (°/s, 0 = steht)", lo=0, hi=180, unity=True, default=0,
                  description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
            Param("mode", "choice", "LED-Modus", choices=("Steady", "Blink", "Pulse"), unity=True, default="Blink"),
+           sweep_param(),
        ])
 def camera(rng, a):
     p = a.p
@@ -584,8 +585,11 @@ def camera(rng, a):
         cyl(head, 0.13, 0.12, (cx, cy, cz - 0.16), "M_Glass", sides=10, radius_top=0.13 * 0.98)
         cyl(head, 0.13 * 0.98, 0.05, (cx, cy, cz - 0.245), "M_Glass", sides=10, radius_top=0.06)
         cube(lights, (0.03, 0.03, 0.02), (cx, cy - 0.1, cz - 0.05), "M_GlowRed")
-    a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "up", "speed": p.option("speed")},
-                note="head turns around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep)")
+    sweep = p.option("sweep")
+    if sweep:  # the LED sits on the head: it turns with it
+        prerotate(a, "Rotor", 0.0, adopt=("Glow",))
+    sweep_rotator(a, "Rotor", p.option("speed"), sweep,
+                  "head turns around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep)")
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 
 

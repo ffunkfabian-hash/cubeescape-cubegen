@@ -24,8 +24,9 @@ if ROOT not in sys.path:
 import bpy  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
-from cubegen.bpy_builder import (build_collection, create_materials, create_textured_materials,  # noqa: E402
-                                 export_collection)
+from cubegen.bpy_builder import (build_collection, create_materials, create_palette_material,  # noqa: E402
+                                 create_textured_materials, export_collection)
+from cubegen.palette import material_map as palette_map  # noqa: E402
 from cubegen.fbxread import check_asset  # noqa: E402
 from cubegen.models import REGISTRY, generate_asset  # noqa: E402
 from cubegen.params import Style  # noqa: E402
@@ -61,10 +62,13 @@ def _generate(spec):
                           params=spec.get("params"), style=Style.from_dict(spec.get("style")))
 
 
-def build_asset(spec, material_map=None):
+def build_asset(spec, material_map=None, palette=False):
     """Objects of a spec in a new collection. With ``spec["lod"]``: + the low detail build, objects
-    named <part>_LOD0 / <part>_LOD1 (LOD1 hidden in previews). Returns (asset, LOD1 asset or None, collection)."""
+    named <part>_LOD0 / <part>_LOD1 (LOD1 hidden in previews). Returns (asset, LOD1 asset or None, collection).
+    ``palette``: materials per part from the asset (palette mode)."""
     asset = _generate(spec)
+    if palette:
+        material_map = palette_map(asset)
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
     tags = {"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])}
@@ -222,18 +226,21 @@ def run_job(job_path):
     material_map = {plain: info["name"] for plain, info in textures.items()}
     if textures:
         create_textured_materials(textures)
+    palette = job.get("palette")
+    if palette:
+        create_palette_material(palette)
     render = job.get("render") or {}
     cam = None
     if render.get("enabled"):
         cam = setup_render(scene, render.get("engine", "cycles"), render.get("size", 256), render.get("samples", 32),
-                           textured=bool(job.get("textures")))
+                           textured=bool(job.get("textures") or palette))
         log(f"rendering previews with {scene.render.engine}")
 
     results, collections, biggest = [], [], 1.0
     total = len(job["models"])
     for i, spec in enumerate(job["models"], 1):
         t0 = time.time()
-        asset, lod, collection = build_asset(spec, material_map)
+        asset, lod, collection = build_asset(spec, material_map, palette=bool(palette))
         if spec.get("skip"):  # unchanged / exported by another process: only part of the overview .blend
             _set_aside(collection, asset)
             collections.append(collection)

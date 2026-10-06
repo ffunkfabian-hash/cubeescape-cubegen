@@ -1,6 +1,7 @@
 # Roadmap
 
-Stand: 6. Oktober 2026, cubegen 0.9.0 plus die Korrekturen unter „Unveröffentlicht“ im [CHANGELOG](../CHANGELOG.md).
+Stand: 6. Oktober 2026, cubegen 0.9.0 plus Korrekturen und Erweiterungen (Phase 3 ohne Raum-Generator) unter
+„Unveröffentlicht“ im [CHANGELOG](../CHANGELOG.md).
 Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste beginnt mit dem Wichtigsten.
 
 ## 1. Bekannte Bugs
@@ -41,31 +42,40 @@ Alle behoben (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
 
 ## 3. Erweiterungen
 
+Punkte 2–8 und alle vorgeschlagenen Modelltypen erledigt (Unveröffentlicht, siehe [CHANGELOG](../CHANGELOG.md)).
+
 **Funktionen**
 
 1. **Raum- und Level-Generator:** setzt aus den Anschlusspunkten der Familien (`connectors` im Manifest) einen
-   ganzen Raum nach Seed zusammen; Ausgabe als Layout-JSON für Unity.
-2. **Einrasten im Blender-Add-on:** Kit-Teile rasten an ihren Anschlusspunkten ein.
-3. **Paletten-Modus:** ein Material mit Farbpaletten-Textur pro Modell, also ein Draw Call.
-4. **Symmetrisches Schwenken** für `camera` und `turret`: Rotor um den halben Winkel vorgedreht gebaut, dann
-   schwenkt das vorhandene `Rotator.arc` um ±60°.
-5. **Weitere Familien:** `medbay`, `derelict`, `greenhouse`, `reactor`, jeweils mit Requisiten im Kit.
-6. **Zustand `fractured`:** Modell in Bruchstücke zerlegt, die Unity bei Zerstörung herausfallen lässt.
-7. **Text auf Modellen:** Raumnummern und Beschriftungen (`sign.text=B-12`).
-8. **Anker für Ton und Effekte:** leere Teile wie `Audio_Hum`, `FX_Steam`.
+   ganzen Raum nach Seed zusammen; Ausgabe als Layout-JSON für Unity. *(offen; die Bausteine dafür gibt es jetzt:
+   `cubegen/snapping.py` setzt zwei Teile an kompatiblen Anschlüssen aneinander, `families.JOINS` sagt, welche
+   Anschlüsse zusammengehören.)*
+2. [x] **Einrasten im Blender-Add-on:** Panel „Einrasten“ setzt ein Teil an den nächsten passenden freien Anschluss
+   (Steg, Rampe, Tür in Wandöffnung, Rohr, Wandende, Wandabschluss, Sockelleiste, Decke); „Anschlüsse zeigen“ setzt
+   Pfeile. Kern: `cubegen/snapping.py`.
+3. [x] **Paletten-Modus:** `--textures palette`, ein Material `MP_Palette` mit Farbpaletten-Textur pro Modell, also
+   ein Draw Call (Glas und von Scripts umgefärbte Teile behalten ihr Material); `check --palette`.
+4. [x] **Symmetrisches Schwenken** für `camera` und `turret`: Parameter `sweep`, Rotor um den halben Winkel
+   vorgedreht gebaut, `Rotator.arc` = `sweep` (120 = ±60°).
+5. [x] **Weitere Familien:** `medbay`, `derelict`, `greenhouse`, `reactor`, jeweils mit Requisiten im Kit; alle
+   Kits zusätzlich mit Torbogen, Wandabschluss, Sockelleiste, Decken-/Dachmodul und Rampe.
+6. [x] **Zustand `fractured`:** Modell in Bruchstücke `Fragment_<nn>` zerlegt (Voronoi-Schnitte, konvexe
+   Mesh-Collider), die Unity bei Zerstörung herausfallen lässt.
+7. [x] **Text auf Modellen:** Blockschrift; `sign.text=B-12`, `door.label`, `countdown.text`, `floor_plan.title`.
+8. [x] **Anker für Ton und Effekte:** leere Teile wie `Audio_Hum`, `FX_Steam` (Generation 3, Standard).
 
-**Neue Modelltypen**
+**Neue Modelltypen** (alle erledigt, jetzt 164 Typen)
 
-| Bereich | Vorschläge |
+| Bereich | Typen |
 |---|---|
-| Bau-Kit | Rampe, Decken- und Dachmodul, Durchgang / Torbogen, Wandabschluss, Sockelleiste |
-| Rätsel | Gewichtsblock zum Schieben (passt zur Druckplatte), Ton- und Farbfolge-Panel, Wasserstand-Rätsel, Farbfilter für Laser, Symbolplatten, Kran / Magnet, Countdown-Anzeige |
-| Requisiten | Labor (Mikroskop, Reagenzglas-Ständer, Zentrifuge), Küche / Messe, Waschraum, Lageplan |
-| Licht | Flutlicht, Neon- und LED-Leisten, Notbeleuchtung |
-| Roboter | Patrouillen-Drohne, Kriecher für Lüftungsschächte, Roboterhund, Industrie-Mech |
-| Natur / Alien | Ranken, Kokons, Wurzeln durch Wände, Pilzteppiche, Pfützen |
-| Außen / Weltraum | Rettungskapsel, Solarpanel, Asteroid, Fenster mit Planet |
-| Ruinen | abgestürzte Kapsel, ausgebrannte Konsole, eingestürzter Steg |
+| Bau-Kit | [x] Rampe `ramp`, [x] Decken- und Dachmodul `ceiling_module`, [x] Durchgang / Torbogen `archway`, [x] Wandabschluss `wall_cap`, [x] Sockelleiste `baseboard` |
+| Rätsel | [x] Gewichtsblock `push_block`, [x] Ton- und Farbfolge-Panel `sequence_panel`, [x] Wasserstand-Rätsel `water_level`, [x] Farbfilter für Laser `laser_filter`, [x] Symbolplatten `symbol_plate`, [x] Kran / Magnet `crane`, [x] Countdown-Anzeige `countdown` |
+| Requisiten | [x] Labor `lab_device` (Mikroskop, Reagenzglas-Ständer, Zentrifuge), [x] Küche / Messe `galley`, [x] Waschraum `washroom`, [x] Lageplan `floor_plan` |
+| Licht | [x] Flutlicht `floodlight`, [x] Neon- und LED-Leisten `light_strip`, [x] Notbeleuchtung `emergency_light` |
+| Roboter | [x] Patrouillen-Drohne `patrol_drone`, [x] Kriecher für Lüftungsschächte `vent_crawler`, [x] Roboterhund `robot_dog`, [x] Industrie-Mech `mech` |
+| Natur / Alien | [x] Ranken `vines`, [x] Kokons `cocoon`, [x] Wurzeln durch Wände `wall_roots`, [x] Pilzteppiche `fungus_carpet`, [x] Pfützen `puddle` |
+| Außen / Weltraum | [x] Rettungskapsel `escape_pod`, [x] Solarpanel `solar_panel`, [x] Asteroid `asteroid`, [x] Fenster mit Planet `planet_window` |
+| Ruinen | [x] abgestürzte Kapsel `crashed_pod`, [x] ausgebrannte Konsole `burnt_console`, [x] eingestürzter Steg `collapsed_catwalk` |
 
 ## 4. ToDo für Unity
 
@@ -108,7 +118,23 @@ Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 14. **LOD-Hüllen prüfen:** Collider nur von LOD0.
 15. **Statische Library-Prefabs als Static markieren** (Static Batching): Der Draw-Call-Bericht zählt bei
     statischen Modellen ein Material einmal und geht davon aus.
-16. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt.
+16. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt. Die Anschlussarten und wie
+    sie zusammengehören stehen in `cubegen/families.py` (`connectors`, `JOINS`); das Einrasten im Add-on nutzt sie.
 17. **Gemeinsamer Vertrag:** Der `CubegenImporter` liest `cubegen_contract.json`
     (`python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json`) statt eigener
     Listen für Schlüssel, Rollen, Feldtypen und Toleranzen.
+
+**Für die Erweiterungen aus Phase 3** (Details in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md))
+
+18. **Paletten-Material:** einmal `MP_Palette` aus `CubeEscape_Palette.json` anlegen (Albedo, MetallicSmoothness,
+    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt.
+19. **Bruchstücke** (`style.damage` = `fractured`): solche Prefabs nicht als Static markieren; bei Zerstörung jedem
+    `Fragment_<nn>` einen Rigidbody geben (Collider: konvexe Mesh-Collider aus dem Sidecar).
+20. **Anker** `Audio_*` / `FX_*`: `AudioSource` bzw. Partikelsystem nach Namen anhängen (Tabelle in
+    `cubegen/models/anchors.py`); beim nächsten Export kommen sie mit Generation 3 automatisch mit.
+21. **Schwenken:** prüfen, dass `Rotator.arc` vom Bau-Zustand aus in Richtung `speed` schwenkt (cubegen baut
+    `camera.sweep` / `turret.sweep` um −arc/2 vorgedreht); sonst Vorzeichen in `models/common.sweep_rotator` drehen.
+22. **Neue Mechaniken:** Schieben (`push_block` auf `pressure_plate`), Folge-Logik (`sequence_panel`,
+    `meta.sequence`), Wasserstand (`Fluid_<n>` je Ventilschritt anheben), Laserfarbe durch `laser_filter`,
+    Symbolplatten-Prüfung, Kranmagnet, Countdown-Zeit (`meta.seconds_total`), Patrouillenwege und Gangarten für
+    `patrol_drone`, `vent_crawler`, `robot_dog`, `mech`.

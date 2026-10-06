@@ -8,8 +8,11 @@ Zahnradwerk, Kraftfeld, Steckfeld, Scanner, Tresor), Werkzeug-, Hinweis- und Ers
 Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband, Luke, Rolltor, Lüftungsschacht …),
 Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Dampf, Strom), Geräte und
 Gameplay-Bausteine (Portal, Phasen- und Bruchplattform, ausfahrbare Brücke, Drehscheibe, Stachelfalle, Becken,
-Frachtcontainer) – 129 Typen in 8 Kategorien. **Modellfamilien** (`--family`) erzeugen Bau-Kits, deren Teile über
-verbindliche Maße zusammenpassen: Wand und Tür, Treppe und Laufsteg, Rohr und Rohrbogen.
+Frachtcontainer), Bau-Kit-Ergänzungen (Rampe, Decken- und Dachmodul, Torbogen, Wandabschluss, Sockelleiste), weitere
+Rätsel (Schiebeblock, Ton- und Farbfolge, Wasserstand, Laserfilter, Symbolplatten, Kran, Countdown), Labor, Messe,
+Waschraum, Lageplan, Licht, Roboter, Alien-Bewuchs, Weltraum und Wracks – 164 Typen in 8 Kategorien.
+**Modellfamilien** (`--family`) erzeugen Bau-Kits, deren Teile über verbindliche Maße zusammenpassen: Wand und Tür,
+Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Anschlusspunkten ein.
 
 * **Blender CLI** baut die Meshes, exportiert **FBX für Unity** (optional GLB/glTF/OBJ), rendert Previews und
   speichert eine Übersichts-`.blend`.
@@ -57,7 +60,12 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
   Dreiecken, Maßen und Teilenamen im Panel.
 * **Familie & Kit**: Familie wählen (Maße und Look für Vorschau, Raster und Export), **Kit bauen** stellt das
   ganze Kit ins Raster, **Kit exportieren** exportiert es mit gemeinsamem Kontaktbogen und Passungsprüfung.
-* **Von jedem Typ**: baut alle 129 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+* **Einrasten**: Teil anklicken (aktiv), optional Ziel-Teile dazu wählen, **Einrasten** setzt es an den nächsten
+  passenden freien Anschluss: Stegende an Stegende, Rampe an Plattform, Tür in die Wandöffnung, Wandabschluss auf
+  die Wand, Sockelleiste an die Wandfläche, Rohr an Rohr, Deckenmodul an Deckenmodul. Belegte Anschlüsse werden
+  übersprungen, wiederholtes Einrasten baut Ketten. **Anschlüsse zeigen** setzt Pfeile an alle Anschlusspunkte,
+  **Reichweite** begrenzt die Suche. Das Teil dreht dabei nur um die Hochachse; exportiert wird wie immer vom Seed.
+* **Von jedem Typ**: baut alle 164 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
@@ -116,7 +124,7 @@ Die `#`-Zeilen in den Beispielen sind Kommentare. Die zsh auf dem Mac kennt sie 
 `setopt interactivecomments`; sonst einfach nur die Befehlszeilen kopieren.
 
 ```bash
-# alle 129 Typen je 2x, Seed 42 -> output/seed_42/
+# alle 164 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
 # Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
@@ -146,7 +154,7 @@ python -m cubegen generate --seed 42 --count 3 --lods --jobs 4
 # Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte
 python -m cubegen check
 
-# ein Bau-Kit, dessen Teile zusammenpassen (Familien: station, foundry, lab)
+# ein Bau-Kit, dessen Teile zusammenpassen (Familien: station, foundry, lab, medbay, derelict, greenhouse, reactor)
 python -m cubegen generate --family station --seed 42 --prefix Gen_
 python -m cubegen check --family station
 
@@ -204,6 +212,24 @@ eigenen Werte gelten als Abweichung und stehen so im Manifest.
 * Anschlusspunkte (`connectors`) und die Herkunft jedes Parameters (`param_sources`) stehen im Manifest. Der
   Sidecar bleibt im Vertrag des Unity-Imports und bekommt keine neuen Felder.
 
+**Mitgelieferte Familien** (`python -m cubegen families`):
+
+| Familie | Maße und Look | Requisiten im Kit |
+|---|---|---|
+| `station` | 3-m-Wände, Schiebetüren 2,0 × 2,2 m, 2-m-Stege auf 3 m, Metall/Cyan | – (Bau-Kit, Gameplay-Bausteine) |
+| `foundry` | 4-m-Wände, schwere Türen, 1-m-Stege auf 2 m, dicke Rohre, dunkel/orange, Warnstreifen, Abnutzung | – |
+| `lab` | 3-m-Wände (0,3 m) im 2-m-Raster, Sicherheitstüren, hell/rot, hoher Detailgrad, eigenes Texturset | – |
+| `medbay` | Krankenstation: 0,3-m-Wände im 2-m-Raster, Schiebetüren 1,6 × 2,2 m, hell/cyan | Liegen, Kryo-Kapsel, Medkit, Labortisch, Mikroskop, Reagenzgläser, Zentrifuge, Waschbecken, WC, Dusche, Monitorwand, Schilder „MED-1“, Lageplan |
+| `derelict` | verlassenes Wrack: Sicherheitstüren, dunkel/orange, **beschädigt**, starke Abnutzung | Trümmer, Wandruine, abgestürzte Kapsel, ausgebrannte Konsole, eingestürzter Steg, Kabelsalat, Androide, Wurzeln, Ranken, Ölpfütze, Rundumleuchte, Countdown |
+| `greenhouse` | Gewächshaus: 3,5-m-Wände, große Fenster, Oberlichter und Dach, hell/orange | Pflanzbeete, Pflanzen, Pilze, Ranken, Pilzteppich, Kokon, Pfütze, Wasserstand-Rätsel, Becken, Rohre, Pflanzenlampen, Solarpanel, Fenster mit Planet |
+| `reactor` | Reaktor: 4-m-Wände (0,6 m), Explosionsschutztüren, 2-m-Stege auf 3 m, 35-cm-Rohre, Metall/Rot, Warnstreifen | Reaktorkern, Trafo, Generator, Pumpe, Server, Konsole, Strom-Bodenplatte, Dampf, Kran, Countdown „KERNSCHMELZE“, Lageplan |
+
+Alle Kits enthalten jetzt auch Torbogen, Wandabschluss, Sockelleiste, Decken-/Dachmodul und Rampe (neue Teile
+ändern keine bestehenden). Neu in `dims`: `ceiling_thickness` (Deckenstärke). Neue Passungsregeln: Wandabschluss
+auf der Wand (Stärke, Höhe, Wand = ganzes Vielfaches der Abschlusslänge), Sockelleiste an der Wandfläche, Rampe an
+Steg/Plattform, Decke an Decke. Dieselbe Anschluss-Tabelle (`families.JOINS`) steuert das Einrasten im Add-on
+(`cubegen/snapping.py`).
+
 Neue Varianten bestehender Typen sind Parameter: `wall.opening` (`door`, `window`, `pipe`) mit Rahmen- bzw.
 Öffnungsmaßen, `wall.height`/`thickness`, `catwalk.shape` (`corner`, `tee`, `cross`, `landing`, `end`),
 `stairs.layout` (`landing`, `quarter`, `switchback`). Details in [`docs/CLI.md`](docs/CLI.md), was der
@@ -214,7 +240,8 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
 * **Modell-Generationen**: Korrekturen, die bestehende Seeds sichtbar verändern, gelten erst ab einer neuen
   Generation (`--generation`, Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“). Generation 1 baut
   die Modelle von cubegen 0.9.0 bitgleich nach (nur die korrigierte Tür-Verdrahtung der Luftschleuse bleibt),
-  Generation 2 ist der Standard. `--match` baut ein vorhandenes Modell in seiner Generation nach (Sidecars ohne
+  Generation 2 ohne flackernde Flächen, Generation 3 (Standard) zusätzlich mit [Ankern für Ton und
+  Effekte](#anker-für-ton-und-effekte); dort verlieren beschädigte Türrahmen keine Teile mehr in den Durchgang. `--match` baut ein vorhandenes Modell in seiner Generation nach (Sidecars ohne
   `style.generation` stammen aus Generation 1).
 * **Gleicher Seed = gleiches Modell**, auch nach Updates und mit anderer Python-Version. `tests/golden.json`
   enthält Fingerabdrücke aller Typen; der Test schlägt fehl, sobald sich ein Modell ändert. Der Zufall läuft über
@@ -282,7 +309,8 @@ und `turret` `Glow`, wegen eines Fehlers in Blenders FBX-Export falsche Pivots u
 | `pipe_fitting` | `Rotatable` | `Fitting` dreht um `up` in 90°-Schritten, Ziel `target`; die Anschlüsse in Ruhe stehen in `note` |
 | `laser_mirror` | `Rotatable` | `Mirror` ruht auf 45°, dreht um `up` in 45°/90°-Schritten |
 | `laser_emitter` | `SignalLight` | leeres Objekt `Beam` = Startpunkt des Strahls (Richtung Unity-forward) |
-| `camera`, `antenna` | `Rotator` + `SignalLight` | Kopf `Rotor` dreht um `up` (Kamera standardmäßig `speed` 0 = steht, weil `Rotator` endlos dreht); LED blinkt bzw. pulsiert |
+| `camera`, `antenna` | `Rotator` + `SignalLight` | Kopf `Rotor` dreht um `up` (Kamera standardmäßig `speed` 0 = steht, weil `Rotator` endlos dreht); LED blinkt bzw. pulsiert. **Schwenken** mit `camera.sweep=120`: der Kopf ist um den halben Winkel vorgedreht gebaut, `Rotator.arc` = 120 schwenkt ihn ±60° (ohne `speed` 30 °/s); die LED ist dann Kind des Kopfes |
+| `turret` | `Rotator` + `SignalLight` | `Turret` giert um `up`, `Gun` neigt sich um `right`; `turret.sweep=120` schwenkt symmetrisch wie die Kamera |
 | `ceiling_panel` | `SignalLight` (Licht) bzw. `Rotator` (Lüfter) | Lüfter um `up`; `plain` ist statisch |
 | `lift` | `Door` | `Deck` fährt beim „Öffnen“ um `travel` nach oben (`openOffset` = (0, Hub, 0)) |
 | `conveyor` | je Rolle ein `Rotator` | `Roller_<n>` drehen um `forward` |
@@ -290,6 +318,11 @@ und `turret` `Glow`, wegen eines Fehlers in Blenders FBX-Export falsche Pivots u
 | `drone` | je Propeller ein `Rotator` + `SignalLight` | `Rotor_<n>` um `up`, benachbarte gegenläufig; Pivot in der Mitte |
 | `service_robot` | `SignalLight` (+ `Rotator` für `Head`, wenn `head_speed` > 0) | Augen `Glow` sind Kinder von `Head` |
 | `robot_arm` | `SignalIndicator` (+ `Rotator` für `Turret`, wenn `turret_speed` > 0) | Gelenkkette `Turret` → `Arm_Lower` → `Arm_Upper` → `Gripper`, Pivots in den Gelenken |
+| `sequence_panel` | je Taste ein `SignalIndicator` + `SignalLight` | `Light_<n>` (Kind von `Button_<n>`) `M_RobotDark` ↔ Tastenfarbe; Folge in `meta.sequence` |
+| `water_level`, `symbol_plate`, `laser_filter`, `crane` (Drehkran), `escape_pod` | `Rotatable` | Ventilräder `Wheel_<n>` (forward, 90°), Platten `Plate_<n>` (forward, 90°), Filter `Filter` (up, 90°), Ausleger `Jib` (up, 45°), Luke `Panel` (up, ±100°) |
+| `floodlight` | `SignalLight` mit `lightPosition`, `range`, `intensity` | Unity setzt dort ein echtes Licht |
+| `light_strip`, `emergency_light`, `countdown`, `floor_plan`, `solar_panel`, `cocoon` | `SignalLight` | Notleuchte als Rundumleuchte: `Rotate` mit `Rotor` |
+| `patrol_drone`, `vent_crawler`, `robot_dog`, `mech` | `SignalLight` (+ `Rotator` für Propeller / Scanner / Torso) | Gelenke mit Pivot: `Leg_<n>` an der Hüfte, `Head` am Hals, `Torso` an der Hüfte, `Arm_L/R` an der Schulter |
 
 Achsen: Unity = (−Blender-X, Blender-Z, −Blender-Y). Also ist Blender X → `right`, Blender Z → `up` und Blender −Y →
 `forward`. Teile, deren Material das Spiel tauscht (`Glow`, `StatusLight_*`, `Screen`), haben genau **ein**
@@ -365,8 +398,8 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `--warning` | none / always | Warnstreifen und -bänder nie oder immer |
 | `--wear` | none / light / heavy | Brocken, lose Platten, abgerissenes Kabel als eigenes Teil `Wear` (verändert das Modell selbst nicht) |
 | `--detail` | low / normal / high | low: keine Fasen, weniger Zylinder-Seiten; high: rundere Zylinder |
-| `--damage` | intact / damaged / destroyed | Zustand, siehe „Zerstörung & Ruinen“ |
-| `--generation` | 1 / 2 (Standard 2) | Modell-Generation: 1 baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach, 2 ohne flackernde Flächen und mit 2 Materialien pro beweglichem Teil (Rezept: `"style": {"generation": 1}`) |
+| `--damage` | intact / damaged / destroyed / fractured | Zustand, siehe „Zerstörung & Ruinen“ |
+| `--generation` | 1 / 2 / 3 (Standard 3) | Modell-Generation: 1 baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach, 2 ohne flackernde Flächen und mit 2 Materialien pro beweglichem Teil, 3 zusätzlich mit Ankern `Audio_*`/`FX_*` (Rezept: `"style": {"generation": 2}`) |
 | `--icon-angle`, `--icon-zoom` | z. B. `=-25,15`, 1.3 | Kamera für Previews und Icons (Azimut, Elevation wie die `ICONS`-Tabelle des Spiels) |
 
 **Parameter pro Typ** (`--param TYP.NAME=WERT`, mehrfach möglich; alle Typen, erzeugt mit
@@ -377,51 +410,67 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 |---|---|
 | `android` | `pose` (standing / slumped), `height` (1.2–2.4), `visor` (visor / eyes) |
 | `antenna` | `style` (mast / radar / dish), `height` (0.8–6), `speed` (0–360) 🔗 |
+| `archway` | `length` (1.5–8), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5), `width` (0.8–4), `opening_height` (1.8–5.5), `shape` (round / pointed / chamfer / flat), `glow` (ja/nein) |
+| `asteroid` | `size` (0.4–5), `crystals` (0–6), `moonlets` (0–4) |
 | `balance_scale` | `width` (0.6–2.4), `height` (0.8–2), `tilt` (3–30, Standard 12) 🔗, `status` (off / on, Standard off) |
 | `barrier` | `style` (gate / jersey / cones), `width` (0.8–4), `lights` (ja/nein) |
+| `baseboard` | `length` (1–8), `height` (0.08–0.4), `style` (plain / vent / glow / duct) |
 | `battery_bank` | `bays` (1–8), `height` (0.6–3), `filled` (0–8), `status` (off / on, Standard off) |
 | `bed` | `style` (cot / bunk / medical), `length` (1.6–2.4), `blanket` (ja/nein), `lamp` (ja/nein) |
 | `bin` | `style` (round / square / recycling / hazard), `height` (0.3–1.4), `open` (ja/nein), `trash` (ja/nein) |
 | `breakable_platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `tiles` (2 / 3), `cracks` (1–10), `weak_spots` (ja/nein), `supports` (ja/nein) |
 | `broken_wall` | `length` (2.0 / 4.0), `remaining` (0.1–1), `hole` (ja/nein), `rebar` (ja/nein) |
 | `bulkhead` | `style` (frame / chamfer / ring), `width` (1.2–6), `height` (2–4.5), `pipes` (ja/nein), `stripes` (ja/nein) |
+| `burnt_console` | `width` (0.6–3), `screens` (1–3) |
 | `button` | `style` (push / emergency / row), `count` (2–6), `mount_height` (0.5–2.5), `guard` (ja/nein), `stripes` (ja/nein), `status` (off / on, Standard off) |
 | `cable_mess` | `cables` (1–12), `sparks` (ja/nein) |
 | `cable_plug` | `sockets` (1–6), `cable_length` (0.2–1.5), `mount_height` (0.8–2.5), `status` (off / on, Standard off) |
 | `cable_reel` | `radius` (0.06–0.25), `spool` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
 | `cage` | `width` (0.8–3), `depth` (0.8–3), `height` (1.2–3), `door_angle` (30–170, Standard 100) 🔗, `status` (off / on, Standard off) |
-| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
+| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
 | `cargo_container` | `length` (4.0 / 6.0), `width` (2–3.2), `height` (2.4–3.4), `ribs` (ja/nein), `speed` (10–720, Standard 90) 🔗, `interactive` (ja/nein) 🔗 |
 | `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1) |
+| `ceiling_module` | `size` (1–8), `style` (beams / coffered / skylight / vent / roof), `mount_height` (2–6, Standard 3), `thickness` (0.1–0.5) |
 | `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6, Standard 3), `fan_speed` (0–2000, Standard 200) 🔗 |
 | `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180–180) |
 | `chip_reader` | `mount_height` (0.5–2.5), `screen` (ja/nein), `keys` (ja/nein), `status` (off / on, Standard off) |
 | `clue` | `kind` (tablet / note / datapad / audio_log), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
+| `cocoon` | `count` (1–4), `size` (0.4–2.2), `open` (ja/nein) |
 | `coffee_machine` | `style` (counter / standing), `cups` (0–4) |
+| `collapsed_catwalk` | `length` (2–6), `width` (0.8–3), `height` (1–3.5) |
 | `combination_lock` | `dials` (3–5), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
 | `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
 | `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000, Standard 180) 🔗 |
+| `countdown` | `minutes` (0–99), `seconds` (0–59), `digit_height` (0.08–0.6), `mount_height` (1–3.5), `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `stripes` (ja/nein), `text` (Text) |
+| `crane` | `style` (jib / gantry), `height` (2–5), `reach` (1–3.5), `speed` (5–360, Standard 45) 🔗 |
+| `crashed_pod` | `length` (1.8–4.5), `embers` (ja/nein) |
 | `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
 | `crate_pile` | `count` (1–12), `broken` (ja/nein) |
 | `crusher` | `width` (0.8–3), `height` (1.4–3.5), `teeth` (ja/nein), `speed` (0.2–20, Standard 6) 🔗 |
 | `cryo_pod` | `pose` (standing / lying), `length` (1.6–3), `occupied` (ja/nein), `frost` (ja/nein) |
 | `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
 | `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
-| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗 |
+| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗, `label` (Text) |
 | `drone` | `rotors` (2 / 3 / 4), `size` (0.3–1.5), `tool` (none / claw / spotlight), `rotor_speed` (0–3000, Standard 1440) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
+| `emergency_light` | `style` (twin / beacon / exit), `mount_height` (1.5–4), `mode` (Steady / Blink / Pulse / Rotate) 🔗 |
+| `escape_pod` | `length` (1.8–4.5), `pose` (lying / standing), `speed` (10–360, Standard 90) 🔗 |
 | `extinguisher` | `height` (0.3–1), `holder` (none / stand / cabinet) |
 | `fallen_pillar` | `width` (0.2–2), `segments` (1–5), `stump` (ja/nein) |
 | `fan` | `style` (stand / box), `radius` (0.2–1.5), `guard` (ja/nein), `speed` (0–2000, Standard 360) 🔗 |
 | `flashlight` | `kind` (torch / lantern), `length` (0.12–0.45), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `floating_island` | `radius` (0.8–3.5), `depth` (0.6–4), `crystals` (0–10), `glow` (ja/nein) |
+| `floodlight` | `mount` (tripod / mast / base), `height` (0.5–5), `heads` (1 / 2 / 4), `tilt` (0–60), `range` (2–60, Standard 15) 🔗, `intensity` (0.1–20, Standard 3) 🔗 |
 | `floor_grate` | `size` (1.0 / 2.0), `depth` (0.2–1.5), `content` (pipes / cables / both), `lights` (ja/nein) |
+| `floor_plan` | `width` (0.5–2.5), `rooms` (3–12), `mount_height` (1–2.5), `title` (Text) |
 | `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein) |
 | `fluid_basin` | `width` (1–8), `depth` (1–8), `rim_height` (0.3–1.5), `fill` (0.1–0.95), `fluid` (water / mud / toxic), `inlet` (ja/nein), `outlet` (ja/nein), `pipe_radius` (0.09 / 0.18 / 0.35, Standard 0.09), `outlet_height` (0.1–2.5) |
 | `force_field` | `style` (field / lasers), `width` (0.8–5), `height` (1.2–4), `speed` (0.1–20, Standard 6) 🔗 |
 | `freq_dial` | `knobs` (1–3), `step` (15 / 30 / 45, Standard 30) 🔗, `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `fungus_carpet` | `size` (0.5–4), `caps` (0–20), `glow` (ja/nein) |
 | `fuse_box` | `slots` (1–6), `mount_height` (0.5–2.5), `lid_angle` (30–180, Standard 110) 🔗, `warning` (ja/nein), `status` (off / on, Standard off) |
+| `galley` | `style` (counter / mess_table / fridge), `length` (1–4) |
 | `gas_rack` | `bottles` (1–6), `height` (0.6–1.8), `cage` (ja/nein) |
 | `gear_puzzle` | `gears` (2–5), `missing` (ja/nein), `crank` (ja/nein), `mount_height` (0.6–2.5), `speed` (0–720, Standard 60) 🔗, `status` (off / on, Standard off) |
 | `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
@@ -435,49 +484,61 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `key` | `style` (bit / modern / tubular), `length` (0.06–0.3), `tag` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `keycard` | `kind` (card / fob / key), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on, Standard off) |
+| `lab_device` | `kind` (microscope / tube_rack / centrifuge), `size` (0.2–0.8), `speed` (0–3000, Standard 720) 🔗 |
 | `ladder` | `height` (1–6), `width` (0.3–1), `cage` (ja/nein), `hoops` (ja/nein) |
 | `laser_emitter` | `height` (0.3–2), `style` (stand / box), `mode` (Steady / Blink / Pulse, Standard Steady) 🔗 |
+| `laser_filter` | `colour` (red / cyan / orange), `height` (0.3–1.6), `panes` (1 / 2), `speed` (10–1000, Standard 180) 🔗 |
 | `laser_mirror` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7, Standard 1) 🔗 |
 | `laser_receiver` | `height` (0.3–2.5), `mount` (stand / pillar), `status` (off / on, Standard off) |
 | `laser_splitter` | `height` (0.3–2), `step` (45 / 90) 🔗, `target` (0–7, Standard 0) 🔗 |
 | `lever` | `style` (lever / dial), `mount_height` (0.4–2.5), `positions` (2–8), `speed` (10–1000, Standard 120) 🔗 |
 | `lift` | `size` (1–3), `travel` (0.5–4) 🔗, `speed` (0.1–5, Standard 1) 🔗, `rail` (ja/nein) |
 | `light` | `style` (post / bollard / beacon), `height` (0.6–6), `mode` (Steady / Blink / Pulse / Rotate / Status) 🔗 |
+| `light_strip` | `style` (neon / led / double), `length` (1.0 / 2.0 / 4.0), `mount` (wall / ceiling), `mount_height` (0.5–6), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
 | `locker` | `count` (1–4), `height` (1.2–2.4), `open` (ja/nein), `bench` (ja/nein) |
 | `machine` | `width` (0.5–5), `depth` (0.5–5), `height` (0.5–4), `warning_band` (ja/nein), `top` (pistons / stack), `flywheel` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
+| `mech` | `height` (2–4.5), `arms` (claw / drill / loader), `torso_speed` (0–180, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
 | `medkit` | `style` (box / cabinet), `mount_height` (0.5–2.5), `cross` (red / cyan / white) |
 | `monitor_wall` | `columns` (1–4), `rows` (1–3), `screen` (0.3–1.2), `mount_height` (1–3), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
 | `mushroom` | `count` (1–8), `height` (0.2–3), `spots` (ja/nein) |
 | `pad` | `kind` (jump / teleport), `radius` (0.4–2), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗, `speed` (0–720, Standard 90) 🔗 |
 | `pallet` | `size` (euro / square), `load` (none / crates / sacks / canisters), `straps` (ja/nein) |
+| `patrol_drone` | `size` (0.4–1.6), `rotor_speed` (0–3000, Standard 1440) 🔗, `scan_speed` (0–360, Standard 40) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `phase_platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `anchors` (pylons / pedestal / brackets), `pattern` (grid / rings / plain), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
 | `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein) |
 | `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000, Standard 180) 🔗 |
 | `pipe_bend` | `kind` (elbow / elbow_up / tee / cross), `radius` (0.09 / 0.18 / 0.35), `arm` (0.5 / 1.0), `axis_height` (0.2–3), `support` (ja/nein) |
 | `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3, Standard 0) 🔗, `speed` (10–1000, Standard 240) 🔗 |
+| `planet_window` | `shape` (round / wide), `size` (0.6–3), `mount_height` (1–3), `rings` (ja/nein) |
 | `plant` | `kind` (fern / bulbs / spikes), `pot` (round / square / none), `height` (0.3–2.5) |
 | `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `underside` (frustum / keel), `stripes` (ja/nein) |
 | `portal_frame` | `mount` (wall / floor), `width` (0.6–6), `height` (0.6–6), `frame_style` (airlock / blast / elevator / heavy / security / sliding), `surface` (panel / glow), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
 | `pressure_plate` | `size` (0.4–3), `shape` (square / round), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `puddle` | `kind` (water / slime / oil / toxic), `size` (0.3–4), `drops` (0–8) |
 | `pump` | `size` (0.1–0.6), `outlet` (up / side), `guard` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–3000, Standard 720) 🔗 |
+| `push_block` | `size` (0.4–2), `style` (crate / metal / stone), `handles` (ja/nein), `glow` (ja/nein) |
 | `railing` | `length` (1.0 / 2.0 / 4.0), `height` (0.8–1.4), `style` (bars / rails / glass), `kick` (ja/nein), `glow` (ja/nein) |
+| `ramp` | `width` (0.6–4), `length` (1–8), `rise` (0.1–1.5), `surface` (bars / plates / chevrons), `curbs` (ja/nein), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein) |
 | `reactor_core` | `radius` (0.4–1.8), `height` (1.5–5), `pillars` (3–8), `pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–720, Standard 30) 🔗 |
 | `retractable_bridge` | `length` (2.0 / 4.0), `width` (0.8–3), `rails` (ja/nein), `speed` (0.1–5, Standard 0.8) 🔗, `starts_open` (ja/nein) 🔗 |
 | `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180, Standard 0) 🔗 |
+| `robot_dog` | `size` (0.5–1.6), `module` (none / sensor / cargo / turret), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
 | `rock` | `size` (0.3–4), `boulders` (1–8), `spire` (ja/nein), `crystals` (0–8) |
 | `rubble_pile` | `radius` (0.3–5), `height` (0.2–3), `chunks` (3–60), `plates` (ja/nein), `rebar` (ja/nein), `cable` (ja/nein) |
 | `safe` | `lock` (dial / keypad), `height` (0.4–1.8), `door_angle` (30–180, Standard 100) 🔗, `code` (0–9, Standard 7) 🔗, `status` (off / on, Standard off) |
 | `saw_blade` | `radius` (0.2–1), `length` (0.6–4), `teeth` (6–24), `speed` (0–2000, Standard 720) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
 | `scanner` | `kind` (hand / retina / card), `mount_height` (0.6–2.5), `screen` (ja/nein), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗, `status` (off / on, Standard off) |
 | `scrap_heap` | `radius` (0.3–5), `height` (0.2–3), `pieces` (3–50), `gears` (ja/nein) |
+| `sequence_panel` | `buttons` (3–6), `length` (3–10), `mount_height` (0.8–2.2), `layout` (grid / row / ring) |
 | `server_rack` | `width` (0.3–3), `depth` (0.3–3), `height` (0.8–4), `double_sided` (ja/nein), `red_ratio` (0–1) |
 | `service_robot` | `drive` (wheels / treads / hover), `height` (0.5–2.2), `arms` (0 / 1 / 2), `antenna` (ja/nein), `head_speed` (0–180, Standard 0) 🔗 |
 | `shelf` | `width` (0.6–3), `height` (0.8–3), `levels` (2–5), `fill` (0–1) |
 | `shock_plate` | `size` (0.6–4), `coils` (ja/nein), `stripes` (ja/nein), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
 | `shutter` | `style` (roller / grille), `width` (1–6), `height` (1.6–4), `speed` (0.1–10, Standard 1) 🔗 |
-| `sign` | `symbol` (warning / arrow / exit / electric / number), `size` (0.2–1.5), `mount_height` (0.5–3.5), `lit` (ja/nein) |
+| `sign` | `symbol` (warning / arrow / exit / electric / number), `size` (0.2–1.5), `mount_height` (0.5–3.5), `lit` (ja/nein), `text` (Text) |
 | `sliding_puzzle` | `grid` (3 / 4), `tile` (0.08–0.3), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
 | `socket` | `kind` (energy_cell / battery), `height` (0.3–1.6), `cables` (ja/nein), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `solar_panel` | `mount` (mast / frame), `size` (1–4), `tilt` (10–60) |
 | `spare_part` | `kind` (gear / lens / crystal / valve_wheel / coil), `size` (0.08–0.4), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `spider_bot` | `legs` (4 / 6), `size` (0.2–1.5), `sensor` (none / antenna / dish), `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `spike_trap` | `size` (0.6–4), `spike_height` (0.2–1.2), `spacing` (0.15–0.6), `speed` (0.1–20, Standard 4) 🔗, `starts_open` (ja/nein) 🔗 |
@@ -486,6 +547,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `stalagmite` | `kind` (cluster / column / crystal), `height` (0.4–4), `count` (1–7) |
 | `steam_vent` | `style` (grate / pipe), `size` (0.3–1.5), `valve` (ja/nein), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
 | `switch_panel` | `switches` (2–8), `rows` (1 / 2), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `symbol_plate` | `plates` (2–5), `mount_height` (0.8–2.2), `size` (0.15–0.5), `speed` (10–1000, Standard 180) 🔗 |
 | `table` | `style` (table / desk / round / lab), `width` (0.6–3), `clutter` (ja/nein) |
 | `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
 | `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on, Standard off) |
@@ -494,14 +556,20 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |
 | `transformer` | `width` (0.6–3), `height` (0.6–2.5), `bushings` (1–6), `conservator` (ja/nein), `status` (off / on, Standard off) |
 | `turntable` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (round / square), `arrow` (ja/nein), `step` (45 / 90, Standard 90) 🔗, `speed` (10–720, Standard 90) 🔗, `target` (0–7, Standard 1) 🔗, `interactive` (ja/nein) 🔗 |
-| `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (0–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
+| `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (0–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8, Standard 2) 🔗, `speed` (10–1000, Standard 180) 🔗 |
 | `vending_machine` | `width` (0.7–1.4), `rows` (3–6), `lit` (ja/nein) |
 | `vent` | `width` (0.3–4), `height` (0.3–3), `mount_height` (0.2–3), `fan` (ja/nein), `stripes` (ja/nein), `fan_speed` (0–2000, Standard 160) 🔗 |
+| `vent_crawler` | `drive` (treads / legs), `size` (0.2–0.9), `mode` (Steady / Pulse / Blink, Standard Blink) 🔗 |
 | `vent_shaft` | `kind` (straight / corner / tee / cross / end), `inner` (0.6–2), `length` (1.0 / 2.0), `glow` (ja/nein), `grille` (ja/nein) |
+| `vines` | `width` (0.5–4), `length` (0.5–3), `tendrils` (2–10), `bulbs` (ja/nein) |
 | `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5), `opening` (none / door / window / pipe, Standard none), `opening_x` (-4–4, Standard 0), `door_style` (airlock / blast / elevator / heavy / security / sliding, Standard sliding), `door_width` (0.6–8, Standard 2), `door_height` (1.2–8, Standard 2.6), `window_width` (0.4–3.6, Standard 1.6), `window_height` (0.4–2.5, Standard 1.2), `window_sill` (0.2–2, Standard 1), `duct_radius` (0.05–0.5, Standard 0.18), `duct_height` (0.2–2.6, Standard 0.6) |
+| `wall_cap` | `length` (1–8), `thickness` (0.2–1, Standard 0.5), `height` (2–6, Standard 3), `style` (flat / bevel / rail / glow) |
 | `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
 | `wall_panel` | `length` (2.0 / 4.0), `style` (consoles / pipes / cabinets / panels), `stripes` (ja/nein) |
+| `wall_roots` | `size` (0.8–3), `roots` (2–8), `glow` (ja/nein) |
+| `washroom` | `style` (sink / toilet / shower), `mirror` (ja/nein) |
+| `water_level` | `tubes` (1–3), `height` (1–3), `fluid` (water / glowing / toxic), `speed` (10–1000, Standard 180) 🔗 |
 | `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–2), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
 | `workbench` | `width` (1–3), `pegboard` (ja/nein), `vise` (ja/nein), `lamp` (ja/nein) |
 <!-- params:end -->
@@ -603,17 +671,77 @@ python -m cubegen generate --seed 7 --types gear_puzzle,spare_part --count 4 --p
 python -m cubegen generate --recipe recipes/traps_riddles.json
 ```
 
+## Bau-Kit, Rätsel, Labor, Licht, Roboter, Alien, Weltraum & Wracks
+
+![Je eine Variante der 35 neuen Typen (Seed 7)](docs/example_phase3.png)
+
+35 weitere Typen. Wo das Spiel ein passendes Script hat, sind sie damit verdrahtet; was in Unity noch fehlt, steht
+in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md).
+
+| Kategorie | Typen |
+|---|---|
+| `environment` – Bau-Kit | `ramp` (kurze Rampe im Modulraster, 0,1–1,5 m hoch, oben ein ebenes Stück zum Anschließen; Belag, Randleisten, Geländer), `ceiling_module` (Decken- / Dachmodul auf Wandhöhe: Träger, Kassetten mit Licht, Oberlicht `Glass`, Lüftung, Satteldach; Ansicht von unten), `archway` (Durchgang ohne Tür als Wandmodul: rund, spitz, gefast, flach), `wall_cap` (Wandabschluss oben auf der Wand: flach, abgeschrägt, mit Geländer oder Glow), `baseboard` (Sockelleiste an der Wandfläche: glatt, Lüftungsschlitze, Glow, Kabelkanal) |
+| `puzzle` | `push_block` (schwerer Block zum Schieben auf die Druckplatte, eine Box als Collider, Gewicht in `meta`), `sequence_panel` (Ton- und Farbfolge: 3–6 Tasten `Button_<n>` mit Lichtern `Light_<n>`, je ein `SignalIndicator`; Folge in `meta.sequence`), `water_level` (Wasserstand: Glasröhren mit Wassersäulen `Fluid_<n>`, Ventilräder `Wheel_<n>` mit `Rotatable`, Zielstände in `meta.targets`), `laser_filter` (Farbfilter: getönte Scheibe in drehbarem Halter `Filter`, `Rotatable`), `symbol_plate` (drehbare Symbolplatten `Plate_<n>`, `Rotatable` in 90°-Schritten, Lösung = alle aufrecht), `crane` (Drehkran `Jib` mit `Rotatable` in 45°-Schritten oder Portalkran mit Laufkatze `Trolley`, Magnet leuchtet `Glow`), `countdown` (Countdown-Anzeige MM:SS als leuchtende Ziffern, `SignalLight`, Beschriftung `countdown.text`) |
+| `props` | `lab_device` (Mikroskop, Reagenzglas-Ständer mit farbigen Flüssigkeiten, Zentrifuge mit drehendem `Rotor`), `galley` (Küchenzeile mit Herd, Spüle, Haube; Messetisch mit Bänken und Tabletts; Kühlschrank / Essensausgabe), `washroom` (Waschbecken mit Spiegel, WC, Duschkabine), `floor_plan` (Lageplan an der Wand: Räume als Relief, blinkender „Sie sind hier“-Punkt, Titel `floor_plan.title`) |
+| `tech` – Licht | `floodlight` (Flutlicht auf Stativ, Mast oder Sockel, 1–4 Strahler; `SignalLight` mit echter Lichtquelle: `lightPosition`, `range`, `intensity`), `light_strip` (Neonröhre, LED-Leiste oder doppelt, an der Wand oder unter der Decke), `emergency_light` (Notleuchte mit zwei Strahlern, Rundumleuchte mit `Rotor` oder EXIT-Kasten) |
+| `robots` | `patrol_drone` (Patrouillen-Drohne: zwei Mantelpropeller `Rotor_1/2`, Scannerkopf `Head` mit Suchlicht), `vent_crawler` (Kriecher für Lüftungsschächte auf Ketten oder sechs Beinen `Leg_<n>`), `robot_dog` (Roboterhund: vier Beine `Leg_<n>`, Kopf `Head`, Aufsatz Sensor / Fracht / Geschütz), `mech` (Industrie-Mech: Beine `Leg_1/2`, Torso `Torso` mit Cockpit, Arme `Arm_L/R` mit Greifer, Bohrer oder Gabel) |
+| `nature` – Alien | `vines` (Ranken an der Wand mit Blättern und Leuchtknollen), `cocoon` (Kokons mit pulsierendem Kern `Glow`, einer aufgebrochen), `wall_roots` (Wurzeln brechen durch die Wand), `fungus_carpet` (Pilzteppich am Boden mit Leuchtpunkten), `puddle` (Pfütze: Wasser, leuchtender Schleim, Öl, Giftschlamm), `asteroid` (schwebender Asteroid mit Kratern, Kristallen, Brocken; Pivot in der Mitte) |
+| `environment`, `tech` – Weltraum | `escape_pod` (Rettungskapsel liegend auf Startgestell oder stehend im Rahmen, Luke `Panel` mit `Rotatable`), `solar_panel` (Solarpanel auf Mast oder Bodengestell), `planet_window` (Fenster ins All: runder oder breiter Rahmen, Glas, Planet mit Ringen, Sterne) |
+| `ruins` | `crashed_pod` (abgestürzte Kapsel im Schuttkrater, abgerissene Luke, Glut), `burnt_console` (ausgebrannte Konsole: zersplitterte Bildschirme, geschmolzene Tasten, Kabel), `collapsed_catwalk` (eingestürzter Steg, ein Ende am Boden, verbogenes Geländer; Deck bleibt begehbar) |
+
+* **Wandmontiert** (`sequence_panel`, `symbol_plate`, `countdown`, `floor_plan`, `light_strip`, `emergency_light`,
+  `vines`, `wall_roots`, `planet_window`, `wall_cap`): Pivot am Boden darunter; was an der Wand hängt, hat die
+  Rückseite bei y = +0,1. `baseboard` steht auf dem Boden, Rückseite bei y = 0.
+* **Begehbar** mit eigenen [Collidern](#collider): `ramp`, `archway` (Durchgang frei), `ceiling_module`,
+  `collapsed_catwalk`, `push_block`.
+
+```bash
+python -m cubegen generate --recipe recipes/phase3_rooms.json
+python -m cubegen generate --seed 7 --types sequence_panel,water_level,symbol_plate --count 3
+```
+
+## Text auf Modellen
+
+Raumnummern und Beschriftungen als echte Geometrie in einer Low-Poly-Blockschrift (`cubegen/models/lettering.py`:
+A–Z, Ä Ö Ü, 0–9 und `- + . : / _ ' ! #`, Kleinbuchstaben werden groß):
+
+```bash
+python -m cubegen generate --types sign --param sign.text=B-12          # Schild mit Text statt Symbol
+python -m cubegen generate --types door --param door.label=LAB-3        # Raumnummer über der Tür (Teil "Label")
+python -m cubegen generate --types countdown --param countdown.text=EVAKUIERUNG --param countdown.minutes=5
+python -m cubegen generate --types floor_plan --param "floor_plan.title=DECK 3"
+```
+
+Das Schild wird so breit wie der Text. Ohne diese Parameter bleiben alle Modelle unverändert.
+
+## Anker für Ton und Effekte
+
+Ab Generation 3 (Standard) bekommen Maschinen, Türen, Fallen, Roboter und die neuen Geräte leere Teile, an die
+Unity eine `AudioSource` oder ein Partikelsystem hängt: `Audio_Hum`, `Audio_Door`, `Audio_Servo`, `Audio_Beep`,
+`Audio_Alarm` … und `FX_Steam`, `FX_Sparks`, `FX_Smoke`, `FX_Dust`, `FX_Muzzle`, `FX_Spores` … (Tabelle:
+`cubegen/models/anchors.py`). Ein Anker sitzt auf seinem Teil (Mitte, Oberseite oder Front) und ist dessen Kind,
+bewegt sich also mit (`Audio_Fan` dreht mit dem `Rotor`). Zerstörte Modelle haben nur `FX_Smoke` über der Ruine,
+Bruchstück-Modelle keine. Die Geometrie bleibt exakt wie in Generation 2; `--generation 2` lässt die Anker weg.
+
 ## Texturen (optional)
 
 ![Oben: Kachel-Texturen · Mitte: Ruinen-Typen · unten: intakt / zerstört im Wechsel](docs/example_textures_ruins.png)
 
 Standard ist **keine Textur**: Die Modelle tragen wie bisher die einfarbigen `M_…`-Materialien. Per Auswahlfeld
-(Add-on: „Texturen“, Kommandozeile: `--textures`) gibt es zwei Stufen:
+(Add-on: „Texturen“, Kommandozeile: `--textures`) gibt es drei Alternativen:
 
 | Stufe | Was passiert | Material in der FBX |
 |---|---|---|
 | `tiled` (Kachel) | ImageMagick erzeugt nahtlose Kacheltexturen pro Material: gebürstetes Metall mit Kratzern (`M_Metal`), Paneelfugen mit Nieten (`M_Wall`), beschichtetes Metall (`M_RobotDark`), Bodenplatten (`M_Platform`), Riffelblech (`M_Ground`), Lack (`M_RobotBody`), abgeplatzte Warnfarbe (`M_Warning`, `M_HazardOrange`). Die UVs sind eine Box-Projektion in Metern, also **1 Kachel = 1 m** auf jeder Fläche, unverzerrt und über alle Assets einheitlich. | `MT_Metal`, `MT_Wall`, … |
 | `baked` (Gebacken) | wie Kachel, dann pro Asset: eigene Atlas-UVs, Blender (Cycles) backt Farbe, Rauheit, Normalen, Metallic und Ambient Occlusion, ImageMagick legt Schmutz in Ecken und Vertiefungen. Rund 5–10 s pro Asset. | `MTA_<Asset>` |
+| `palette` (Palette) | **ein Material pro Modell, also ein Draw Call**: alle Farben des Spiels liegen als Zellen in einer kleinen Palettentextur (64 × 64 px, Punktfilterung), jede Fläche zeigt mit ihren UVs auf die Mitte ihrer Farbzelle. Dazu Metallic/Smoothness und Emission als eigene Palettenbilder. Reines Python, kein ImageMagick nötig. | `MP_Palette` |
+
+**Palette**: Glas (`M_Glass`, durchsichtig) und Teile, deren Material die Scripts des Spiels umschalten
+(`SignalIndicator.renderers`, `Machine.glow`, `SignalLight.glow`, `Rotatable.glow`, `Door.statusLights`), behalten
+ihr eigenes Material. Ein statisches Modell braucht so 1 Draw Call (2 mit Glas), ein Modell mit Script einen pro
+beweglichem Teil plus seine Statuslichter. `python -m cubegen check --palette` zählt die Draw Calls so. Es entstehen
+`MP_Palette_Albedo.png`, `_MetallicSmoothness.png`, `_Emission.png` und `CubeEscape_Palette.json` (Zellen, UVs,
+Emissionsstärke); der Sidecar nennt `MP_Palette` als Material der Teile, sein Schema bleibt unverändert.
 
 Glow-, Kristall- und Glas-Materialien werden nie texturiert, weil die Scripts des Spiels sie umschalten. Texturierte
 Materialien haben **eigene Namen** (`MT_…`, `MTA_…`). Dadurch bleiben deine handgebauten Assets mit `M_…`
@@ -642,6 +770,7 @@ Variante von Seed 42 ist immer die Ruine des intakten Seed 42.
 | `intact` | wie bisher (Standard) |
 | `damaged` | Dellen, abgeschlagene Kleinteile liegen am Boden, einzelne Deko-LEDs tot, etwas Schutt. Scripts bleiben. |
 | `destroyed` | gezackte Bruchkante, darüberliegende Teile liegen am Boden oder fehlen, Bruchflächen, alle Lichter aus, viel Schutt. **Statisch** (keine Scripts) und damit mit `--library-dir` automatisch in der Bibliothek. |
+| `fractured` | sieht intakt aus, besteht aber aus 4–12 **Bruchstücken** `Fragment_<nn>`: Voronoi-Zellen um einige Seed-Punkte zerschneiden jede konvexe Grundform, die Schnittflächen tragen das Bruchmaterial. Jedes Bruchstück hat seinen Pivot in der Mitte und einen konvexen Mesh-Collider – Unity gibt ihnen bei Zerstörung Rigidbodies und lässt sie herausfallen. Bis dahin statisch (keine Scripts). |
 
 **Neue Ruinen-Typen** (Kategorie `ruins`, statisch): `rubble_pile` (Schutthaufen), `scrap_heap` (Schrotthaufen),
 `broken_wall`, `fallen_pillar`, `girders` (eingestürzte Stahlträger), `crate_pile` (umgekippte und aufgebrochene
@@ -650,7 +779,11 @@ Kisten), `cable_mess` (Kabelsalat mit funkenden Enden als `Glow`).
 ```bash
 python -m cubegen generate --seed 7 --types rubble_pile,scrap_heap,cable_mess --count 3
 python -m cubegen generate --seed 7 --types machine,console,wall --damage destroyed --library-dir ../CubeEscape/Assets/Art/Models/Library
+python -m cubegen generate --seed 7 --types crate,pillar,wall --damage fractured
 ```
+
+**Weitere Wracks** (`crashed_pod`, `burnt_console`, `collapsed_catwalk`) stehen bei den
+[neuen Typen](#bau-kit-rätsel-labor-licht-roboter-alien-weltraum--wracks).
 
 ## Seeds & Reproduzierbarkeit
 
@@ -706,7 +839,9 @@ zeigende Normalen, Pivot-Konvention und Determinismus.
 cubegen/
 ├── cli.py            Kommandozeile (generate / list / params / check / families / doctor)
 ├── families.py       Modellfamilien: Maße, Auflösung, Anschlüsse, Passungsprüfung
-├── family_data/      mitgelieferte Familien (station, foundry, lab)
+├── family_data/      mitgelieferte Familien (station, foundry, lab, medbay, derelict, greenhouse, reactor)
+├── snapping.py       Einrasten an Anschlusspunkten (für das Add-on, reines Python)
+├── palette.py        Paletten-Modus: ein Material MP_Palette pro Modell, PNG-Schreiber
 ├── contract.py       Sidecar-Vertrag des Unity-Imports (+ Prüfung gegen die FBX)
 ├── fbxread.py        FBX-Leser (Hierarchie, Transformationen, Vertices) für die Prüfungen
 ├── quality.py        Qualitätsbericht (Dreiecke, Draw Calls, Z-Fighting)
@@ -720,7 +855,9 @@ cubegen/
 ├── textures.py       ImageMagick-Kacheltexturen (optional)
 ├── bake.py           läuft IN Blender: gebackene Atlas-Texturen pro Asset (optional)
 ├── models/           Modelltypen (props, industrial, tech, environment, ruins, puzzle, kit, furniture,
-│                     robots, nature, mechanisms, items, structure, machinery, gameplay) + wear, destruction
+│                     robots, nature, mechanisms, items, structure, machinery, gameplay, buildkit, logic,
+│                     facilities, lighting, rovers, alien, space, wrecks) + wear, destruction, fracture,
+│                     lettering (Blockschrift), anchors (Ton- und Effekt-Anker)
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend
 ├── bpy_builder.py    Blender-Objekte, Materialien, FBX/GLB/OBJ-Export (CLI + Add-on)

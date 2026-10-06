@@ -8,6 +8,8 @@ version of seed 42 is always the ruin of the intact seed 42.
 * ``destroyed`` - a jagged break line: everything above it is cut off, loose pieces
                   lie on the floor (or are gone), fracture faces, all lights dead,
                   rubble around it. The asset becomes static decoration (no scripts).
+* ``fractured`` - looks intact, but consists of fragments that Unity drops when the
+                  object is destroyed (``fracture.py``).
 """
 
 from __future__ import annotations
@@ -72,8 +74,24 @@ def _kill_lights(asset, rng, share):
                         mesh.roles[fi] = DEAD
 
 
-def damage_asset(asset, seed: int, level: str, pivot: str) -> None:
+def _collider_parts(asset):
+    """Parts the Unity import turns into colliders (Door / Machine roles): a piece knocked off them would stretch
+    their box across the passage."""
+    names = set()
+    for b in asset.behaviours:
+        for role in ("colliders", "body"):
+            value = b["parts"].get(role)
+            names.update(value if isinstance(value, list) else ([value] if value else []))
+    return names
+
+
+def damage_asset(asset, seed: int, level: str, pivot: str, generation: int = 1) -> None:
     if level == "intact":
+        return
+    if level == "fractured":
+        from .fracture import fracture_asset
+
+        fracture_asset(asset, seed, pivot)
         return
     rng = StableRandom(seed ^ 0xD35)
     (x0, y0, z0), (x1, y1, z1) = asset.bbox()
@@ -81,11 +99,13 @@ def damage_asset(asset, seed: int, level: str, pivot: str) -> None:
     total = max((x1 - x0) * (y1 - y0) * (z1 - z0), 1e-6)
 
     if level == "damaged":
+        keep = _collider_parts(asset) if generation >= 3 else set()  # 3: collider parts lose nothing
         for obj, part in _parts(asset):
             mesh = obj.mesh
             (px0, py0, pz0), (px1, py1, pz1) = mesh.part_bbox(part)
             small = (px1 - px0) * (py1 - py0) * (pz1 - pz0) < total * 0.02
-            if small and pivot in ("floor", "wall") and rng.random() < 0.15 and len(mesh.parts) > 1:
+            if small and pivot in ("floor", "wall") and obj.name not in keep and rng.random() < 0.15 and \
+                    len(mesh.parts) > 1:
                 _drop(mesh, part, rng, footprint)
             elif rng.random() < 0.3:
                 _dent(mesh, part, rng, 0.06)

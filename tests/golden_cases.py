@@ -43,8 +43,9 @@ CASES = (
     ("destroyed", 4, {"damage": "destroyed"}),
     ("themed", 8, {"theme": "labor-3"}),
 )
-# generation 1 (= cubegen 0.9.0, verified against its golden.json: identical except door's corrected wiring)
-CASES += tuple((f"gen1_{name}", seed, dict(style, generation=1)) for name, seed, style in CASES)
+# generation 1 (= cubegen 0.9.0, verified against its golden.json: identical except door's corrected wiring) and
+# generation 2 (= the default before the sound / effect anchors of generation 3: identical to its golden.json)
+CASES += tuple((f"gen{g}_{name}", seed, dict(style, generation=g)) for g in (1, 2) for name, seed, style in CASES)
 
 
 def compute():

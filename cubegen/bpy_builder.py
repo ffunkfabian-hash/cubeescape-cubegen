@@ -7,6 +7,7 @@ import bpy
 
 from .geometry import box_uvs
 from .materials import MATERIALS, srgb_to_linear
+from .palette import PALETTE_MATERIAL, resolve, uv as palette_uv
 
 
 def _input(node, *names):
@@ -85,13 +86,64 @@ def create_textured_materials(textures):
         nodes.active = albedo  # Workbench "Texture" colour mode shows the active image
 
 
+def create_palette_material(palette):
+    """``MP_Palette`` from the palette maps (``palette.write_palette``): point-sampled colour, metallic and
+    smoothness, emission for the glow cells."""
+    name = palette["name"]
+    mat = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    mat.use_backface_culling = True
+    if mat.node_tree is None:
+        mat.use_nodes = True
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    for node in [n for n in nodes if n.type in ("TEX_IMAGE", "SEPARATE_COLOR", "SEPRGB", "MATH")]:
+        nodes.remove(node)
+    bsdf = nodes.get("Principled BSDF")
+    if bsdf is None:
+        return mat
+    paths = palette["paths"]
+
+    def image_node(path, non_color, y):
+        node = nodes.new("ShaderNodeTexImage")
+        node.image = bpy.data.images.load(path, check_existing=True)
+        node.interpolation = "Closest"  # one colour per cell, no blending into the neighbours
+        if non_color:
+            node.image.colorspace_settings.name = "Non-Color"
+        node.location = (-600, y)
+        return node
+
+    albedo = image_node(paths["Albedo"], False, 300)
+    links.new(albedo.outputs["Color"], bsdf.inputs["Base Color"])
+    metal = image_node(paths["MetallicSmoothness"], True, 0)
+    try:
+        split = nodes.new("ShaderNodeSeparateColor")
+    except RuntimeError:  # Blender < 3.3
+        split = nodes.new("ShaderNodeSeparateRGB")
+    links.new(metal.outputs["Color"], split.inputs[0])
+    links.new(split.outputs[0], bsdf.inputs["Metallic"])
+    rough = nodes.new("ShaderNodeMath")
+    rough.operation = "SUBTRACT"
+    rough.inputs[0].default_value = 1.0
+    links.new(metal.outputs["Alpha"], rough.inputs[1])
+    links.new(rough.outputs[0], bsdf.inputs["Roughness"])
+    emission = image_node(paths["Emission"], False, -300)
+    color_in = _input(bsdf, "Emission Color", "Emission")
+    strength_in = _input(bsdf, "Emission Strength")
+    if color_in is not None:
+        links.new(emission.outputs["Color"], color_in)
+    if strength_in is not None:
+        strength_in.default_value = palette["emission"]
+    mat.diffuse_color = (0.6, 0.62, 0.66, 1.0)
+    nodes.active = albedo
+    return mat
+
+
 def build_collection(asset, collection, object_name=None, tags=None, material_map=None):
     """Create Blender objects for ``asset`` in ``collection``.
 
     Objects only get a location (their pivot); children are parented and placed
     relative to their parent. ``object_name(part)`` renames objects (default:
     the part name), ``tags`` become custom properties on the root objects,
-    ``material_map`` swaps materials (``{"M_Metal": "MT_Metal"}`` for textures).
+    ``material_map`` swaps materials (``{"M_Metal": "MT_Metal"}`` for textures, a ``palette.PaletteMap`` per part).
     """
     objects = {}
     for o in asset.objects:
@@ -120,8 +172,7 @@ def make_mesh(name, asset_object, material_map=None):
     verts = asset_object.local_verts()
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], src.faces)
-    mapping = material_map or {}
-    roles = [mapping.get(r, r) for r in src.roles]
+    roles = [resolve(material_map, asset_object.name, r) for r in src.roles]
     materials = sorted(set(roles))
     for m in materials:
         me.materials.append(bpy.data.materials[m])
@@ -132,7 +183,10 @@ def make_mesh(name, asset_object, material_map=None):
             poly.use_smooth = False  # flat shading = crisp low-poly look
         except AttributeError:  # newer Blender: from_pydata already creates flat faces
             pass
-        uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
+        if roles[fi] == PALETTE_MATERIAL:  # palette mode: the centre of the colour's cell
+            uvs = [palette_uv(src.roles[fi])] * len(src.faces[fi])
+        else:
+            uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
         for loop_index, uv in zip(poly.loop_indices, uvs):
             uv_layer.data[loop_index].uv = uv
     me.validate(clean_customdata=False)

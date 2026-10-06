@@ -180,7 +180,7 @@ class BlenderTest(unittest.TestCase):
         # against the Unity contract and its FBX; the fit checks of the kit are in the manifest
         from cubegen.contract import check_export
 
-        for family in ("station", "foundry", "lab"):
+        for family in ("station", "foundry", "lab", "medbay", "derelict", "greenhouse", "reactor"):
             with tempfile.TemporaryDirectory() as out:
                 code = main(["generate", "--family", family, "--seed", "42", "--prefix", "Gen_", "--no-render",
                              "--no-blend", "--out", out, "--jobs", "2"])

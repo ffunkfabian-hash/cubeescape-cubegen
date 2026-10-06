@@ -23,6 +23,7 @@ from .textures import TEXTURE_MODES, build_texture_set
 from .variety import pick_unique
 from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
+from . import palette as palette_mod
 
 BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
 from .seeds import model_seed
@@ -63,6 +64,7 @@ class BatchConfig:
     icon_elevation: float = 31.0
     icon_zoom: float = 1.0         # > 1 = closer
     textures: str = "none"         # none | tiled (ImageMagick tile textures) | baked (+ per-asset grime atlas)
+    #                                | palette (one MP_Palette material per model: 1 draw call, palette.py)
     texture_size: int = 512
     texture_set: str = ""          # name of the texture variant -> material names MT_<set>_<Material>
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
@@ -163,7 +165,8 @@ def _part_entries(asset, material_map: Optional[Dict[str, str]], suffix: str = "
             "parent": o.parent + suffix if o.parent else None,
             "localPosition": list(to_unity(local)),
             "empty": o.is_empty,
-            "materials": [] if o.is_empty else sorted({(material_map or {}).get(r, r) for r in o.mesh.roles}),
+            "materials": [] if o.is_empty else sorted({palette_mod.resolve(material_map, o.name, r)
+                                                       for r in o.mesh.roles}),
         }
         if not o.is_empty:  # box collider hint relative to the part's own pivot (Unity coordinates)
             (bx0, by0, bz0), (bx1, by1, bz1) = o.mesh.bbox()
@@ -426,11 +429,18 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
 
     textures: Dict[str, Dict] = {}
     textures_dir = None
+    palette = None
     if config.textures != "none":
         textures_dir = os.path.abspath(config.textures_dir) if config.textures_dir \
             else os.path.join(dirs["models"], "Textures")
+    if config.textures == "palette":  # one material per model: written in pure Python
+        palette = palette_mod.write_palette(textures_dir, log=log)
+    elif config.textures != "none":
         textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
     material_map = {plain: info["name"] for plain, info in textures.items()}
+
+    def asset_materials(asset):
+        return palette_mod.material_map(asset) if palette else material_map
 
     results: Dict[str, Dict] = {}
     blender_info: Dict[str, object] = {}
@@ -460,6 +470,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "previews_dir": dirs["previews"],
             "blend": blend_path,
             "textures": textures,
+            "palette": palette,
             "texture_mode": config.textures,
             "texture_size": config.texture_size,
             "textures_dir": textures_dir,
@@ -485,11 +496,11 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             log("--no-blender: baking needs Blender, using tiled textures")
         formats = ["obj"]
         for folder in {spec["models_dir"] for spec in specs}:
-            write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"), textures)
+            write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"), textures, palette)
         for spec in specs:
             asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
-            write_obj(asset, path, "CubeEscape_Materials.mtl", material_map,
+            write_obj(asset, path, "CubeEscape_Materials.mtl", asset_materials(asset),
                       lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
@@ -519,7 +530,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if config.rig_data:
             rig_path = os.path.join(spec["models_dir"], f"{spec['name']}.cubegen.json")
             with open(rig_path, "w", encoding="utf-8") as fh:
-                asset_map = material_map
+                asset_map = asset_materials(asset)
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
                 rig = rig_data(asset, spec, config.seed, asset_map,
@@ -576,7 +587,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         "overview_blend": _rel(blend_path, out) if blend_path and os.path.isfile(blend_path) else None,
         "material_swatch": _rel(swatch, out),
         "textures": {"mode": config.textures, "dir": _rel(textures_dir, out),
-                     "materials": material_map} if textures else None,
+                     "materials": material_map} if textures else
+        ({"mode": "palette", "dir": _rel(textures_dir, out), "material": palette_mod.PALETTE_MATERIAL,
+          "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Palette.json"), out)} if palette else None),
         "contact_sheet": _rel(sheet, out),
         "family": family_info,
         "models": entries,
