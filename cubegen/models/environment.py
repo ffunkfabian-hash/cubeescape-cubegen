@@ -47,7 +47,7 @@ def _door_offset(style: str, width: float, height: float, split) -> list:
     if direction == "side":
         leaf = width / 2 if split == "x" else width
         return [round(leaf + 0.05, 4), 0.0, 0.0]
-    if direction == "vertical":  # split up/down - each leaf moves away from the centre (sign of its position)
+    if direction == "vertical":  # split up/down: the first leaf (the upper one) rises, the second sinks
         return [0.0, round(height / 2 + 0.05, 4), 0.0]
     return [0.0, round((height + 0.1) * (-1 if direction == "down" else 1), 4), 0.0]
 
@@ -110,13 +110,14 @@ def door(rng, a):
     else:
         leaf("Panel", width, height, (0, 0, height / 2))
 
-    panels = ["Panel", "Panel_B"] if split else ["Panel"]
+    # Unity moves the second leaf by -openOffset: first the leaf that moves along +openOffset
+    panels = {"x": ["Panel", "Panel_B"], "z": ["Panel_B", "Panel"]}.get(split, ["Panel"])
     a.behaviour("Door", {"panels": panels, "statusLights": ["StatusLight_Front", "StatusLight_Back"],
                          "upperFrame": ["Frame_Top"], "colliders": ["Frame_Left", "Frame_Right", "Frame_Top"]},
                 {"openOffset": _door_offset(style, width, height, split),
                  "speed": p.value("speed", DOOR_MOTION[style][1])},
-                note="openOffset in Unity units relative to the leaf's rest position; split leaves move by the "
-                     "sign of their localPosition")
+                note="openOffset in Unity units relative to the leaf's rest position; a second leaf moves by "
+                     "-openOffset (Unity's default secondOffset), away from the first")
 
 
 @model("platform", "Platform", "environment", "Square floating platform (walkable top at z = 0), "

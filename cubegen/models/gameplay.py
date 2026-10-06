@@ -293,16 +293,20 @@ def breakable_platform(rng, a):
             cube(tile, (t - 0.02, t - 0.02, 0.12), (cx, cy, -0.06), mat)
             a.collider((t - 0.02, t - 0.02, 0.12), (cx, cy, -0.06), part=name)
             tiles.append((tile, cx, cy))
+    crack_list = []
     for _ in range(cracks):  # dark cracks across random tiles
         tile, cx, cy = tiles[rng.randrange(len(tiles))]
         ln = t * rng.uniform(0.3, 0.7)
         ang = rng.uniform(0, math.pi)
         dx = (t - ln) / 2 * 0.6
-        cube(tile, (ln, 0.025, 0.008), (cx + rng.uniform(-dx, dx), cy + rng.uniform(-dx, dx), 0.004), "M_RobotDark",
-             rot=(0, 0, ang))
-    if p.bool("weak_spots", 0.6, warning=True):
-        for tile, cx, cy in tiles[:: max(1, len(tiles) // 3)]:
-            cube(tile, (0.12, 0.12, 0.01), (cx, cy, 0.009), "M_Warning", rot=(0, 0, math.pi / 4))
+        crack_list.append((tile, (ln, 0.025, 0.008), (cx + rng.uniform(-dx, dx), cy + rng.uniform(-dx, dx), 0.004),
+                           ang))
+    weak = tiles[:: max(1, len(tiles) // 3)] if p.bool("weak_spots", 0.6, warning=True) else []
+    weak_parts = {id(tile) for tile, _, _ in weak} if p.style.generation >= 2 else set()
+    for tile, size_, center_, ang in crack_list:  # a weak tile's cracks in its warning colour: 2 materials per tile
+        cube(tile, size_, center_, "M_Warning" if id(tile) in weak_parts else "M_RobotDark", rot=(0, 0, ang))
+    for tile, cx, cy in weak:
+        cube(tile, (0.12, 0.12, 0.01), (cx, cy, 0.009), "M_Warning", rot=(0, 0, math.pi / 4))
     if p.bool("supports", 0.5):
         for x in (-1, 1):
             for y in (-1, 1):

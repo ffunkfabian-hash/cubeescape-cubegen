@@ -190,6 +190,22 @@ cli_rig = json.load(open(os.path.join(cli_out, "models", "Gen_Door_000.cubegen.j
 addon_rig = json.load(open(os.path.join(out, "Models", "Gen_Door_000.cubegen.json")))
 for key in ("parts", "behaviours", "params", "bounds"):
     assert cli_rig[key] == addon_rig[key], key
+# foundry (4 m walls): the kit builds, and every type - window_wall, wall_corner too - follows the measures
+s.family = "foundry"
+assert bpy.ops.cubegen.kit() == {"FINISHED"}
+assert len(bpy.data.collections[addon.GRID_COLLECTION].children) == len(addon.kit_entries(s)[0])
+assert addon._family_misfits(s) == {}, addon._family_misfits(s)
+assert {t for t, _ in addon.all_type_entries(s)} >= {"wall_corner", "window_wall"}
+items = addon._type_items(s, bpy.context)  # type menu: same identifiers and numbers as before, no warnings
+assert [(i[0], i[4]) for i in items] == [(t[0], n) for n, t in enumerate(addon._TYPE_ITEMS)]
+assert all(i[3] == "NONE" for i in items)
+addon._MISFIT_CACHE["foundry"] = {"pipe": "pipe can't follow pipe_radius"}  # a family a type can't follow
+addon._TYPE_ITEMS_BY_FAMILY.pop("foundry", None)
+marked = {i[0]: i for i in addon._type_items(s, bpy.context)}
+assert marked["pipe"][3] == "ERROR" and "pipe_radius" in marked["pipe"][2], marked["pipe"]
+assert addon._type_count(s) == len(addon._TYPE_ITEMS) - 1
+addon._MISFIT_CACHE.pop("foundry")
+addon._TYPE_ITEMS_BY_FAMILY.pop("foundry", None)
 s.family = addon.NO_FAMILY
 s.render_icons = False
 

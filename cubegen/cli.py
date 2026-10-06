@@ -13,7 +13,7 @@ from . import __version__
 from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
-from .params import Style, parse_param_overrides
+from .params import GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
 
@@ -25,7 +25,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme"}
+                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme", "generation": "generation"}
 
 
 def _csv(value: str) -> List[str]:
@@ -272,7 +272,7 @@ def cmd_params(args) -> int:
     print("global: --theme TEXT  --size S|M|L  --snap 0.5  --glow cyan|red|orange")
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
-    print("        --damage intact|damaged|destroyed")
+    print("        --damage intact|damaged|destroyed  --generation 1|2")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
@@ -300,10 +300,12 @@ def cmd_family_check(args) -> int:
 
 def cmd_check(args) -> int:
     """Quality report: triangles vs budget, draw calls, z-fighting, distinct variants."""
+    if args.export:
+        return cmd_export_check(args)
     if args.family:
         return cmd_family_check(args)
     from .models import REGISTRY as registry
-    from .quality import DRAW_CALL_BUDGET, report
+    from .quality import DRAW_CALL_BUDGET, DRAW_CALLS_PER_OBJECT, report
     from .seeds import model_seed
 
     types = model_types() if not args.types or args.types == ["all"] else args.types
@@ -322,15 +324,53 @@ def cmd_check(args) -> int:
         for t, r in rows.items():
             zf = f"{r['z_fighting_pairs']} pair(s) in {r['z_fighting_variants']}" if r["z_fighting_pairs"] else "-"
             flag = " !" if r["errors"] else ""
-            draws = f"{r['draw_calls']}{'*' if r['draw_calls'] > DRAW_CALL_BUDGET else ''}"
+            draws = f"{r['draw_calls']}{'*' if r['draw_calls_over'] else ''}"
             print(f"{t:<17}{r['triangles']:>6}{r['budget']:>8}{draws:>7}  {zf:<22}"
                   f"{r['distinct_variants']:>5}/{args.count}{flag}")
         over = [t for t, r in rows.items() if r["errors"]]
         fights = [t for t, r in rows.items() if r["z_fighting_pairs"]]
         print(f"\n{len(over)} type(s) over the triangle budget{': ' + ', '.join(over) if over else ''}")
         print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
-        print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed)")
+        print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed) and more than "
+              f"{DRAW_CALLS_PER_OBJECT} per object")
     return 1 if any(r["errors"] for r in rows.values()) else 0
+
+
+def cmd_export_check(args) -> int:
+    """An exported models folder against the Unity import contract (cubegen/contract.py)."""
+    from .contract import check_export
+
+    if not os.path.isdir(args.export):
+        raise ValueError(f"--export: {args.export!r} is not a folder")
+    result = check_export(args.export)
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        for model, r in result.items():
+            for e in r["errors"]:
+                print(f"{model}: {e}")
+            for o in r["open"]:
+                print(f"{model}: open - {o.split(': ', 1)[-1]}")
+        bad = sum(1 for r in result.values() if r["errors"])
+        print(f"\n{len(result)} model(s): {bad} rejected by the Unity import, "
+              f"{sum(1 for r in result.values() if r['open'])} with an open item assignment")
+    return 1 if any(r["errors"] for r in result.values()) or not result else 0
+
+
+def cmd_contract(args) -> int:
+    """The Unity import contract as JSON (cubegen/contract.json) - for the game's importer."""
+    import shutil
+
+    from .contract import CONTRACT_FILE
+
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        shutil.copyfile(CONTRACT_FILE, args.out)
+        print(f"contract -> {args.out}")
+    else:
+        with open(CONTRACT_FILE, "r", encoding="utf-8") as fh:
+            sys.stdout.write(fh.read())
+    return 0
 
 
 def cmd_families(args) -> int:
@@ -412,6 +452,9 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--detail", choices=["low", "normal", "high"], help="low: no bevels, fewer cylinder sides")
     st.add_argument("--damage", choices=["intact", "damaged", "destroyed"],
                     help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library)")
+    st.add_argument("--generation", type=int, choices=list(GENERATIONS),
+                    help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
+                         "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part")
     tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
     tx.add_argument("--textures", choices=["none", "tiled", "baked"],
                     help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas")
@@ -466,7 +509,13 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--json", action="store_true")
     c.add_argument("--family", help="instead: fit checks of a family kit (sizes, joints, free passages, colliders)")
     c.add_argument("--recipe", help="with --family: a kit recipe on top of the family")
+    c.add_argument("--export", metavar="DIR", help="instead: check an exported models folder against the Unity "
+                                                   "import contract (every .cubegen.json, with its FBX)")
     c.set_defaults(func=cmd_check)
+
+    ct = sub.add_parser("contract", help="the Unity import contract as JSON (shared with the game's importer)")
+    ct.add_argument("--out", help="write it to this file (e.g. <Unity>/Assets/Editor/Cubegen/cubegen_contract.json)")
+    ct.set_defaults(func=cmd_contract)
 
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")
     f.add_argument("--dims", action="store_true", help="list the measures and the parameters they set")

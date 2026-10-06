@@ -17,4 +17,4 @@ cubegen = "cubegen.cli:main"
 include = ["cubegen*"]
 
 [tool.setuptools.package-data]
-cubegen = ["family_data/*.json"]
+cubegen = ["family_data/*.json", "contract.json"]

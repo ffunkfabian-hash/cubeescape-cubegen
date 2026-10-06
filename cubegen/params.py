@@ -35,9 +35,20 @@ MATERIAL_STYLES = {
 SIZE_CLASSES = {"S": (0.0, 1 / 3), "M": (1 / 3, 2 / 3), "L": (2 / 3, 1.0)}
 
 
+#: model generations - what changed in each (existing seeds keep their look within a generation):
+#: 1 = cubegen 0.9.0; 2 = flush details lifted 2 mm (no z-fighting), two materials per moving part
+GENERATIONS = (1, 2)
+LATEST_GENERATION = GENERATIONS[-1]
+
+
 @dataclass
 class Style:
-    """Global look settings - ``None`` / ``"seed"`` means: as the seed rolls it."""
+    """Global look settings - ``None`` / ``"seed"`` means: as the seed rolls it.
+
+    ``generation`` picks the model generation: corrections that change existing seeds (2: flush details lifted
+    against flickering, two materials per moving part) only apply from their generation on, so a batch exported
+    with an older cubegen can be rebuilt bit for bit with ``generation`` 1.
+    """
 
     size: Optional[str] = None       # S | M | L  -> picks from the lower / middle / upper third of size ranges
     snap: float = 0.0                # round main dimensions to multiples of this (m), 0 = off
@@ -48,6 +59,7 @@ class Style:
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
     damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts)
     theme: Optional[str] = None      # any text: rolls glow, material, wear and warning once for all assets
+    generation: int = 2              # model generation (GENERATIONS): 1 = as cubegen 0.9.0, 2 = current
 
     def validate(self) -> None:
         checks = [
@@ -62,6 +74,8 @@ class Style:
         for name, value, allowed in checks:
             if value not in allowed:
                 raise ValueError(f"style {name}: {value!r} not in {', '.join(str(a) for a in allowed if a)}")
+        if self.generation not in GENERATIONS:
+            raise ValueError(f"style generation: {self.generation!r} not in {', '.join(map(str, GENERATIONS))}")
         if self.snap < 0:
             raise ValueError("style snap must be >= 0")
         if self.theme is not None and not str(self.theme).strip():
@@ -89,6 +103,11 @@ class Style:
                 close = difflib.get_close_matches(key, fields, n=1)
                 hint = f" (did you mean {close[0]!r}?)" if close else ""
                 raise ValueError(f"style: unknown key {key!r}{hint}; allowed: {', '.join(fields)}")
+        if "generation" in data:  # "1" from the command line / add-on
+            try:
+                data["generation"] = int(data["generation"])
+            except (TypeError, ValueError):
+                raise ValueError(f"style generation: {data['generation']!r} is not a number") from None
         return cls(**data)
 
 

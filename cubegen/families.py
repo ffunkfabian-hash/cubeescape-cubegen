@@ -39,8 +39,9 @@ FAMILY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "family_da
 
 # measure -> (label, [(type, parameter)]) - every type listed follows the measure
 DIMS: Dict[str, Tuple[str, Tuple[Tuple[str, str], ...]]] = {
-    "wall_height": ("Wandhöhe (m)", (("wall", "height"),)),
-    "wall_thickness": ("Wandstärke (m)", (("wall", "thickness"),)),
+    "wall_height": ("Wandhöhe (m)", (("wall", "height"), ("window_wall", "height"), ("wall_corner", "height"))),
+    "wall_thickness": ("Wandstärke (m)", (("wall", "thickness"), ("window_wall", "thickness"),
+                                          ("wall_corner", "thickness"))),
     "module": ("Modullänge (m)", (("wall", "length"), ("catwalk", "length"), ("pipe", "length"),
                                   ("retractable_bridge", "length"), ("window_wall", "length"),
                                   ("cable_tray", "length"))),
@@ -66,10 +67,7 @@ DIMS: Dict[str, Tuple[str, Tuple[Tuple[str, str], ...]]] = {
 }
 
 # types with a measure built in that they can't change: a family with another value can't use them
-FIXED: Dict[Tuple[str, str], float] = {
-    ("window_wall", "wall_height"): 3.0, ("window_wall", "wall_thickness"): 0.5,
-    ("wall_corner", "wall_height"): 3.0, ("wall_corner", "wall_thickness"): 0.5,
-}
+FIXED: Dict[Tuple[str, str], float] = {}
 
 TOL = 0.01  # 1 cm, like the Unity importer's pivot tolerance
 
@@ -146,6 +144,17 @@ def derived_params(dims: Dict[str, Any], types: Iterable[str]) -> Dict[str, Dict
     return result
 
 
+def misfits(dims: Dict[str, Any], types: Iterable[str]) -> Dict[str, str]:
+    """{type: reason} for the types that can't follow these measures (a fixed size, a value out of range)."""
+    out = {}
+    for model_type in types:
+        try:
+            derived_params(dims, [model_type])
+        except ValueError as exc:
+            out[model_type] = str(exc)
+    return out
+
+
 def load_family(name_or_path: str, base_dir: Optional[str] = None) -> Dict[str, Any]:
     """The family recipe (checked like any recipe, plus "family" and "dims")."""
     from .cli import load_recipe
@@ -203,8 +212,10 @@ def resolve(family: Optional[Dict[str, Any]], recipe: Optional[Dict[str, Any]], 
     values.update({k: v for k, v in recipe.items() if k not in ("family", "dims", "description", "_path", "params",
                                                                 "style", "variant_params")})
     style = dict((match or {}).get("style") or {})
+    if match and "generation" not in style:  # sidecars without a generation were built by cubegen 0.9.0 or older
+        style["generation"] = 1
     style = {k: v for k, v in style.items() if v is not None and k in ("material", "glow", "warning", "wear",
-                                                                       "detail", "snap", "theme")}
+                                                                       "detail", "snap", "theme", "generation")}
     style.update(family.get("style", {}))
     style.update(recipe.get("style", {}))
     style.update(extra_style or {})
@@ -302,10 +313,17 @@ def connectors(asset, model_type: str) -> List[Dict[str, Any]]:
             pos = (hole["center_x"], 0, hole["z0"] if kind != "duct" else hole["duct_height"])
             out.append(_con(hole["kind"], kind, pos, (0, -1, 0), width=hole["width"], height=hole["height"],
                             thickness=t, **({"radius": hole["duct_radius"]} if kind == "duct" else {})))
-    elif model_type == "window_wall":  # fixed 3 m module, 0.5 m thick
+    elif model_type == "window_wall":
         ln = meta["length_m"]
+        h, t = params.get("height", 3.0), params.get("thickness", 0.5)
         for s in (-1, 1):
-            out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=3.0, thickness=0.5))
+            out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=h, thickness=t))
+    elif model_type == "wall_corner":  # walls join the faces that aren't exposed
+        h, t = params.get("height", 3.0), params.get("thickness", 0.5)
+        sides = {"corner": ((1, 0), (0, 1)), "end": ((1, 0),), "tee": ((-1, 0), (1, 0), (0, 1))}[meta["style"]]
+        for dx, dy in sides:
+            out.append(_con(f"end_{dx:+d}{dy:+d}", "wall_end", (dx * t / 2, dy * t / 2, 0), (dx, dy, 0), height=h,
+                            thickness=t))
     elif model_type == "door":
         from .models.environment import door_frame_outer
 
@@ -592,7 +610,7 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
     """Members must share material, glow, warning paint, wear, detail, snapping and textures."""
     from .params import Style
 
-    keys = ("material", "glow", "warning", "wear", "detail", "snap", "theme")
+    keys = ("material", "glow", "warning", "wear", "detail", "snap", "theme", "generation")
     looks = {}
     for spec in specs:
         style = Style.from_dict(spec.get("style")).resolved()
@@ -603,4 +621,4 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
 
 
 __all__ = ["DIMS", "FIXED", "family_files", "find_family", "load_family", "check_dims", "derived_params",
-           "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]
+           "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]

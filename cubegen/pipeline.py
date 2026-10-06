@@ -21,6 +21,7 @@ from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set
 from .variety import pick_unique
+from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
 
 BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
@@ -215,6 +216,26 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
     }
 
 
+def check_contract(specs: List[Dict], master_seed: int, log: Callable[[str], None] = print) -> List[str]:
+    """Every sidecar of the batch against the Unity importer's contract (``cubegen/contract.py``).
+
+    Raises ``ValueError`` listing all violations; returns (and logs) the open item assignments
+    (``ItemPickup`` without ``item_id`` - Unity skips those models until an id is set)."""
+    errors, open_items = [], []
+    for spec in specs:
+        asset = build_spec(spec)
+        rig = rig_data(asset, spec, master_seed, lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
+        problems, missing = check_sidecar(rig, f"{spec['name']}.cubegen.json")
+        errors += [f"{spec['name']}: {p}" for p in problems]
+        open_items += missing
+    if errors:
+        raise ValueError("these models break the Unity import contract (the importer would skip them):\n  "
+                         + "\n  ".join(errors))
+    for item in open_items:
+        log(f"note: {item} - set it with --param <type>.item_id=<ItemData id>")
+    return open_items
+
+
 def lod_data(asset, lod) -> Dict:
     """``"lods"`` of a manifest entry (not in the sidecar: the Unity reader rejects unknown root keys)."""
     return {"objects": "<part>_LOD<level>", "note": "Unity builds the LODGroup on import from the _LOD names",
@@ -397,6 +418,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 spec["models_dir"] = os.path.join(os.path.abspath(config.library_dir), category)
         os.makedirs(spec["models_dir"], exist_ok=True)
 
+    if config.rig_data:  # the Unity import skips a model whose sidecar breaks its contract - stop before Blender
+        check_contract(specs, config.seed, log)
+
     im = ImageMagick(config.magick)
     swatch = im.material_swatch(os.path.join(out, "materials.png"))
 
@@ -508,6 +532,11 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                         rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()}
                 json.dump(rig, fh, indent=2)
             res.setdefault("files", {})["rig"] = rig_path
+            fbx = res.get("files", {}).get("fbx")
+            if fbx and os.path.isfile(fbx):  # and what Unity reads from the FBX: parents, pivots, bounds
+                fbx_errors = check_fbx(rig, fbx)
+                if fbx_errors:
+                    raise RuntimeError(f"{fbx} breaks the Unity import contract:\n  " + "\n  ".join(fbx_errors))
         entries.append({
             "name": spec["name"],
             "type": spec["type"],

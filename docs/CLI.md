@@ -32,7 +32,8 @@ cubegen doctor
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
 | `python3 -m cubegen list` | alle 129 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
-| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits |
+| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
+| `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
 | `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
 
@@ -163,6 +164,7 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--wear` | none / light / heavy | Schutt, lose Platten, Kabel um das Modell |
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
 | `--damage` | intact / damaged / destroyed | beschädigt bzw. Ruine (statisch, ohne Scripts) |
+| `--generation` | 1 / 2 | Modell-Generation (Standard 2); 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
 
 ## 8. Modellfamilien und Bau-Kits
 
@@ -321,18 +323,23 @@ Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 python3 -m cubegen check                      # alle Typen, je 10 Varianten von Seed 42
 python3 -m cubegen check --types door,laser_mirror --count 20 --detail high
 python3 -m cubegen check --json > quality.json
+python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger Export gegen den Unity-Vertrag
 ```
 
 | Spalte | Bedeutung |
 |---|---|
 | `tris` / `budget` | höchste Dreieckszahl der Varianten / Budget der Kategorie (bei `--detail high` × 1,5) |
-| `draws` | Draw Calls: Materialien pro Objekt, summiert (`*` = mehr als 16) |
+| `draws` | Draw Calls: Materialien pro Objekt, summiert; statische Modelle: ein Material einmal (`*` = über dem Budget: 16, bei vielen beweglichen Teilen 2 pro Teil + 2) |
 | `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
 | `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
 
-Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen sind
-Warnungen. Sie in bestehenden Typen zu beheben würde deren Seeds verändern; die Tests sorgen dafür, dass es
-nicht schlimmer wird und neue Typen gar keine haben.
+Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen gibt es
+keine mehr: Der Generator hebt bündig aufliegende Details um 2 mm an; die Tests prüfen das für alle Typen und
+Zustände.
+
+`check --export <Ordner>` liest jede `<Name>.cubegen.json` darunter (mit ihrer FBX) und prüft sie wie der
+Unity-Import: Fehler führen zu Fehlercode 1, offene Item-IDs werden nur gemeldet. Der Export selbst prüft das
+schon, bevor er Dateien schreibt.
 
 ## 15. Probleme lösen
 
@@ -345,7 +352,7 @@ nicht schlimmer wird und neue Typen gar keine haben.
 | Previews schwarz / sehr langsam | `--engine cycles --samples 16` oder `--no-render` |
 | Blender-Fehler ohne Details | mit `-v` erneut starten, dann steht die Blender-Ausgabe im Terminal |
 | `unknown key '…' (did you mean …)` | Tippfehler im Rezept oder in `style` |
-| `unknown measure '…'` / `… can't follow …` | Maß-Name in `dims` falsch bzw. ein Typ kann das Maß nicht (z. B. `window_wall` hat feste 3 m: Wand mit `opening=window` nehmen) |
+| `unknown measure '…'` / `… can't follow …` | Maß-Name in `dims` falsch bzw. ein Typ kann das Maß nicht (z. B. `pipe_radius` 0.4: Rohre gibt es nur mit 0.09 / 0.18 / 0.35 m) |
 | `family fit: … don't fit` | die genannten Teile passen nicht zusammen (meist eine Abweichung in `params`/`dims`); Details: `python3 -m cubegen check --family NAME` |
 | `… does not match its rig data` | Blender hat eine FBX geschrieben, die nicht zur `.cubegen.json` passt (z. B. eine neue Blender-Version mit geändertem FBX-Export). Bitte mit der Meldung als Issue melden |
 | Modell sieht nach einem Update anders aus | sollte nicht passieren (`tests/golden.json`); sonst bitte melden |
@@ -366,7 +373,7 @@ nicht schlimmer wird und neue Typen gar keine haben.
 | `--unique` | – | ähnlich aussehende Varianten überspringen |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
-| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage` | Seed | Stil, siehe Abschnitt 7 |
+| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 2) | Stil, siehe Abschnitt 7 |
 | `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen, siehe Abschnitt 10 |
 | `--out` | `output/seed_<seed>` | Ausgabeordner |
 | `--models-dir`, `--library-dir`, `--icons-dir` | im Ausgabeordner | Zielordner, siehe Abschnitt 8 |

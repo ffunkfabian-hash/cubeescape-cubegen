@@ -79,6 +79,22 @@ _TYPE_ITEMS = [
     (e.name, f"{e.title}", f"{e.description} ({e.category})")
     for e in sorted(models.REGISTRY.values(), key=lambda e: (e.category, e.name))
 ]
+_TYPE_ITEMS_BY_FAMILY = {}  # Blender needs the enum items kept alive while they are shown
+
+
+def _type_items(self, context):
+    """The type menu: types that can't follow the chosen family's measures get a warning icon and the reason.
+    Same identifiers and numbers as _TYPE_ITEMS, so saved files keep their type."""
+    misfits = _family_misfits(self) if getattr(self, "family", NO_FAMILY) != NO_FAMILY else {}
+    key = getattr(self, "family", NO_FAMILY)
+    if key not in _TYPE_ITEMS_BY_FAMILY:
+        _TYPE_ITEMS_BY_FAMILY[key] = [
+            (ident, name, f"Passt nicht zur Familie {key}: {misfits[ident]}" if ident in misfits else desc,
+             "ERROR" if ident in misfits else "NONE", i)
+            for i, (ident, name, desc) in enumerate(_TYPE_ITEMS)]
+    return _TYPE_ITEMS_BY_FAMILY[key]
+
+
 _INFO = {}  # last preview: shown in the panel
 NO_FAMILY = "__none__"
 _FAMILY_ITEMS = [(NO_FAMILY, "Keine", "Ohne Familie: alles vom Seed bzw. den eigenen Einstellungen")] + [
@@ -129,20 +145,23 @@ def _explicit_style(s):
         out["detail"] = st.detail
     if st.damage != "intact":
         out["damage"] = st.damage
+    if st.generation != params_mod.LATEST_GENERATION:
+        out["generation"] = st.generation
     return out
 
 
-def _resolved(s, kit=False):
+def _resolved(s, types=(), kit=False):
     """families.resolve - the family, then the panel's fixed parameters and style (source "addon").
-    Without a family the same as the panel's settings. kit=True: the family's kit with its own params."""
-    model_set = None if kit else {t: 1 for t in models.model_types()}
+    Without a family the same as the panel's settings. Only ``types`` follow the family's measures (a type
+    that can't follow them fails only when it is built); kit=True: the family's kit with its own params."""
+    model_set = None if kit else {t: 1 for t in types}
     return families.resolve(_family(s), None, models=model_set, extra_params=_overrides(s),
                             extra_style=_explicit_style(s), extra_source="addon")
 
 
 def _effective(s, model_type, kit_params=None, resolved=None):
     """(params, Style) a model of this type is built with."""
-    r = resolved or _resolved(s)
+    r = resolved or _resolved(s, [model_type])
     params = dict(r["values"]["params"].get(model_type, {}))
     params.update(kit_params or {})
     return params, params_mod.Style.from_dict(r["values"]["style"])
@@ -165,6 +184,7 @@ def _cli_command(s):
     flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear),
               ("--detail", style.detail if style.detail != "normal" else None),
               ("--damage", style.damage if style.damage != "intact" else None),
+              ("--generation", style.generation if style.generation != params_mod.LATEST_GENERATION else None),
               ("--textures", s.textures if s.textures != "none" else None),
               ("--lods", s.lods),  # True = flag without value
               ("--texture-set", s.texture_set or None)]
@@ -201,7 +221,7 @@ def _style(s):
         glow=None if s.glow_color in unset else s.glow_color,
         material=None if s.material_style in unset else s.material_style,
         warning=None if s.warning in unset else s.warning, wear=None if s.wear in unset else s.wear,
-        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None,
+        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None, generation=int(s.generation),
     )
 
 
@@ -293,7 +313,7 @@ def build_grid(context, entries=None, columns=None, kit_params=None):
         entries = [(s.model_type, v) for v in _variants(s, s.model_type, s.grid_start, s.grid_count)]
     variants = [v for _, v in entries]
     kit_params = kit_params or {}
-    resolved = _resolved(s)
+    resolved = _resolved(s, {t for t, _ in entries})
     assets = []
     for t, v in entries:
         params, style = _effective(s, t, kit_params.get((t, v)), resolved)
@@ -346,9 +366,29 @@ def _grid_params():
     return result
 
 
+_MISFIT_CACHE = {}
+
+
+def _family_misfits(s):
+    """{type: reason} for the types that can't follow the chosen family's measures."""
+    family = _family(s)
+    if not family:
+        return {}
+    if s.family not in _MISFIT_CACHE:
+        _MISFIT_CACHE[s.family] = families.misfits(family.get("dims", {}), _all_types())
+    return _MISFIT_CACHE[s.family]
+
+
+def _type_count(s):
+    """Types „Von jedem Typ“ builds: all, without the ones that can't follow the chosen family."""
+    return len(_all_types()) - len(_family_misfits(s))
+
+
 def all_type_entries(s):
-    """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1."""
-    return [(t, v) for t in _all_types() for v in _variants(s, t, s.grid_start, s.per_type)]
+    """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1.
+    With a family, types that can't follow its measures are left out."""
+    skip = _family_misfits(s)
+    return [(t, v) for t in _all_types() if t not in skip for v in _variants(s, t, s.grid_start, s.per_type)]
 
 
 def selected_variants(context):
@@ -372,7 +412,7 @@ def make_configs(context, picks, kit_params=None):
     With a family: its measures, look and kit parameters - the same contract as --family."""
     s = _settings(context)
     kit_params = _grid_params() if kit_params is None else kit_params
-    resolved = _resolved(s)
+    resolved = _resolved(s, {t for _, t, _ in picks})
     fam_values = resolved["values"]
     prefs = context.preferences.addons[__name__].preferences
     export_dir = bpy.path.abspath(s.export_dir).strip()
@@ -485,7 +525,7 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     family: EnumProperty(name="Familie", items=_FAMILY_ITEMS, update=_on_change,
                          description="Modellfamilie: gemeinsame Maße (Wand, Öffnungen, Stege, Treppen, Rohre), "
                                      "Materialien und Kit - wie --family auf der Kommandozeile")
-    model_type: EnumProperty(name="Typ", items=_TYPE_ITEMS, update=_on_change)
+    model_type: EnumProperty(name="Typ", items=_type_items, update=_on_change)
     master_seed: StringProperty(name="Master-Seed", default="42", update=_on_change,
                                 description="Zahl oder Text, wie --seed auf der Kommandozeile")
     variant: IntProperty(name="Variante", default=0, min=0, max=9999, soft_max=99, update=_on_change,
@@ -557,6 +597,11 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     damage: EnumProperty(name="Zustand", update=_on_change, default="intact", items=[
         ("intact", "Intakt", ""), ("damaged", "Beschädigt", "Dellen, abgeschlagene Kleinteile, tote Deko-LEDs"),
         ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts")])
+    generation: EnumProperty(name="Generation", update=_on_change, default=str(params_mod.LATEST_GENERATION),
+                             items=[("2", "2 (aktuell)", "Keine flackernden Flächen, 2 Materialien pro beweglichem Teil"),
+                                    ("1", "1 (wie 0.9.0)", "Baut mit cubegen 0.9.0 exportierte Modelle bitgleich nach")],
+                             description="Modell-Generation: Korrekturen, die bestehende Seeds verändern, gelten erst "
+                                         "ab ihrer Generation")
     textures: EnumProperty(name="Texturen", update=_on_change, default="none", items=[
         ("none", "Keine", "Einfarbige M_-Materialien wie bisher (Standard)"),
         ("tiled", "Kachel", "ImageMagick-Kacheltexturen als MT_-Materialien (1 Kachel = 1 m)"),
@@ -601,7 +646,11 @@ class CUBEGEN_OT_preview(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        rebuild_preview(context)
+        try:
+            rebuild_preview(context)
+        except ValueError as exc:  # e.g. a type that can't follow the family's measures
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         return {"FINISHED"}
 
 
@@ -634,7 +683,11 @@ class CUBEGEN_OT_grid(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        build_grid(context)
+        try:
+            build_grid(context)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         s = _settings(context)
         self.report({"INFO"}, f"{s.grid_count} Varianten gebaut - gute auswählen, dann exportieren")
         return {"FINISHED"}
@@ -649,8 +702,16 @@ class CUBEGEN_OT_all_types(bpy.types.Operator):
     def execute(self, context):
         s = _settings(context)
         entries = all_type_entries(s)
-        build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
-        self.report({"INFO"}, f"{len(entries)} Modelle gebaut ({len(_all_types())} Typen × {s.per_type})")
+        skipped = _family_misfits(s)
+        try:
+            build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        msg = f"{len(entries)} Modelle gebaut ({_type_count(s)} Typen × {s.per_type})"
+        if skipped:
+            msg += f"; passen nicht zur Familie {s.family}: {', '.join(sorted(skipped))}"
+        self.report({"INFO"}, msg)
         return {"FINISHED"}
 
 
@@ -666,8 +727,12 @@ class CUBEGEN_OT_kit(bpy.types.Operator):
 
     def execute(self, context):
         s = _settings(context)
-        entries, own = kit_entries(s)
-        build_grid(context, entries, columns=6, kit_params=own)
+        try:
+            entries, own = kit_entries(s)
+            build_grid(context, entries, columns=6, kit_params=own)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         self.report({"INFO"}, f"Kit {s.family}: {len(entries)} Teile gebaut")
         return {"FINISHED"}
 
@@ -863,6 +928,9 @@ class CUBEGEN_PT_main(_Panel, bpy.types.Panel):
         s = _settings(context)
         layout = self.layout
         layout.prop(s, "model_type")
+        misfit = _family_misfits(s).get(s.model_type)
+        if misfit:  # the preview can't follow the family's measures
+            layout.label(text=f"Passt nicht zur Familie {s.family}: {misfit}", icon="ERROR")
         layout.prop(s, "master_seed")
         row = layout.row(align=True)
         op = row.operator("cubegen.step", text="", icon="TRIA_LEFT")
@@ -964,7 +1032,8 @@ class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
             rolled = params_mod.theme_style(s.theme)
             col.label(text=f"Thema: {rolled['glow']}, {rolled['material']}, Abnutzung {rolled['wear']}, "
                            f"Warnfarbe {rolled['warning'] or 'Seed'}", icon="INFO")
-        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage"):
+        for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage",
+                     "generation"):
             col.prop(s, name)
         self.layout.label(text="Icon-Kamera")
         row = self.layout.row(align=True)
@@ -990,7 +1059,7 @@ class CUBEGEN_PT_grid(_Panel, bpy.types.Panel):
         layout.separator()
         row = layout.row(align=True)
         row.prop(s, "per_type")
-        row.operator("cubegen.all_types", text=f"Von jedem Typ ({len(_all_types())} × {s.per_type})",
+        row.operator("cubegen.all_types", text=f"Von jedem Typ ({_type_count(s)} × {s.per_type})",
                      icon="MOD_ARRAY")
         layout.label(text="Gute Varianten im Viewport anklicken (Shift = mehrere)", icon="INFO")
 
@@ -1034,7 +1103,7 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         n = len(selected_variants(context))
         op = col.operator("cubegen.export", text=f"Auswahl exportieren ({n})", icon="EXPORT")
         op.mode = "SELECTED"
-        total = len(_all_types()) * s.per_type
+        total = _type_count(s) * s.per_type
         op = col.operator("cubegen.export", text=f"Alle Typen exportieren ({total})", icon="EXPORT")
         op.mode = "ALL"
         if s.status:

@@ -154,9 +154,9 @@ def _landing_rails(body, a, layout, landing, w):
         a.collider(size, center)
 
 
-def _wall_trims(m, length, along_x=True):
-    """Base and top trims of the 3 m wall module (same sizes as ``wall``)."""
-    for size, z in (((length, 0.56, 0.25), 0.125), ((length, 0.60, 0.15), 2.95)):
+def _wall_trims(m, length, along_x=True, dh=0.0, dt=0.0):
+    """Base and top trims of the wall module (same sizes as ``wall``; ``dh`` / ``dt``: height / thickness - 3 / 0.5)."""
+    for size, z in (((length, 0.56 + dt, 0.25), 0.125), ((length, 0.60 + dt, 0.15), 2.95 + dh)):
         cube(m, size if along_x else (size[1], size[0], size[2]), (0, 0, z), "M_RobotDark", bevel=0.01)
 
 
@@ -532,38 +532,44 @@ def ceiling_panel(rng, a):
                 cube(body, (0.85, 0.85, 0.02), (-size / 2 + 0.5 + i, -size / 2 + 0.5 + j, z - t - 0.01), "M_Ground")
 
 
-@model("wall_corner", "WallCorner", "environment", "Corner, end or T piece for the 3 m wall module (0.5 m thick)",
-       params=[
+@model("wall_corner", "WallCorner", "environment", "Corner, end or T piece for the wall module (3 m high, 0.5 m "
+       "thick unless set)", params=[
            Param("style", "choice", "Art", choices=("corner", "end", "tee")),
            Param("pipe", "bool", "Rohr an der Ecke"),
            Param("guard", "bool", "Kantenschutz (Warnfarbe)"),
            Param("glow", "bool", "Glow-Linie"),
+           Param("height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0, quiet=True),
+           Param("thickness", "float", "Wandstärke (m)", lo=0.2, hi=1.0, default=0.5, quiet=True),
        ])
 def wall_corner(rng, a):
     p = a.p
     style = p.choice("style", ["corner", "end", "tee"])
+    dh, dt = p.option("height") - 3.0, p.option("thickness") - 0.5  # 0.0 for the standard module: bit for bit
     m = a.part("Wall")
-    cube(m, (0.5, 0.5, 3.0), (0, 0, 1.5), p.styled("M_Wall", ["M_Wall", "M_Metal"]), bevel=0.03)
-    cube(m, (0.56, 0.56, 0.25), (0, 0, 0.125), "M_RobotDark", bevel=0.01)
-    cube(m, (0.6, 0.6, 0.15), (0, 0, 2.95), "M_RobotDark", bevel=0.01)
+    cube(m, (0.5 + dt, 0.5 + dt, 3.0 + dh), (0, 0, 1.5 + dh / 2), p.styled("M_Wall", ["M_Wall", "M_Metal"]),
+         bevel=0.03)
+    cube(m, (0.56 + dt, 0.56 + dt, 0.25), (0, 0, 0.125), "M_RobotDark", bevel=0.01)
+    cube(m, (0.6 + dt, 0.6 + dt, 0.15), (0, 0, 2.95 + dh), "M_RobotDark", bevel=0.01)
     # exposed faces: corner -> front (-Y) and left (-X); end -> front, back, left; tee -> front
     faces = {"corner": ("front", "left"), "end": ("front", "back", "left"), "tee": ("front",)}[style]
     a.meta["style"] = style
+    out = 0.285 + dt / 2  # glow strips just proud of the faces
     if p.bool("glow", 0.7):
         glow = p.glow()
         lights = a.part("Glow")
         for f in faces:
             if f in ("front", "back"):
-                cube(lights, (0.5, 0.02, 0.05), (0, (-1 if f == "front" else 1) * 0.285, 2.45), glow)
+                cube(lights, (0.5 + dt, 0.02, 0.05), (0, (-1 if f == "front" else 1) * out, 2.45 + dh), glow)
             else:
-                cube(lights, (0.02, 0.5, 0.05), (-0.285, 0, 2.45), glow)
+                cube(lights, (0.02, 0.5 + dt, 0.05), (-out, 0, 2.45 + dh), glow)
+    edge = -0.25 - dt / 2
     if p.bool("guard", 0.4, warning=True) and style != "tee":
-        cube(m, (0.08, 0.08, 2.6), (-0.25, -0.25, 1.55), "M_Warning", rot=(0, 0, math.pi / 4))
+        cube(m, (0.08, 0.08, 2.6 + dh), (edge, edge, 1.55 + dh / 2), "M_Warning", rot=(0, 0, math.pi / 4))
     if p.bool("pipe", 0.4):
-        x = -0.36 if style != "tee" else 0.0
-        cyl(m, 0.06, 2.75, (x, -0.36, 1.5), "M_Metal", sides=8)
-        for z in (0.6, 2.4):
-            cube(m, (0.1, 0.14, 0.06), (x, -0.3, z), "M_RobotDark")
+        x = -0.36 - dt / 2 if style != "tee" else 0.0
+        cyl(m, 0.06, 2.75 + dh, (x, -0.36 - dt / 2, 1.5 + dh / 2), "M_Metal", sides=8)
+        for z in (0.6, 2.4 + dh):
+            cube(m, (0.1, 0.14, 0.06), (x, -0.3 - dt / 2, z), "M_RobotDark")
         a.meta["pipe"] = True
 
 
@@ -571,21 +577,27 @@ def wall_corner(rng, a):
        params=[
            Param("length", "choice", "Länge (m)", choices=(2.0, 4.0)),
            Param("windows", "choice", "Fenster", choices=("single", "split", "band")),
-           Param("sill", "float", "Brüstung (m)", lo=0.2, hi=1.5),
+           Param("sill", "float", "Brüstung (m)", lo=0.2, hi=2.0),
            Param("glow", "bool", "Glow-Linie"),
+           Param("height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0, quiet=True),
+           Param("thickness", "float", "Wandstärke (m)", lo=0.2, hi=1.0, default=0.5, quiet=True),
        ])
 def window_wall(rng, a):
     p = a.p
     length = p.choice("length", [2.0, 4.0, 4.0])
     kind = p.choice("windows", ["single", "split", "band"])
     sill = p.float("sill", 0.7, 1.1)
-    top = rng.uniform(2.2, 2.5)
+    h, t = p.option("height"), p.option("thickness")
+    dh, dt = h - 3.0, t - 0.5  # 0.0 for the standard module: bit for bit
+    if sill > h - 0.8:
+        raise ValueError(f"window_wall: sill {sill} m leaves no window in a {h} m wall (at most {h - 0.8:.2f} m)")
+    top = min(max(rng.uniform(2.2, 2.5) + dh, sill + 0.4), h - 0.3)  # window top follows the wall height
     m, glass = a.part("Wall"), a.part("Glass")
     mat = p.styled("M_Wall", ["M_Wall", "M_Metal"])
     a.meta.update({"length_m": length, "windows": kind})
-    cube(m, (length, 0.5, sill), (0, 0, sill / 2), mat, bevel=0.03)
-    cube(m, (length, 0.5, 3.0 - top), (0, 0, top + (3.0 - top) / 2), mat, bevel=0.03)
-    _wall_trims(m, length)
+    cube(m, (length, t, sill), (0, 0, sill / 2), mat, bevel=0.03)
+    cube(m, (length, t, h - top), (0, 0, top + (h - top) / 2), mat, bevel=0.03)
+    _wall_trims(m, length, dh=dh, dt=dt)
     if kind == "band":
         openings = [(-length / 2 + 0.2, length / 2 - 0.2)]
     else:
@@ -593,16 +605,17 @@ def window_wall(rng, a):
     edges = [-length / 2] + [e for o in openings for e in o] + [length / 2]
     for x0, x1 in zip(edges[0::2], edges[1::2]):  # solid posts between the openings
         if x1 - x0 > 1e-6:
-            cube(m, (x1 - x0, 0.5, top - sill), ((x0 + x1) / 2, 0, (sill + top) / 2), mat)
+            cube(m, (x1 - x0, t, top - sill), ((x0 + x1) / 2, 0, (sill + top) / 2), mat)
     oh = top - sill
+    face = t / 2
     for x0, x1 in openings:
         cx, ow = (x0 + x1) / 2, x1 - x0
         for s in (-1, 1):  # dark frame around the opening, front and back
-            cube(m, (ow + 0.1, 0.06, 0.06), (cx, s * 0.25, sill), "M_RobotDark")
-            cube(m, (ow + 0.1, 0.06, 0.06), (cx, s * 0.25, top), "M_RobotDark")
+            cube(m, (ow + 0.1, 0.06, 0.06), (cx, s * face, sill), "M_RobotDark")
+            cube(m, (ow + 0.1, 0.06, 0.06), (cx, s * face, top), "M_RobotDark")
             for x in (x0, x1):
-                cube(m, (0.06, 0.06, oh), (x, s * 0.25, (sill + top) / 2), "M_RobotDark")
-        cube(m, (ow + 0.1, 0.34, 0.06), (cx, -0.08, sill + 0.03), "M_Metal")  # sill
+                cube(m, (0.06, 0.06, oh), (x, s * face, (sill + top) / 2), "M_RobotDark")
+        cube(m, (ow + 0.1, 0.34, 0.06), (cx, -0.08 - dt / 2, sill + 0.03), "M_Metal")  # sill
         cube(glass, (ow, 0.04, oh), (cx, 0, (sill + top) / 2), "M_Glass")
         mullions = 1 if kind == "split" else (int(ow / 1.0) if kind == "band" else 0)
         for k in range(mullions):
@@ -611,8 +624,8 @@ def window_wall(rng, a):
     if p.bool("glow", 0.5):
         glow = p.glow()
         lights = a.part("Glow")
-        for y in (-0.285, 0.285):
-            cube(lights, (length - 0.4, 0.02, 0.05), (0, y, top + 0.2), glow)
+        for y in (-0.285 - dt / 2, 0.285 + dt / 2):
+            cube(lights, (length - 0.4, 0.02, 0.05), (0, y, min(top + 0.2, h - 0.2)), glow)
 
 
 @model("cable_tray", "CableTray", "environment", "Wall cable tray / conduit (2 or 4 m along X) with cable bundle",
