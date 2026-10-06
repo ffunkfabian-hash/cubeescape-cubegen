@@ -54,6 +54,8 @@ def crusher(rng, a):
     cube(top, (w + 2 * post, depth, beam_h), (0, 0, top_z + beam_h / 2), frame, bevel=0.03)
     cyl(top, depth * 0.3, 0.3, (0, 0, top_z + beam_h + 0.15), "M_Metal", sides=8)  # hydraulic cylinder
     a.collider((w + 2 * post, depth, beam_h), (0, 0, top_z + beam_h / 2), part="Frame_Top")
+    if p.style.generation >= 3:  # the hydraulic cylinder on top
+        a.collider((depth * 0.6, depth * 0.6, 0.3), (0, 0, top_z + beam_h + 0.15), part="Frame_Top")
     for side, y in (("Front", -depth / 2 - 0.01), ("Back", depth / 2 + 0.01)):
         cube(a.part(f"StatusLight_{side}"), (min(1.0, w * 0.5), 0.02, 0.08), (0, y, top_z + beam_h / 2), "M_GlowRed")
     base = a.part("Base")

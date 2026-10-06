@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 from ..geometry import euler_matrix, mat_mul_vec
+from ..quality import needs_collider
 from ..seeds import StableRandom
 from .wear import apply_wear
 
@@ -106,7 +107,15 @@ def damage_asset(asset, seed: int, level: str, pivot: str, generation: int = 1) 
             small = (px1 - px0) * (py1 - py0) * (pz1 - pz0) < total * 0.02
             if small and pivot in ("floor", "wall") and obj.name not in keep and rng.random() < 0.15 and \
                     len(mesh.parts) > 1:
+                before = mesh.verts[part.v0:part.v1]
                 _drop(mesh, part, rng, footprint)
+                if generation >= 3 and needs_collider(mesh, part):  # 3: a piece to walk into needs a collider
+                    if asset.colliders:
+                        lo, hi = mesh.part_bbox(part)
+                        asset.collider(tuple(hi[i] - lo[i] for i in range(3)), tuple((hi[i] + lo[i]) / 2
+                                                                                     for i in range(3)))
+                    else:  # the import builds no box for it: it stays on
+                        mesh.verts[part.v0:part.v1] = before
             elif rng.random() < 0.3:
                 _dent(mesh, part, rng, 0.06)
         for obj in asset.meshes():  # decoration LEDs only - status parts must keep one material

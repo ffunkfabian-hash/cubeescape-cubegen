@@ -126,7 +126,12 @@ def floating_island(rng, a):
                 foot = (math.cos(ang) * dist, math.sin(ang) * dist, -depth * 0.5)
                 tilt = (math.pi + deg(rng.uniform(-15, 15)), deg(rng.uniform(-15, 15)), 0.0)
                 length = depth * rng.uniform(0.4, 0.7)
+            v0 = len(cr.verts)
             _crystal(cr, foot, length, r * rng.uniform(0.05, 0.09), tilt)
+            if i % 2 == 0 and p.style.generation >= 3:  # crystals on the top: a box around each
+                lo = [min(v[k] for v in cr.verts[v0:]) for k in range(3)]
+                hi = [max(v[k] for v in cr.verts[v0:]) for k in range(3)]
+                a.collider(tuple(hi[k] - lo[k] for k in range(3)), tuple((hi[k] + lo[k]) / 2 for k in range(3)))
     if p.bool("glow", 0.4):
         cyl(a.part("Glow"), r * 1.005, 0.04, (0, 0, -0.2), p.glow(), sides=sides)
     a.meta.update({"radius_m": round(r, 3), "depth_m": round(depth, 3)})

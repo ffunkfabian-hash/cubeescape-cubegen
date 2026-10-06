@@ -87,6 +87,22 @@ Effekte, 35 neue Typen (jetzt 164).
   sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
   `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
 
+### Prüfung: Collider decken die Geometrie ab
+
+* `cubegen check` meldet massive Geometrie, die kein Collider abdeckt - der Spieler liefe hinein
+  (`quality.uncovered_geometry`): jedes geschlossene Teil ab 0,05 m³ und 15 cm Stärke, ein Punktraster im Teil gegen
+  die Kollisionsformen, die der Unity-Import baut (`families.collision_boxes`). Ausgenommen: `Damage`, Türblätter
+  ohne eigene Collider, bei Plattformen alles unter dem Boden. Ein Test prüft alle Typen in allen Zuständen.
+* Gefunden und behoben (neue Typen): `archway` - die Bogenzwickel über dem Durchgang hatten keinen Collider (jetzt
+  eine Treppe aus Boxen über dem Bogen, nie im Durchgang); `ramp` - flache Rampen hatten unter der Gehfläche nur die
+  dünne Schrägbox (jetzt Schichten von höchstens 0,2 m); `ceiling_module` - Träger, Lüftungskasten, Abluftrohr und
+  Dachschrägen bekommen Collider.
+* **Behoben in Generation 3** (Generation 1 und 2 unverändert): `crusher` - Hydraulikzylinder auf dem Querträger;
+  `floating_island` - Kristalle auf der Oberseite; `stairs` Stil `ramp` - Füllung unter der Schräge wie bei `ramp`;
+  beschädigte Modelle (`--damage damaged`) - ein abgeschlagenes Teil, groß genug zum Hineinlaufen, bekommt einen
+  Box-Collider, wenn das Modell eigene Collider hat, sonst bleibt es dran (`cargo_container`, `ceiling_module`,
+  `crusher`, `escape_pod`, `reactor_core`).
+
 ### Neue Typen (jetzt 164)
 
 * Bau-Kit: `ramp`, `ceiling_module`, `archway`, `wall_cap`, `baseboard`.

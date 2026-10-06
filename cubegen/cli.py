@@ -299,7 +299,7 @@ def cmd_family_check(args) -> int:
 
 
 def cmd_check(args) -> int:
-    """Quality report: triangles vs budget, draw calls, z-fighting, distinct variants."""
+    """Quality report: triangles vs budget, draw calls, z-fighting, colliders, distinct variants."""
     if args.export:
         return cmd_export_check(args)
     if args.family:
@@ -330,8 +330,13 @@ def cmd_check(args) -> int:
                   f"{r['distinct_variants']:>5}/{args.count}{flag}")
         over = [t for t, r in rows.items() if r["errors"]]
         fights = [t for t, r in rows.items() if r["z_fighting_pairs"]]
+        loose = [t for t, r in rows.items() if r["uncovered_variants"]]
         print(f"\n{len(over)} type(s) over the triangle budget{': ' + ', '.join(over) if over else ''}")
         print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
+        print(f"{len(loose)} type(s) with solid geometry outside every collider"
+              + "".join(f"\n  {t}: {r['uncovered_variants']} variant(s), e.g. {r['uncovered_example']['object']} "
+                        f"{r['uncovered_example']['min']} .. {r['uncovered_example']['max']}"
+                        for t, r in rows.items() if t in loose))
         print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed) and more than "
               f"{DRAW_CALLS_PER_OBJECT} per object")
     return 1 if any(r["errors"] for r in rows.values()) else 0
@@ -505,7 +510,8 @@ def make_parser() -> argparse.ArgumentParser:
     pa.add_argument("type", nargs="?", help="only this model type")
     pa.set_defaults(func=cmd_params)
 
-    c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, distinct variants")
+    c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, colliders, "
+                                     "distinct variants")
     c.add_argument("--types", type=_csv, help="comma separated model types (default: all)")
     c.add_argument("--seed", help="master seed (default 42; with --family the family's / recipe's seed)")
     c.add_argument("--count", type=int, default=10, help="variants per type (default 10)")

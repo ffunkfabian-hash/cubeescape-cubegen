@@ -52,7 +52,7 @@ def ramp(rng, a):
     lip = min(0.4, run * 0.15)  # flat landing at the top: the next deck joins on the level
     slope_run = run - lip
     body.add(prism([(-run / 2, 0.0), (run / 2, 0.0), (run / 2, rise), (run / 2 - lip, rise)], w, mat), basis=YZ_TO_X)
-    slope_colliders(a, w, slope_run, rise, center_y=-lip / 2)
+    slope_colliders(a, w, slope_run, rise, center_y=-lip / 2, layer=0.2)
     a.collider((w, lip, rise), (0, run / 2 - lip / 2, rise / 2))
     run_full, run = run, slope_run  # the details below follow the slope
 
@@ -138,6 +138,7 @@ def ceiling_module(rng, a):
         for i in range(n):
             y = -size / 2 + size * (i + 0.5) / n
             cube(body, (size, 0.14, 0.2), (0, y, h - 0.1), "M_RobotDark")
+            a.collider((size, 0.14, 0.2), (0, y, h - 0.1))
     if style == "coffered":
         n = max(1, int(round(size / 1.0)))
         cell = size / n
@@ -155,10 +156,12 @@ def ceiling_module(rng, a):
     if style == "vent":
         vw = size * rng.uniform(0.3, 0.45)
         cube(body, (vw + 0.1, vw + 0.1, 0.2), (0, 0, h - 0.1), "M_RobotDark", bevel=0.01)
+        a.collider((vw + 0.1, vw + 0.1, 0.2), (0, 0, h - 0.1))
         for k in range(6):
             y = -vw / 2 + vw * (k + 0.5) / 6
             cube(body, (vw, 0.03, 0.05), (0, y, h - 0.225), "M_Metal", rot=(math.radians(30), 0, 0))
         cyl(body, vw * 0.3, 0.3, (size * 0.3, size * 0.3, h + t + 0.15), "M_Metal", sides=8)
+        a.collider((vw * 0.6, vw * 0.6, 0.3), (size * 0.3, size * 0.3, h + t + 0.15))
     if style == "roof":  # pitched roof on top of the slab, ridge along X
         ridge = size * rng.uniform(0.15, 0.3)
         body.add(prism([(-size / 2, 0.0), (size / 2, 0.0), (0.0, ridge)], size, p.material(["M_Wall", "M_RobotDark",
@@ -166,6 +169,8 @@ def ceiling_module(rng, a):
                  loc=(0, 0, h + t), basis=YZ_TO_X)
         cube(body, (size + 0.1, 0.12, 0.1), (0, 0, h + t + ridge + 0.02), "M_RobotDark")
         a.meta["ridge_m"] = round(ridge, 3)
+        for d in (1, -1):  # both roof halves climb towards the ridge
+            slope_colliders(a, size, size / 2, ridge, center_y=-d * size / 4, base_z=h + t, direction=d, layer=0.2)
     a.collider((size, size, t), (0, 0, zc))
 
 
@@ -190,6 +195,20 @@ def _arch_curve(shape, w, oh):
         c = w * 0.2
         return [(-w / 2, oh - c), (-w / 2 + c, oh), (w / 2 - c, oh), (w / 2, oh - c)]
     return [(-w / 2, oh), (w / 2, oh)]
+
+
+def _spandrel_colliders(a, curve, top, t, step=0.2):
+    """Boxes filling the wall between the arch and ``top`` (the lintel collider): a staircase over the curve, cut
+    into pieces of at most ``step`` along it - every box sits above the curve, the gaps under the steps are small
+    triangles (legs <= step)."""
+    for (x1, z1), (x2, z2) in zip(curve, curve[1:]):
+        n = max(1, int(math.ceil(math.hypot(x2 - x1, z2 - z1) / step - 1e-9)))
+        for k in range(n):
+            xa, za = x1 + (x2 - x1) * k / n, z1 + (z2 - z1) * k / n
+            xb, zb = x1 + (x2 - x1) * (k + 1) / n, z1 + (z2 - z1) * (k + 1) / n
+            bottom = max(za, zb)
+            if xb - xa > 0.01 and top - bottom > 0.03:
+                a.collider((xb - xa, t, top - bottom), ((xa + xb) / 2, 0, (bottom + top) / 2))
 
 
 @model("archway", "Archway", "environment", "Archway / open passage as a wall module (no door): posts, round, "
@@ -234,6 +253,7 @@ def archway(rng, a):
     m.add(prism(poly, t, mat), basis=UPRIGHT)  # prism is centred: flush with the posts at y = ±t/2
     cube(m, (length, t + 0.08, 0.12), (0, 0, h - 0.06), "M_RobotDark")
     a.collider((w, t, h - oh), (0, 0, (h + oh) / 2))
+    _spandrel_colliders(a, curve, oh, t)
     # frame band along the passage edge, front and back: on the wall face, outside the opening
     band = 0.12
     for y in (-t / 2 - 0.02, t / 2 + 0.02):

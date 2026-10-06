@@ -32,7 +32,7 @@ cubegen doctor
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
 | `python3 -m cubegen list` | alle 164 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
-| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
+| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Collider, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
 | `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
 | `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
@@ -349,6 +349,12 @@ python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger E
 Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen gibt es
 keine mehr: Der Generator hebt bündig aufliegende Details um 2 mm an; die Tests prüfen das für alle Typen und
 Zustände.
+
+**Collider:** Unter der Tabelle stehen die Typen mit massiver Geometrie außerhalb jedes Colliders, in die der
+Spieler hineinlaufen würde (mit Teil und Ausdehnung). Gezählt werden geschlossene Teile ab 0,05 m³ und 15 cm
+Stärke; ein Raster von Punkten im Teil muss in einem Collider liegen (5 cm Toleranz). Nicht gezählt: `Damage`
+(nur bei defekter Maschine sichtbar), Türblätter ohne eigene Collider (die Tür-Einrichtung im Spiel gibt sie
+ihnen) und bei Plattformen alles unter dem Boden. Die Tests prüfen das für alle Typen und Zustände.
 
 `check --export <Ordner>` liest jede `<Name>.cubegen.json` darunter (mit ihrer FBX) und prüft sie wie der
 Unity-Import: Fehler führen zu Fehlercode 1, offene Item-IDs werden nur gemeldet. Der Export selbst prüft das

@@ -1,4 +1,5 @@
-"""Quality checks: z-fighting detection works, triangle budgets hold, z-fighting never gets worse."""
+"""Quality checks: z-fighting detection works, triangle budgets hold, z-fighting never gets worse, colliders cover
+the solid geometry."""
 
 import os
 import sys
@@ -10,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import golden_cases  # noqa: E402
 from cubegen.asset import Asset  # noqa: E402
 from cubegen.models.common import cube  # noqa: E402
-from cubegen.quality import DECAL_OFFSET, check, fix_z_fighting, z_fighting  # noqa: E402
+from cubegen.quality import DECAL_OFFSET, check, fix_z_fighting, uncovered_geometry, z_fighting  # noqa: E402
 
 
 class ZFightingTests(unittest.TestCase):
@@ -57,7 +58,47 @@ class ZFightingTests(unittest.TestCase):
         self.assertTrue(result["errors"])
 
 
+class ColliderCoverageTests(unittest.TestCase):
+    def test_finds_solid_geometry_without_collider(self):
+        a = Asset("t")
+        body = a.part("Body")
+        cube(body, (2, 0.5, 3), (0, 0, 1.5), "M_Wall")
+        a.collider((2, 0.5, 3), (0, 0.25, 1.5))  # half a wall thickness off, like the archway once was
+        found = uncovered_geometry(a)
+        self.assertEqual([f["object"] for f in found], ["Body"])
+        self.assertAlmostEqual(found[0]["uncovered"], 1 / 3, places=3)
+        self.assertTrue(check(a, "environment")["warnings"])
+        a.colliders.clear()
+        a.collider((2, 0.5, 3), (0, 0, 1.5))
+        self.assertEqual(uncovered_geometry(a), [])
+
+    def test_ignores_what_needs_no_collider(self):
+        a = Asset("t")
+        body = a.part("Body")
+        cube(body, (1, 1, 1), (0, 0, 0.5), "M_Wall")
+        a.collider((1, 1, 1), (0, 0, 0.5))
+        cube(body, (2, 0.05, 0.05), (0, 1, 2), "M_Metal")  # a rail: too thin
+        cube(body, (0.3, 0.3, 0.3), (0, 2, 0.15), "M_Metal")  # a small box: too small (0.027 m3)
+        cube(a.part("Damage"), (0.6, 0.6, 0.6), (2, 0, 0.3), "M_Metal")  # only shows while broken
+        self.assertEqual(uncovered_geometry(a), [])
+        cube(body, (0.6, 0.6, 0.6), (0, 0, -0.5), "M_Metal")  # under the floor of a platform
+        self.assertEqual(uncovered_geometry(a, pivot="top"), [])
+        self.assertTrue(uncovered_geometry(a, pivot="floor"))
+
+
 class BaselineTests(unittest.TestCase):
+    def test_colliders_cover_solid_geometry(self):
+        # every solid piece a player can walk into has a collision shape - in every state and detail level
+        from cubegen.models import REGISTRY, generate_asset, model_types
+        from cubegen.params import Style
+
+        for style in (Style(), Style(damage="damaged"), Style(damage="destroyed"), Style(damage="fractured"),
+                      Style(wear="heavy"), Style(detail="low"), Style(size="L")):
+            for t in model_types():
+                for seed in range(3):
+                    found = uncovered_geometry(generate_asset(t, seed, style=style), REGISTRY[t].pivot)
+                    self.assertEqual(found, [], f"{t} {seed} {style.to_dict()}")
+
     def test_no_z_fighting_in_any_state(self):
         # generate_asset lifts flush details (quality.fix_z_fighting) - in every state and detail level
         from cubegen.models import REGISTRY, generate_asset, model_types
