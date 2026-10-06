@@ -96,7 +96,6 @@ class BlenderTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out, "contact_sheet.png")))
             self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
 
-
     def test_incremental_and_parallel(self):
         from cubegen.fbxread import unity_locals
 

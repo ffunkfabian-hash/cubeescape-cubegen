@@ -432,14 +432,16 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
         ("0", "Aus", "Maße nicht runden"), ("0.25", "0,25 m", ""), ("0.5", "0,5 m", ""), ("1.0", "1 m", ""),
         ("2.0", "2 m", "")], description="Hauptmaße auf Vielfache runden (passt ins Modulraster)")
     glow_color: EnumProperty(name="Glow-Farbe", update=_on_change, items=[
-        (SEED, "Seed", "Glow-Farbe vom Thema, sonst vom Seed"), ("cyan", "Cyan", ""), ("red", "Rot", ""), ("orange", "Orange", "")],
+        (SEED, "Seed", "Glow-Farbe vom Thema, sonst vom Seed"), ("cyan", "Cyan", ""), ("red", "Rot", ""),
+        ("orange", "Orange", "")],
         description="Für Deko-Glow; Status-Teile (Maschine, Terminal, Tür) behalten ihre Zustandsfarbe")
     material_style: EnumProperty(name="Material", update=_on_change, items=[
         (SEED, "Seed", "Material vom Thema, sonst vom Seed"), ("metal", "Metall", "M_Metal bevorzugen"),
         ("wall", "Wand", "M_Wall bevorzugen"), ("dark", "Dunkel", "M_RobotDark bevorzugen"),
         ("light", "Hell", "M_Platform / M_RobotBody bevorzugen")])
     warning: EnumProperty(name="Warnfarbe", update=_on_change, items=[
-        (SEED, "Seed", "Warnstreifen/-bänder vom Thema, sonst vom Seed"), ("none", "Keine", ""), ("always", "Immer", "")])
+        (SEED, "Seed", "Warnstreifen/-bänder vom Thema, sonst vom Seed"), ("none", "Keine", ""),
+        ("always", "Immer", "")])
     theme: StringProperty(name="Thema", default="", update=_on_change,
                           description="Raum-Thema (beliebiger Text, z. B. labor-3): würfelt Glow-Farbe, Material, "
                                       "Abnutzung und Warnfarbe einmal für alle Modelle. Feste Einstellungen gehen vor")

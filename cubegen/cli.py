@@ -219,6 +219,39 @@ def cmd_params(args) -> int:
     return 0
 
 
+def cmd_check(args) -> int:
+    """Quality report: triangles vs budget, draw calls, z-fighting, distinct variants."""
+    from .models import REGISTRY as registry
+    from .quality import DRAW_CALL_BUDGET, report
+    from .seeds import model_seed
+
+    types = model_types() if not args.types or args.types == ["all"] else args.types
+    for t in types:
+        if t not in registry:
+            raise ValueError(f"unknown model type {t!r}; available: {', '.join(model_types())}")
+    master = parse_seed(args.seed)
+    style = Style.from_dict({"detail": args.detail} if args.detail else {})
+    rows = report(types, lambda t, i: generate_asset(t, model_seed(master, t, i), style=style), registry,
+                  args.count, budget_scale=1.5 if args.detail == "high" else 1.0)
+    if args.json:
+        print(json.dumps(rows, indent=2))
+    else:
+        print(f"seed {master}, {args.count} variants per type{', detail ' + args.detail if args.detail else ''}")
+        print(f"{'type':<17}{'tris':>6}{'budget':>8}{'draws':>7}  {'z-fighting':<22}{'distinct':>9}")
+        for t, r in rows.items():
+            zf = f"{r['z_fighting_pairs']} pair(s) in {r['z_fighting_variants']}" if r["z_fighting_pairs"] else "-"
+            flag = " !" if r["errors"] else ""
+            draws = f"{r['draw_calls']}{'*' if r['draw_calls'] > DRAW_CALL_BUDGET else ''}"
+            print(f"{t:<17}{r['triangles']:>6}{r['budget']:>8}{draws:>7}  {zf:<22}"
+                  f"{r['distinct_variants']:>5}/{args.count}{flag}")
+        over = [t for t, r in rows.items() if r["errors"]]
+        fights = [t for t, r in rows.items() if r["z_fighting_pairs"]]
+        print(f"\n{len(over)} type(s) over the triangle budget{': ' + ', '.join(over) if over else ''}")
+        print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
+        print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed)")
+    return 1 if any(r["errors"] for r in rows.values()) else 0
+
+
 def cmd_doctor(args) -> int:
     ok = True
     print(f"python        {sys.version.split()[0]} ({sys.executable})")
@@ -320,6 +353,14 @@ def make_parser() -> argparse.ArgumentParser:
     pa = sub.add_parser("params", help="list the parameters of the model types")
     pa.add_argument("type", nargs="?", help="only this model type")
     pa.set_defaults(func=cmd_params)
+
+    c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, distinct variants")
+    c.add_argument("--types", type=_csv, help="comma separated model types (default: all)")
+    c.add_argument("--seed", default="42", help="master seed (default 42)")
+    c.add_argument("--count", type=int, default=10, help="variants per type (default 10)")
+    c.add_argument("--detail", choices=["low", "normal", "high"], help="check this detail level")
+    c.add_argument("--json", action="store_true")
+    c.set_defaults(func=cmd_check)
 
     d = sub.add_parser("doctor", help="check Blender and ImageMagick installation")
     d.add_argument("--blender")

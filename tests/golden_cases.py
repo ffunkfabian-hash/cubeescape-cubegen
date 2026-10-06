@@ -5,8 +5,11 @@ seeds and styles. ``test_golden.py`` rebuilds them and fails as soon as one
 model changes - e.g. because a builder rolls one value more in the middle,
 which shifts everything rolled after it.
 
-Changed a model on purpose? Regenerate and commit the file (and note it in the
-CHANGELOG, existing seeds then look different):
+``tests/quality_baseline.json`` holds the quality report (``cubegen check``)
+of every type: ``test_quality.py`` fails when z-fighting gets worse.
+
+Changed a model on purpose? Regenerate and commit both files (and note it in
+the CHANGELOG, existing seeds then look different):
 
     python3 tests/golden_cases.py --update
 """
@@ -19,10 +22,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from cubegen.models import generate_asset, model_types  # noqa: E402
+from cubegen.models import REGISTRY, generate_asset, model_types  # noqa: E402
 from cubegen.params import Style  # noqa: E402
+from cubegen.quality import report  # noqa: E402
+from cubegen.seeds import model_seed  # noqa: E402
 
 GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden.json")
+QUALITY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quality_baseline.json")
+QUALITY_SEED, QUALITY_VARIANTS = 42, 10
 
 # (case name, asset seed, style) - built for every model type
 CASES = (
@@ -46,9 +53,17 @@ def compute():
     return result
 
 
-def load():
-    with open(GOLDEN, "r", encoding="utf-8") as fh:
+def load(path=GOLDEN):
+    with open(path, "r", encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def quality():
+    """What the baseline keeps per type (seed 42, variants 0-9)."""
+    rows = report(model_types(), lambda t, i: generate_asset(t, model_seed(QUALITY_SEED, t, i)), REGISTRY,
+                  QUALITY_VARIANTS)
+    return {t: {k: r[k] for k in ("triangles", "draw_calls", "z_fighting_pairs", "z_fighting_variants")}
+            for t, r in rows.items()}
 
 
 def main(argv):
@@ -62,6 +77,10 @@ def main(argv):
         json.dump(new, fh, indent=1, sort_keys=True)
         fh.write("\n")
     print(f"{GOLDEN}: {len(new)} types, changed: {', '.join(changed) or '-'}, new: {', '.join(added) or '-'}")
+    with open(QUALITY, "w", encoding="utf-8") as fh:
+        json.dump(quality(), fh, indent=1, sort_keys=True)
+        fh.write("\n")
+    print(f"{QUALITY}: updated")
 
 
 if __name__ == "__main__":
