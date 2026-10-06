@@ -176,7 +176,7 @@ class CliTests(unittest.TestCase):
             "--icon-angle=-25,15", "--icon-zoom", "1.5"])
         cfg = build_config(args)
         cfg.validate()
-        self.assertEqual(cfg.params, {"door": {"style": "airlock", "width": "2"}})
+        self.assertEqual(cfg.params, {"door": {"style": "airlock", "width": 2.0}})
         self.assertEqual((cfg.style.size, cfg.style.snap, cfg.style.glow, cfg.style.wear), ("L", 0.5, "red", "light"))
         self.assertEqual((cfg.icon_azimuth, cfg.icon_elevation, cfg.icon_zoom), (-25.0, 15.0, 1.5))
 

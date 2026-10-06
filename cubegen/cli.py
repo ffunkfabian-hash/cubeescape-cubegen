@@ -22,7 +22,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
                   "unique", "lods", "jobs")
-RECIPE_KEYS = ("seed", "models", "params", "style", "out") + _RECIPE_FIELDS
+RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
                 "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme"}
@@ -53,8 +53,13 @@ def _count_or_indices(where: str, value):
     raise ValueError(f"{where}: expected a count >= 0 or a list of variant indices like [0, 3, 7], got {value!r}")
 
 
-def _load_recipe(path: str) -> Dict:
-    """Read and check a recipe. Keys starting with ``_`` are comments."""
+def load_recipe(path: str, family_file: bool = False) -> Dict:
+    """Read and check a recipe (or a family file). Keys starting with ``_`` are comments.
+
+    ``models`` comes back as {type: count | [indices]}; entries with their own ``params``
+    (``{"type": "wall", "pick": [2], "params": {"opening": "door"}}``) also fill
+    ``variant_params`` {type: {index: params}}.
+    """
     try:
         with open(path, "r", encoding="utf-8") as fh:
             recipe = json.load(fh)
@@ -63,29 +68,50 @@ def _load_recipe(path: str) -> Dict:
     if not isinstance(recipe, dict):
         raise ValueError(f"{path}: a recipe is a JSON object {{...}}")
     recipe = {k: v for k, v in recipe.items() if not k.startswith("_")}
+    allowed = RECIPE_KEYS + (("description",) if family_file else ())
     for key in recipe:
-        if key not in RECIPE_KEYS:
-            raise unknown_key(path, key, RECIPE_KEYS)
+        if key not in allowed:
+            raise unknown_key(path, key, allowed)
+    if "family" in recipe and not isinstance(recipe["family"], str):
+        raise ValueError(f"{path}: family must be a name")
+    if not isinstance(recipe.get("dims", {}), dict):
+        raise ValueError(f"{path}: dims must be an object")
     models = recipe.get("models", {})
+    variant_params: Dict[str, Dict[int, Dict]] = {}
     if isinstance(models, list):  # [{"type": "crate", "count": 3}, {"type": "door", "pick": [0, 7]}, ...]
-        result = {}
+        result: Dict = {}
         for i, entry in enumerate(models):
             where = f"{path}: models[{i}]"
             if not isinstance(entry, dict) or "type" not in entry:
                 raise ValueError(f'{where}: expected {{"type": ..., "count": n}} or {{"type": ..., "pick": [...]}}')
             for key in entry:
-                if key not in ("type", "count", "pick") and not key.startswith("_"):
-                    raise unknown_key(where, key, ("type", "count", "pick"))
+                if key not in ("type", "count", "pick", "params") and not key.startswith("_"):
+                    raise unknown_key(where, key, ("type", "count", "pick", "params"))
             if "count" in entry and "pick" in entry:
                 raise ValueError(f"{where}: use either count or pick")
-            value = entry["pick"] if "pick" in entry else entry.get("count", 1)
-            result[entry["type"]] = _count_or_indices(f"{where} ({entry['type']})", value)
+            t = entry["type"]
+            value = _count_or_indices(f"{where} ({t})", entry["pick"] if "pick" in entry else entry.get("count", 1))
+            indices = list(range(value)) if isinstance(value, int) else value
+            if t in result:  # the same type twice: distinct variants, each entry with its own params
+                before = list(range(result[t])) if isinstance(result[t], int) else result[t]
+                clash = sorted(set(before) & set(indices))
+                if clash:
+                    raise ValueError(f"{where}: {t} variant(s) {clash} listed twice - use distinct pick indices")
+                result[t] = sorted(before + indices)
+            else:
+                result[t] = value
+            if "params" in entry:
+                if not isinstance(entry["params"], dict):
+                    raise ValueError(f"{where}: params must be an object")
+                for index in indices:
+                    variant_params.setdefault(t, {})[index] = dict(entry["params"])
         models = result
     elif isinstance(models, dict):
         models = {t: _count_or_indices(f"{path}: models.{t}", v) for t, v in models.items()}
     else:
         raise ValueError(f"{path}: models must be an object {{type: count}} or a list")
     recipe["models"] = models
+    recipe["variant_params"] = variant_params
     for key in ("params", "style"):
         if not isinstance(recipe.get(key, {}), dict):
             raise ValueError(f"{path}: {key} must be an object")
@@ -96,11 +122,28 @@ def _load_recipe(path: str) -> Dict:
 
 
 def build_config(args: argparse.Namespace) -> BatchConfig:
-    recipe = _load_recipe(args.recipe) if args.recipe else {}
-    seed = parse_seed(args.seed if args.seed is not None else recipe.get("seed"))
+    from .families import load_family, resolve
+
+    recipe = load_recipe(args.recipe) if args.recipe else {}
+    family = None
+    family_name = getattr(args, "family", None) or recipe.get("family")
+    if family_name:
+        if recipe.get("dims") is not None and recipe.get("family") == family_name and not getattr(args, "family", None):
+            family, recipe = dict(recipe, _path=args.recipe), {}  # the recipe is the family file itself
+            from .families import check_dims
+            family["dims"] = check_dims(family.get("dims", {}), f"{args.recipe}: dims")
+        else:
+            base = os.path.dirname(os.path.abspath(args.recipe)) if args.recipe else None
+            family = load_family(family_name, base)
+    match = None
+    if getattr(args, "match", None):
+        with open(args.match, "r", encoding="utf-8") as fh:
+            match = json.load(fh)
+        if not isinstance(match, dict) or "type" not in match:
+            raise ValueError(f"--match: {args.match} is not a .cubegen.json")
 
     if args.pick:
-        models: Dict = {}
+        models: Optional[Dict] = {}
         for item in args.pick:
             model_type, _, index = item.partition(":")
             if not index.isdigit():
@@ -109,14 +152,24 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
     elif args.types:
         types = model_types() if args.types == ["all"] else args.types
         models = {t: args.count if args.count is not None else 1 for t in types}
-    elif recipe.get("models"):
-        models = dict(recipe["models"])
-        if args.count is not None:
-            models = {t: args.count for t in models}
     else:
+        models = None  # the recipe's / family's kit
+
+    style = {}
+    for flag, key in _STYLE_FLAGS.items():
+        if getattr(args, flag) is not None:
+            style[key] = getattr(args, flag)
+    resolved = resolve(family, recipe, models=models, extra_params=parse_param_overrides(args.param or []),
+                       extra_style=style, match=match)
+    merged = resolved["values"]
+    seed = parse_seed(args.seed if args.seed is not None else merged.get("seed"))
+    models = merged["models"]
+    if models and args.count is not None and not args.pick and not args.types:
+        models = {t: args.count for t in models}
+    if not models:
         models = {t: args.count if args.count is not None else 1 for t in model_types()}
 
-    values = {k: recipe[k] for k in _RECIPE_FIELDS if k in recipe}
+    values = {k: merged[k] for k in _RECIPE_FIELDS if k in merged}
     cli = {
         "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
@@ -125,16 +178,11 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "texture_set": args.texture_set, "textures_dir": args.textures_dir,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
-    # parameters: recipe {"params": {"door": {"style": "airlock"}}}, then --param door.style=airlock
-    params: Dict[str, Dict] = {t: dict(v) for t, v in recipe.get("params", {}).items()}
-    for model_type, overrides in parse_param_overrides(args.param or []).items():
-        params.setdefault(model_type, {}).update(overrides)
-    values["params"] = params
-    style = dict(recipe.get("style", {}))
-    for flag, key in _STYLE_FLAGS.items():
-        if getattr(args, flag) is not None:
-            style[key] = getattr(args, flag)
-    values["style"] = Style.from_dict(style)
+    values["params"] = merged["params"]
+    values["variant_params"] = {t: v for t, v in merged["variant_params"].items() if t in models}
+    values["param_sources"] = resolved["param_sources"]
+    values["family"] = resolved["family"]
+    values["style"] = Style.from_dict(merged["style"])
     if args.unique:
         values["unique"] = True
     if args.lods:
@@ -156,6 +204,7 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["blend"] = False
     if args.no_rig_data:
         values["rig_data"] = False
+    recipe = merged
     out = args.out or recipe.get("out") or os.path.join("output", f"seed_{seed}")
     return BatchConfig(seed=seed, models=models, out_dir=out, use_blender=not args.no_blender,
                        blender=args.blender, magick=args.magick, verbose=args.verbose, **values)
@@ -219,8 +268,30 @@ def cmd_params(args) -> int:
     return 0
 
 
+def cmd_family_check(args) -> int:
+    """Fit checks of a family kit, without Blender."""
+    from .pipeline import family_fit
+
+    gen = make_parser().parse_args(["generate", "--family", args.family, "--seed", str(args.seed)]
+                                   + (["--recipe", args.recipe] if args.recipe else [])
+                                   + (["--types", ",".join(args.types), "--count", str(args.count)]
+                                      if args.types else []))
+    config = build_config(gen)
+    config.validate()
+    specs = plan_models(config)
+    print(f"family {config.family['name']}: {len(specs)} model(s), seed {config.seed}")
+    for d in config.family["deviations"]:
+        print(f"  deviation {d['what']}: family {d['family']} -> {d['used']} ({d['source']})")
+    fit = family_fit(specs, lambda m: print("  " + m), config.family["dims"])
+    if args.json:
+        print(json.dumps(fit, indent=2))
+    return 1 if fit["problems"] or fit["look"] else 0
+
+
 def cmd_check(args) -> int:
     """Quality report: triangles vs budget, draw calls, z-fighting, distinct variants."""
+    if args.family:
+        return cmd_family_check(args)
     from .models import REGISTRY as registry
     from .quality import DRAW_CALL_BUDGET, report
     from .seeds import model_seed
@@ -250,6 +321,24 @@ def cmd_check(args) -> int:
         print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
         print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed)")
     return 1 if any(r["errors"] for r in rows.values()) else 0
+
+
+def cmd_families(args) -> int:
+    """Built-in families with their measures and kit."""
+    from .families import DIMS, family_files, load_family
+
+    if args.dims:
+        for key, (label, members) in DIMS.items():
+            print(f"{key:<15} {label:<30} {', '.join(f'{t}.{p}' for t, p in members)}")
+        return 0
+    for name, path in family_files().items():
+        fam = load_family(path)
+        kit = ", ".join(f"{t} x{len(v) if isinstance(v, list) else v}" for t, v in fam["models"].items())
+        print(f"{name}: {fam.get('description', '')}")
+        print("  dims:  " + ", ".join(f"{k}={v}" for k, v in fam["dims"].items()))
+        print("  style: " + ", ".join(f"{k}={v}" for k, v in fam.get("style", {}).items()))
+        print(f"  kit:   {kit}")
+    return 0
 
 
 def cmd_doctor(args) -> int:
@@ -288,6 +377,11 @@ def make_parser() -> argparse.ArgumentParser:
     g = sub.add_parser("generate", help="generate a batch of assets")
     g.add_argument("--seed", help="master seed (int or any text); random if omitted")
     g.add_argument("--recipe", help="JSON recipe with seed and model counts")
+    g.add_argument("--family", help="model family (name or file): shared measures, materials and kit; without "
+                                    "--types/--pick the whole kit (list: python -m cubegen families)")
+    g.add_argument("--match", metavar="SIDECAR",
+                   help="matching addition to an existing model: take its measures and look from its "
+                        "<Name>.cubegen.json, e.g. --match Gen_Pipe_003.cubegen.json --types pipe_bend")
     g.add_argument("--types", type=_csv, help="comma separated model types or 'all'")
     g.add_argument("--count", type=int, help="assets per type (default 1)")
     g.add_argument("--pick", type=_csv, help="only these variants, e.g. crate:3,door:7 (same names as with --count)")
@@ -360,7 +454,13 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--count", type=int, default=10, help="variants per type (default 10)")
     c.add_argument("--detail", choices=["low", "normal", "high"], help="check this detail level")
     c.add_argument("--json", action="store_true")
+    c.add_argument("--family", help="instead: fit checks of a family kit (sizes, joints, free passages, colliders)")
+    c.add_argument("--recipe", help="with --family: a kit recipe on top of the family")
     c.set_defaults(func=cmd_check)
+
+    f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")
+    f.add_argument("--dims", action="store_true", help="list the measures and the parameters they set")
+    f.set_defaults(func=cmd_families)
 
     d = sub.add_parser("doctor", help="check Blender and ImageMagick installation")
     d.add_argument("--blender")

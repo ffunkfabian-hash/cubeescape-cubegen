@@ -372,7 +372,9 @@ def spike_trap(rng, a):
            Param("fluid", "choice", "Flüssigkeit", choices=tuple(FLUIDS)),
            Param("inlet", "bool", "Zulauf"),
            Param("outlet", "bool", "Ablauf"),
-           Param("pipe_radius", "choice", "Rohr-Radius (m)", choices=(0.09, 0.18), default=0.09),
+           Param("pipe_radius", "choice", "Rohr-Radius (m)", choices=(0.09, 0.18, 0.35), default=0.09),
+           Param("outlet_height", "float", "Ablauf-Achshöhe (m)", lo=0.1, hi=2.5, quiet=True,
+                 description="Ohne Angabe knapp über dem Beckenboden; der Rand wird bei Bedarf höher"),
        ])
 def fluid_basin(rng, a):
     p = a.p
@@ -384,6 +386,9 @@ def fluid_basin(rng, a):
     mat = p.material(["M_Wall", "M_Metal", "M_RobotDark"])
     r = p.option("pipe_radius")
     t, floor = 0.15, 0.12
+    outlet_z = p.option("outlet_height")
+    zo = max(floor + r + 0.02, outlet_z if outlet_z is not None else 0.0)
+    rim = max(rim, zo + r * 1.25 + 0.1)  # the outlet (with its flange) sits in the wall below the rim
     basin = a.part("Basin")
     a.meta.update({"inner_m": [round(w - 2 * t, 4), round(d - 2 * t, 4)], "fluid": kind})
     cube(basin, (w - 2 * t, d - 2 * t, floor), (0, 0, floor / 2), "M_RobotDark")  # between the walls
@@ -407,7 +412,6 @@ def fluid_basin(rng, a):
         connectors["inlet"] = [0.0, round(d / 2 + 0.4, 4), round(zi, 4)]
     if p.bool("outlet", 0.7):  # drain grate on the floor, pipe out through the left wall
         cube(basin, (0.3, 0.3, 0.01), (-(w - 2 * t) / 2 + 0.3, 0, floor + 0.005), "M_Metal")
-        zo = floor + r + 0.02
         cyl(basin, r, 0.4, (-w / 2 - 0.15, 0, zo), "M_Metal", sides=8, rot=ALONG_X)
         cyl(basin, r * 1.25, 0.08, (-w / 2 - 0.30, 0, zo), "M_RobotDark", sides=8, rot=ALONG_X)
         connectors["outlet"] = [round(-w / 2 - 0.35, 4), 0.0, round(zo, 4)]

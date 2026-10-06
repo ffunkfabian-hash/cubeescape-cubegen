@@ -41,6 +41,12 @@
   "z_fighting_pairs": 1,
   "z_fighting_variants": 5
  },
+ "breakable_platform": {
+  "draw_calls": 18,
+  "triangles": 348,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "broken_wall": {
   "draw_calls": 8,
   "triangles": 320,
@@ -98,6 +104,12 @@
  "canister": {
   "draw_calls": 5,
   "triangles": 392,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "cargo_container": {
+  "draw_calls": 7,
+  "triangles": 596,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -242,6 +254,12 @@
  "floor_tile": {
   "draw_calls": 4,
   "triangles": 1148,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "fluid_basin": {
+  "draw_calls": 4,
+  "triangles": 360,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -431,6 +449,12 @@
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
+ "phase_platform": {
+  "draw_calls": 5,
+  "triangles": 356,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "pillar": {
   "draw_calls": 4,
   "triangles": 192,
@@ -467,6 +491,12 @@
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
+ "portal_frame": {
+  "draw_calls": 4,
+  "triangles": 268,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "pressure_plate": {
   "draw_calls": 5,
   "triangles": 284,
@@ -488,6 +518,12 @@
  "reactor_core": {
   "draw_calls": 7,
   "triangles": 1482,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "retractable_bridge": {
+  "draw_calls": 8,
+  "triangles": 908,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -593,6 +629,12 @@
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
+ "spike_trap": {
+  "draw_calls": 6,
+  "triangles": 920,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "spiral_stairs": {
   "draw_calls": 4,
   "triangles": 944,
@@ -662,6 +704,12 @@
  "transformer": {
   "draw_calls": 6,
   "triangles": 1518,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "turntable": {
+  "draw_calls": 6,
+  "triangles": 280,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },

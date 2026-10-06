@@ -21,6 +21,7 @@ from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set
 from .variety import pick_unique
+from .families import unity_connectors
 
 BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
 from .seeds import model_seed
@@ -53,6 +54,9 @@ class BatchConfig:
     library_dir: Optional[str] = None  # static decoration goes to <library_dir>/<Category> (Unity: Art/Models/Library)
     icons_dir: Optional[str] = None
     params: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # type -> {parameter: value}
+    variant_params: Dict[str, Dict[int, Dict[str, Any]]] = field(default_factory=dict)  # type -> {index: params}
+    param_sources: Dict[str, Dict[str, str]] = field(default_factory=dict)  # type -> {parameter: where from}
+    family: Optional[Dict[str, Any]] = None  # name, file, dims, deviations (families.resolve)
     style: Style = field(default_factory=Style)
     icon_azimuth: float = 33.0     # degrees, like the ICONS table of generate_assets.py (+ = from the right)
     icon_elevation: float = 31.0
@@ -84,6 +88,12 @@ class BatchConfig:
                 raise ValueError(f"--param: unknown model type {t!r}")
             for name, value in overrides.items():
                 REGISTRY[t].param(name).parse(value)
+        for t, variants in self.variant_params.items():
+            if t not in REGISTRY:
+                raise ValueError(f"models: unknown model type {t!r}")
+            for index, overrides in variants.items():
+                for name, value in overrides.items():
+                    REGISTRY[t].param(name).parse(value)
         if self.textures not in TEXTURE_MODES:
             raise ValueError(f"textures must be one of {', '.join(TEXTURE_MODES)}")
         if self.texture_size < 64 or self.texture_size & (self.texture_size - 1):
@@ -99,15 +109,25 @@ class BatchConfig:
 
 
 def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
-    return {
+    params = dict(config.params.get(model_type, {}))
+    sources = dict(config.param_sources.get(model_type, {}))
+    own = config.variant_params.get(model_type, {}).get(index, {})
+    params.update(own)
+    sources.update({k: "kit" for k in own})
+    spec = {
         "name": asset_name(model_type, index, config.prefix),
         "type": model_type,
         "index": index,
         "seed": model_seed(config.seed, model_type, index),
         "scale": config.scale,
-        "params": dict(config.params.get(model_type, {})),
+        "params": params,
         "style": config.style.to_dict(),
     }
+    if sources:
+        spec["param_sources"] = {k: v for k, v in sources.items() if k in params}
+    if config.family:
+        spec["family"] = config.family["name"]
+    return spec
 
 
 def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None) -> List[Dict]:
@@ -121,7 +141,7 @@ def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None
     for model_type, value in config.models.items():
         if isinstance(value, list):
             indices = sorted(set(value))
-        elif config.unique and value > 1:
+        elif config.unique and value > 1 and not config.variant_params.get(model_type):
             indices, tried = pick_unique(value, lambda i: build_spec(_spec(config, model_type, i)))
             if len(indices) < value and log:
                 log(f"{model_type}: only {len(indices)} different variants among the first {tried} - "
@@ -223,6 +243,29 @@ def wants_lod(spec: Dict, asset=None) -> bool:
         return False
     lod = build_spec(lod_spec(spec))
     return lod.stats()["triangles"] <= (1.0 - LOD_MIN_SAVING) * asset.stats()["triangles"]
+
+
+def family_fit(specs: List[Dict], log: Optional[Callable[[str], None]] = None,
+               dims: Optional[Dict[str, Any]] = None, reference: Optional[Dict[str, Any]] = None) -> Dict:
+    """Fit checks of a family batch (families.fit_report): joints checked and the ones that don't fit."""
+    from .families import fit_report, same_look
+
+    members = [(s["name"], build_spec(s), s["type"]) for s in specs]
+    if reference:  # --match: the existing model takes part in the checks
+        members.append((reference["model"], generate_asset(reference["type"], reference["seed"], reference["model"],
+                                                           params=reference["params"],
+                                                           style=Style.from_dict(reference["style"])),
+                        reference["type"]))
+    report = fit_report(members, dims)
+    problems = [{"a": r["a"], "b": r["b"], "joint": r["joint"], "problems": r["problems"]}
+                for r in report if r["problems"]]
+    look = same_look(specs)
+    if log:
+        log(f"family fit: {len(report)} joint(s) checked, {len(problems)} don't fit"
+            f"{', ' + look[0] if look else ''}")
+        for p in problems[:10]:
+            log(f"  {p['a']} {p['joint']} {p['b']}: {'; '.join(p['problems'])}")
+    return {"joints": len(report), "problems": problems, "look": look}
 
 
 def _rel(path: Optional[str], base: str) -> Optional[str]:
@@ -440,7 +483,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     sheet = None
     if previews:
         sheet = im.contact_sheet(previews, labels, os.path.join(out, "contact_sheet.png"),
-                                 title=f"Cube Escape - seed {config.seed}")
+                                 title=f"Cube Escape - {config.family['name'] + ' - ' if config.family else ''}"
+                                       f"seed {config.seed}")
         log(f"contact sheet -> {sheet}")
 
     # --- manifest + rig data ----------------------------------------------------
@@ -477,12 +521,20 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "stats": asset.stats(),
             **({"lods": lod_data(asset, build_spec(lod_spec(spec)))} if spec.get("lod") else {}),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
+            **({"family": spec["family"]} if spec.get("family") else {}),
+            **({"param_sources": spec["param_sources"]} if spec.get("param_sources") else {}),
+            "connectors": unity_connectors(asset, spec["type"]),
             **({"build_key": spec["build_key"]} if spec.get("build_key") else {}),
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
                 "baked_material": res.get("baked_material")} if res.get("baked") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()
+    family_info = None
+    if config.family:
+        family_info = dict(config.family, fit=family_fit(specs, log, config.family.get("dims"),
+                                                         config.family.get("reference")))
+        cfg.pop("family", None)
     for key in ("out_dir", "models_dir", "library_dir", "icons_dir", "blender", "magick", "verbose", "force", "jobs"):
         cfg.pop(key, None)
     manifest = {
@@ -497,6 +549,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         "textures": {"mode": config.textures, "dir": _rel(textures_dir, out),
                      "materials": material_map} if textures else None,
         "contact_sheet": _rel(sheet, out),
+        "family": family_info,
         "models": entries,
     }
     with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as fh:

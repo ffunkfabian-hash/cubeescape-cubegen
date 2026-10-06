@@ -15,3 +15,6 @@ cubegen = "cubegen.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["cubegen*"]
+
+[tool.setuptools.package-data]
+cubegen = ["family_data/*.json"]
