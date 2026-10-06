@@ -234,17 +234,19 @@ def archway(rng, a):
     m.add(prism(poly, t, mat), basis=UPRIGHT)  # prism is centred: flush with the posts at y = ±t/2
     cube(m, (length, t + 0.08, 0.12), (0, 0, h - 0.06), "M_RobotDark")
     a.collider((w, t, h - oh), (0, 0, (h + oh) / 2))
-    # frame band along the passage edge, front and back
+    # frame band along the passage edge, front and back: on the wall face, outside the opening
+    band = 0.12
     for y in (-t / 2 - 0.02, t / 2 + 0.02):
         for (x1, z1), (x2, z2) in zip(curve, curve[1:]):
             ln = math.hypot(x2 - x1, z2 - z1)
-            cube(m, (ln + 0.06, 0.04, 0.12), ((x1 + x2) / 2, y, (z1 + z2) / 2), "M_RobotDark",
+            nx, nz = -(z2 - z1) / ln * band / 2, (x2 - x1) / ln * band / 2  # half a band away from the opening
+            cube(m, (ln + 0.06, 0.04, band), ((x1 + x2) / 2 + nx, y, (z1 + z2) / 2 + nz), "M_RobotDark",
                  rot=(0, -math.atan2(z2 - z1, x2 - x1), 0))
         zs = curve[0][1]
-        for x in (-w / 2, w / 2):
-            cube(m, (0.12, 0.04, zs - 0.25), (x, y, 0.25 + (zs - 0.25) / 2), "M_RobotDark")
-    if shape in ("round", "pointed"):  # keystone
-        cube(m, (0.3, t + 0.1, 0.35), (0, 0, oh + 0.12), "M_Metal", bevel=0.02)
+        for s in (-1, 1):
+            cube(m, (band, 0.04, zs - 0.25), (s * (w + band) / 2, y, 0.25 + (zs - 0.25) / 2), "M_RobotDark")
+    if shape in ("round", "pointed"):  # keystone, resting on the apex (not hanging into the passage)
+        cube(m, (0.3, t + 0.1, 0.35), (0, 0, oh + 0.175), "M_Metal", bevel=0.02)
     if p.bool("glow", 0.5):
         glow = p.glow()
         lights = a.part("Glow")

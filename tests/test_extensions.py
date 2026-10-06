@@ -18,6 +18,7 @@ from cubegen.contract import check_sidecar  # noqa: E402
 from cubegen.families import JOINS, RULES, connectors  # noqa: E402
 from cubegen.models import generate_asset, model_types  # noqa: E402
 from cubegen.models.anchors import ANCHORS  # noqa: E402
+from cubegen.models.buildkit import _arch_curve  # noqa: E402
 from cubegen.models.lettering import CHARSET, check_text, strokes, text_width  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 from cubegen.pipeline import rig_data  # noqa: E402
@@ -117,6 +118,15 @@ class NewTypeTests(unittest.TestCase):
                 (_, y0, _), (_, y1, _) = arch.bbox()
                 self.assertAlmostEqual(y0, -y1, places=4, msg=(shape, seed))
                 self.assertLessEqual(y1, 0.3 + 0.05 + 1e-6, (shape, seed))  # wall + keystone overhang
+                # nothing (keystone, frame bands) reaches into the passage; 3 mm = the anti-flicker lift
+                w, oh = arch.meta["opening_m"]
+                curve = _arch_curve(arch.meta["shape"], w, oh)
+                for obj in arch.meshes():
+                    for x, _, z in obj.mesh.verts:
+                        if abs(x) < w / 2 - 0.003 and z > 0.01:
+                            top = next(z1 + (z2 - z1) * (x - x1) / (x2 - x1) if x2 > x1 else max(z1, z2)
+                                       for (x1, z1), (x2, z2) in zip(curve, curve[1:]) if x1 <= x <= x2)
+                            self.assertGreater(z, top - 0.003, (shape, seed, obj.name, x, z))
 
 
 class LetteringTests(unittest.TestCase):

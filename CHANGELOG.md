@@ -194,7 +194,10 @@ Effekte, 35 neue Typen (jetzt 164).
   eine Stufe, hinten stand es über, Rahmenleisten und Schlussstein hingen vorn frei vor der Wand, und der
   Collider über dem Durchgang passte nicht zur Geometrie. Jetzt ist die Wand vorn und hinten bündig, bei allen
   Bogenformen. Mit diesem Stand exportierte `Archway`-Modelle bitte neu erzeugen; Generation 1 ist nicht
-  betroffen (den Typ gab es in 0.9.0 noch nicht). Ein Test hält den Bogen bündig mit den Pfosten.
+  betroffen (den Typ gab es in 0.9.0 noch nicht).
+* Der Schlussstein (`round`, `pointed`) hing 5,5 cm unter den Scheitel in den Durchgang, jetzt sitzt er auf dem
+  Scheitel. Die Rahmenleisten lagen mittig auf der Kante und standen 6 cm in die Öffnung, jetzt liegen sie ganz
+  auf der Wandfläche. Ein Test hält den Bogen bündig mit den Pfosten und den Durchgang frei.
 
 ## 0.9.0 – 2026-10-06
 
