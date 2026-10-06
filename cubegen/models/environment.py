@@ -299,7 +299,7 @@ def _wall_with_hole(a, m, mat, length, h, t, hole):
         if bx1 - bx0 > 1e-6 and bz1 - bz0 > 1e-6:
             cube(m, (bx1 - bx0, t, bz1 - bz0), ((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2), mat, bevel=0.03)
             a.collider((bx1 - bx0, t, bz1 - bz0), ((bx0 + bx1) / 2, 0, (bz0 + bz1) / 2))
-    for tx0, tx1 in ((-length / 2, x0), (x1, length / 2)) if z0 < 0.25 else ((-length / 2, length / 2),):
+    for tx0, tx1 in ((-length / 2, x0 - 0.03), (x1 + 0.03, length / 2)) if z0 < 0.25 else ((-length / 2, length / 2),):
         if tx1 - tx0 > 1e-6:  # base trim, interrupted by a door
             cube(m, (tx1 - tx0, t + 0.06, 0.25), ((tx0 + tx1) / 2, 0, 0.125), "M_RobotDark", bevel=0.01)
     cube(m, (length, t + 0.10, 0.15), (0, 0, h - 0.05), "M_RobotDark", bevel=0.01)
