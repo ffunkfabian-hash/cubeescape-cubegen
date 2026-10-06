@@ -16,6 +16,8 @@ verbindliche Maße zusammenpassen: Wand und Tür, Treppe und Laufsteg, Rohr und 
 * **ImageMagick** macht daraus **Inventar-Icons** (`Icon_<Name>.png`), einen **Kontaktbogen** zum Durchsehen und eine
   Material-Übersicht.
 
+Bekannte Bugs, geplante Verbesserungen, Erweiterungen und offene Punkte im Unity-Projekt: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ![Beispiel: Seed 42, zwei Varianten pro Typ](docs/example_seed_42.png)
 
 ## Kompatibel mit `generate_assets.py` des Spiels
