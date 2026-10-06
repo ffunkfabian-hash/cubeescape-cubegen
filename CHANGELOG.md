@@ -1,5 +1,18 @@
 # Changelog
 
+## Unveröffentlicht
+
+### Behoben: Add-on mit Familie `foundry` oder `lab`
+
+* Mit gewählter Familie `foundry` oder `lab` brachen Vorschau, Raster, „Von jedem Typ“ und „Kit bauen“ im Add-on
+  ab (`window_wall can't follow window_sill = 1.6` bzw. `fixed wall_thickness`). Das Add-on hat die Maße der
+  Familie auf alle 129 Typen angewandt statt nur auf die Typen, die gebaut werden; `window_wall` und
+  `wall_corner` haben feste Maße und können diesen beiden Familien nicht folgen. Die Kommandozeile war nicht
+  betroffen.
+* Jetzt folgen nur die gebauten Typen den Maßen. „Von jedem Typ“ lässt Typen aus, die nicht zur Familie passen,
+  und nennt sie; ein einzelner solcher Typ in der Vorschau meldet den Grund, statt einen Traceback zu zeigen.
+* Neu: `families.misfits(dims, types)` liefert die Typen, die bestimmten Maßen nicht folgen können, mit Grund.
+
 ## 0.9.0 – 2026-10-06
 
 ### Modellfamilien und Bau-Kits

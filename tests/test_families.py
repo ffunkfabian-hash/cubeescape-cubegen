@@ -10,8 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cubegen.asset import Collider  # noqa: E402
 from cubegen.cli import build_config, main, make_parser  # noqa: E402
-from cubegen.families import check_walk, connectors, family_files, fit_report  # noqa: E402
-from cubegen.models import generate_asset  # noqa: E402
+from cubegen.families import (check_walk, connectors, family_files, fit_report, load_family, misfits,  # noqa: E402
+                              resolve)
+from cubegen.models import generate_asset, model_types  # noqa: E402
 from cubegen.pipeline import build_spec, family_fit, plan_models  # noqa: E402
 
 FAMILIES = ("station", "foundry", "lab")
@@ -30,6 +31,19 @@ def fit(cfg):
 class FamilyTests(unittest.TestCase):
     def test_builtin_families(self):
         self.assertEqual(set(family_files()), set(FAMILIES))
+
+    def test_types_outside_the_kit(self):
+        # the add-on resolves a family for the types it builds; types that can't follow are skipped, not fatal
+        expected = {"station": set(), "foundry": {"wall_corner", "window_wall"}, "lab": {"wall_corner", "window_wall"}}
+        for name in FAMILIES:
+            family = load_family(name)
+            bad = misfits(family["dims"], model_types())
+            self.assertEqual(set(bad), expected[name], name)
+            fine = {t: 1 for t in model_types() if t not in bad}
+            self.assertEqual(set(resolve(family, None, models=fine)["values"]["models"]), set(fine))
+            for t in bad:
+                with self.assertRaises(ValueError):
+                    resolve(family, None, models={t: 1})
 
     def test_kits_fit_for_several_seeds(self):
         for name in FAMILIES:

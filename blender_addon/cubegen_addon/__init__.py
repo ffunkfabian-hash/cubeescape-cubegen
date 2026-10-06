@@ -132,17 +132,18 @@ def _explicit_style(s):
     return out
 
 
-def _resolved(s, kit=False):
+def _resolved(s, types=(), kit=False):
     """families.resolve - the family, then the panel's fixed parameters and style (source "addon").
-    Without a family the same as the panel's settings. kit=True: the family's kit with its own params."""
-    model_set = None if kit else {t: 1 for t in models.model_types()}
+    Without a family the same as the panel's settings. Only ``types`` follow the family's measures (a type
+    that can't follow them fails only when it is built); kit=True: the family's kit with its own params."""
+    model_set = None if kit else {t: 1 for t in types}
     return families.resolve(_family(s), None, models=model_set, extra_params=_overrides(s),
                             extra_style=_explicit_style(s), extra_source="addon")
 
 
 def _effective(s, model_type, kit_params=None, resolved=None):
     """(params, Style) a model of this type is built with."""
-    r = resolved or _resolved(s)
+    r = resolved or _resolved(s, [model_type])
     params = dict(r["values"]["params"].get(model_type, {}))
     params.update(kit_params or {})
     return params, params_mod.Style.from_dict(r["values"]["style"])
@@ -293,7 +294,7 @@ def build_grid(context, entries=None, columns=None, kit_params=None):
         entries = [(s.model_type, v) for v in _variants(s, s.model_type, s.grid_start, s.grid_count)]
     variants = [v for _, v in entries]
     kit_params = kit_params or {}
-    resolved = _resolved(s)
+    resolved = _resolved(s, {t for t, _ in entries})
     assets = []
     for t, v in entries:
         params, style = _effective(s, t, kit_params.get((t, v)), resolved)
@@ -346,9 +347,17 @@ def _grid_params():
     return result
 
 
+def _family_misfits(s):
+    """{type: reason} for the types that can't follow the chosen family's measures."""
+    family = _family(s)
+    return families.misfits(family.get("dims", {}), _all_types()) if family else {}
+
+
 def all_type_entries(s):
-    """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1."""
-    return [(t, v) for t in _all_types() for v in _variants(s, t, s.grid_start, s.per_type)]
+    """One row per type: (type, variant) for variants grid_start .. grid_start + per_type - 1.
+    With a family, types that can't follow its measures are left out."""
+    skip = _family_misfits(s)
+    return [(t, v) for t in _all_types() if t not in skip for v in _variants(s, t, s.grid_start, s.per_type)]
 
 
 def selected_variants(context):
@@ -372,7 +381,7 @@ def make_configs(context, picks, kit_params=None):
     With a family: its measures, look and kit parameters - the same contract as --family."""
     s = _settings(context)
     kit_params = _grid_params() if kit_params is None else kit_params
-    resolved = _resolved(s)
+    resolved = _resolved(s, {t for _, t, _ in picks})
     fam_values = resolved["values"]
     prefs = context.preferences.addons[__name__].preferences
     export_dir = bpy.path.abspath(s.export_dir).strip()
@@ -601,7 +610,11 @@ class CUBEGEN_OT_preview(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        rebuild_preview(context)
+        try:
+            rebuild_preview(context)
+        except ValueError as exc:  # e.g. a type that can't follow the family's measures
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         return {"FINISHED"}
 
 
@@ -634,7 +647,11 @@ class CUBEGEN_OT_grid(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        build_grid(context)
+        try:
+            build_grid(context)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         s = _settings(context)
         self.report({"INFO"}, f"{s.grid_count} Varianten gebaut - gute auswählen, dann exportieren")
         return {"FINISHED"}
@@ -649,8 +666,16 @@ class CUBEGEN_OT_all_types(bpy.types.Operator):
     def execute(self, context):
         s = _settings(context)
         entries = all_type_entries(s)
-        build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
-        self.report({"INFO"}, f"{len(entries)} Modelle gebaut ({len(_all_types())} Typen × {s.per_type})")
+        skipped = _family_misfits(s)
+        try:
+            build_grid(context, entries, columns=s.per_type if s.per_type > 1 else 6)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        msg = f"{len(entries)} Modelle gebaut ({len(_all_types()) - len(skipped)} Typen × {s.per_type})"
+        if skipped:
+            msg += f"; passen nicht zur Familie {s.family}: {', '.join(sorted(skipped))}"
+        self.report({"INFO"}, msg)
         return {"FINISHED"}
 
 
@@ -666,8 +691,12 @@ class CUBEGEN_OT_kit(bpy.types.Operator):
 
     def execute(self, context):
         s = _settings(context)
-        entries, own = kit_entries(s)
-        build_grid(context, entries, columns=6, kit_params=own)
+        try:
+            entries, own = kit_entries(s)
+            build_grid(context, entries, columns=6, kit_params=own)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
         self.report({"INFO"}, f"Kit {s.family}: {len(entries)} Teile gebaut")
         return {"FINISHED"}
 

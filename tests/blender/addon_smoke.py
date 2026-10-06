@@ -190,6 +190,12 @@ cli_rig = json.load(open(os.path.join(cli_out, "models", "Gen_Door_000.cubegen.j
 addon_rig = json.load(open(os.path.join(out, "Models", "Gen_Door_000.cubegen.json")))
 for key in ("parts", "behaviours", "params", "bounds"):
     assert cli_rig[key] == addon_rig[key], key
+# foundry / lab: types outside the kit that can't follow the measures don't break the kit or the add-on
+s.family = "foundry"
+assert bpy.ops.cubegen.kit() == {"FINISHED"}
+assert len(bpy.data.collections[addon.GRID_COLLECTION].children) == len(addon.kit_entries(s)[0])
+assert set(addon._family_misfits(s)) == {"wall_corner", "window_wall"}, addon._family_misfits(s)
+assert not {t for t, _ in addon.all_type_entries(s)} & {"wall_corner", "window_wall"}
 s.family = addon.NO_FAMILY
 s.render_icons = False
 

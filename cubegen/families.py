@@ -146,6 +146,17 @@ def derived_params(dims: Dict[str, Any], types: Iterable[str]) -> Dict[str, Dict
     return result
 
 
+def misfits(dims: Dict[str, Any], types: Iterable[str]) -> Dict[str, str]:
+    """{type: reason} for the types that can't follow these measures (a fixed size, a value out of range)."""
+    out = {}
+    for model_type in types:
+        try:
+            derived_params(dims, [model_type])
+        except ValueError as exc:
+            out[model_type] = str(exc)
+    return out
+
+
 def load_family(name_or_path: str, base_dir: Optional[str] = None) -> Dict[str, Any]:
     """The family recipe (checked like any recipe, plus "family" and "dims")."""
     from .cli import load_recipe
@@ -603,4 +614,4 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
 
 
 __all__ = ["DIMS", "FIXED", "family_files", "find_family", "load_family", "check_dims", "derived_params",
-           "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]
+           "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]
