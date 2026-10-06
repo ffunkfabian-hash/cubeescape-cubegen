@@ -60,6 +60,14 @@
       }
     },
     {
+      "_comment": "corner piece for the walls",
+      "type": "wall_corner",
+      "count": 1,
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
       "type": "door",
       "count": 1
     },

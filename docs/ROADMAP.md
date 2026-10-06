@@ -16,10 +16,8 @@ Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste
    `breakable_platform` 18, `switch_panel` 17.
 4. **`window_wall` und `wall_corner` passen nicht zu `foundry` und `lab`:** feste Maße (3 m hoch, 0,5 m dick,
    Brüstung höchstens 1,5 m).
-5. **Wenig Abwechslung:** `camera`, `laser_mirror`, `laser_receiver`, `laser_splitter` und `tool` haben nur 7 von
-   10 unterschiedliche Varianten.
-6. **Add-on:** „Von jedem Typ (129 × n)“ zählt Typen mit, die nicht zur gewählten Familie passen.
-7. **Doku veraltet:** README nennt „getestet mit Blender 4.0“ (im Einsatz: 5.2.2); die Parametertabelle im
+5. **Add-on:** „Von jedem Typ (129 × n)“ zählt Typen mit, die nicht zur gewählten Familie passen.
+6. **Doku veraltet:** README nennt „getestet mit Blender 4.0“ (im Einsatz: 5.2.2); die Parametertabelle im
    README fehlt für Teile der Typen seit 0.7 (`python -m cubegen params` ist vollständig).
 
 **Behoben (Unveröffentlicht)**
@@ -35,12 +33,11 @@ Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste
    bestehende Seeds zu verändern; alte Exporte bleiben bitgleich.
 3. **`window_wall` und `wall_corner` mit Höhe, Dicke und Brüstung als Parameter**, damit sie allen Familien
    folgen. Danach bekommen alle Kits eine Eckwand.
-4. **Mehr Varianten-Parameter** für die Typen aus Bug 5.
-5. **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
+4. **Ein gemeinsamer Vertrag:** die Regeln des Unity-Imports als maschinenlesbare Datei, aus der `contract.py`
    und der Unity-Import lesen, statt sie doppelt zu pflegen.
-6. **Blender in der CI:** Die 7 Blender-Tests (Add-on, echter FBX-Export) werden heute übersprungen.
-7. **Add-on:** Typen, die nicht zur gewählten Familie passen, im Typ-Menü kennzeichnen und nicht mitzählen.
-8. **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle.
+5. **Blender in der CI:** Die 7 Blender-Tests (Add-on, echter FBX-Export) werden heute übersprungen.
+6. **Add-on:** Typen, die nicht zur gewählten Familie passen, im Typ-Menü kennzeichnen und nicht mitzählen.
+7. **Doku aktualisieren:** Blender-Version, vollständige Parametertabelle.
 
 ## 3. Erweiterungen
 

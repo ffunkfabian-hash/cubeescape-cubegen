@@ -345,7 +345,7 @@ nicht schlimmer wird und neue Typen gar keine haben.
 | Previews schwarz / sehr langsam | `--engine cycles --samples 16` oder `--no-render` |
 | Blender-Fehler ohne Details | mit `-v` erneut starten, dann steht die Blender-Ausgabe im Terminal |
 | `unknown key '…' (did you mean …)` | Tippfehler im Rezept oder in `style` |
-| `unknown measure '…'` / `… can't follow …` | Maß-Name in `dims` falsch bzw. ein Typ kann das Maß nicht (z. B. `window_wall` hat feste 3 m: Wand mit `opening=window` nehmen) |
+| `unknown measure '…'` / `… can't follow …` | Maß-Name in `dims` falsch bzw. ein Typ kann das Maß nicht (z. B. `pipe_radius` 0.4: Rohre gibt es nur mit 0.09 / 0.18 / 0.35 m) |
 | `family fit: … don't fit` | die genannten Teile passen nicht zusammen (meist eine Abweichung in `params`/`dims`); Details: `python3 -m cubegen check --family NAME` |
 | `… does not match its rig data` | Blender hat eine FBX geschrieben, die nicht zur `.cubegen.json` passt (z. B. eine neue Blender-Version mit geändertem FBX-Export). Bitte mit der Meldung als Issue melden |
 | Modell sieht nach einem Update anders aus | sollte nicht passieren (`tests/golden.json`); sonst bitte melden |

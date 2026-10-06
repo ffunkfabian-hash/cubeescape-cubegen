@@ -39,8 +39,9 @@ FAMILY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "family_da
 
 # measure -> (label, [(type, parameter)]) - every type listed follows the measure
 DIMS: Dict[str, Tuple[str, Tuple[Tuple[str, str], ...]]] = {
-    "wall_height": ("Wandhöhe (m)", (("wall", "height"),)),
-    "wall_thickness": ("Wandstärke (m)", (("wall", "thickness"),)),
+    "wall_height": ("Wandhöhe (m)", (("wall", "height"), ("window_wall", "height"), ("wall_corner", "height"))),
+    "wall_thickness": ("Wandstärke (m)", (("wall", "thickness"), ("window_wall", "thickness"),
+                                          ("wall_corner", "thickness"))),
     "module": ("Modullänge (m)", (("wall", "length"), ("catwalk", "length"), ("pipe", "length"),
                                   ("retractable_bridge", "length"), ("window_wall", "length"),
                                   ("cable_tray", "length"))),
@@ -66,10 +67,7 @@ DIMS: Dict[str, Tuple[str, Tuple[Tuple[str, str], ...]]] = {
 }
 
 # types with a measure built in that they can't change: a family with another value can't use them
-FIXED: Dict[Tuple[str, str], float] = {
-    ("window_wall", "wall_height"): 3.0, ("window_wall", "wall_thickness"): 0.5,
-    ("wall_corner", "wall_height"): 3.0, ("wall_corner", "wall_thickness"): 0.5,
-}
+FIXED: Dict[Tuple[str, str], float] = {}
 
 TOL = 0.01  # 1 cm, like the Unity importer's pivot tolerance
 
@@ -313,10 +311,17 @@ def connectors(asset, model_type: str) -> List[Dict[str, Any]]:
             pos = (hole["center_x"], 0, hole["z0"] if kind != "duct" else hole["duct_height"])
             out.append(_con(hole["kind"], kind, pos, (0, -1, 0), width=hole["width"], height=hole["height"],
                             thickness=t, **({"radius": hole["duct_radius"]} if kind == "duct" else {})))
-    elif model_type == "window_wall":  # fixed 3 m module, 0.5 m thick
+    elif model_type == "window_wall":
         ln = meta["length_m"]
+        h, t = params.get("height", 3.0), params.get("thickness", 0.5)
         for s in (-1, 1):
-            out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=3.0, thickness=0.5))
+            out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=h, thickness=t))
+    elif model_type == "wall_corner":  # walls join the faces that aren't exposed
+        h, t = params.get("height", 3.0), params.get("thickness", 0.5)
+        sides = {"corner": ((1, 0), (0, 1)), "end": ((1, 0),), "tee": ((-1, 0), (1, 0), (0, 1))}[meta["style"]]
+        for dx, dy in sides:
+            out.append(_con(f"end_{dx:+d}{dy:+d}", "wall_end", (dx * t / 2, dy * t / 2, 0), (dx, dy, 0), height=h,
+                            thickness=t))
     elif model_type == "door":
         from .models.environment import door_frame_outer
 

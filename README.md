@@ -409,8 +409,8 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `lift` | `size` (1–3), `travel` (0.5–4) 🔗, `speed` (0.1–5) 🔗, `rail` (ja/nein) |
 | `pad` | `kind` (jump / teleport), `radius` (0.4–2), `mode` (Steady / Pulse / Blink) 🔗, `speed` (0–720) 🔗 |
 | `stairs` | `style` (stairs / ramp), `width` (0.6–4), `rise` (0.4–3), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein) |
-| `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein) |
-| `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–1.5), `glow` (ja/nein) |
+| `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
+| `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–2.0), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
 | `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000) 🔗 |
 | `barrier` | `style` (gate / jersey / cones), `width` (0.8–4), `lights` (ja/nein) |
 | `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180 bis 180) |

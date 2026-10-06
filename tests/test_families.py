@@ -32,18 +32,29 @@ class FamilyTests(unittest.TestCase):
     def test_builtin_families(self):
         self.assertEqual(set(family_files()), set(FAMILIES))
 
-    def test_types_outside_the_kit(self):
-        # the add-on resolves a family for the types it builds; types that can't follow are skipped, not fatal
-        expected = {"station": set(), "foundry": {"wall_corner", "window_wall"}, "lab": {"wall_corner", "window_wall"}}
+    def test_every_type_follows_the_builtin_families(self):
+        # window_wall and wall_corner follow wall_height / wall_thickness / window_sill (foundry: 4 m, lab: 0.3 m)
         for name in FAMILIES:
             family = load_family(name)
-            bad = misfits(family["dims"], model_types())
-            self.assertEqual(set(bad), expected[name], name)
-            fine = {t: 1 for t in model_types() if t not in bad}
+            self.assertEqual(misfits(family["dims"], model_types()), {}, name)
+            fine = {t: 1 for t in model_types()}
             self.assertEqual(set(resolve(family, None, models=fine)["values"]["models"]), set(fine))
-            for t in bad:
-                with self.assertRaises(ValueError):
-                    resolve(family, None, models={t: 1})
+        # a measure outside a type's range: that type is a misfit, and resolving it fails
+        bad = misfits({"pipe_radius": 0.4}, model_types())
+        self.assertEqual(set(bad), {"pipe", "pipe_bend", "fluid_basin"})
+        with self.assertRaises(ValueError):
+            resolve({"dims": {"pipe_radius": 0.4}}, None, models={"pipe": 1})
+
+    def test_walls_follow_the_family(self):
+        for name, h, t in (("foundry", 4.0, 0.5), ("lab", 3.0, 0.3)):
+            cfg = config("--family", name, "--types", "window_wall,wall_corner", "--count", "3")
+            for spec in plan_models(cfg):
+                body = build_spec(spec).get("Wall").mesh.bbox()
+                self.assertAlmostEqual(body[1][2] - body[0][2], h + 0.025, delta=0.01, msg=spec["name"])  # + trim
+                depth = body[1][1] - body[0][1] if spec["type"] == "window_wall" else None
+                if depth is not None:
+                    self.assertAlmostEqual(depth, t + 0.1, delta=0.011, msg=spec["name"])  # wall + top trim
+            self.assertEqual(fit(cfg)["problems"], [], name)
 
     def test_kits_fit_for_several_seeds(self):
         for name in FAMILIES:
@@ -182,8 +193,9 @@ class FamilyTests(unittest.TestCase):
             json.dump({"family": "bad", "dims": {"wall_hieght": 3.0}, "models": {"wall": 1}}, open(path, "w"))
             with self.assertRaisesRegex(ValueError, "did you mean 'wall_height'"):
                 config("--family", path)
-        with self.assertRaisesRegex(ValueError, "window_wall (has a fixed|can.t follow)"):
-            config("--family", "foundry", "--types", "window_wall")
+            json.dump({"family": "bad", "dims": {"pipe_radius": 0.4}, "models": {"wall": 1}}, open(path, "w"))
+            with self.assertRaisesRegex(ValueError, "pipe can.t follow pipe_radius"):
+                config("--family", path, "--types", "pipe")
 
 
 if __name__ == "__main__":
