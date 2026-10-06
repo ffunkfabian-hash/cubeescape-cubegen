@@ -300,6 +300,8 @@ def cmd_family_check(args) -> int:
 
 def cmd_check(args) -> int:
     """Quality report: triangles vs budget, draw calls, z-fighting, distinct variants."""
+    if args.export:
+        return cmd_export_check(args)
     if args.family:
         return cmd_family_check(args)
     from .models import REGISTRY as registry
@@ -331,6 +333,27 @@ def cmd_check(args) -> int:
         print(f"{len(fights)} type(s) with z-fighting (coplanar faces of different materials / objects)")
         print(f"* more than {DRAW_CALL_BUDGET} draw calls (materials per object, summed)")
     return 1 if any(r["errors"] for r in rows.values()) else 0
+
+
+def cmd_export_check(args) -> int:
+    """An exported models folder against the Unity import contract (cubegen/contract.py)."""
+    from .contract import check_export
+
+    if not os.path.isdir(args.export):
+        raise ValueError(f"--export: {args.export!r} is not a folder")
+    result = check_export(args.export)
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        for model, r in result.items():
+            for e in r["errors"]:
+                print(f"{model}: {e}")
+            for o in r["open"]:
+                print(f"{model}: open - {o.split(': ', 1)[-1]}")
+        bad = sum(1 for r in result.values() if r["errors"])
+        print(f"\n{len(result)} model(s): {bad} rejected by the Unity import, "
+              f"{sum(1 for r in result.values() if r['open'])} with an open item assignment")
+    return 1 if any(r["errors"] for r in result.values()) or not result else 0
 
 
 def cmd_families(args) -> int:
@@ -466,6 +489,8 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--json", action="store_true")
     c.add_argument("--family", help="instead: fit checks of a family kit (sizes, joints, free passages, colliders)")
     c.add_argument("--recipe", help="with --family: a kit recipe on top of the family")
+    c.add_argument("--export", metavar="DIR", help="instead: check an exported models folder against the Unity "
+                                                   "import contract (every .cubegen.json, with its FBX)")
     c.set_defaults(func=cmd_check)
 
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")

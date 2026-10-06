@@ -74,6 +74,46 @@ class ContractTests(unittest.TestCase):
                 door["fields"]["openOffset"] = [-c for c in door["fields"]["openOffset"]]
                 self.assertTrue(any("don't move apart" in e for e in check_sidecar(data)[0]), spec["name"])
 
+    def test_export_stops_on_a_contract_violation(self):
+        # the Unity import would skip such a model silently - the export refuses it before Blender runs
+        from unittest import mock
+
+        import cubegen.pipeline as pipeline
+
+        config = BatchConfig(seed=42, models={"door": 1, "keycard": 1}, out_dir="-")
+        specs = plan_models(config)
+        notes = []
+        self.assertEqual(len(pipeline.check_contract(specs, 42, notes.append)), 1)  # the keycard's item id
+        self.assertTrue(any("item_id" in n for n in notes))
+        real = pipeline.rig_data
+        with mock.patch.object(pipeline, "rig_data", lambda *a, **k: dict(real(*a, **k), lods={})):
+            with self.assertRaises(ValueError) as ctx:
+                pipeline.check_contract(specs, 42, notes.append)
+        self.assertIn("unknown key 'lods'", str(ctx.exception))
+
+    def test_check_export_command(self):
+        import io
+        import json
+        import tempfile
+        from contextlib import redirect_stdout
+
+        from cubegen.cli import main
+
+        with tempfile.TemporaryDirectory() as out:
+            with redirect_stdout(io.StringIO()):
+                main(["generate", "--seed", "42", "--types", "door", "--count", "1", "--no-blender", "--no-render",
+                      "--out", out])
+                models = os.path.join(out, "models")
+                self.assertEqual(main(["check", "--export", models]), 0)
+                path = os.path.join(models, "Door_000.cubegen.json")
+                data = json.load(open(path))
+                data["behaviours"][0]["fields"]["speed"] = 0
+                json.dump(data, open(path, "w"))
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    self.assertEqual(main(["check", "--export", models]), 1)
+            self.assertIn("speed", buf.getvalue())
+
     def test_detects_violations(self):
         spec, good = next((s, d) for s, d in sidecars(42, 1) if s["type"] == "door")
         self.assertEqual(check_sidecar(good)[0], [])
