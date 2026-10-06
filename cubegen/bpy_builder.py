@@ -148,9 +148,52 @@ def select_collection(collection):
     bpy.context.view_layer.objects.active = next(iter(collection.all_objects), None)
 
 
+def _patch_fbx_nested_bake():
+    """Fix the FBX exporter's local matrix of objects nested two or more levels deep.
+
+    With ``bake_space_transform`` the exporter writes a child's local matrix as
+    ``P_fbx^-1 @ P @ L @ G^-1`` (``P_fbx`` = the parent's matrix in FBX space,
+    ``G`` = axis conversion). For a child of a root object ``P_fbx = P @ G^-1``
+    and this is the correct ``G @ L @ G^-1``. One level deeper ``P_fbx`` already
+    is ``G @ P @ G^-1``, the conversion is applied twice: the part gets a wrong
+    position and a 90 degree rotation (balance_scale Slot_A, robot_arm Arm_Upper,
+    turret Glow in cubegen 0.7.0). For those objects this returns ``G @ L @ G^-1``;
+    everything else keeps the exporter's own (correct) value.
+    """
+    import importlib
+
+    try:
+        fbx_utils = importlib.import_module("io_scene_fbx.fbx_utils")
+    except ImportError:
+        return
+    wrapper = getattr(fbx_utils, "ObjectWrapper", None)
+    original = getattr(wrapper, "fbx_object_matrix", None)
+    if original is None or getattr(original, "_cubegen_patched", False):
+        return
+
+    def fbx_object_matrix(self, scene_data, rest=False, local_space=False, global_space=False):
+        try:
+            nested = (not local_space and not global_space and self._tag == "OB"
+                      and not self.parented_to_armature and self.has_valid_parent(scene_data.objects)
+                      and self.use_bake_space_transform(scene_data))
+            parent = self.parent if nested else None
+            nested = (parent is not None and parent._tag == "OB" and parent.use_bake_space_transform(scene_data)
+                      and parent.has_valid_parent(scene_data.objects))
+        except AttributeError:  # exporter internals changed: keep its result (the export check reports errors)
+            nested = False
+        if not nested:
+            return original(self, scene_data, rest=rest, local_space=local_space, global_space=global_space)
+        local = self.matrix_rest_local if rest else self.matrix_local
+        return scene_data.settings.global_matrix @ local @ scene_data.settings.global_matrix_inv
+
+    fbx_object_matrix._cubegen_patched = True
+    wrapper.fbx_object_matrix = fbx_object_matrix
+
+
 def export_collection(collection, fmt, path):
     select_collection(collection)
     if fmt == "fbx":
+        _patch_fbx_nested_bake()
         # identical to the game's export_fbx(): rotation 0 / scale 1 in Unity, +Z forward;
         # textures (if any) are referenced relative to the FBX, not embedded
         bpy.ops.export_scene.fbx(

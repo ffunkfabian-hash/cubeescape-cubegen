@@ -26,6 +26,7 @@ from mathutils import Vector  # noqa: E402
 
 from cubegen.bpy_builder import (build_collection, create_materials, create_textured_materials,  # noqa: E402
                                  export_collection)
+from cubegen.fbxread import check_asset  # noqa: E402
 from cubegen.models import REGISTRY, generate_asset  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 
@@ -220,6 +221,10 @@ def run_job(job_path):
         for fmt in job["formats"]:
             path = os.path.join(spec.get("models_dir") or job["models_dir"], f"{asset.name}.{fmt}")
             export_collection(collection, fmt, path)
+            if fmt == "fbx":  # the FBX must say exactly what <Name>.cubegen.json says (parents, pivots, no rotation)
+                problems = check_asset(path, asset)
+                if problems:
+                    raise RuntimeError(f"{path} does not match its rig data:\n  " + "\n  ".join(problems))
             files[fmt] = path
         preview = None
         if cam is not None:

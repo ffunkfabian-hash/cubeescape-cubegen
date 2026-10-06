@@ -79,6 +79,27 @@ class BlenderTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
 
 
+    def test_fbx_pivots_match_rig_data(self):
+        # cubegen 0.7.0: parts nested two levels deep (Slot_A, Arm_Upper, Glow) had wrong pivots and a 90 deg
+        # rotation in the FBX. Unity rejects such models - FBX and <Name>.cubegen.json must agree exactly.
+        from cubegen.fbxread import unity_locals
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "balance_scale,robot_arm,turret,door", "--count", "2",
+                         "--no-render", "--no-blend", "--out", out])
+            self.assertEqual(code, 0)
+            models_dir = os.path.join(out, "models")
+            for name in sorted(n[:-4] for n in os.listdir(models_dir) if n.endswith(".fbx")):
+                fbx = unity_locals(os.path.join(models_dir, name + ".fbx"))
+                rig = json.loads(read(os.path.join(models_dir, name + ".cubegen.json")))
+                for part in rig["parts"]:
+                    got = fbx[part["name"]]
+                    self.assertEqual(got["parent"], part["parent"], f"{name}.{part['name']}")
+                    for a, b in zip(got["position"], part["localPosition"]):
+                        self.assertAlmostEqual(a, b, places=3, msg=f"{name}.{part['name']}")
+                    self.assertEqual(got["rotation"], (0.0, 0.0, 0.0), f"{name}.{part['name']}")
+
+
 @unittest.skipUnless(HAS_MAGICK and HAS_BLENDER, "Blender and ImageMagick required")
 class BlenderAddonTest(unittest.TestCase):
     def test_addon_zip_installs_and_exports(self):
