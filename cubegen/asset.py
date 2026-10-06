@@ -17,6 +17,7 @@ import math
 from typing import Dict, List, Optional, Tuple
 
 from .geometry import Mesh, Vec3, add_up, euler_matrix, v_add, v_scale, v_sub
+from .seeds import StableRandom, sub_rng
 
 
 class AssetObject:
@@ -108,6 +109,18 @@ class Asset:
         self.colliders: List[Collider] = []
         #: parameter reader of the build (set by generate_asset): rolls values, applies overrides / style
         self.p = None
+        #: the asset seed (set by generate_asset)
+        self.seed = 0
+
+    def sub(self, key: str) -> StableRandom:
+        """An own random stream for one aspect of the model, e.g. ``a.sub("antenna")``.
+
+        Every roll from the builder's ``rng`` shifts all rolls after it. New
+        details should roll from their own stream instead: then adding them
+        leaves everything the seed made so far exactly as it was. Same seed +
+        key = same stream.
+        """
+        return sub_rng(self.seed, key)
 
     def behaviour(self, script: str, parts: Dict[str, object], fields: Optional[Dict[str, object]] = None,
                   note: str = "") -> None:

@@ -28,6 +28,7 @@ from typing import Dict, List, Optional
 
 from .imagemagick import ImageMagick
 from .materials import MATERIALS, to_hex
+from .seeds import StableRandom
 
 #: plain material -> texture recipe
 RECIPES = {
@@ -172,7 +173,7 @@ def build_material_texture(im: ImageMagick, material: str, out_dir: str, name: s
     recipe = RECIPES[material]
     color, smoothness, metallic, _ = MATERIALS[material]
     rough = 1.0 - smoothness
-    rng = random.Random(f"{seed}:{material}")
+    rng = StableRandom(f"{seed}:{material}")
     n = size
     paths = {k: os.path.join(out_dir, f"{name}_{k}.png") for k in ("Albedo", "Normal", "Roughness",
                                                                       "MetallicSmoothness")}
