@@ -6,7 +6,7 @@ import math
 
 from ..geometry import Mesh, basis_matrix, box, chamfer_box, cylinder, euler_matrix, mat_mul_vec, v_cross, v_len, \
     v_norm, v_sub
-from ..params import DETAIL
+from ..params import DETAIL, Param
 
 ALONG_X = (0.0, math.pi / 2, 0.0)   # rotate a Z cylinder so it runs along X
 ALONG_Y = (math.pi / 2, 0.0, 0.0)   # ... along Y (e.g. lenses and wheels facing the front)
@@ -162,3 +162,23 @@ def flat_wheel(mesh: Mesh, center, radius: float, rim: str = "M_HazardOrange", s
         a = 2 * math.pi * i / spokes
         cube(mesh, (radius, 0.035, 0.035), (cx + math.cos(a) * radius / 2, cy + math.sin(a) * radius / 2, cz),
              "M_Metal", rot=(0, 0, a))
+
+
+def pickup_params():
+    """Parameters of every ItemPickup item: turning speed and the game's item id."""
+    return [
+        Param("spin", "float", "Drehtempo im Level (°/s)", lo=0, hi=360, unity=True, default=45),
+        Param("item_id", "text", "Unity-Item-ID", unity=True,
+              description="ID des Spiel-Items, das dieses Modell darstellt (ItemPickup.itemId). Ohne Angabe fehlt "
+                          "itemId in der .cubegen.json - der Unity-Import meldet das Modell dann als offen"),
+    ]
+
+
+def item_pickup(a, parts):
+    """``ItemPickup`` on ``parts``; ``itemId`` only when it was given (cubegen never invents game item ids)."""
+    fields = {"spin": a.p.option("spin")}
+    item_id = a.p.option("item_id")
+    if item_id:
+        fields["itemId"] = item_id
+    a.behaviour("ItemPickup", {"model": parts}, fields,
+                note="ItemPickup turns the whole model around world Y and lets it float")

@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from ..params import Param
-from .common import ALONG_X, cube, cyl, deg
+from .common import ALONG_X, cube, cyl, deg, item_pickup, pickup_params
 from .registry import model
 
 
@@ -115,7 +115,7 @@ def canister(rng, a):
 @model("item", "Item", "props", "Inventory item: energy cell, battery, data chip or fuse (pivot in the centre)",
        pivot="center", params=[
            Param("kind", "choice", "Art", choices=("energy_cell", "battery", "data_chip", "fuse")),
-           Param("spin", "float", "Drehtempo im Level (°/s)", lo=0, hi=360, unity=True, default=45),
+           *pickup_params(),
        ])
 def item(rng, a):
     p = a.p
@@ -159,8 +159,7 @@ def item(rng, a):
             cyl(body, r, 0.06, (x, 0, 0), "M_Metal", sides=8, bevel=0.01, rot=ALONG_X)
         cube(body, (length * 0.3, r * 0.6, 0.02), (0, 0, r * 0.85), "M_RobotDark")
     # floats and turns around world up while lying in the level (pivot in the centre)
-    a.behaviour("ItemPickup", {"model": ["Body", "Glow"]}, {"spin": p.option("spin")},
-                note="ItemPickup turns the whole model around world Y and lets it float")
+    item_pickup(a, ["Body", "Glow"])
 
 
 @model("debris", "Debris", "props", "Pile of broken wall chunks, plates and a torn cable", params=[

@@ -60,6 +60,17 @@ bpy.context.view_layer.objects.active = bpy.data.objects["Gen_Crate_004.Body"]
 bpy.ops.cubegen.use_active()
 assert s.model_type == "crate" and s.variant == 4
 
+# "Nur unterschiedliche": same variants as the CLI's --unique
+s.model_type, s.unique = "laser_mirror", True
+bpy.ops.cubegen.grid()
+grid_names = sorted(c.name for c in bpy.data.collections[addon.GRID_COLLECTION].children)
+cli = addon.pipeline.plan_models(addon.pipeline.BatchConfig(seed=42, models={"laser_mirror": 6}, out_dir="-",
+                                                            prefix="Gen_", unique=True))
+print("UNIQUE", grid_names)
+assert grid_names == sorted(spec["name"] for spec in cli), (grid_names, cli)
+s.unique, s.model_type = False, "crate"
+bpy.ops.cubegen.grid()  # back to the crate grid for the selection export below
+
 # --- export of the selection (synchronous in background mode) ----------------------
 s.export_dir = os.path.join(out, "Models")
 s.icons_dir = os.path.join(out, "Icons")
@@ -125,7 +136,62 @@ print("RIG", rig["params"], rig["style"]["detail"])
 assert rig["params"]["style"] == "airlock" and rig["style"]["wear"] == "light"
 bpy.ops.cubegen.reset_params()
 assert s.type_params.door.style == addon.SEED and not s.type_params.door.use_width
-s.detail, s.wear = "normal", "none"
+s.detail, s.wear = "normal", addon.SEED
+
+# --- item id (ItemPickup.itemId): text field, only written when given ----------------------
+s.model_type = "keycard"
+assert "keycard" not in addon._overrides(s)
+s.type_params.keycard.item_id = "Key Card 2"
+assert addon._overrides(s)["keycard"] == {"item_id": "Key Card 2"}, addon._overrides(s)
+assert "--param 'keycard.item_id=Key Card 2'" in addon._cli_command(s), addon._cli_command(s)
+bpy.ops.cubegen.reset_params()
+assert s.type_params.keycard.item_id == ""
+s.model_type = "door"
+
+# --- room theme: the add-on's style = the CLI's --theme ------------------------------------
+s.theme = "labor-3"
+style = addon._style(s).resolved()
+expected = addon.params_mod.theme_style("labor-3")
+assert (style.glow, style.material, style.wear) == (expected["glow"], expected["material"], expected["wear"]), style
+assert '--theme labor-3' in addon._cli_command(s), addon._cli_command(s)
+s.theme = ""
+
+# --- family: measures, kit, kit export = CLI --family -----------------------------------------
+import json  # noqa: E402
+
+s.family = "station"
+s.model_type = "door"
+info = addon._INFO
+assert abs(info["params"]["width"] - 2.0) < 1e-9 and abs(info["params"]["height"] - 2.2) < 1e-9, info["params"]
+assert info["params"]["style"] == "sliding", info["params"]
+assert "--family station" in addon._cli_command(s)
+bpy.ops.cubegen.kit()
+kit_grid = bpy.data.collections[addon.GRID_COLLECTION]
+entries, own = addon.kit_entries(s)
+assert len(kit_grid.children) == len(entries) > 20, len(kit_grid.children)
+door_wall = bpy.data.collections["Gen_Wall_001"]
+assert json.loads(door_wall["cubegen_params"]) == {"opening": "door"}, door_wall["cubegen_params"]
+s.render_icons = True
+result = bpy.ops.cubegen.export(mode="KIT")
+assert result == {"FINISHED"}, s.status
+kit_out = os.path.join(out, "cubegen", "station_seed_42")
+manifest = json.load(open(os.path.join(kit_out, "manifest.json")))
+print("KIT", manifest["family"]["name"], manifest["family"]["fit"]["joints"], manifest["family"]["fit"]["problems"])
+assert manifest["family"]["name"] == "station" and manifest["family"]["fit"]["problems"] == []
+assert os.path.isfile(os.path.join(kit_out, "contact_sheet.png"))
+rig = json.load(open(os.path.join(out, "Models", "Gen_Wall_001.cubegen.json")))
+assert rig["params"]["opening"] == "door" and rig["params"]["door_width"] == 2.0, rig["params"]
+# the same door from the command line: identical sidecar
+from cubegen_addon.cubegen import cli as addon_cli  # noqa: E402
+cli_out = os.path.join(out, "cli_family")
+addon_cli.main(["generate", "--family", "station", "--seed", "42", "--pick", "door:0", "--prefix", "Gen_",
+                "--no-render", "--no-blender", "--out", cli_out])
+cli_rig = json.load(open(os.path.join(cli_out, "models", "Gen_Door_000.cubegen.json")))
+addon_rig = json.load(open(os.path.join(out, "Models", "Gen_Door_000.cubegen.json")))
+for key in ("parts", "behaviours", "params", "bounds"):
+    assert cli_rig[key] == addon_rig[key], key
+s.family = addon.NO_FAMILY
+s.render_icons = False
 
 # --- textures (selection field) + destroyed state + ruins ---------------------------------
 s.model_type = "crate"
@@ -188,8 +254,8 @@ class Ctx:
     preferences = bpy.context.preferences
 
 
-panels = (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_params, addon.CUBEGEN_PT_style, addon.CUBEGEN_PT_grid,
-          addon.CUBEGEN_PT_export)
+panels = (addon.CUBEGEN_PT_main, addon.CUBEGEN_PT_family, addon.CUBEGEN_PT_params, addon.CUBEGEN_PT_style,
+          addon.CUBEGEN_PT_grid, addon.CUBEGEN_PT_export)
 s.live = False
 for model_type in addon._all_types():  # the parameter panel differs per type
     s.model_type = model_type
@@ -198,6 +264,9 @@ for model_type in addon._all_types():  # the parameter panel differs per type
             cls.draw(type("P", (), {"layout": Fake()})(), Ctx)
         except Exception as exc:
             problems.append(f"{model_type} {cls.__name__}: {exc!r}")
+s.family = "lab"
+addon.CUBEGEN_PT_family.draw(type("P", (), {"layout": Fake()})(), Ctx)
+s.family = addon.NO_FAMILY
 s.live = True
 prefs = bpy.context.preferences.addons["cubegen_addon"].preferences
 addon.CUBEGEN_Preferences.draw(type("P", (), {"layout": Fake(), "bl_rna": prefs.bl_rna})(), Ctx)

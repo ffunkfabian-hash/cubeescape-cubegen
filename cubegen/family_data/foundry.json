@@ -1,0 +1,208 @@
+{
+  "family": "foundry",
+  "description": "Gießerei: 4-m-Wände, schwere Türen, 1-m-Stege auf 2 m, dicke 35-cm-Rohre, dunkel/orange mit Warnstreifen und Abnutzung",
+  "seed": "foundry",
+  "style": {
+    "material": "dark",
+    "glow": "orange",
+    "warning": "always",
+    "wear": "light",
+    "detail": "normal"
+  },
+  "dims": {
+    "wall_height": 4.0,
+    "wall_thickness": 0.5,
+    "module": 4.0,
+    "door_style": "heavy",
+    "door_width": 2.2,
+    "door_height": 2.8,
+    "window_width": 2.0,
+    "window_height": 1.0,
+    "window_sill": 1.6,
+    "walk_width": 1.0,
+    "rail_height": 1.1,
+    "deck_height": 2.0,
+    "platform_size": 3.0,
+    "pipe_radius": 0.35,
+    "pipe_height": 1.0
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "type": "door",
+      "count": 1
+    },
+    {
+      "type": "portal_frame",
+      "count": 1,
+      "params": {
+        "mount": "wall"
+      }
+    },
+    {
+      "_comment": "catwalk pieces on the module grid",
+      "type": "catwalk",
+      "count": 1
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        1
+      ],
+      "params": {
+        "shape": "corner"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        2
+      ],
+      "params": {
+        "shape": "tee"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        3
+      ],
+      "params": {
+        "shape": "cross"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        4
+      ],
+      "params": {
+        "shape": "landing"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        5
+      ],
+      "params": {
+        "shape": "end"
+      }
+    },
+    {
+      "_comment": "stairs up to the walkway level",
+      "type": "stairs",
+      "count": 1,
+      "params": {
+        "style": "stairs"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        1
+      ],
+      "params": {
+        "layout": "landing"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        2
+      ],
+      "params": {
+        "layout": "quarter"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        3
+      ],
+      "params": {
+        "layout": "switchback"
+      }
+    },
+    {
+      "type": "retractable_bridge",
+      "count": 1
+    },
+    {
+      "type": "platform",
+      "count": 1
+    },
+    {
+      "type": "phase_platform",
+      "count": 1
+    },
+    {
+      "type": "turntable",
+      "count": 1
+    },
+    {
+      "type": "breakable_platform",
+      "count": 1
+    },
+    {
+      "type": "lift",
+      "count": 1
+    },
+    {
+      "type": "railing",
+      "count": 1
+    },
+    {
+      "_comment": "pipes",
+      "type": "pipe",
+      "count": 1
+    },
+    {
+      "type": "pipe_bend",
+      "count": 1
+    },
+    {
+      "type": "fluid_basin",
+      "count": 1
+    },
+    {
+      "type": "spike_trap",
+      "count": 1
+    },
+    {
+      "type": "cargo_container",
+      "count": 1
+    }
+  ]
+}

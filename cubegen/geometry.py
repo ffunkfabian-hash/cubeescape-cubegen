@@ -28,6 +28,19 @@ Vec2 = Tuple[float, float]
 # small vector / matrix helpers
 # --------------------------------------------------------------------------
 
+def add_up(values) -> float:
+    """Sum of floats, strictly left to right.
+
+    Use this instead of ``sum()`` for geometry: Python 3.12 made ``sum()`` of
+    floats more precise (compensated), so 3.11 (Blender) and 3.12+ (CLI) would
+    differ in the last bit - enough to change a face's start vertex.
+    """
+    total = 0.0
+    for v in values:
+        total += v
+    return total
+
+
 def v_add(a: Vec3, b: Vec3) -> Vec3:
     return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
 
@@ -317,7 +330,7 @@ def chamfer_box(sx: float, sy: float, sz: float, role: str, bevel: float, top_ro
 def _order_convex_face(verts: Sequence[Vec3], face: Sequence[int]) -> Tuple[int, ...]:
     """Counter-clockwise order (seen from outside) for a face of a convex body around the origin."""
     pts = [verts[i] for i in face]
-    c = v_scale((sum(p[0] for p in pts), sum(p[1] for p in pts), sum(p[2] for p in pts)), 1.0 / len(pts))
+    c = v_scale((add_up(p[0] for p in pts), add_up(p[1] for p in pts), add_up(p[2] for p in pts)), 1.0 / len(pts))
     n = v_norm(c)
     u = v_norm(v_sub(pts[0], c))
     w = v_cross(n, u)

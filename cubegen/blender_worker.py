@@ -26,6 +26,7 @@ from mathutils import Vector  # noqa: E402
 
 from cubegen.bpy_builder import (build_collection, create_materials, create_textured_materials,  # noqa: E402
                                  export_collection)
+from cubegen.fbxread import check_asset  # noqa: E402
 from cubegen.models import REGISTRY, generate_asset  # noqa: E402
 from cubegen.params import Style  # noqa: E402
 
@@ -55,16 +56,30 @@ def clear_scene():
     return scene
 
 
+def _generate(spec):
+    return generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
+                          params=spec.get("params"), style=Style.from_dict(spec.get("style")))
+
+
 def build_asset(spec, material_map=None):
-    asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
-                           params=spec.get("params"), style=Style.from_dict(spec.get("style")))
+    """Objects of a spec in a new collection. With ``spec["lod"]``: + the low detail build, objects
+    named <part>_LOD0 / <part>_LOD1 (LOD1 hidden in previews). Returns (asset, LOD1 asset or None, collection)."""
+    asset = _generate(spec)
     collection = bpy.data.collections.new(asset.name)
     bpy.context.scene.collection.children.link(collection)
-    objects = build_collection(asset, collection, material_map=material_map,
-                               tags={"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])})
+    tags = {"cubegen_type": spec["type"], "cubegen_seed": str(spec["seed"])}
+    lod = _generate(dict(spec, style=dict(spec.get("style") or {}, detail="low"))) if spec.get("lod") else None
+    suffix = "_LOD0" if lod else ""
+    objects = build_collection(asset, collection, object_name=lambda part: part + suffix, material_map=material_map,
+                               tags=tags)
     if "Damage" in objects:  # in the game only visible while the machine is broken
         objects["Damage"].hide_render = True
-    return asset, collection
+    if lod is not None:
+        for obj in build_collection(lod, collection, object_name=lambda part: part + "_LOD1",
+                                    material_map=material_map, tags=tags).values():
+            obj.hide_render = True
+            obj["cubegen_lod"] = 1
+    return asset, lod, collection
 
 
 # ---------------------------------------------------------------------------
@@ -189,6 +204,15 @@ def layout_overview(collections, spacing):
                 obj.location += offset
 
 
+def _set_aside(collection, asset):
+    """Object names are unique per .blend: rename the finished asset's parts ("Body" -> "Crate_000.Body")
+    so the next asset can use the same names. The overview shows LOD0; LOD1 stays in the file, hidden."""
+    for obj in collection.objects:
+        obj.name = f"{asset.name}.{obj.name}"
+        if obj.get("cubegen_lod"):
+            obj.hide_set(True)
+
+
 def run_job(job_path):
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
@@ -209,7 +233,12 @@ def run_job(job_path):
     total = len(job["models"])
     for i, spec in enumerate(job["models"], 1):
         t0 = time.time()
-        asset, collection = build_asset(spec, material_map)
+        asset, lod, collection = build_asset(spec, material_map)
+        if spec.get("skip"):  # unchanged / exported by another process: only part of the overview .blend
+            _set_aside(collection, asset)
+            collections.append(collection)
+            biggest = max(biggest, *asset.stats()["dimensions_m"])
+            continue
         baked = None
         if job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
@@ -220,6 +249,12 @@ def run_job(job_path):
         for fmt in job["formats"]:
             path = os.path.join(spec.get("models_dir") or job["models_dir"], f"{asset.name}.{fmt}")
             export_collection(collection, fmt, path)
+            if fmt == "fbx":  # the FBX must say exactly what <Name>.cubegen.json says (parents, pivots, no rotation)
+                problems = check_asset(path, asset, suffix="_LOD0" if lod else "")
+                if lod is not None:
+                    problems += check_asset(path, lod, suffix="_LOD1")
+                if problems:
+                    raise RuntimeError(f"{path} does not match its rig data:\n  " + "\n  ".join(problems))
             files[fmt] = path
         preview = None
         if cam is not None:
@@ -237,10 +272,7 @@ def run_job(job_path):
         results.append(entry)
         log(f"({i}/{total}) {asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
 
-        # Object names are unique per .blend: rename the finished asset's parts
-        # ("Body" -> "Crate_000.Body") so the next asset can use the same names.
-        for obj in collection.objects:
-            obj.name = f"{asset.name}.{obj.name}"
+        _set_aside(collection, asset)
         collections.append(collection)
         biggest = max(biggest, *asset.stats()["dimensions_m"])
 

@@ -114,6 +114,8 @@ def pipe(rng, a):
         cyl(body, 0.04, 0.2, (0, -r * 1.3 - 0.1, z), "M_Metal", sides=6, rot=ALONG_Y)
         center = (0, -r * 1.3 - 0.22, z)
         valve_wheel(a.part("Wheel", pivot=center), center, radius=max(0.18, r * 1.5))
+        if all(abs(f) < 0.2 for f in rings):  # the only ring sat where the valve is: status strip on the housing
+            cube(lights, (r * 2.0, 0.02, 0.05), (0, -r * 1.3 - 0.01, z + r * 1.1), glow)
         a.meta["valve"] = True
         # like the game's Valve / Pipe_Valve: turns in 90 degree steps around Unity forward (Blender -Y)
         a.behaviour("Rotatable", {"target": "Wheel", "glow": "Glow"},

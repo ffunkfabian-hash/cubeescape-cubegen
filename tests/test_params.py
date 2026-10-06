@@ -34,6 +34,8 @@ def sample_values(prm):
         return [True, False]
     if prm.kind == "int":
         return [int(prm.lo), int(prm.hi)]
+    if prm.kind == "text":
+        return ["energy_cell", "Key Card 2"]
     return [prm.lo, (prm.lo + prm.hi) / 2, prm.hi]
 
 
@@ -49,7 +51,8 @@ class ParamTests(unittest.TestCase):
             used = set()
             for seed in range(40):
                 used |= set(generate_asset(t, seed).meta["params"])
-            declared = {p.name for p in REGISTRY[t].params}
+            # text and quiet options are only written when given
+            declared = {p.name for p in REGISTRY[t].params if p.kind != "text" and not p.quiet}
             self.assertEqual(declared - used, set(), f"{t}: declared but never read")
 
     def test_every_param_value_builds_valid_models(self):
@@ -63,6 +66,19 @@ class ParamTests(unittest.TestCase):
                             used = asset.meta["params"]
                             if prm.name in used:  # conditional ones (rotor_speed without flywheel) aren't read
                                 self.assertEqual(used[prm.name], prm.parse(value))
+
+    def test_item_id(self):
+        pickups = [t for t in model_types()
+                   if any(b["script"] == "ItemPickup" for b in generate_asset(t, 0).behaviours)]
+        self.assertEqual(len(pickups), 8)
+        for t in pickups:
+            fields = generate_asset(t, 0).behaviours[0]["fields"]
+            self.assertNotIn("itemId", fields, t)  # never invented
+            given = generate_asset(t, 0, params={"item_id": "servo_battery"})
+            self.assertEqual(given.behaviours[0]["fields"]["itemId"], "servo_battery", t)
+            self.assertEqual(given.digest() != generate_asset(t, 0).digest(), True)
+        with self.assertRaises(ValueError):
+            REGISTRY["key"].param("item_id").parse("  ")
 
     def test_override_only_changes_its_property(self):
         base = generate_asset("crate", 5).meta["params"]
@@ -128,6 +144,25 @@ class StyleTests(unittest.TestCase):
             plain = generate_asset(t, 2)
             self.assertEqual(fingerprint(plain), [f for f in fingerprint(worn) if f[0] != "Wear"])
 
+    def test_theme(self):
+        from cubegen.params import theme_style
+
+        self.assertEqual(theme_style("labor-3"), theme_style(" labor-3 "))
+        rolled = [theme_style(f"room-{i}") for i in range(40)]
+        for key in ("glow", "material", "wear", "warning"):
+            self.assertGreater(len({r[key] for r in rolled}), 1, key)
+        themed = Style(theme="labor-3").resolved()
+        self.assertEqual((themed.glow, themed.material, themed.wear, themed.warning),
+                         tuple(theme_style("labor-3")[k] for k in ("glow", "material", "wear", "warning")))
+        explicit = Style(theme="labor-3", glow="orange", wear="none").resolved()  # explicit settings win
+        self.assertEqual((explicit.glow, explicit.wear, explicit.material), ("orange", "none", themed.material))
+        self.assertEqual(Style().resolved().wear, "none")
+        a = generate_asset("crate", 3, style=Style(theme="labor-3"))
+        b = generate_asset("crate", 3, style=Style(**{k: v for k, v in themed.to_dict().items() if k != "theme"}))
+        self.assertEqual(a.digest(), b.digest())  # a theme is exactly its rolled settings
+        with self.assertRaises(ValueError):
+            Style(theme="  ").validate()
+
     def test_style_validation(self):
         with self.assertRaises(ValueError):
             generate_asset("crate", 1, style=Style(size="XL"))
@@ -141,7 +176,7 @@ class CliTests(unittest.TestCase):
             "--icon-angle=-25,15", "--icon-zoom", "1.5"])
         cfg = build_config(args)
         cfg.validate()
-        self.assertEqual(cfg.params, {"door": {"style": "airlock", "width": "2"}})
+        self.assertEqual(cfg.params, {"door": {"style": "airlock", "width": 2.0}})
         self.assertEqual((cfg.style.size, cfg.style.snap, cfg.style.glow, cfg.style.wear), ("L", 0.5, "red", "light"))
         self.assertEqual((cfg.icon_azimuth, cfg.icon_elevation, cfg.icon_zoom), (-25.0, 15.0, 1.5))
 

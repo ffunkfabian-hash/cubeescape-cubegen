@@ -8,15 +8,15 @@ scripts ignore unknown parts.
 from __future__ import annotations
 
 import math
-import random
 
+from ..seeds import StableRandom
 from .common import cube, deg
 
 LEVELS = {"light": (2, 3, 0, 1), "heavy": (5, 8, 1, 2)}  # chunks min/max, plates min/max
 
 
 def apply_wear(asset, seed: int, level: str) -> None:
-    rng = random.Random(seed ^ 0x5EA7)
+    rng = StableRandom(seed ^ 0x5EA7)
     (x0, y0, _), (x1, y1, z1) = asset.bbox()
     w, d = max(x1 - x0, 0.3), max(y1 - y0, 0.3)
     size = min(max(w, d), 3.0)

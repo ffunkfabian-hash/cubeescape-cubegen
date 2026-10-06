@@ -11,10 +11,13 @@ is baked into the mesh (clean FBX import in Unity).
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from typing import Dict, List, Optional, Tuple
 
-from .geometry import Mesh, Vec3, euler_matrix, v_add, v_scale, v_sub
+from .geometry import Mesh, Vec3, add_up, euler_matrix, v_add, v_scale, v_sub
+from .seeds import StableRandom, sub_rng
 
 
 class AssetObject:
@@ -66,9 +69,9 @@ def unity_rotation(rot: Vec3) -> Tuple[float, float, float, float]:
     """Unity quaternion (x, y, z, w) of a Blender XYZ euler rotation (radians, as used by ``cube``)."""
     r = euler_matrix(*rot)
     m = _TO_UNITY
-    mr = [[sum(m[i][k] * r[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+    mr = [[add_up(m[i][k] * r[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
     # M is orthogonal: M^-1 = M^T
-    return _quaternion([[sum(mr[i][k] * m[j][k] for k in range(3)) for j in range(3)] for i in range(3)])
+    return _quaternion([[add_up(mr[i][k] * m[j][k] for k in range(3)) for j in range(3)] for i in range(3)])
 
 
 class Collider:
@@ -106,6 +109,18 @@ class Asset:
         self.colliders: List[Collider] = []
         #: parameter reader of the build (set by generate_asset): rolls values, applies overrides / style
         self.p = None
+        #: the asset seed (set by generate_asset)
+        self.seed = 0
+
+    def sub(self, key: str) -> StableRandom:
+        """An own random stream for one aspect of the model, e.g. ``a.sub("antenna")``.
+
+        Every roll from the builder's ``rng`` shifts all rolls after it. New
+        details should roll from their own stream instead: then adding them
+        leaves everything the seed made so far exactly as it was. Same seed +
+        key = same stream.
+        """
+        return sub_rng(self.seed, key)
 
     def behaviour(self, script: str, parts: Dict[str, object], fields: Optional[Dict[str, object]] = None,
                   note: str = "") -> None:
@@ -163,6 +178,18 @@ class Asset:
     def _check_parent(self, parent: Optional[str]) -> None:
         if parent is not None and self.get(parent) is None:
             raise ValueError(f"parent {parent!r} must be created before its children")
+
+    def prune(self) -> None:
+        """Drop mesh objects without faces. One that still has children becomes an empty instead:
+        the hierarchy and the children's pivots stay intact (e.g. a broken-off arm segment)."""
+        kept: List[AssetObject] = []
+        for obj in reversed(self.objects):  # children come after their parents
+            if obj.mesh is not None and not obj.mesh.faces:
+                if not any(k.parent == obj.name for k in kept):
+                    continue
+                obj.mesh = None
+            kept.append(obj)
+        self.objects = kept[::-1]
 
     def get(self, name: str) -> Optional[AssetObject]:
         return next((o for o in self.objects if o.name == name), None)
@@ -237,6 +264,39 @@ class Asset:
                         "size": [round(sx, 4), round(sz, 4), round(sy, 4)],  # Blender x/y/z -> Unity x/z/y
                         "rotation": list(unity_rotation(c.rot))})
         return out
+
+    def digest(self) -> str:
+        """SHA-256 fingerprint of everything that ends up in the files: geometry, pivots, materials, colliders,
+        script wiring and meta data. Floats are rounded to 1e-6 so last-bit differences between platforms
+        don't count."""
+
+        def num(x: float) -> str:
+            return repr(round(float(x), 6) + 0.0)
+
+        def vec(v) -> str:
+            return ",".join(num(c) for c in v)
+
+        def rounded(value):
+            if isinstance(value, float):
+                return round(value, 6) + 0.0
+            if isinstance(value, dict):
+                return {str(k): rounded(v) for k, v in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [rounded(v) for v in value]
+            return value
+
+        h = hashlib.sha256()
+        for o in self.objects:
+            h.update(f"O|{o.name}|{o.parent}|{vec(o.pivot)}\n".encode())
+            if o.mesh is not None:
+                h.update(";".join(vec(v) for v in o.mesh.verts).encode())
+                h.update(repr(o.mesh.faces).encode())
+                h.update("|".join(o.mesh.roles).encode())
+        for c in self.colliders:
+            h.update(f"C|{c.kind}|{c.part}|{vec(c.center)}|{vec(c.size)}|{vec(c.rot)}|{c.convex}\n".encode())
+        h.update(json.dumps(rounded(self.behaviours), sort_keys=True, default=str).encode())
+        h.update(json.dumps(rounded(self.meta), sort_keys=True, default=str).encode())
+        return h.hexdigest()
 
     def stats(self) -> Dict[str, object]:
         lo, hi = self.bbox()

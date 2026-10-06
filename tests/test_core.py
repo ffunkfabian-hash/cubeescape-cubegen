@@ -11,7 +11,7 @@ from cubegen.asset import Asset  # noqa: E402
 from cubegen.geometry import Mesh, box, chamfer_box, cylinder, lathe, prism, sphere, torus  # noqa: E402
 from cubegen.materials import MATERIALS  # noqa: E402
 from cubegen.models import REGISTRY, asset_name, generate_asset, model_types  # noqa: E402
-from cubegen.seeds import MAX_SEED, model_seed, parse_seed  # noqa: E402
+from cubegen.seeds import MAX_SEED, StableRandom, model_seed, parse_seed, sub_rng  # noqa: E402
 
 SEEDS_PER_TYPE = 40
 MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirror", "Plate", "Deck", "Head",
@@ -20,7 +20,8 @@ MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirro
 MOVING_PREFIXES = ("Rotor_", "Roller_", "Gear_", "Button_", "Leg_", "Dial_", "Tile_", "Switch_", "Pan_")
 # fields every behaviour of a game script must carry (see docs/UNITY_INTEGRATION.md)
 SCRIPT_FIELDS = {
-    "Door": ({"panels", "statusLights", "upperFrame", "colliders"}, {"openOffset", "speed"}),
+    # upperFrame is optional (the Unity import accepts only Frame_Top there): bridges and spike traps have none
+    "Door": ({"panels", "statusLights", "colliders"}, {"openOffset", "speed"}),
     "Machine": ({"body", "glow"}, {"needsPower"}),
     "Rotator": ({"target"}, {"axis", "speed"}),
     "Rotatable": ({"target", "glow"}, {"axis", "step", "speed", "target", "interactive"}),
@@ -93,6 +94,38 @@ class SeedTests(unittest.TestCase):
     def test_seed_range(self):
         for i in range(200):
             self.assertLessEqual(model_seed(i, "crate", i), MAX_SEED)
+
+    def test_stable_random_matches_this_python(self):
+        # StableRandom freezes CPython's algorithms; on the versions we support it must still agree with them
+        import random
+
+        for seed in (0, 1, 42, 691206113, "text"):
+            a, b = StableRandom(seed), random.Random(seed)
+            for n in range(300):
+                self.assertEqual(a.uniform(-2, 3), b.uniform(-2, 3))
+                self.assertEqual(a.randint(0, n), b.randint(0, n))
+                self.assertEqual(a.randrange(n + 1), b.randrange(n + 1))
+                self.assertEqual(a.randrange(-5, 50, 3), b.randrange(-5, 50, 3))
+                seq = list(range(n % 30 + 1))
+                self.assertEqual(a.choice(seq), b.choice(seq))
+                self.assertEqual(a.sample(seq, len(seq) // 2), b.sample(seq, len(seq) // 2))
+                self.assertEqual(a.sample(range(200), 7), b.sample(range(200), 7))
+                self.assertEqual(a.choices(seq, k=3), b.choices(seq, k=3))
+                self.assertEqual(a.choices(seq, weights=[i + 1 for i in seq], k=2),
+                                 b.choices(seq, weights=[i + 1 for i in seq], k=2))
+                x, y = list(seq), list(seq)
+                a.shuffle(x)
+                b.shuffle(y)
+                self.assertEqual(x, y)
+                self.assertEqual(a.random(), b.random())
+
+    def test_sub_streams(self):
+        self.assertEqual(sub_rng(5, "a").random(), sub_rng(5, "a").random())
+        self.assertNotEqual(sub_rng(5, "a").random(), sub_rng(5, "b").random())
+        self.assertNotEqual(sub_rng(5, "a").random(), sub_rng(6, "a").random())
+        asset = generate_asset("crate", 77)
+        self.assertEqual(asset.seed, 77)
+        self.assertEqual(asset.sub("x").random(), sub_rng(77, "x").random())
 
     def test_parse_seed(self):
         self.assertEqual(parse_seed("17"), 17)

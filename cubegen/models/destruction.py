@@ -13,9 +13,8 @@ version of seed 42 is always the ruin of the intact seed 42.
 from __future__ import annotations
 
 import math
-import random
-
 from ..geometry import euler_matrix, mat_mul_vec
+from ..seeds import StableRandom
 from .wear import apply_wear
 
 LIGHT_PARTS = ("Glow", "Lights", "Screen", "StatusLight_Front", "StatusLight_Back", "Crystals")
@@ -76,7 +75,7 @@ def _kill_lights(asset, rng, share):
 def damage_asset(asset, seed: int, level: str, pivot: str) -> None:
     if level == "intact":
         return
-    rng = random.Random(seed ^ 0xD35)
+    rng = StableRandom(seed ^ 0xD35)
     (x0, y0, z0), (x1, y1, z1) = asset.bbox()
     footprint = ((x0, y0), (x1, y1))
     total = max((x1 - x0) * (y1 - y0) * (z1 - z0), 1e-6)
@@ -140,7 +139,7 @@ def damage_asset(asset, seed: int, level: str, pivot: str) -> None:
                 remove.append(part)
         if remove:
             mesh.remove_parts(remove)
-    asset.objects = [o for o in asset.objects if o.mesh is None or o.mesh.faces]
+    asset.prune()
     _kill_lights(asset, rng, 1.0)
     asset.behaviours = []                        # a ruin does nothing: static decoration
     if pivot in ("floor", "wall"):

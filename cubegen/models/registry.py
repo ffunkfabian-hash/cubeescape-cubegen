@@ -5,6 +5,10 @@ A model type is a function ``build(rng, asset)`` that adds named objects to
 :class:`~cubegen.params.ParamReader`), which rolls them from ``rng`` and
 applies parameter overrides and the global style. Register it with
 :func:`model` and it is available on the command line and in the add-on.
+
+Changing a builder later: never add, remove or reorder rolls from ``rng``,
+existing seeds would look different (``tests/test_golden.py`` catches it).
+Roll new details from their own stream: ``asset.sub("detail_name")``.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from ..asset import Asset
 from ..materials import check_material
 from ..params import DETAIL, Param, ParamReader, Style
+from ..seeds import StableRandom
 from .destruction import damage_asset
 from .wear import apply_wear
 
@@ -75,15 +80,22 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         raise KeyError(f"unknown model type {model_type!r}; available: {', '.join(model_types())}") from exc
     style = style or Style()
     style.validate()
-    rng = random.Random(seed)
+    style = style.resolved()
+    rng = StableRandom(seed)
     asset = Asset(name or f"{entry.title}_{seed}")
     asset.p = ParamReader(rng, entry.params, params, style)
+    asset.seed = seed
     token = DETAIL.set(style.detail)
     try:
         entry.build(rng, asset)
     finally:
         DETAIL.reset(token)
-    asset.objects = [o for o in asset.objects if o.mesh is None or o.mesh.faces]
+    asset.prune()
+    for b in asset.behaviours:  # a part without geometry is gone: no script may point at it
+        for role, value in b["parts"].items():
+            for name in value if isinstance(value, list) else [value]:
+                if asset.get(name) is None:
+                    raise ValueError(f"{model_type}: {b['script']}.{role} names {name!r}, which has no geometry")
     for c in asset.colliders:
         if c.part is not None and asset.get(c.part) is None:
             raise ValueError(f"{model_type}: collider on {c.part!r}, but that part has no geometry")
