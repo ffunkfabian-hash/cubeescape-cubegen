@@ -307,7 +307,7 @@ def make_configs(context, picks):
             prefix=s.prefix, scale=s.scale, blend=False, render=s.render_icons,
             models_dir=export_dir, icons_dir=bpy.path.abspath(s.icons_dir).strip() or None,
             library_dir=bpy.path.abspath(s.library_dir).strip() or None,
-            params=_overrides(s), style=_style(s), lods=s.lods,
+            params=_overrides(s), style=_style(s), lods=s.lods, jobs=s.jobs, force=s.force,
             icon_azimuth=s.icon_azimuth, icon_elevation=s.icon_elevation, icon_zoom=s.icon_zoom,
             textures=s.textures, texture_size=int(s.texture_size), texture_set=s.texture_set.strip(),
             textures_dir=bpy.path.abspath(s.textures_dir).strip() or None,
@@ -413,6 +413,11 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     fmt_fbx: BoolProperty(name="FBX", default=True)
     fmt_glb: BoolProperty(name="GLB", default=False)
     fmt_obj: BoolProperty(name="OBJ", default=False)
+    jobs: IntProperty(name="Parallel", default=1, min=1, max=16,
+                      description="So viele Blender-Prozesse exportieren gleichzeitig (lohnt bei „Alle Typen“)")
+    force: BoolProperty(name="Alles neu bauen", default=False,
+                        description="Auch Modelle neu exportieren, die sich seit dem letzten Export nicht geändert "
+                                    "haben (sonst werden sie übernommen)")
     lods: BoolProperty(name="LODs (statische Modelle)", default=False,
                        description="Statische Deko bekommt eine zweite, sparsamere Stufe in derselben FBX "
                                    "(Teile <Teil>_LOD0 / <Teil>_LOD1, Unity baut die LODGroup beim Import)")
@@ -865,6 +870,9 @@ class CUBEGEN_PT_export(_Panel, bpy.types.Panel):
         row = layout.row(align=True)
         row.prop(s, "render_icons")
         row.prop(s, "lods")
+        row = layout.row(align=True)
+        row.prop(s, "jobs")
+        row.prop(s, "force")
         col = layout.column(align=True)
         col.enabled = not s.running
         col.scale_y = 1.3

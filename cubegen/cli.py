@@ -21,7 +21,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "unique", "lods")
+                  "unique", "lods", "jobs")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -139,6 +139,10 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["unique"] = True
     if args.lods:
         values["lods"] = True
+    if args.force:
+        values["force"] = True
+    if args.jobs is not None:
+        values["jobs"] = args.jobs
     if args.icon_angle:
         az, _, el = args.icon_angle.partition(",")
         values["icon_azimuth"] = float(az)
@@ -290,6 +294,9 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--lods", action="store_true",
                    help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
                         "(Unity builds the LODGroup on import)")
+    g.add_argument("--jobs", type=int, help="Blender processes in parallel (default 1)")
+    g.add_argument("--force", action="store_true",
+                   help="rebuild everything (default: models unchanged since the last run in --out are reused)")
     g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
     g.add_argument("--no-rig-data", action="store_true",
                    help="don't write <Name>.cubegen.json (parts, pivots, script wiring for Unity)")

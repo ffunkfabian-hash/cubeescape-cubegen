@@ -97,6 +97,44 @@ class BlenderTest(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
 
 
+    def test_incremental_and_parallel(self):
+        from cubegen.fbxread import unity_locals
+
+        def run(out, *extra):
+            lines = []
+            from cubegen.cli import build_config, make_parser
+            from cubegen.pipeline import generate_batch
+
+            args = ["generate", "--seed", "5", "--types", "crate,door,turret", "--count", "2", "--engine", "cycles",
+                    "--render-size", "32", "--samples", "1", "--out", out, *extra]
+            generate_batch(build_config(make_parser().parse_args(args)), log=lines.append)
+            return lines
+
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            run(a)
+            run(b, "--jobs", "3")  # parallel = the same models
+            for name in ("Crate_001", "Door_000", "Turret_001"):
+                fa, fb = (unity_locals(os.path.join(d, "models", name + ".fbx")) for d in (a, b))
+                self.assertEqual(fa, fb, name)
+                self.assertTrue(os.path.isfile(os.path.join(b, "icons", f"Icon_{name}.png")))
+            self.assertTrue(os.path.isfile(os.path.join(b, "CubeEscape_Generated_5.blend")))
+            fbx = os.path.join(a, "models", "Door_001.fbx")
+            stamp = os.path.getmtime(fbx)
+            log = run(a)
+            self.assertIn("unchanged since the last run: 6 asset(s) (--force rebuilds them)", log)
+            self.assertFalse(any(line.startswith("Blender:") for line in log))  # Blender not even started
+            self.assertEqual(os.path.getmtime(fbx), stamp)
+            manifest = json.loads(read(os.path.join(a, "manifest.json")))
+            self.assertEqual(len(manifest["models"]), 6)
+            self.assertTrue(manifest["models"][0]["preview"])
+            log = run(a, "--param", "door.width=2.5")  # only the doors change
+            self.assertIn("unchanged since the last run: 4 asset(s) (--force rebuilds them)", log)
+            self.assertGreater(os.path.getmtime(fbx), stamp)
+            os.remove(os.path.join(a, "models", "Crate_000.fbx"))  # a missing file is rebuilt
+            self.assertIn("unchanged since the last run: 5 asset(s) (--force rebuilds them)",
+                          run(a, "--param", "door.width=2.5"))
+            self.assertFalse(any("unchanged" in line for line in run(a, "--force", "--param", "door.width=2.5")))
+
     def test_fbx_lods(self):
         from cubegen.fbxread import unity_locals
 

@@ -204,6 +204,15 @@ def layout_overview(collections, spacing):
                 obj.location += offset
 
 
+def _set_aside(collection, asset):
+    """Object names are unique per .blend: rename the finished asset's parts ("Body" -> "Crate_000.Body")
+    so the next asset can use the same names. The overview shows LOD0; LOD1 stays in the file, hidden."""
+    for obj in collection.objects:
+        obj.name = f"{asset.name}.{obj.name}"
+        if obj.get("cubegen_lod"):
+            obj.hide_set(True)
+
+
 def run_job(job_path):
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
@@ -225,6 +234,11 @@ def run_job(job_path):
     for i, spec in enumerate(job["models"], 1):
         t0 = time.time()
         asset, lod, collection = build_asset(spec, material_map)
+        if spec.get("skip"):  # unchanged / exported by another process: only part of the overview .blend
+            _set_aside(collection, asset)
+            collections.append(collection)
+            biggest = max(biggest, *asset.stats()["dimensions_m"])
+            continue
         baked = None
         if job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
@@ -258,12 +272,7 @@ def run_job(job_path):
         results.append(entry)
         log(f"({i}/{total}) {asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
 
-        # Object names are unique per .blend: rename the finished asset's parts
-        # ("Body" -> "Crate_000.Body") so the next asset can use the same names.
-        for obj in collection.objects:
-            obj.name = f"{asset.name}.{obj.name}"
-            if obj.get("cubegen_lod"):  # the overview shows LOD0; LOD1 stays in the file, hidden
-                obj.hide_set(True)
+        _set_aside(collection, asset)
         collections.append(collection)
         biggest = max(biggest, *asset.stats()["dimensions_m"])
 
