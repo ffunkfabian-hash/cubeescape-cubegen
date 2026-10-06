@@ -13,7 +13,7 @@ from . import __version__
 from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
-from .params import GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
+from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
 
@@ -272,7 +272,7 @@ def cmd_params(args) -> int:
     print("global: --theme TEXT  --size S|M|L  --snap 0.5  --glow cyan|red|orange")
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
-    print("        --damage intact|damaged|destroyed  --generation 1|2")
+    print("        --damage intact|damaged|destroyed|fractured  --generation 1|2|3")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
@@ -315,11 +315,12 @@ def cmd_check(args) -> int:
     master = parse_seed(args.seed if args.seed is not None else "42")
     style = Style.from_dict({"detail": args.detail} if args.detail else {})
     rows = report(types, lambda t, i: generate_asset(t, model_seed(master, t, i), style=style), registry,
-                  args.count, budget_scale=1.5 if args.detail == "high" else 1.0)
+                  args.count, budget_scale=1.5 if args.detail == "high" else 1.0, palette=args.palette)
     if args.json:
         print(json.dumps(rows, indent=2))
     else:
-        print(f"seed {master}, {args.count} variants per type{', detail ' + args.detail if args.detail else ''}")
+        print(f"seed {master}, {args.count} variants per type{', detail ' + args.detail if args.detail else ''}"
+              f"{', draw calls in palette mode' if args.palette else ''}")
         print(f"{'type':<17}{'tris':>6}{'budget':>8}{'draws':>7}  {'z-fighting':<22}{'distinct':>9}")
         for t, r in rows.items():
             zf = f"{r['z_fighting_pairs']} pair(s) in {r['z_fighting_variants']}" if r["z_fighting_pairs"] else "-"
@@ -450,14 +451,17 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--warning", choices=["none", "always"], help="warning stripes / bands never or always")
     st.add_argument("--wear", choices=["none", "light", "heavy"], help="rubble, plates and cables around models")
     st.add_argument("--detail", choices=["low", "normal", "high"], help="low: no bevels, fewer cylinder sides")
-    st.add_argument("--damage", choices=["intact", "damaged", "destroyed"],
-                    help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library)")
+    st.add_argument("--damage", choices=list(DAMAGE_STATES),
+                    help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library); "
+                         "fractured: split into fragments Fragment_<n> that Unity drops when it is destroyed")
     st.add_argument("--generation", type=int, choices=list(GENERATIONS),
                     help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
-                         "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part")
+                         "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part; "
+                         "3 adds empties for sound and effects (Audio_*, FX_*)")
     tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
-    tx.add_argument("--textures", choices=["none", "tiled", "baked"],
-                    help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas")
+    tx.add_argument("--textures", choices=["none", "tiled", "baked", "palette"],
+                    help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas; "
+                         "palette: one material MP_Palette with a colour palette texture per model (1 draw call)")
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
@@ -506,6 +510,7 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--seed", help="master seed (default 42; with --family the family's / recipe's seed)")
     c.add_argument("--count", type=int, default=10, help="variants per type (default 10)")
     c.add_argument("--detail", choices=["low", "normal", "high"], help="check this detail level")
+    c.add_argument("--palette", action="store_true", help="count draw calls as with --textures palette")
     c.add_argument("--json", action="store_true")
     c.add_argument("--family", help="instead: fit checks of a family kit (sizes, joints, free passages, colliders)")
     c.add_argument("--recipe", help="with --family: a kit recipe on top of the family")

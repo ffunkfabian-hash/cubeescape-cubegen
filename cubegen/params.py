@@ -33,11 +33,14 @@ MATERIAL_STYLES = {
     "light": ("M_Platform", "M_RobotBody"),
 }
 SIZE_CLASSES = {"S": (0.0, 1 / 3), "M": (1 / 3, 2 / 3), "L": (2 / 3, 1.0)}
+DAMAGE_STATES = ("intact", "damaged", "destroyed", "fractured")
 
 
 #: model generations - what changed in each (existing seeds keep their look within a generation):
-#: 1 = cubegen 0.9.0; 2 = flush details lifted 2 mm (no z-fighting), two materials per moving part
-GENERATIONS = (1, 2)
+#: 1 = cubegen 0.9.0; 2 = flush details lifted 2 mm (no z-fighting), two materials per moving part;
+#: 3 = empties for sound and effects (Audio_*, FX_*: models/anchors.py); damaged models knock nothing off the
+#: parts Unity builds colliders from (a door frame piece on the floor blocked the passage) - else as in 2
+GENERATIONS = (1, 2, 3)
 LATEST_GENERATION = GENERATIONS[-1]
 
 
@@ -46,8 +49,8 @@ class Style:
     """Global look settings - ``None`` / ``"seed"`` means: as the seed rolls it.
 
     ``generation`` picks the model generation: corrections that change existing seeds (2: flush details lifted
-    against flickering, two materials per moving part) only apply from their generation on, so a batch exported
-    with an older cubegen can be rebuilt bit for bit with ``generation`` 1.
+    against flickering, two materials per moving part; 3: anchors for sound and effects) only apply from their
+    generation on, so a batch exported with an older cubegen can be rebuilt bit for bit with ``generation`` 1 or 2.
     """
 
     size: Optional[str] = None       # S | M | L  -> picks from the lower / middle / upper third of size ranges
@@ -57,9 +60,9 @@ class Style:
     warning: Optional[str] = None    # none | always - warning stripes / bands
     wear: Optional[str] = None       # none | light | heavy - rubble, loose plates, torn cables (None = none / theme)
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
-    damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts)
+    damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts) | fractured
     theme: Optional[str] = None      # any text: rolls glow, material, wear and warning once for all assets
-    generation: int = 2              # model generation (GENERATIONS): 1 = as cubegen 0.9.0, 2 = current
+    generation: int = LATEST_GENERATION  # model generation (GENERATIONS): 1 = as cubegen 0.9.0, 2 = without anchors
 
     def validate(self) -> None:
         checks = [
@@ -69,7 +72,7 @@ class Style:
             ("warning", self.warning, (None, "none", "always")),
             ("wear", self.wear, (None, "none", "light", "heavy")),
             ("detail", self.detail, ("low", "normal", "high")),
-            ("damage", self.damage, ("intact", "damaged", "destroyed")),
+            ("damage", self.damage, DAMAGE_STATES),
         ]
         for name, value, allowed in checks:
             if value not in allowed:

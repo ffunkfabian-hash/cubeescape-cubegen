@@ -14,6 +14,7 @@ from typing import Optional
 from .asset import Asset
 from .geometry import box_uvs
 from .materials import MATERIALS, srgb_to_linear
+from .palette import PALETTE_MATERIAL, resolve, uv as palette_uv
 
 
 def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Optional[Asset] = None) -> None:
@@ -34,8 +35,12 @@ def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Op
         for x, y, z in mesh.verts:
             lines.append(f"v {x:.6f} {z:.6f} {-y:.6f}")
         uv_counts = []
+        materials = [resolve(material_map, obj.name, role) for role in mesh.roles]
         for fi, face in enumerate(mesh.faces):
-            uvs = box_uvs(mesh.face_points(fi), mesh.face_normal(fi))
+            if materials[fi] == PALETTE_MATERIAL:  # palette mode: every corner on the centre of the colour's cell
+                uvs = [palette_uv(mesh.roles[fi])] * len(face)
+            else:
+                uvs = box_uvs(mesh.face_points(fi), mesh.face_normal(fi))
             uv_counts.append(len(uvs))
             lines += [f"vt {u:.6f} {v:.6f}" for u, v in uvs]
         for fi in range(len(mesh.faces)):
@@ -45,7 +50,7 @@ def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Op
         current = None
         vt = vt_off + 1
         for fi, face in enumerate(mesh.faces):
-            role = (material_map or {}).get(mesh.roles[fi], mesh.roles[fi])
+            role = materials[fi]
             if role != current:
                 current = role
                 lines.append(f"usemtl {current}")
@@ -61,9 +66,9 @@ def write_obj(asset: Asset, path: str, mtl_file: str, material_map=None, lod: Op
         fh.write("\n".join(lines) + "\n")
 
 
-def write_mtl(path: str, textures=None) -> None:
+def write_mtl(path: str, textures=None, palette=None) -> None:
     """Material library with the Cube Escape materials (flat colours, emission for glow) and, if given,
-    the textured ``MT_...`` materials (paths relative to the .mtl)."""
+    the textured ``MT_...`` materials or the palette material ``MP_Palette`` (paths relative to the .mtl)."""
     base = os.path.dirname(os.path.abspath(path))
     lines = []
     for name, (color, smoothness, metallic, emission) in MATERIALS.items():
@@ -88,6 +93,18 @@ def write_mtl(path: str, textures=None) -> None:
             f"map_Kd {rel['Albedo']}",
             f"map_Pr {rel['Roughness']}",
             f"norm {rel['Normal']}",
+            "illum 2",
+            "",
+        ]
+    if palette:
+        rel = {k: os.path.relpath(v, base).replace(os.sep, "/") for k, v in palette["paths"].items()}
+        lines += [
+            f"newmtl {palette['name']}",
+            "Kd 1.0 1.0 1.0",
+            "Ks 0.0 0.0 0.0",
+            "Ke 1.0 1.0 1.0",
+            f"map_Kd {rel['Albedo']}",
+            f"map_Ke {rel['Emission']}",
             "illum 2",
             "",
         ]

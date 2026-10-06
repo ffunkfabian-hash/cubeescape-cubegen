@@ -2,6 +2,105 @@
 
 ## Unveröffentlicht
 
+Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus,
+symmetrisches Schwenken, vier neue Familien mit Requisiten, Zustand `fractured`, Text auf Modellen, Anker für Ton und
+Effekte, 35 neue Typen (jetzt 164).
+
+### Einrasten im Blender-Add-on
+
+* Neues Panel „Einrasten“: **Einrasten** setzt das Teil des aktiven Objekts an den nächsten passenden freien
+  Anschluss eines anderen Teils (ausgewählte Teile, sonst alle gebauten): Stegende an Stegende, Rampe an Steg oder
+  Plattform, Tür bzw. Portal in die Wandöffnung, Rohr an Rohr bzw. durch die Durchführung, Wandende an Wandende,
+  Wandabschluss auf die Wand, Sockelleiste an die Wandfläche, Deckenmodul an Deckenmodul. Das Teil dreht nur um die
+  Hochachse; belegte Anschlüsse werden übersprungen, wiederholtes Einrasten baut Ketten. **Anschlüsse zeigen** setzt
+  Pfeile an alle Anschlusspunkte, **Reichweite** begrenzt die Suche.
+* Kern in reinem Python (`cubegen/snapping.py`, getestet ohne Blender); welche Anschlussarten wie zusammengehören
+  (gegenüber oder gleich ausgerichtet), steht in `families.JOINS` neben den Passungsregeln `families.RULES`.
+* Neue Anschlüsse: Wände, Fensterwände und Torbögen haben `wall_top` (oben) und `face` (beide Wandflächen),
+  `ramp` (`floor_walk` unten, `ramp_top` oben), `ceiling_module` (`ceiling`, vier Kanten), `wall_cap` (`cap`,
+  `cap_end`), `baseboard` (`trim`, `trim_end`). Neue Passungsregeln: Wandabschluss auf der Wand (Stärke, Höhe, die
+  Wand ist ein ganzes Vielfaches des Abschlusses), Sockelleiste an der Wandfläche, Rampe an Steg/Plattform, Decke an
+  Decke, Abschluss an Abschluss, Leiste an Leiste.
+
+### Paletten-Modus (`--textures palette`)
+
+* Ein Material `MP_Palette` pro Modell, also ein Draw Call: Alle Farben des Spiels liegen als 16-px-Zellen in einer
+  64 × 64-Palettentextur, jede Fläche zeigt mit ihren UVs auf die Mitte ihrer Zelle (Punktfilterung). Dazu
+  Metallic/Smoothness- und Emissionsbild und `CubeEscape_Palette.json`. Reines Python (eigener PNG-Schreiber), auch mit
+  `--no-blender` (OBJ/MTL).
+* Glas und Teile, deren Material die Scripts umschalten (`SignalIndicator.renderers`, `Machine.glow`,
+  `SignalLight.glow`, `Rotatable.glow`, `Door.statusLights`), behalten ihr Material. Statische Modelle: 1 Draw Call
+  (2 mit Glas). `check --palette` zählt die Draw Calls so. Add-on: Texturen „Palette“, auch in der Vorschau.
+* Der Sidecar nennt `MP_Palette` als Material der Teile; sein Schema bleibt unverändert (kein `textures`-Eintrag,
+  den der Unity-Vertrag nicht kennt). Das Manifest beschreibt die Palette unter `textures`.
+
+### Symmetrisches Schwenken für `camera` und `turret`
+
+* Neuer Parameter `sweep` (Grad, 0 = aus): Der Kamerakopf (`Rotor`) bzw. das Geschütz (`Turret` mit `Gun` und
+  `Glow`) wird um den halben Winkel vorgedreht gebaut, `Rotator.arc` = `sweep` schwenkt es dann gleichmäßig nach
+  beiden Seiten (120 = ±60°); ohne `speed` mit 30 °/s. Die Kamera-LED wird dabei Kind des Kopfes und schwenkt mit.
+  Ohne `sweep` bleiben beide Typen unverändert.
+
+### Vier neue Familien mit Requisiten
+
+* `medbay` (Krankenstation), `derelict` (verlassenes Wrack, Stil `damage` damaged, starke Abnutzung),
+  `greenhouse` (Gewächshaus), `reactor` (Reaktor) - jeweils mit Bau-Kit und Requisiten im Kit (Liegen,
+  Laborgeräte, Waschraum, Schilder mit Text; Wracks, Bewuchs; Pflanzen, Wasser, Solarpanel; Reaktorkern, Trafo,
+  Kran, Countdown …). Passungsprüfung über drei Seeds ohne Befund.
+* Die Kits von `station`, `lab` und `foundry` enthalten zusätzlich Torbogen, Wandabschluss, Sockelleiste,
+  Decken-/Dachmodul und Rampe (neue Teile, bestehende unverändert).
+* Neues Maß `ceiling_thickness` (Deckenstärke); `wall_height`, `wall_thickness`, `module`, `door_width`,
+  `door_height`, `walk_width` gelten auch für die neuen Bau-Kit-Typen.
+
+### Zustand `fractured`
+
+* `--damage fractured` (Add-on: Zustand „Bruchstücke“): Das Modell sieht intakt aus, besteht aber aus 4-12
+  Bruchstücken `Fragment_<nn>`. Voronoi-Zellen um einige Seed-Punkte zerschneiden jede konvexe Grundform (Boxen,
+  gefaste Boxen, Zylinder), die Schnittflächen tragen das Bruchmaterial; andere Formen gehen ganz an die Zelle ihrer
+  Mitte. Jedes Bruchstück hat seinen Pivot in der Mitte und einen konvexen Mesh-Collider; das Volumen bleibt
+  erhalten, keine flackernden Flächen. Statisch (keine Scripts) bis Unity es zerstört.
+
+### Text auf Modellen
+
+* Low-Poly-Blockschrift (`cubegen/models/lettering.py`: A-Z, Ä Ö Ü, 0-9, `- + . : / _ ' ! #`).
+* `sign.text` (Schild mit Text statt Symbol, so breit wie der Text), `door.label` (Raumnummer über der Tür, eigenes
+  statisches Teil `Label`), `countdown.text`, `floor_plan.title`. Ohne Angabe bleiben alle Modelle unverändert.
+
+### Anker für Ton und Effekte (Generation 3)
+
+* Neue Modell-Generation 3 (Standard): Maschinen, Türen, Lifte, Fallen, Roboter, Geräte und viele neue Typen
+  bekommen leere Teile für Unity - `Audio_Hum`, `Audio_Door`, `Audio_Servo`, `Audio_Beep`, `Audio_Alarm` … und
+  `FX_Steam`, `FX_Sparks`, `FX_Smoke`, `FX_Dust`, `FX_Muzzle`, `FX_Spores` … (`cubegen/models/anchors.py`). Ein Anker
+  ist Kind des Teils, auf dem er sitzt, und bewegt sich mit ihm. Zerstörte Modelle haben `FX_Smoke`, Bruchstücke keine.
+* Die Geometrie bleibt exakt wie in Generation 2; `--generation 2` baut die bisherigen Modelle bitgleich nach
+  (geprüft: alle Fingerabdrücke der Generationen 1 und 2 unverändert).
+* **Geänderte Modelle in Generation 3** (neue leere Teile, Geometrie gleich): `breakable_platform`, `cable_mess`,
+  `camera`, `coffee_machine`, `console`, `conveyor`, `crusher`, `cryo_pod`, `crystal_cluster`, `door`, `drone`,
+  `fan`, `fluid_basin`, `force_field`, `gear_puzzle`, `generator`, `hanging_crystals`, `hologram`, `intercom`,
+  `keypad`, `lift`, `machine`, `monitor_wall`, `mushroom`, `pad`, `phase_platform`, `pipe`, `portal_frame`, `pump`,
+  `reactor_core`, `retractable_bridge`, `robot_arm`, `saw_blade`, `scanner`, `server_rack`, `service_robot`,
+  `shock_plate`, `shutter`, `spider_bot`, `spike_trap`, `steam_vent`, `terminal`, `transformer`, `turntable`,
+  `turret`, `vending_machine`, `vent`; alle Typen ab Zustand `destroyed` (`FX_Smoke`).
+* **Behoben in Generation 3**: Beschädigte Modelle (`--damage damaged`) schlagen von Teilen, aus denen Unity
+  Collider baut (`Door.colliders`, `Machine.body` …), nichts mehr ab. Bisher konnte ein Stück von `Frame_Top` auf
+  dem Boden liegen; die Hülle des Rahmens reichte dann quer durch die Türöffnung. Beschädigte Varianten dieser Typen
+  sehen dadurch etwas anders aus: `cargo_container`, `crusher`, `door`, `force_field`, `generator`, `lift`,
+  `machine`, `pump`, `reactor_core`, `shutter`, `transformer`.
+
+### Neue Typen (jetzt 164)
+
+* Bau-Kit: `ramp`, `ceiling_module`, `archway`, `wall_cap`, `baseboard`.
+* Rätsel: `push_block`, `sequence_panel`, `water_level`, `laser_filter`, `symbol_plate`, `crane`, `countdown`.
+* Requisiten: `lab_device` (Mikroskop, Reagenzglas-Ständer, Zentrifuge), `galley` (Küche, Messe, Kühlschrank),
+  `washroom` (Waschbecken, WC, Dusche), `floor_plan` (Lageplan).
+* Licht: `floodlight` (mit echter Lichtquelle über `SignalLight.lightPosition`/`range`/`intensity`),
+  `light_strip`, `emergency_light`.
+* Roboter: `patrol_drone`, `vent_crawler`, `robot_dog`, `mech`.
+* Natur / Alien: `vines`, `cocoon`, `wall_roots`, `fungus_carpet`, `puddle`; Weltraum: `escape_pod`,
+  `solar_panel`, `asteroid`, `planet_window`; Ruinen: `crashed_pod`, `burnt_console`, `collapsed_catwalk`.
+* Alle mit Unity-Vertrag geprüft (Sidecar und echte FBX), ohne flackernde Flächen, im Dreiecks- und Draw-Call-Budget,
+  in allen Zuständen. Rezept: `recipes/phase3_rooms.json`.
+
 ### Modell-Generationen
 
 * `--generation 1|2` (Rezept/Familie `"style": {"generation": 1}`, Add-on „Generation“, Standard 2): Korrekturen,

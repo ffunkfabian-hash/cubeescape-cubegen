@@ -53,7 +53,7 @@ class DamageTests(unittest.TestCase):
 
     def test_ruin_types(self):
         ruins = [t for t, e in REGISTRY.items() if e.category == "ruins"]
-        self.assertEqual(len(ruins), 7)
+        self.assertEqual(len(ruins), 10)  # 7 + crashed_pod, burnt_console, collapsed_catwalk
         for t in ruins:
             self.assertFalse(generate_asset(t, 1).behaviours, t)  # static decoration
 

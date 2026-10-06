@@ -1,0 +1,270 @@
+{
+  "family": "medbay",
+  "description": "Krankenstation: 3-m-Wände (0,3 m) im 2-m-Raster, Schiebetüren 1,6 x 2,2 m, helle Flächen, Cyan, Liegen, Kryo-Kapsel, Laborgeräte, Waschraum",
+  "seed": "medbay",
+  "style": {
+    "material": "light",
+    "glow": "cyan",
+    "warning": "none",
+    "wear": "none",
+    "detail": "normal"
+  },
+  "dims": {
+    "wall_height": 3.0,
+    "wall_thickness": 0.3,
+    "module": 2.0,
+    "ceiling_thickness": 0.15,
+    "door_style": "sliding",
+    "door_width": 1.6,
+    "door_height": 2.2,
+    "window_width": 1.2,
+    "window_height": 1.0,
+    "window_sill": 1.0,
+    "walk_width": 1.0,
+    "rail_height": 1.0,
+    "deck_height": 2.4,
+    "platform_size": 2.0,
+    "pipe_radius": 0.09,
+    "pipe_height": 0.5
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "_comment": "corner piece, archway, wall cap, baseboard, ceiling / roof module",
+      "type": "wall_corner",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
+      "type": "archway",
+      "pick": [
+        0
+      ],
+      "params": {
+        "shape": "chamfer"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "flat"
+      }
+    },
+    {
+      "type": "baseboard",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "glow"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "coffered"
+      }
+    },
+    {
+      "type": "door",
+      "pick": [
+        0
+      ],
+      "params": {
+        "label": "MED-1"
+      }
+    },
+    {
+      "_comment": "glass partition, a ramp for stretchers",
+      "type": "window_wall",
+      "count": 1
+    },
+    {
+      "type": "ramp",
+      "count": 1
+    },
+    {
+      "_comment": "props: beds, cryo pod, medkits, lab, washroom, signs",
+      "type": "bed",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "medical"
+      }
+    },
+    {
+      "type": "bed",
+      "pick": [
+        1
+      ],
+      "params": {
+        "style": "cot"
+      }
+    },
+    {
+      "type": "cryo_pod",
+      "count": 1
+    },
+    {
+      "type": "medkit",
+      "count": 1
+    },
+    {
+      "type": "table",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "lab"
+      }
+    },
+    {
+      "type": "lab_device",
+      "pick": [
+        0
+      ],
+      "params": {
+        "kind": "microscope"
+      }
+    },
+    {
+      "type": "lab_device",
+      "pick": [
+        1
+      ],
+      "params": {
+        "kind": "tube_rack"
+      }
+    },
+    {
+      "type": "lab_device",
+      "pick": [
+        2
+      ],
+      "params": {
+        "kind": "centrifuge"
+      }
+    },
+    {
+      "type": "washroom",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "sink"
+      }
+    },
+    {
+      "type": "washroom",
+      "pick": [
+        1
+      ],
+      "params": {
+        "style": "toilet"
+      }
+    },
+    {
+      "type": "washroom",
+      "pick": [
+        2
+      ],
+      "params": {
+        "style": "shower"
+      }
+    },
+    {
+      "type": "monitor_wall",
+      "count": 1
+    },
+    {
+      "type": "chair",
+      "count": 1
+    },
+    {
+      "type": "locker",
+      "count": 1
+    },
+    {
+      "type": "bin",
+      "count": 1
+    },
+    {
+      "type": "light_strip",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "led"
+      }
+    },
+    {
+      "type": "emergency_light",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "exit"
+      }
+    },
+    {
+      "type": "sign",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "MED-1"
+      }
+    },
+    {
+      "type": "floor_plan",
+      "pick": [
+        0
+      ],
+      "params": {
+        "title": "KRANKENSTATION"
+      }
+    }
+  ]
+}

@@ -4,4 +4,5 @@ from .registry import REGISTRY, ModelType, asset_name, generate_asset, model, mo
 
 # Importing the modules registers their model types.
 from . import (appliances, construction, environment, furniture, industrial, items, kit, machinery, mechanisms,  # noqa: F401,E402
-               nature, props, puzzle, riddles, robots, ruins, structure, tech, traps, gameplay)
+               nature, props, puzzle, riddles, robots, ruins, structure, tech, traps, gameplay, buildkit, logic,
+               facilities, lighting, rovers, alien, space, wrecks)

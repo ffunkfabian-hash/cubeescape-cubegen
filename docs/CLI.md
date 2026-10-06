@@ -30,7 +30,7 @@ cubegen doctor
 | Befehl | Wofür |
 |---|---|
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
-| `python3 -m cubegen list` | alle 129 Modelltypen nach Kategorie (`--json` für Skripte) |
+| `python3 -m cubegen list` | alle 164 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
 | `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
 | `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
@@ -163,8 +163,15 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--warning` | none / always | Warnstreifen nie oder immer |
 | `--wear` | none / light / heavy | Schutt, lose Platten, Kabel um das Modell |
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
-| `--damage` | intact / damaged / destroyed | beschädigt bzw. Ruine (statisch, ohne Scripts) |
-| `--generation` | 1 / 2 | Modell-Generation (Standard 2); 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
+| `--damage` | intact / damaged / destroyed / fractured | beschädigt, Ruine (statisch, ohne Scripts) oder in Bruchstücke `Fragment_<nn>` zerlegt, die Unity bei Zerstörung herausfallen lässt |
+| `--generation` | 1 / 2 / 3 | Modell-Generation (Standard 3 = mit Ankern `Audio_*`/`FX_*` für Ton und Effekte); 2 = ohne Anker, 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
+
+**Text auf Modellen** (Parameter, ohne Angabe bleibt alles wie bisher): `--param sign.text=B-12` (Schild mit
+Text), `--param door.label=LAB-3` (Raumnummer über der Tür), `--param countdown.text=EVAKUIERUNG`,
+`--param "floor_plan.title=DECK 3"`. Erlaubt sind A–Z, Ä Ö Ü, 0–9 und `- + . : / _ ' ! #`.
+
+**Schwenken statt Drehen**: `--param camera.sweep=120` bzw. `--param turret.sweep=120` schwenkt Kamerakopf bzw.
+Geschütz um ±60° hin und her (`Rotator.arc`), ohne `speed` mit 30 °/s.
 
 ## 8. Modellfamilien und Bau-Kits
 
@@ -174,7 +181,9 @@ Achshöhe, dazu Material, Glow, Warnfarbe, Abnutzung, Detailgrad und Texturset. 
 genügt dafür nicht, die Passung kommt aus den verbindlichen Maßen (`python3 -m cubegen families --dims`
 zeigt, welches Maß welche Parameter setzt).
 
-Mitgeliefert: `station`, `foundry`, `lab` (`python3 -m cubegen families`).
+Mitgeliefert: `station`, `foundry`, `lab` und mit Requisiten im Kit `medbay` (Krankenstation), `derelict`
+(verlassenes Wrack, beschädigt), `greenhouse` (Gewächshaus) und `reactor` (`python3 -m cubegen families`). Alle
+Kits enthalten außerdem Torbogen, Wandabschluss, Sockelleiste, Decken-/Dachmodul und Rampe.
 
 ```bash
 # A: das ganze Kit (Wände mit Tür/Fenster/Rohr, Tür, Portal, Stegstücke, Treppen, Brücke, Plattformen,
@@ -211,8 +220,8 @@ verändern keine bestehenden.
 **Prüfen:** `python3 -m cubegen check --family station` setzt die Teile des Kits aneinander und prüft
 Breiten, Höhen und Ausrichtung der Anschlüsse, die obere Ebene (`deck_height`), begehbaren Boden über jeder
 Fuge (auch an Rampen), dass nichts den Durchgang über der Fuge blockiert, Tür und Portal in der
-Wandöffnung (Rahmen = Ausschnitt, lichte Öffnung frei), Rohre durch Durchführungen, und den gemeinsamen
-Look. `generate --family` schreibt dasselbe ins Manifest (`family.fit`); dazu `family` (Name, Datei, Maße,
+Wandöffnung (Rahmen = Ausschnitt, lichte Öffnung frei), Rohre durch Durchführungen, Wandabschluss auf der Wand,
+Sockelleiste an der Wandfläche, Decke an Decke, und den gemeinsamen Look. `generate --family` schreibt dasselbe ins Manifest (`family.fit`); dazu `family` (Name, Datei, Maße,
 Abweichungen) und pro Modell `param_sources` (woher jeder Parameter kommt: `dims.<Maß>`, `family`,
 `recipe`, `kit`, `cli`) und `connectors` (Anschlusspunkte in Unity-Koordinaten).
 
@@ -277,9 +286,13 @@ Rezepte werden geprüft: Ein Tippfehler bricht mit einem Hinweis ab, statt still
 python3 -m cubegen generate --seed 42 --textures tiled --texture-size 1024
 # pro Asset gebacken (langsamer)
 python3 -m cubegen generate --seed 42 --types machine --textures baked
+# ein Material mit Farbpalette pro Modell: 1 Draw Call (reines Python, auch mit --no-blender)
+python3 -m cubegen generate --seed 42 --textures palette
+python3 -m cubegen check --palette        # Draw Calls im Paletten-Modus
 ```
 
-Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Details in der README.
+Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Im Paletten-Modus behalten Glas
+und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Material. Details in der README.
 
 ## 12. Previews und Icons
 
@@ -292,7 +305,7 @@ Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spi
 | `--engine cycles` | Render-Engine; `auto` fällt ohne GPU auf Cycles zurück |
 | `--no-render` | keine Previews, Icons, Kontaktbogen (schnell) |
 
-Deckenteile (`ceiling_panel`, `hanging_crystals`) werden automatisch von unten gezeigt.
+Deckenteile (`ceiling_panel`, `hanging_crystals`, `ceiling_module`) werden automatisch von unten gezeigt.
 
 ## 13. Schnell und ohne Blender
 
@@ -373,8 +386,8 @@ schon, bevor er Dateien schreibt.
 | `--unique` | – | ähnlich aussehende Varianten überspringen |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
-| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 2) | Stil, siehe Abschnitt 7 |
-| `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen, siehe Abschnitt 10 |
+| `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 3) | Stil, siehe Abschnitt 7 |
+| `--textures`, `--texture-size`, `--texture-set`, `--textures-dir` | none, 512 | Texturen (none / tiled / baked / palette), siehe Abschnitt 11 |
 | `--out` | `output/seed_<seed>` | Ausgabeordner |
 | `--models-dir`, `--library-dir`, `--icons-dir` | im Ausgabeordner | Zielordner, siehe Abschnitt 8 |
 | `--formats` | fbx | `fbx`, `glb`, `gltf`, `obj`, kommagetrennt |

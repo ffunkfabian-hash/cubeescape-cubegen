@@ -13,7 +13,7 @@ import math
 
 from ..geometry import sphere
 from ..params import Param
-from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, rotated, strut
+from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, rotated, strut, sweep_param, sweep_rotator
 from .registry import model
 
 
@@ -231,6 +231,7 @@ def robot_arm(rng, a):
            Param("speed", "float", "Schwenk-Tempo (°/s, 0 = steht)", lo=0, hi=360, unity=True, default=0,
                  description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
            Param("mode", "choice", "Visier-Modus", choices=("Steady", "Pulse", "Blink"), unity=True, default="Steady"),
+           sweep_param(),
        ])
 def turret(rng, a):
     p = a.p
@@ -273,9 +274,9 @@ def turret(rng, a):
     cyl(a.part("Glow", parent="Gun"), s * 0.03, s * 0.03, (0, -s * 0.25, trunnion[2] + s * 0.1), "M_GlowRed",
         sides=8, rot=ALONG_Y)
     a.meta["barrels"] = n
-    a.behaviour("Rotator", {"target": "Turret"}, {"axis": "up", "speed": p.option("speed")},
-                note="yaw around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep); Gun tilts "
-                     "around Unity right")
+    sweep_rotator(a, "Turret", p.option("speed"), p.option("sweep"),
+                  "yaw around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep); Gun tilts "
+                  "around Unity right")
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 
 

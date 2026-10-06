@@ -1,0 +1,238 @@
+{
+  "family": "derelict",
+  "description": "Verlassenes Wrack: 3-m-Wände, Sicherheitstüren 1,8 x 2,2 m, dunkel, orange Notbeleuchtung, beschädigt mit starker Abnutzung, Trümmer, Wurzeln, abgestürzte Kapsel",
+  "seed": "derelict",
+  "style": {
+    "material": "dark",
+    "glow": "orange",
+    "warning": "always",
+    "wear": "heavy",
+    "detail": "normal",
+    "damage": "damaged"
+  },
+  "dims": {
+    "wall_height": 3.0,
+    "wall_thickness": 0.5,
+    "module": 4.0,
+    "ceiling_thickness": 0.25,
+    "door_style": "security",
+    "door_width": 1.8,
+    "door_height": 2.2,
+    "window_width": 1.6,
+    "window_height": 1.0,
+    "window_sill": 1.2,
+    "walk_width": 2.0,
+    "rail_height": 1.0,
+    "deck_height": 2.5,
+    "platform_size": 2.0,
+    "pipe_radius": 0.18,
+    "pipe_height": 0.6
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "_comment": "corner piece, archway, wall cap, baseboard, ceiling / roof module",
+      "type": "wall_corner",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
+      "type": "archway",
+      "pick": [
+        0
+      ],
+      "params": {
+        "shape": "chamfer"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "bevel"
+      }
+    },
+    {
+      "type": "baseboard",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "duct"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "beams"
+      }
+    },
+    {
+      "type": "door",
+      "pick": [
+        0
+      ],
+      "params": {
+        "label": "B-07"
+      }
+    },
+    {
+      "_comment": "walkways and stairs (damaged), a collapsed one",
+      "type": "catwalk",
+      "count": 1
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        1
+      ],
+      "params": {
+        "shape": "corner"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "stairs"
+      }
+    },
+    {
+      "type": "collapsed_catwalk",
+      "count": 1
+    },
+    {
+      "_comment": "props: wreckage, growth, emergency lights",
+      "type": "broken_wall",
+      "count": 1
+    },
+    {
+      "type": "crashed_pod",
+      "count": 1
+    },
+    {
+      "type": "burnt_console",
+      "count": 1
+    },
+    {
+      "type": "cable_mess",
+      "count": 1
+    },
+    {
+      "type": "rubble_pile",
+      "count": 1
+    },
+    {
+      "type": "debris",
+      "count": 1
+    },
+    {
+      "type": "crate_pile",
+      "count": 1
+    },
+    {
+      "type": "android",
+      "pick": [
+        0
+      ],
+      "params": {
+        "pose": "slumped"
+      }
+    },
+    {
+      "type": "wall_roots",
+      "count": 1
+    },
+    {
+      "type": "vines",
+      "count": 1
+    },
+    {
+      "type": "puddle",
+      "pick": [
+        0
+      ],
+      "params": {
+        "kind": "oil"
+      }
+    },
+    {
+      "type": "emergency_light",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "beacon"
+      }
+    },
+    {
+      "type": "floodlight",
+      "pick": [
+        0
+      ],
+      "params": {
+        "mount": "tripod"
+      }
+    },
+    {
+      "type": "sign",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "SEKTOR 7"
+      }
+    },
+    {
+      "type": "countdown",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "LEBENSERHALTUNG"
+      }
+    }
+  ]
+}

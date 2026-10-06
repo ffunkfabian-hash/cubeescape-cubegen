@@ -39,22 +39,29 @@ FAMILY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "family_da
 
 # measure -> (label, [(type, parameter)]) - every type listed follows the measure
 DIMS: Dict[str, Tuple[str, Tuple[Tuple[str, str], ...]]] = {
-    "wall_height": ("Wandhöhe (m)", (("wall", "height"), ("window_wall", "height"), ("wall_corner", "height"))),
+    "wall_height": ("Wandhöhe (m)", (("wall", "height"), ("window_wall", "height"), ("wall_corner", "height"),
+                                     ("archway", "height"), ("wall_cap", "height"),
+                                     ("ceiling_module", "mount_height"))),
     "wall_thickness": ("Wandstärke (m)", (("wall", "thickness"), ("window_wall", "thickness"),
-                                          ("wall_corner", "thickness"))),
+                                          ("wall_corner", "thickness"), ("archway", "thickness"),
+                                          ("wall_cap", "thickness"))),
     "module": ("Modullänge (m)", (("wall", "length"), ("catwalk", "length"), ("pipe", "length"),
                                   ("retractable_bridge", "length"), ("window_wall", "length"),
-                                  ("cable_tray", "length"))),
+                                  ("cable_tray", "length"), ("ramp", "length"), ("archway", "length"),
+                                  ("wall_cap", "length"), ("baseboard", "length"), ("ceiling_module", "size"))),
+    "ceiling_thickness": ("Deckenstärke (m)", (("ceiling_module", "thickness"),)),
     "door_style": ("Tür-Stil (Rahmenprofil)",
                    (("door", "style"), ("wall", "door_style"), ("portal_frame", "frame_style"))),
-    "door_width": ("Türöffnung Breite (m)", (("door", "width"), ("wall", "door_width"), ("portal_frame", "width"))),
+    "door_width": ("Türöffnung Breite (m)", (("door", "width"), ("wall", "door_width"), ("portal_frame", "width"),
+                                             ("archway", "width"))),
     "door_height": ("Türöffnung Höhe (m)",
-                    (("door", "height"), ("wall", "door_height"), ("portal_frame", "height"))),
+                    (("door", "height"), ("wall", "door_height"), ("portal_frame", "height"),
+                     ("archway", "opening_height"))),
     "window_width": ("Fenster Breite (m)", (("wall", "window_width"),)),
     "window_height": ("Fenster Höhe (m)", (("wall", "window_height"),)),
     "window_sill": ("Fenster Brüstung (m)", (("wall", "window_sill"), ("window_wall", "sill"))),
     "walk_width": ("Laufstegbreite (m)", (("catwalk", "width"), ("retractable_bridge", "width"),
-                                          ("stairs", "width"))),
+                                          ("stairs", "width"), ("ramp", "width"))),
     "rail_height": ("Geländerhöhe (m)", (("catwalk", "rail_height"), ("railing", "height"))),
     "deck_height": ("Höhe der oberen Ebene (m)", (("stairs", "rise"), ("lift", "travel"))),
     "platform_size": ("Plattformgröße (m)", (("platform", "size"), ("phase_platform", "size"),
@@ -307,17 +314,38 @@ def connectors(asset, model_type: str) -> List[Dict[str, Any]]:
         h, t = params.get("height", 3.0), params.get("thickness", 0.5)
         for s in (-1, 1):
             out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=h, thickness=t))
+        out += _wall_faces(ln, h, t)
         hole = meta.get("opening")
         if hole:
             kind = {"door": "opening", "window": "window", "pipe": "duct"}[hole["kind"]]
             pos = (hole["center_x"], 0, hole["z0"] if kind != "duct" else hole["duct_height"])
             out.append(_con(hole["kind"], kind, pos, (0, -1, 0), width=hole["width"], height=hole["height"],
                             thickness=t, **({"radius": hole["duct_radius"]} if kind == "duct" else {})))
-    elif model_type == "window_wall":
+    elif model_type in ("window_wall", "archway"):
         ln = meta["length_m"]
         h, t = params.get("height", 3.0), params.get("thickness", 0.5)
         for s in (-1, 1):
             out.append(_con(f"end_{s:+d}", "wall_end", (s * ln / 2, 0, 0), (s, 0, 0), height=h, thickness=t))
+        out += _wall_faces(ln, h, t)
+    elif model_type == "ramp":
+        w, run, rise = params["width"], meta["run_m"], meta["rise_m"]
+        out.append(_con("bottom", "floor_walk", (0, -run / 2, 0), (0, -1, 0), width=w))
+        out.append(_con("top", "ramp_top", (0, run / 2, rise), (0, 1, 0), width=w))
+    elif model_type == "ceiling_module":
+        s, h, t = meta["size_m"], params["mount_height"], meta["thickness_m"]
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            out.append(_con(f"edge_{dx:+d}{dy:+d}", "ceiling", (dx * s / 2, dy * s / 2, h), (dx, dy, 0), width=s,
+                            height=h, thickness=t))
+    elif model_type == "wall_cap":
+        ln, h, t = meta["length_m"], params["height"], params["thickness"]
+        out.append(_con("cap", "cap", (0, 0, h), (1, 0, 0), width=ln, height=h, thickness=t))
+        for s in (-1, 1):
+            out.append(_con(f"end_{s:+d}", "cap_end", (s * ln / 2, 0, h), (s, 0, 0), height=h, thickness=t))
+    elif model_type == "baseboard":
+        ln, bh = meta["length_m"], meta["height_m"]
+        out.append(_con("back", "trim", (0, 0, 0), (0, -1, 0), width=ln, height=bh))
+        for s in (-1, 1):
+            out.append(_con(f"end_{s:+d}", "trim_end", (s * ln / 2, 0, 0), (s, 0, 0), height=bh))
     elif model_type == "wall_corner":  # walls join the faces that aren't exposed
         h, t = params.get("height", 3.0), params.get("thickness", 0.5)
         sides = {"corner": ((1, 0), (0, 1)), "end": ((1, 0),), "tee": ((-1, 0), (1, 0), (0, 1))}[meta["style"]]
@@ -352,6 +380,13 @@ def connectors(asset, model_type: str) -> List[Dict[str, Any]]:
         if "outlet" in meta.get("pipe_ends", {}):  # the inlet pours in over the rim: no pipe joint
             out.append(_con("outlet", "pipe", meta["pipe_ends"]["outlet"], (-1, 0, 0), radius=r))
     return out
+
+
+def _wall_faces(ln, h, t) -> List[Dict[str, Any]]:
+    """Top (for a wall cap) and both faces (for baseboards) of a wall module along X."""
+    return [_con("top", "wall_top", (0, 0, h), (1, 0, 0), width=ln, height=h, thickness=t),
+            _con("face_front", "face", (0, -t / 2, 0), (0, -1, 0), width=ln, height=h),
+            _con("face_back", "face", (0, t / 2, 0), (0, 1, 0), width=ln, height=h)]
 
 
 def _axis(params, r) -> float:
@@ -567,10 +602,56 @@ def check_wall_ends(a, a_type, ca, b, b_type, cb) -> List[str]:
     return problems
 
 
+def _on_grid(wall_length: float, piece: float) -> bool:
+    """A wall of 4 m takes two 2 m caps / baseboards: the wall is a whole multiple of the piece."""
+    n = round(wall_length / piece) if piece > 0 else 0
+    return n >= 1 and abs(n * piece - wall_length) <= TOL
+
+
+def check_cap(wall, wall_type, cw, cap, cap_type, cc) -> List[str]:
+    """Wall cap on a wall top: same thickness and height, the wall a whole number of caps long."""
+    problems = []
+    for key in ("thickness", "height"):
+        if abs(cw[key] - cc[key]) > TOL:
+            problems.append(f"{key} {cw[key]:.3f} vs {cc[key]:.3f} m")
+    if not _on_grid(cw["width"], cc["width"]):
+        problems.append(f"cap {cc['width']:.3f} m doesn't divide the wall's {cw['width']:.3f} m")
+    return problems
+
+
+def check_trim(wall, wall_type, cw, trim, trim_type, ct) -> List[str]:
+    """Baseboard along a wall face: the wall a whole number of baseboards long, lower than the wall."""
+    problems = []
+    if not _on_grid(cw["width"], ct["width"]):
+        problems.append(f"baseboard {ct['width']:.3f} m doesn't divide the wall face's {cw['width']:.3f} m")
+    if ct["height"] >= cw["height"]:
+        problems.append(f"baseboard {ct['height']:.3f} m as high as the wall")
+    return problems
+
+
+def check_same(*keys):
+    """Two pieces of the same kind side by side: these measures must match."""
+    def check(a, a_type, ca, b, b_type, cb) -> List[str]:
+        return [f"{key} {ca[key]:.3f} vs {cb[key]:.3f} m" for key in keys if abs(ca[key] - cb[key]) > TOL]
+    return check
+
+
 RULES = {  # (kind A, kind B) -> check
     ("walk", "walk"): check_walk, ("walk", "walk_edge"): check_walk,
+    ("ramp_top", "walk"): check_walk, ("ramp_top", "walk_edge"): check_walk,
     ("opening", "door"): check_door, ("duct", "pipe"): check_duct,
     ("pipe", "pipe"): check_pipe, ("wall_end", "wall_end"): check_wall_ends,
+    ("wall_top", "cap"): check_cap, ("face", "trim"): check_trim,
+    ("cap_end", "cap_end"): check_same("thickness", "height"), ("trim_end", "trim_end"): check_same("height"),
+    ("ceiling", "ceiling"): check_same("width", "height", "thickness"),
+}
+#: how two connector kinds join (for snapping): "face" = opposite directions, "align" = same direction
+JOINS = {
+    ("walk", "walk"): "face", ("walk", "walk_edge"): "face", ("ramp_top", "walk"): "face",
+    ("ramp_top", "walk_edge"): "face", ("opening", "door"): "align", ("duct", "pipe"): "face",
+    ("pipe", "pipe"): "face", ("wall_end", "wall_end"): "face", ("wall_top", "cap"): "align",
+    ("face", "trim"): "align", ("cap_end", "cap_end"): "face", ("trim_end", "trim_end"): "face",
+    ("ceiling", "ceiling"): "face", ("walk_edge", "walk_edge"): "face",
 }
 
 
@@ -620,5 +701,5 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
     return []
 
 
-__all__ = ["DIMS", "FIXED", "family_files", "find_family", "load_family", "check_dims", "derived_params",
+__all__ = ["DIMS", "FIXED", "RULES", "JOINS", "family_files", "find_family", "load_family", "check_dims", "derived_params",
            "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]

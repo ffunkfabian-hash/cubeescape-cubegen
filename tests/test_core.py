@@ -135,7 +135,7 @@ class SeedTests(unittest.TestCase):
 
 class ModelTests(unittest.TestCase):
     def test_registry(self):
-        self.assertGreaterEqual(len(model_types()), 121)
+        self.assertGreaterEqual(len(model_types()), 164)
         for entry in REGISTRY.values():
             self.assertTrue(entry.description)
             self.assertIn(entry.pivot, ("floor", "top", "center", "wall"))
@@ -312,7 +312,8 @@ class ModelTests(unittest.TestCase):
             self.assertEqual(sum(b["script"] == "Rotator" for b in drone.behaviours), drone.meta["rotors"])
 
     def test_ceiling_pieces_are_viewed_from_below(self):
-        self.assertEqual({t for t, e in REGISTRY.items() if e.view == "below"}, {"ceiling_panel", "hanging_crystals"})
+        self.assertEqual({t for t, e in REGISTRY.items() if e.view == "below"},
+                         {"ceiling_panel", "hanging_crystals", "ceiling_module"})
 
     def test_doors_have_game_part_names(self):
         for seed in range(20):
@@ -348,7 +349,8 @@ class ModelTests(unittest.TestCase):
 
 
 WALKABLE = ("stairs", "catwalk", "platform", "floor_tile", "floating_island", "hatch", "floor_grate", "vent_shaft",
-            "lift", "force_field", "spiral_stairs", "railing", "cage", "crusher", "shock_plate")
+            "lift", "force_field", "spiral_stairs", "railing", "cage", "crusher", "shock_plate", "ramp", "archway",
+            "ceiling_module", "collapsed_catwalk", "push_block")
 
 
 def box_corners(c):

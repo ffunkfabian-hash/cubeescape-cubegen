@@ -15,6 +15,7 @@
     "wall_height": 3.0,
     "wall_thickness": 0.3,
     "module": 2.0,
+    "ceiling_thickness": 0.15,
     "door_style": "security",
     "door_width": 1.4,
     "door_height": 2.1,
@@ -212,6 +213,39 @@
     },
     {
       "type": "cargo_container",
+      "count": 1
+    },
+    {
+      "_comment": "archway, wall cap, baseboard, ceiling module and ramp (added later: other parts unchanged)",
+      "type": "archway",
+      "count": 1,
+      "params": {
+        "shape": "chamfer"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "count": 1,
+      "params": {
+        "style": "glow"
+      }
+    },
+    {
+      "type": "baseboard",
+      "count": 1,
+      "params": {
+        "style": "plain"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "count": 1,
+      "params": {
+        "style": "coffered"
+      }
+    },
+    {
+      "type": "ramp",
       "count": 1
     }
   ]

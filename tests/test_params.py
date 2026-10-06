@@ -138,7 +138,7 @@ class StyleTests(unittest.TestCase):
         self.assertEqual(Style().generation, LATEST_GENERATION)
         self.assertEqual(Style.from_dict({"generation": "1"}).generation, 1)
         with self.assertRaises(ValueError):
-            Style(generation=3).validate()
+            Style(generation=4).validate()
         old = generate_asset("door", 0, style=Style(generation=1))
         new = generate_asset("door", 0)
         self.assertTrue(z_fighting(old, pivot="floor"))  # 0.9.0: the frame's warning band flickers
@@ -151,8 +151,8 @@ class StyleTests(unittest.TestCase):
         import io
         from contextlib import redirect_stderr
 
-        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):  # argparse: only 1 or 2
-            make_parser().parse_args(["generate", "--generation", "3"])
+        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):  # argparse: only 1, 2 or 3
+            make_parser().parse_args(["generate", "--generation", "4"])
 
     def test_match_rebuilds_old_sidecars_as_generation_1(self):
         from cubegen.families import resolve

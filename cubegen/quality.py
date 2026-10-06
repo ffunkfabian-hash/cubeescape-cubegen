@@ -186,12 +186,19 @@ def draw_call_budget(asset) -> int:
     return max(DRAW_CALL_BUDGET, DRAW_CALLS_PER_OBJECT * len(objects) + 2) + wear
 
 
-def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0) -> Dict:
-    """Metrics and problems of one asset (``budget_scale``: 1.5 for detail "high")."""
+def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0, palette: bool = False) -> Dict:
+    """Metrics and problems of one asset (``budget_scale``: 1.5 for detail "high"; ``palette``: draw calls with
+    ``--textures palette``)."""
     stats = asset.stats()
     budget = int(TRIANGLE_BUDGET.get(category, DEFAULT_TRIANGLE_BUDGET) * budget_scale)
     fights = z_fighting(asset, pivot=pivot)
-    calls, call_budget = draw_calls(asset), draw_call_budget(asset)
+    if palette:
+        from .palette import draw_calls as palette_draw_calls
+
+        calls = palette_draw_calls(asset)
+    else:
+        calls = draw_calls(asset)
+    call_budget = draw_call_budget(asset)
     errors, warnings = [], []
     if stats["triangles"] > budget:
         errors.append(f"{stats['triangles']} triangles > budget {budget}")
@@ -206,7 +213,8 @@ def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0) -> D
             "errors": errors, "warnings": warnings}
 
 
-def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_scale: float = 1.0) -> Dict[str, Dict]:
+def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_scale: float = 1.0,
+           palette: bool = False) -> Dict[str, Dict]:
     """Per type over ``seeds`` variants: max triangles, max draw calls, z-fighting, distinct variants.
 
     ``build(type, index)`` returns the asset of a variant.
@@ -216,7 +224,7 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
     result = {}
     for t in model_types:
         entry = registry[t]
-        rows = [check(build(t, i), entry.category, entry.pivot, budget_scale) for i in range(seeds)]
+        rows = [check(build(t, i), entry.category, entry.pivot, budget_scale, palette) for i in range(seeds)]
         fights = [len(r["z_fighting"]) for r in rows]
         result[t] = {
             "category": entry.category,

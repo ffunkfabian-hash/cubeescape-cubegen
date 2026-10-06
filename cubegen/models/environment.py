@@ -16,6 +16,7 @@ import math
 
 from ..params import Param
 from .common import ALONG_X, cube, cyl, deg, frustum, stripes
+from .lettering import add_text, check_text, text_width
 from .registry import model
 
 DOOR_STYLES = {
@@ -58,6 +59,8 @@ def _door_offset(style: str, width: float, height: float, split) -> list:
            Param("width", "float", "Öffnung Breite (m)", lo=0.6, hi=8.0, size=True),
            Param("height", "float", "Öffnung Höhe (m)", lo=1.2, hi=8.0, size=True),
            Param("speed", "float", "Öffnungstempo (m/s)", lo=0.05, hi=20.0, unity=True),
+           Param("label", "text", "Raumnummer / Beschriftung", quiet=True,
+                 description="Schild über der Tür, z. B. B-12 (bis 12 Zeichen); eigenes statisches Teil Label"),
        ])
 def door(rng, a):
     p = a.p
@@ -109,6 +112,17 @@ def door(rng, a):
         leaf("Panel_B", width, height / 2, (0, 0, height * 3 / 4))
     else:
         leaf("Panel", width, height, (0, 0, height / 2))
+
+    label = p.option("label")
+    if label:  # room number plate above the frame, proud of the wall face
+        label = check_text(label, max_len=12)
+        letters = 0.16
+        lw = text_width(label, letters) + 0.16
+        plate = a.part("Label")
+        z = height + top + 0.06 + letters / 2 + 0.04
+        cube(plate, (lw, 0.04, letters + 0.08), (0, -depth / 2 - 0.02, z), "M_RobotDark", bevel=0.01)
+        add_text(plate, label, (0, -depth / 2 - 0.04, z), letters, 0.015, "M_Platform")
+        a.meta["label"] = label
 
     # Unity moves the second leaf by -openOffset: first the leaf that moves along +openOffset
     panels = {"x": ["Panel", "Panel_B"], "z": ["Panel_B", "Panel"]}.get(split, ["Panel"])

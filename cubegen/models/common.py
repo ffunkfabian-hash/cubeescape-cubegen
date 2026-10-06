@@ -182,3 +182,57 @@ def item_pickup(a, parts):
         fields["itemId"] = item_id
     a.behaviour("ItemPickup", {"model": parts}, fields,
                 note="ItemPickup turns the whole model around world Y and lets it float")
+
+
+def sweep_param(label: str = "Schwenkbereich (°, 0 = aus)"):
+    """``sweep``: symmetric panning with the game's ``Rotator.arc`` (an option: without it nothing changes)."""
+    return Param("sweep", "float", label, lo=0, hi=300, unity=True, default=0, quiet=True,
+                 description="Schwenkt hin und her statt endlos zu drehen: das Teil ist um den halben Winkel "
+                             "vorgedreht gebaut, Rotator.arc = Winkel (z. B. 120 = ±60°); ohne speed 30 °/s")
+
+
+def prerotate(a, part: str, angle: float, adopt=()) -> None:
+    """Turn ``part`` and everything below it by ``angle`` (radians, Blender Z) around its own vertical pivot axis.
+
+    ``adopt`` lists root parts that sit on ``part`` and become its children first (e.g. a camera's LED), so they
+    turn with it. Used for symmetric sweeps: Unity's ``Rotator.arc`` swings from the build pose by ``arc`` degrees,
+    a part built turned by half the arc against the turning direction swings evenly to both sides.
+    """
+    for name in adopt:
+        obj = a.get(name)
+        obj.parent = part
+        a.objects.remove(obj)
+        a.objects.insert(a.objects.index(a.get(part)) + 1, obj)
+    turned = {part}
+    for obj in a.objects:  # parents come before their children
+        if obj.parent in turned:
+            turned.add(obj.name)
+    px, py = a.get(part).pivot[0], a.get(part).pivot[1]
+    c, s = math.cos(angle), math.sin(angle)
+
+    def turn(v):
+        x, y = v[0] - px, v[1] - py
+        return (px + c * x - s * y, py + s * x + c * y, v[2])
+
+    for obj in a.objects:
+        if obj.name in turned:
+            obj.pivot = turn(obj.pivot)
+            if obj.mesh is not None:
+                obj.mesh.verts = [turn(v) for v in obj.mesh.verts]
+    for col in a.colliders:
+        if col.part in turned and col.kind == "box":
+            col.center = turn(col.center)
+            col.rot = (col.rot[0], col.rot[1], col.rot[2] + angle)
+
+
+def sweep_rotator(a, target: str, speed: float, sweep: float, note: str) -> None:
+    """``Rotator`` around Unity up: endless with ``speed``, or a symmetric sweep of ``sweep`` degrees."""
+    if not sweep:
+        a.behaviour("Rotator", {"target": target}, {"axis": "up", "speed": speed}, note=note)
+        return
+    speed = speed or 30.0
+    prerotate(a, target, math.radians(sweep / 2))  # Unity yaw +speed = Blender -Z: start half the arc back
+    a.meta["sweep_deg"] = [-sweep / 2, sweep / 2]
+    a.behaviour("Rotator", {"target": target}, {"axis": "up", "speed": speed, "arc": sweep},
+                note=f"sweeps {sweep:g} degrees: built turned -{sweep / 2:g} degrees (Unity yaw), Rotator.arc swings "
+                     f"it to +{sweep / 2:g} and back")
