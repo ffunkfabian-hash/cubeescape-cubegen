@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import golden_cases  # noqa: E402
 from cubegen.asset import Asset  # noqa: E402
 from cubegen.models.common import cube  # noqa: E402
-from cubegen.quality import check, z_fighting  # noqa: E402
+from cubegen.quality import DECAL_OFFSET, check, fix_z_fighting, z_fighting  # noqa: E402
 
 
 class ZFightingTests(unittest.TestCase):
@@ -38,6 +38,17 @@ class ZFightingTests(unittest.TestCase):
         cube(glow, (0.2, 0.2, 0.1), (-0.3, -0.2, 0.95), "M_Wall")  # top flush with the body's top
         self.assertEqual(len(z_fighting(a)), 1)  # other object, same material: scripts recolour it -> counts
 
+    def test_fix_lifts_the_smaller_face(self):
+        a = Asset("t")
+        body = a.part("Body")
+        cube(body, (1, 1, 1), (0, 0, 0.5), "M_Wall")
+        cube(body, (0.4, 0.2, 0.3), (0, -0.4, 0.5), "M_Warning")  # stripe flush with the front
+        self.assertEqual(fix_z_fighting(a), 1)
+        self.assertEqual(z_fighting(a), [])
+        ys = sorted({round(v[1], 6) for v in body.verts})
+        self.assertEqual(ys[0], round(-0.5 - DECAL_OFFSET, 6))  # the stripe now sits 2 mm proud ...
+        self.assertIn(-0.5, ys)  # ... the body's front stays where it was
+
     def test_check_reports_budget(self):
         a = Asset("t")
         for i in range(400):
@@ -47,6 +58,17 @@ class ZFightingTests(unittest.TestCase):
 
 
 class BaselineTests(unittest.TestCase):
+    def test_no_z_fighting_in_any_state(self):
+        # generate_asset lifts flush details (quality.fix_z_fighting) - in every state and detail level
+        from cubegen.models import REGISTRY, generate_asset, model_types
+        from cubegen.params import Style
+
+        for style in (Style(damage="damaged"), Style(damage="destroyed"), Style(wear="heavy"), Style(detail="low")):
+            for t in model_types():
+                for seed in range(3):
+                    found = z_fighting(generate_asset(t, seed, style=style), pivot=REGISTRY[t].pivot)
+                    self.assertEqual(found, [], f"{t} {seed} {style.to_dict()}")
+
     def test_quality_never_gets_worse(self):
         baseline = golden_cases.load(golden_cases.QUALITY)
         current = golden_cases.quality()

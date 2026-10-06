@@ -14,8 +14,8 @@
  "balance_scale": {
   "draw_calls": 8,
   "triangles": 344,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "barrier": {
   "draw_calls": 6,
@@ -26,20 +26,20 @@
  "battery_bank": {
   "draw_calls": 7,
   "triangles": 480,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "bed": {
   "draw_calls": 6,
   "triangles": 472,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "bin": {
   "draw_calls": 5,
   "triangles": 300,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "breakable_platform": {
   "draw_calls": 18,
@@ -50,20 +50,20 @@
  "broken_wall": {
   "draw_calls": 8,
   "triangles": 320,
-  "z_fighting_pairs": 10,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "bulkhead": {
   "draw_calls": 4,
   "triangles": 652,
-  "z_fighting_pairs": 16,
-  "z_fighting_variants": 2
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "button": {
   "draw_calls": 10,
   "triangles": 400,
-  "z_fighting_pairs": 10,
-  "z_fighting_variants": 2
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "cable_mess": {
   "draw_calls": 4,
@@ -74,8 +74,8 @@
  "cable_plug": {
   "draw_calls": 11,
   "triangles": 520,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "cable_reel": {
   "draw_calls": 4,
@@ -86,20 +86,20 @@
  "cable_tray": {
   "draw_calls": 5,
   "triangles": 384,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "cage": {
   "draw_calls": 5,
   "triangles": 1188,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "camera": {
   "draw_calls": 7,
   "triangles": 196,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "canister": {
   "draw_calls": 5,
@@ -158,8 +158,8 @@
  "console": {
   "draw_calls": 6,
   "triangles": 396,
-  "z_fighting_pairs": 3,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "conveyor": {
   "draw_calls": 21,
@@ -170,14 +170,14 @@
  "crate": {
   "draw_calls": 5,
   "triangles": 404,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "crate_pile": {
   "draw_calls": 4,
   "triangles": 384,
-  "z_fighting_pairs": 3,
-  "z_fighting_variants": 8
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "crusher": {
   "draw_calls": 14,
@@ -188,8 +188,8 @@
  "cryo_pod": {
   "draw_calls": 6,
   "triangles": 372,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "crystal_cluster": {
   "draw_calls": 3,
@@ -206,26 +206,26 @@
  "door": {
   "draw_calls": 14,
   "triangles": 488,
-  "z_fighting_pairs": 16,
-  "z_fighting_variants": 7
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "drone": {
   "draw_calls": 12,
   "triangles": 624,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "extinguisher": {
   "draw_calls": 7,
   "triangles": 288,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "fallen_pillar": {
   "draw_calls": 6,
   "triangles": 164,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "fan": {
   "draw_calls": 6,
@@ -248,8 +248,8 @@
  "floor_grate": {
   "draw_calls": 8,
   "triangles": 572,
-  "z_fighting_pairs": 18,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "floor_tile": {
   "draw_calls": 4,
@@ -266,8 +266,8 @@
  "force_field": {
   "draw_calls": 13,
   "triangles": 500,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 2
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "freq_dial": {
   "draw_calls": 11,
@@ -290,8 +290,8 @@
  "gear_puzzle": {
   "draw_calls": 12,
   "triangles": 1800,
-  "z_fighting_pairs": 14,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "generator": {
   "draw_calls": 6,
@@ -314,8 +314,8 @@
  "hatch": {
   "draw_calls": 10,
   "triangles": 740,
-  "z_fighting_pairs": 16,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "hologram": {
   "draw_calls": 6,
@@ -326,8 +326,8 @@
  "hydroponic_bed": {
   "draw_calls": 6,
   "triangles": 2324,
-  "z_fighting_pairs": 24,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "intercom": {
   "draw_calls": 6,
@@ -350,8 +350,8 @@
  "keycard": {
   "draw_calls": 4,
   "triangles": 148,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 7
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "keypad": {
   "draw_calls": 6,
@@ -362,8 +362,8 @@
  "ladder": {
   "draw_calls": 3,
   "triangles": 600,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "laser_emitter": {
   "draw_calls": 4,
@@ -374,8 +374,8 @@
  "laser_mirror": {
   "draw_calls": 5,
   "triangles": 208,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "laser_receiver": {
   "draw_calls": 5,
@@ -386,8 +386,8 @@
  "laser_splitter": {
   "draw_calls": 6,
   "triangles": 196,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "lever": {
   "draw_calls": 6,
@@ -398,8 +398,8 @@
  "lift": {
   "draw_calls": 12,
   "triangles": 436,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "light": {
   "draw_calls": 4,
@@ -410,8 +410,8 @@
  "locker": {
   "draw_calls": 5,
   "triangles": 472,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "machine": {
   "draw_calls": 9,
@@ -422,8 +422,8 @@
  "medkit": {
   "draw_calls": 5,
   "triangles": 104,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "monitor_wall": {
   "draw_calls": 8,
@@ -440,8 +440,8 @@
  "pad": {
   "draw_calls": 5,
   "triangles": 464,
-  "z_fighting_pairs": 18,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "pallet": {
   "draw_calls": 6,
@@ -476,14 +476,14 @@
  "pipe_fitting": {
   "draw_calls": 7,
   "triangles": 392,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "plant": {
   "draw_calls": 4,
   "triangles": 372,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 6
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "platform": {
   "draw_calls": 4,
@@ -506,8 +506,8 @@
  "pump": {
   "draw_calls": 7,
   "triangles": 1008,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "railing": {
   "draw_calls": 4,
@@ -560,8 +560,8 @@
  "scanner": {
   "draw_calls": 6,
   "triangles": 220,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "scrap_heap": {
   "draw_calls": 5,
@@ -578,8 +578,8 @@
  "service_robot": {
   "draw_calls": 11,
   "triangles": 748,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "shelf": {
   "draw_calls": 9,
@@ -596,8 +596,8 @@
  "shutter": {
   "draw_calls": 12,
   "triangles": 1176,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 5
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "sign": {
   "draw_calls": 3,
@@ -614,8 +614,8 @@
  "socket": {
   "draw_calls": 6,
   "triangles": 340,
-  "z_fighting_pairs": 1,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "spare_part": {
   "draw_calls": 4,
@@ -638,8 +638,8 @@
  "spiral_stairs": {
   "draw_calls": 4,
   "triangles": 944,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 4
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "stairs": {
   "draw_calls": 5,
@@ -656,8 +656,8 @@
  "steam_vent": {
   "draw_calls": 7,
   "triangles": 360,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 7
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "switch_panel": {
   "draw_calls": 17,
@@ -668,8 +668,8 @@
  "table": {
   "draw_calls": 6,
   "triangles": 320,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "tank": {
   "draw_calls": 5,
@@ -692,8 +692,8 @@
  "tool_cart": {
   "draw_calls": 5,
   "triangles": 400,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 2
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "toolbox": {
   "draw_calls": 4,
@@ -722,14 +722,14 @@
  "valve": {
   "draw_calls": 7,
   "triangles": 496,
-  "z_fighting_pairs": 2,
-  "z_fighting_variants": 7
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "vending_machine": {
   "draw_calls": 12,
   "triangles": 616,
-  "z_fighting_pairs": 9,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "vent": {
   "draw_calls": 5,
@@ -740,14 +740,14 @@
  "vent_shaft": {
   "draw_calls": 5,
   "triangles": 420,
-  "z_fighting_pairs": 58,
-  "z_fighting_variants": 8
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "wall": {
   "draw_calls": 6,
   "triangles": 1004,
-  "z_fighting_pairs": 6,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "wall_corner": {
   "draw_calls": 5,
@@ -758,19 +758,19 @@
  "wall_panel": {
   "draw_calls": 10,
   "triangles": 844,
-  "z_fighting_pairs": 4,
-  "z_fighting_variants": 1
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "window_wall": {
   "draw_calls": 5,
   "triangles": 500,
-  "z_fighting_pairs": 44,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  },
  "workbench": {
   "draw_calls": 8,
   "triangles": 580,
-  "z_fighting_pairs": 7,
-  "z_fighting_variants": 10
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
  }
 }
