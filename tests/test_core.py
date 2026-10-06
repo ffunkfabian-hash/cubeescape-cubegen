@@ -20,7 +20,8 @@ MOVING_PARTS = ("Rotor", "Wheel", "Panel", "Panel_B", "Lever", "Fitting", "Mirro
 MOVING_PREFIXES = ("Rotor_", "Roller_", "Gear_", "Button_", "Leg_", "Dial_", "Tile_", "Switch_", "Pan_")
 # fields every behaviour of a game script must carry (see docs/UNITY_INTEGRATION.md)
 SCRIPT_FIELDS = {
-    "Door": ({"panels", "statusLights", "upperFrame", "colliders"}, {"openOffset", "speed"}),
+    # upperFrame is optional (the Unity import accepts only Frame_Top there): bridges and spike traps have none
+    "Door": ({"panels", "statusLights", "colliders"}, {"openOffset", "speed"}),
     "Machine": ({"body", "glow"}, {"needsPower"}),
     "Rotator": ({"target"}, {"axis", "speed"}),
     "Rotatable": ({"target", "glow"}, {"axis", "step", "speed", "target", "interactive"}),

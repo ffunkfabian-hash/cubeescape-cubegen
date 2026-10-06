@@ -146,6 +146,22 @@ class FamilyTests(unittest.TestCase):
             self.assertEqual(manifest["config"]["seed"] if "seed" in manifest["config"] else manifest["seed"],
                              manifest["seed"])
 
+    def test_recipes_on_a_family(self):
+        # a recipe that names a family and deviates from it keeps all other measures of the family
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cfg = config("--recipe", os.path.join(root, "recipes", "station_room.json"))
+        self.assertEqual(cfg.family["name"], "station")
+        self.assertEqual(cfg.family["dims"]["door_width"], 2.4)
+        self.assertEqual(cfg.family["dims"]["wall_height"], 3.0)
+        self.assertEqual([d["what"] for d in cfg.family["deviations"]], ["dims.door_width"])
+        walls = [build_spec(s) for s in plan_models(cfg) if s["type"] == "wall"]
+        self.assertEqual({w.meta["length_m"] for w in walls}, {4.0})
+        self.assertEqual(fit(cfg)["problems"], [])
+        door = next(build_spec(s) for s in plan_models(cfg) if s["type"] == "door")
+        self.assertEqual(door.meta["opening_m"][0], 2.4)
+        lab = config("--recipe", family_files()["lab"])  # a family file is a recipe too
+        self.assertEqual((lab.family["name"], lab.textures, lab.texture_set), ("lab", "tiled", "lab"))
+
     def test_unknown_measure_and_unfit_type(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "bad.json")

@@ -6,8 +6,10 @@ Server-Racks, Lampen, Kristalle, Trümmer, Türen, Plattformen, Wände, Säulen,
 Rätsel-Elemente (Sockel, Sicherungskasten, Ventil, Hebel, Rohr-Puzzle, Laser, Druckplatte, Keypad, Knöpfe,
 Zahnradwerk, Kraftfeld, Steckfeld, Scanner, Tresor), Werkzeug-, Hinweis- und Ersatzteil-Items, ein modulares
 Bau-Kit (Treppe, Leiter, Steg, Bodenplatte, Fensterwand, Lift, Förderband, Luke, Rolltor, Lüftungsschacht …),
-Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Dampf, Strom) und Geräte – 121 Typen in
-8 Kategorien.
+Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Dampf, Strom), Geräte und
+Gameplay-Bausteine (Portal, Phasen- und Bruchplattform, ausfahrbare Brücke, Drehscheibe, Stachelfalle, Becken,
+Frachtcontainer) – 129 Typen in 8 Kategorien. **Modellfamilien** (`--family`) erzeugen Bau-Kits, deren Teile über
+verbindliche Maße zusammenpassen: Wand und Tür, Treppe und Laufsteg, Rohr und Rohrbogen.
 
 * **Blender CLI** baut die Meshes, exportiert **FBX für Unity** (optional GLB/glTF/OBJ), rendert Previews und
   speichert eine Übersichts-`.blend`.
@@ -51,7 +53,9 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 
 * **Typ, Master-Seed, Variante**: Pfeile ◀ ▶ blättern, 🔄 würfelt. Die Vorschau entsteht live am Ursprung, mit
   Dreiecken, Maßen und Teilenamen im Panel.
-* **Von jedem Typ**: baut alle 121 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
+* **Familie & Kit**: Familie wählen (Maße und Look für Vorschau, Raster und Export), **Kit bauen** stellt das
+  ganze Kit ins Raster, **Kit exportieren** exportiert es mit gemeinsamem Kontaktbogen und Passungsprüfung.
+* **Von jedem Typ**: baut alle 129 Typen auf einmal ins Raster, auf Wunsch mehrere Varianten pro Typ (eine Reihe
   pro Typ). **Alle Typen exportieren** exportiert sie direkt, ohne vorher etwas auszuwählen.
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
@@ -110,7 +114,7 @@ Die `#`-Zeilen in den Beispielen sind Kommentare. Die zsh auf dem Mac kennt sie 
 `setopt interactivecomments`; sonst einfach nur die Befehlszeilen kopieren.
 
 ```bash
-# alle 121 Typen je 2x, Seed 42 -> output/seed_42/
+# alle 129 Typen je 2x, Seed 42 -> output/seed_42/
 python -m cubegen generate --seed 42 --count 2
 
 # Assets mit Script (Tür, Maschine, Ventil …) direkt dorthin, wo AddModel sie lädt
@@ -139,6 +143,10 @@ python -m cubegen generate --seed 42 --count 3 --lods --jobs 4
 
 # Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte
 python -m cubegen check
+
+# ein Bau-Kit, dessen Teile zusammenpassen (Familien: station, foundry, lab)
+python -m cubegen generate --family station --seed 42 --prefix Gen_
+python -m cubegen check --family station
 
 # alle Typen
 python -m cubegen list
@@ -173,6 +181,32 @@ Mit `--library-dir` (im Add-on: Feld „Bibliothek“) sortiert der Generator da
 Das Präfix (`--prefix Gen_`) verhindert Namenskollisionen mit den handgebauten Modellen. Unity-Importeinstellungen
 gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselben Namen behält sie also.
 
+## Modellfamilien & Bau-Kits
+
+![Kit der Familie station: Wände mit Tür-/Fenster-/Rohröffnung, Tür, Portal, Stegstücke, Treppen, Brücke, Plattformen, Rohre, Becken, Falle, Container](docs/example_family_station.png)
+
+Eine Familie (`cubegen/family_data/<Name>.json`) ist ein Rezept mit verbindlichen Maßen (`dims`): Wandhöhe und
+-stärke, Modullänge, Tür-/Fensteröffnung mit Rahmenmaß, Laufstegbreite, Geländer- und Ebenenhöhe,
+Plattformgröße, Rohrradius und Achshöhe. Dazu kommen Material, Glow, Warnfarbe, Abnutzung, Detailgrad und
+Texturset. Eine zentrale Tabelle (`cubegen/families.py`, `python -m cubegen families --dims`) bildet jedes Maß
+auf die Parameter aller Typen ab, die ihm folgen. Ein Rezept mit `"family": "station"` baut darauf auf, seine
+eigenen Werte gelten als Abweichung und stehen so im Manifest.
+
+* **Gleiches Modell**: gleiche Variante, Parameter und Version = gleiche Dateien.
+* **Variante in der Familie**: `--family station --types catwalk --count 8`, Details wechseln, Maße bleiben.
+* **Passendes Teil**: `--family station --types door` (Tür zur Wand) oder `--match <Name>.cubegen.json --types
+  pipe_bend` (Rohrbogen zu einem vorhandenen Rohr).
+* **Passungsprüfung** (`check --family`, auch im Manifest unter `family.fit`): setzt die Teile aneinander und
+  prüft Breiten, Höhen, Ausrichtung, begehbaren Boden über jeder Fuge, freien Durchgang, Tür bzw. Portal in
+  der Wandöffnung und Rohre durch Durchführungen.
+* Anschlusspunkte (`connectors`) und die Herkunft jedes Parameters (`param_sources`) stehen im Manifest. Der
+  Sidecar bleibt im Vertrag des Unity-Imports und bekommt keine neuen Felder.
+
+Neue Varianten bestehender Typen sind Parameter: `wall.opening` (`door`, `window`, `pipe`) mit Rahmen- bzw.
+Öffnungsmaßen, `wall.height`/`thickness`, `catwalk.shape` (`corner`, `tee`, `cross`, `landing`, `end`),
+`stairs.layout` (`landing`, `quarter`, `switchback`). Details in [`docs/CLI.md`](docs/CLI.md), was der
+Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`](docs/UNITY_INTEGRATION.md).
+
 ## Reproduzierbarkeit & Qualität
 
 * **Gleicher Seed = gleiches Modell**, auch nach Updates und mit anderer Python-Version. `tests/golden.json`
@@ -187,6 +221,10 @@ gelten nur beim ersten Import einer Datei. Eine neu generierte FBX unter demselb
   passiert das nur bewusst; schlimmer werden darf es nicht, neue Typen dürfen keine haben.
 * Absichtlich ein Modell geändert? `python3 tests/golden_cases.py --update` schreibt beide Referenzdateien neu
   (und in den CHANGELOG gehört, welche Seeds anders aussehen).
+* **Unity-Vertrag**: `cubegen/contract.py` prüft jeden Sidecar mit den Regeln des Spiel-Imports
+  (`Docs/CUBEGEN_IMPORT.md`) und, wo es eine gibt, gegen die echte FBX. Die Tests exportieren alle Typen
+  und alle Kits als FBX und prüfen sie damit.
+* **Item-IDs**: `--param keycard.item_id=<ID>` schreibt `ItemPickup.fields.itemId`; cubegen erfindet keine IDs.
 
 ## Animation & Unity-Scripts
 
@@ -590,7 +628,13 @@ zeigende Normalen, Pivot-Konvention und Determinismus.
 
 ```
 cubegen/
-├── cli.py            Kommandozeile (generate / list / doctor)
+├── cli.py            Kommandozeile (generate / list / params / check / families / doctor)
+├── families.py       Modellfamilien: Maße, Auflösung, Anschlüsse, Passungsprüfung
+├── family_data/      mitgelieferte Familien (station, foundry, lab)
+├── contract.py       Sidecar-Vertrag des Unity-Imports (+ Prüfung gegen die FBX)
+├── fbxread.py        FBX-Leser (Hierarchie, Transformationen, Vertices) für die Prüfungen
+├── quality.py        Qualitätsbericht (Dreiecke, Draw Calls, Z-Fighting)
+├── variety.py        ähnliche Varianten erkennen (--unique)
 ├── pipeline.py       Batch: Seeds -> Blender -> ImageMagick -> manifest.json
 ├── seeds.py          deterministische Seed-Ableitung
 ├── geometry.py       reine Python-Geometrie (Box, gefaste Box, Lathe, Zylinder, Prisma …)
@@ -600,7 +644,7 @@ cubegen/
 ├── textures.py       ImageMagick-Kacheltexturen (optional)
 ├── bake.py           läuft IN Blender: gebackene Atlas-Texturen pro Asset (optional)
 ├── models/           Modelltypen (props, industrial, tech, environment, ruins, puzzle, kit, furniture,
-│                     robots, nature, mechanisms, items, structure, machinery) + wear, destruction
+│                     robots, nature, mechanisms, items, structure, machinery, gameplay) + wear, destruction
 ├── blender.py        Blender finden, Engines prüfen, Worker starten
 ├── blender_worker.py läuft IN Blender (CLI): Previews, Übersichts-.blend
 ├── bpy_builder.py    Blender-Objekte, Materialien, FBX/GLB/OBJ-Export (CLI + Add-on)

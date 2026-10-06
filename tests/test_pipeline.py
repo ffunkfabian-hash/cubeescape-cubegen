@@ -160,11 +160,13 @@ class BlenderTest(unittest.TestCase):
             self.assertEqual(code, 0)
             models = os.path.join(out, "models")
             result = check_export(models)
-            self.assertEqual(len(result), 121)
+            from cubegen.models import model_types
+
+            self.assertEqual(len(result), len(model_types()))  # the 121 audited types and the new ones
             self.assertEqual({k: v["errors"] for k, v in result.items() if v["errors"]}, {})
+            pickups = ("CableReel", "Clue", "Flashlight", "Item", "Key", "Keycard", "SparePart", "Tool")
             self.assertEqual(sorted(k for k, v in result.items() if v["open"]),
-                             sorted(f"Gen_Audit070_{t}_000" for t in ("CableReel", "Clue", "Flashlight", "Item", "Key",
-                                                                     "Keycard", "SparePart", "Tool")))
+                             sorted(f"Gen_Audit070_{t}_000" for t in pickups))
             for name, part in (("BalanceScale", "Slot_A"), ("RobotArm", "Arm_Upper"), ("Turret", "Glow")):
                 rig = json.loads(read(os.path.join(models, f"Gen_Audit070_{name}_000.cubegen.json")))
                 fbx = os.path.join(models, f"Gen_Audit070_{name}_000.fbx")

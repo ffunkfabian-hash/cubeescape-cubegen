@@ -120,8 +120,9 @@ class Param:
     snap_factor: float = 1.0       # radius = 2: snap the diameter, not the radius
     unity: bool = False            # value of a game script (goes to <Name>.cubegen.json)
     default: Any = None            # for options that are not rolled (e.g. Unity values)
-    quiet: bool = False            # option: only recorded in "params" when set (variants added later: the
-                                   # default builds the model as before, its params stay unchanged)
+    # option: only recorded in "params" when set (variants added later: the default builds the model as
+    # before, its params stay unchanged)
+    quiet: bool = False
 
     def parse(self, value: Any) -> Any:
         """Convert a CLI / recipe / UI value and check it."""

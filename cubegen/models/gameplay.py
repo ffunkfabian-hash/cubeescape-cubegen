@@ -63,7 +63,8 @@ def portal_frame(rng, a):
     surface_mat = "M_PortalPanel" if p.choice("surface", ["panel", "panel", "glow"]) == "panel" else glow
     frame, lights = a.part("Frame"), a.part("Glow")
     a.meta.update({"mount": mount, "opening_m": [round(w, 4), round(h, 4)], "frame_style": style,
-                   "outer_m": [round(w + 2 * post, 4), round(h + top, 4) if mount == "wall" else round(h + 2 * post, 4)]})
+                   "outer_m": [round(w + 2 * post, 4),
+                               round(h + top, 4) if mount == "wall" else round(h + 2 * post, 4)]})
     if mount == "wall":
         for s in (-1, 1):  # posts, a plinth each, inner glow strip
             x = s * (w + post) / 2
@@ -424,7 +425,7 @@ def fluid_basin(rng, a):
 
 @model("cargo_container", "CargoContainer", "environment", "Walk-in cargo container: shell with a free interior, "
        "two door leaves (Door_Left / Door_Right, Rotatable) at the front", params=[
-           Param("length", "choice", "Länge (m)", choices=(4.0, 6.0, 8.0)),
+           Param("length", "choice", "Länge (m)", choices=(4.0, 6.0)),
            Param("width", "float", "Breite (m)", lo=2.0, hi=3.2),
            Param("height", "float", "Höhe (m)", lo=2.4, hi=3.4),
            Param("ribs", "bool", "Sicken"),
@@ -433,7 +434,7 @@ def fluid_basin(rng, a):
        ])
 def cargo_container(rng, a):
     p = a.p
-    ln = p.choice("length", [4.0, 6.0, 6.0, 8.0])
+    ln = p.choice("length", [4.0, 6.0, 6.0])
     w = p.value("width", rng.uniform(2.3, 2.6))
     h = p.value("height", rng.uniform(2.5, 2.9))
     mat = p.material(["M_HazardOrange", "M_Wall", "M_Metal", "M_RobotBody"])

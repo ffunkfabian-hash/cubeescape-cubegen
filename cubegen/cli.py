@@ -22,7 +22,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
                   "unique", "lods", "jobs")
-RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims") + _RECIPE_FIELDS
+RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
                 "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme"}
@@ -68,7 +68,7 @@ def load_recipe(path: str, family_file: bool = False) -> Dict:
     if not isinstance(recipe, dict):
         raise ValueError(f"{path}: a recipe is a JSON object {{...}}")
     recipe = {k: v for k, v in recipe.items() if not k.startswith("_")}
-    allowed = RECIPE_KEYS + (("description",) if family_file else ())
+    allowed = RECIPE_KEYS
     for key in recipe:
         if key not in allowed:
             raise unknown_key(path, key, allowed)
@@ -128,13 +128,22 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
     family = None
     family_name = getattr(args, "family", None) or recipe.get("family")
     if family_name:
-        if recipe.get("dims") is not None and recipe.get("family") == family_name and not getattr(args, "family", None):
-            family, recipe = dict(recipe, _path=args.recipe), {}  # the recipe is the family file itself
-            from .families import check_dims
+        from .families import check_dims, find_family
+
+        base = os.path.dirname(os.path.abspath(args.recipe)) if args.recipe else None
+        try:
+            path = find_family(family_name, base)
+        except ValueError:
+            path = None
+        defines = args.recipe and recipe.get("family") == family_name and not getattr(args, "family", None) and \
+            (path is None or os.path.samefile(path, args.recipe))
+        if defines:  # the recipe is the family definition itself
+            family, recipe = dict(recipe, _path=args.recipe), {}
             family["dims"] = check_dims(family.get("dims", {}), f"{args.recipe}: dims")
+        elif path is None:
+            raise ValueError(f"unknown family {family_name!r}; list: python -m cubegen families")
         else:
-            base = os.path.dirname(os.path.abspath(args.recipe)) if args.recipe else None
-            family = load_family(family_name, base)
+            family = load_family(path, base)
     match = None
     if getattr(args, "match", None):
         with open(args.match, "r", encoding="utf-8") as fh:
@@ -272,7 +281,8 @@ def cmd_family_check(args) -> int:
     """Fit checks of a family kit, without Blender."""
     from .pipeline import family_fit
 
-    gen = make_parser().parse_args(["generate", "--family", args.family, "--seed", str(args.seed)]
+    gen = make_parser().parse_args(["generate", "--family", args.family]
+                                   + (["--seed", str(args.seed)] if args.seed is not None else [])
                                    + (["--recipe", args.recipe] if args.recipe else [])
                                    + (["--types", ",".join(args.types), "--count", str(args.count)]
                                       if args.types else []))
@@ -300,7 +310,7 @@ def cmd_check(args) -> int:
     for t in types:
         if t not in registry:
             raise ValueError(f"unknown model type {t!r}; available: {', '.join(model_types())}")
-    master = parse_seed(args.seed)
+    master = parse_seed(args.seed if args.seed is not None else "42")
     style = Style.from_dict({"detail": args.detail} if args.detail else {})
     rows = report(types, lambda t, i: generate_asset(t, model_seed(master, t, i), style=style), registry,
                   args.count, budget_scale=1.5 if args.detail == "high" else 1.0)
@@ -450,7 +460,7 @@ def make_parser() -> argparse.ArgumentParser:
 
     c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, distinct variants")
     c.add_argument("--types", type=_csv, help="comma separated model types (default: all)")
-    c.add_argument("--seed", default="42", help="master seed (default 42)")
+    c.add_argument("--seed", help="master seed (default 42; with --family the family's / recipe's seed)")
     c.add_argument("--count", type=int, default=10, help="variants per type (default 10)")
     c.add_argument("--detail", choices=["low", "normal", "high"], help="check this detail level")
     c.add_argument("--json", action="store_true")

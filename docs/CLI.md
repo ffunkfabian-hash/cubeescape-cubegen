@@ -25,14 +25,15 @@ pip install "git+https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_ge
 cubegen doctor
 ```
 
-## 2. Die fünf Befehle
+## 2. Die sechs Befehle
 
 | Befehl | Wofür |
 |---|---|
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
-| `python3 -m cubegen list` | alle 121 Modelltypen nach Kategorie (`--json` für Skripte) |
+| `python3 -m cubegen list` | alle 129 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
-| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 13) |
+| `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits |
+| `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
 
 `--help` geht überall: `python3 -m cubegen generate --help`.
@@ -113,6 +114,27 @@ python3 -m cubegen generate --seed 7 --types pipe_fitting --count 6 \
 Ja/Nein-Werte: `true/false`, `ja/nein`, `on/off`, `1/0`. Parameter mit 🔗 in der README (bzw. `[Unity]` in
 `params`) landen als Script-Werte in der `<Name>.cubegen.json`, z. B. Drehtempo oder Türgeschwindigkeit.
 
+**Varianten vorhandener Typen** sind ebenfalls Parameter. Ohne Angabe bauen sie das bisherige Modell:
+
+| Typ | Parameter | Werte |
+|---|---|---|
+| `wall` | `opening`, `opening_x` | `door` (Ausschnitt in Rahmengröße der Tür: `door_style`, `door_width`, `door_height`), `window` (`window_width`, `window_height`, `window_sill`, mit Glas), `pipe` (Rohrdurchführung: `duct_radius`, `duct_height`) |
+| `wall` | `height`, `thickness` | Wandhöhe und -stärke (Standard 3,0 / 0,5 m) |
+| `catwalk` | `shape`, `rail_height` | `corner` (L), `tee`, `cross`, `landing` (Podest), `end` (Endstück mit Abschlussgeländer) |
+| `stairs` | `layout` | `landing` (Zwischenpodest), `quarter` (Vierteldrehung), `switchback` (gegenläufig, Wendepodest) |
+
+```bash
+python3 -m cubegen generate --seed 7 --types wall --count 3 --param wall.opening=door --param wall.door_width=2.0
+python3 -m cubegen generate --seed 7 --types catwalk --param catwalk.shape=tee
+```
+
+**Item-IDs:** Items mit `ItemPickup` (`item`, `keycard`, `key`, `tool`, `clue`, `spare_part`, `flashlight`,
+`cable_reel`) brauchen im Spiel eine `itemId`, die genau ein `ItemData` bezeichnet. cubegen erfindet keine:
+
+```bash
+python3 -m cubegen generate --seed 42 --pick keycard:0 --param keycard.item_id=ITEM_ID_AUS_UNITY
+```
+
 ## 7. Einheitlicher Look (Stil für alle Typen)
 
 ```bash
@@ -142,7 +164,57 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
 | `--damage` | intact / damaged / destroyed | beschädigt bzw. Ruine (statisch, ohne Scripts) |
 
-## 8. Direkt ins Unity-Projekt
+## 8. Modellfamilien und Bau-Kits
+
+Eine **Familie** legt fest, was zusammenpassen muss: Wandhöhe und -stärke, Modullänge, Tür- und
+Fensteröffnungen samt Rahmenmaß, Laufstegbreite, Geländer- und Ebenenhöhe, Plattformgröße, Rohrradius und
+Achshöhe, dazu Material, Glow, Warnfarbe, Abnutzung, Detailgrad und Texturset. Ein gemeinsamer Seed allein
+genügt dafür nicht, die Passung kommt aus den verbindlichen Maßen (`python3 -m cubegen families --dims`
+zeigt, welches Maß welche Parameter setzt).
+
+Mitgeliefert: `station`, `foundry`, `lab` (`python3 -m cubegen families`).
+
+```bash
+# A: das ganze Kit (Wände mit Tür/Fenster/Rohr, Tür, Portal, Stegstücke, Treppen, Brücke, Plattformen,
+#    Rohre, Becken, Falle, Container) - gleiche Kommandozeile = gleiche Dateien
+python3 -m cubegen generate --family station --seed 42 --prefix Gen_
+# B: Varianten innerhalb der Familie durchsehen: Details wechseln, Maße und Materialien bleiben
+python3 -m cubegen generate --family station --types catwalk,stairs --count 8
+# C: ein passendes Teil zu einem vorhandenen Modell (übernimmt dessen Maße und Look)
+python3 -m cubegen generate --match output/seed_42/models/Gen_Pipe_003.cubegen.json --types pipe_bend
+python3 -m cubegen generate --family station --types door        # die Tür zur Wand der Familie
+```
+
+**Eigenes Kit, eigene Familie:** Eine Familie ist ein Rezept mit `"family"` und `"dims"`
+(`cubegen/family_data/station.json` als Vorlage; eigene Familien unter `./families/<Name>.json`). Ein Rezept
+mit `"family": "station"` baut darauf auf. Was es selbst festlegt (`dims`, `style`, `params`), gilt als
+**Abweichung** und steht so im Manifest. Kit-Einträge dürfen eigene Parameter haben:
+
+```json
+{
+  "family": "station",
+  "dims": { "door_width": 2.4 },
+  "models": [
+    { "type": "wall", "count": 2 },
+    { "type": "wall", "pick": [2], "params": { "opening": "door" } },
+    { "type": "door", "count": 1 },
+    { "type": "keycard", "pick": [0], "params": { "item_id": "ITEM_ID_AUS_UNITY" } }
+  ]
+}
+```
+
+Namen bleiben `<Typ>_<Index>`, Seeds hängen nur von Master-Seed, Typ und Index ab: Neue Teile im Kit
+verändern keine bestehenden.
+
+**Prüfen:** `python3 -m cubegen check --family station` setzt die Teile des Kits aneinander und prüft
+Breiten, Höhen und Ausrichtung der Anschlüsse, die obere Ebene (`deck_height`), begehbaren Boden über jeder
+Fuge (auch an Rampen), dass nichts den Durchgang über der Fuge blockiert, Tür und Portal in der
+Wandöffnung (Rahmen = Ausschnitt, lichte Öffnung frei), Rohre durch Durchführungen, und den gemeinsamen
+Look. `generate --family` schreibt dasselbe ins Manifest (`family.fit`); dazu `family` (Name, Datei, Maße,
+Abweichungen) und pro Modell `param_sources` (woher jeder Parameter kommt: `dims.<Maß>`, `family`,
+`recipe`, `kit`, `cli`) und `connectors` (Anschlusspunkte in Unity-Koordinaten).
+
+## 9. Direkt ins Unity-Projekt
 
 ```bash
 python3 -m cubegen generate --seed 7 --prefix Gen_ \
@@ -163,7 +235,7 @@ python3 -m cubegen generate --seed 7 --prefix Gen_ \
   Datei zu schreiben, die Unity ablehnen würde.
 * Den Editor-Import für Unity baust du mit dem Prompt aus [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 
-## 9. Rezepte (Batches als Datei)
+## 10. Rezepte (Batches als Datei)
 
 Statt langer Kommandozeilen: eine JSON-Datei. Beispiele liegen in `recipes/`.
 
@@ -190,13 +262,13 @@ die mit `_` beginnen, sind Kommentare.
 
 Weitere Schlüssel: `scale`, `blend`, `render`, `engine`, `render_size`, `samples`, `icon_size`,
 `icon_background`, `icon_azimuth`, `icon_elevation`, `icon_zoom`, `models_dir`, `library_dir`, `icons_dir`,
-`textures`, `texture_size`, `texture_set`, `textures_dir`, `unique`, `lods`, `jobs`, `out`. Optionen auf der
+`textures`, `texture_size`, `texture_set`, `textures_dir`, `unique`, `lods`, `jobs`, `out`, `family`, `dims`. Optionen auf der
 Kommandozeile überschreiben das Rezept (z. B. `--seed`, `--count`, `--models-dir`).
 
 Rezepte werden geprüft: Ein Tippfehler bricht mit einem Hinweis ab, statt still ignoriert zu werden, z. B.
 `unknown key 'stlye' (did you mean 'style'?)`.
 
-## 10. Texturen (optional)
+## 11. Texturen (optional)
 
 ```bash
 # Kacheltexturen, 1 Kachel = 1 m
@@ -207,7 +279,7 @@ python3 -m cubegen generate --seed 42 --types machine --textures baked
 
 Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Details in der README.
 
-## 11. Previews und Icons
+## 12. Previews und Icons
 
 | Option | Wirkung |
 |---|---|
@@ -220,7 +292,7 @@ Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spi
 
 Deckenteile (`ceiling_panel`, `hanging_crystals`) werden automatisch von unten gezeigt.
 
-## 12. Schnell und ohne Blender
+## 13. Schnell und ohne Blender
 
 ```bash
 # nur FBX + JSON, schnell
@@ -243,7 +315,7 @@ Das Ergebnis ist dasselbe wie mit einem Prozess. Wie viele sich lohnen, hängt v
 `--no-blender` braucht nur Python (und ImageMagick für die Material-Übersicht). Es entstehen OBJ-Dateien ohne
 Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
 
-## 13. Qualität prüfen
+## 14. Qualität prüfen
 
 ```bash
 python3 -m cubegen check                      # alle Typen, je 10 Varianten von Seed 42
@@ -262,7 +334,7 @@ Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreit
 Warnungen. Sie in bestehenden Typen zu beheben würde deren Seeds verändern; die Tests sorgen dafür, dass es
 nicht schlimmer wird und neue Typen gar keine haben.
 
-## 14. Probleme lösen
+## 15. Probleme lösen
 
 | Meldung / Problem | Lösung |
 |---|---|
@@ -273,6 +345,8 @@ nicht schlimmer wird und neue Typen gar keine haben.
 | Previews schwarz / sehr langsam | `--engine cycles --samples 16` oder `--no-render` |
 | Blender-Fehler ohne Details | mit `-v` erneut starten, dann steht die Blender-Ausgabe im Terminal |
 | `unknown key '…' (did you mean …)` | Tippfehler im Rezept oder in `style` |
+| `unknown measure '…'` / `… can't follow …` | Maß-Name in `dims` falsch bzw. ein Typ kann das Maß nicht (z. B. `window_wall` hat feste 3 m: Wand mit `opening=window` nehmen) |
+| `family fit: … don't fit` | die genannten Teile passen nicht zusammen (meist eine Abweichung in `params`/`dims`); Details: `python3 -m cubegen check --family NAME` |
 | `… does not match its rig data` | Blender hat eine FBX geschrieben, die nicht zur `.cubegen.json` passt (z. B. eine neue Blender-Version mit geändertem FBX-Export). Bitte mit der Meldung als Issue melden |
 | Modell sieht nach einem Update anders aus | sollte nicht passieren (`tests/golden.json`); sonst bitte melden |
 
@@ -284,6 +358,8 @@ nicht schlimmer wird und neue Typen gar keine haben.
 |---|---|---|
 | `--seed` | zufällig | Master-Seed (Zahl oder Text) |
 | `--recipe` | – | JSON-Rezept |
+| `--family` | – | Modellfamilie (Name oder Datei), siehe Abschnitt 8 |
+| `--match` | – | passendes Teil zu einem vorhandenen `<Name>.cubegen.json` |
 | `--types` | alle | Typen, kommagetrennt, oder `all` |
 | `--count` | 1 | Varianten pro Typ |
 | `--pick` | – | einzelne Varianten `TYP:INDEX,…` |

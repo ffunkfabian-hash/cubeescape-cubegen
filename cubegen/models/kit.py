@@ -147,7 +147,8 @@ def _landing_rails(body, a, layout, landing, w):
     elif layout == "quarter":
         runs = [((x0 - o, y0), (x0 - o, y1 + o)), ((x0 - o, y1 + o), (x1, y1 + o))]
     else:
-        runs = [((x0 - o, y0), (x0 - o, y1 + o)), ((x0 - o, y1 + o), (x1 + o, y1 + o)), ((x1 + o, y0), (x1 + o, y1 + o))]
+        runs = [((x0 - o, y0), (x0 - o, y1 + o)), ((x0 - o, y1 + o), (x1 + o, y1 + o)),
+                ((x1 + o, y0), (x1 + o, y1 + o))]
     for start, end in runs:
         size, center = rail_run(body, start, end, 1.0, z0=z)
         a.collider(size, center)

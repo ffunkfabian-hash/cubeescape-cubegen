@@ -109,7 +109,7 @@
  },
  "cargo_container": {
   "draw_calls": 7,
-  "triangles": 596,
+  "triangles": 500,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },

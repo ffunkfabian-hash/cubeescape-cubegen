@@ -37,11 +37,7 @@ Ein externer Generator (cubegen) legt neue Modelle als Assets/Art/Models/<Name>.
     {"type": "box", "part": null, "center": [x,y,z], "size": [x,y,z], "rotation": [x,y,z,w]},
     {"type": "box", "part": "Panel", ...},           // hängt am Teil, bewegt sich mit ihm
     {"type": "mesh", "part": "Deck", "convex": true}  // MeshCollider auf dem Mesh des Teils
-  ],
-  "lods": {                             // optional (--lods), nur bei "static": true
-    "objects": "<part>_LOD<level>",
-    "levels": [{"suffix": "_LOD0", "triangles": 384}, {"suffix": "_LOD1", "triangles": 152}]
-  }
+  ]
 }
 
 Vorkommende behaviours (Script → parts → fields):
@@ -121,10 +117,9 @@ Optional erzeugt cubegen Texturen (sonst bleiben alle Materialien die bekannten 
 Glow-/Status-Materialien (M_Glow*, M_Crystal, M_Glass) sind nie texturiert und bleiben M_*.
 Modelle mit "static": true (auch zerstörte Varianten und die Ruinen-Typen) haben keine Scripts.
 
-LODs (nur wenn die JSON "lods" hat, nur statische Modelle): In der FBX heißt jedes Teil <Teil>_LOD0 und
-<Teil>_LOD1, deshalb legt Unitys Model-Importer die LODGroup selbst an. "parts" und "colliders" nennen die
-Teile ohne Endung: Ein Teil "Body" ist in der FBX "Body_LOD0" (Collider, Materialien, Bounds von LOD0
-nehmen), "Body_LOD1" ist nur die Sparstufe. Nichts an der LODGroup ändern.
+LODs (nur mit --lods exportiert, nur statische Modelle): In der FBX heißt jedes Teil <Teil>_LOD0 und
+<Teil>_LOD1, deshalb legt Unitys Model-Importer die LODGroup selbst an. "parts" nennt beide Stufen genau so
+wie die FBX, "colliders" zeigen auf LOD0. Nichts an der LODGroup ändern.
 
 Die FBX passt immer exakt zur JSON (cubegen liest jede FBX nach dem Export zurück und vergleicht Eltern,
 localPosition, Rotation 0 und Vertices). Weicht ein importiertes Modell trotzdem ab: nicht die Toleranz
@@ -247,3 +242,69 @@ Mechaniken:
     (item.kind "key"), öffnet z. B. cage oder safe.
 Am Ende: Liste der neuen Scripts, welche Typen sie nutzen, und welche Felder der Import jetzt setzt.
 ````
+
+## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
+
+Abgeglichen mit `Docs/CUBEGEN_IMPORT.md` des Spiels (Stand 6. Oktober 2026). cubegen prüft jeden Sidecar
+vor dem Export mit denselben Regeln (`cubegen/contract.py`): erlaubte Wurzel-, Teil- und Behaviour-Schlüssel,
+Rollen und Felder je Script, Wertetypen, ein Bewegungs-Script pro Transform, normierte Quaternionen, konvexe
+Mesh-Collider an bewegten Teilen, und gegen die FBX: Eltern, Mesh/Empty, lokale Position (1 cm),
+Modell-Bounds (2,5 cm + 1 %), Teil-Bounds gegen das eigene Mesh.
+
+**Schema:** unverändert, keine neuen Wurzelfelder. Familie, Anschlusspunkte, Herkunft der Parameter und die
+Passungsprüfung stehen nur im `manifest.json`. Neue Varianten (Wandöffnung, Stegform, Treppenlauf …) stehen
+wie alle Parameter in `params`, und nur, wenn sie gesetzt sind; ohne sie sind Modelle und Sidecars bitgleich
+zu 0.8.0.
+
+**Behoben** (bisher vom Import zu Recht abgelehnt): Pivots ab der dritten Ebene (`balance_scale`,
+`robot_arm`, `turret`); `pipe` mit Ventil, dessen `Rotatable.glow` auf ein fehlendes `Glow` zeigte (26 von
+300 Seeds); zerstörte `balance_scale`/`robot_arm`/`service_robot`/`turret` mit verwaisten Kindteilen.
+Der reale Seed-42-Export aller 121 Bestandstypen ergibt jetzt 66 Gameplay-, 55 statische Modelle, 0
+Ablehnungen und genau die 8 offenen Item-Zuordnungen.
+
+**Item-IDs:** `--param keycard.item_id=<ItemData-ID>` (auch `item`, `key`, `tool`, `clue`, `spare_part`,
+`flashlight`, `cable_reel`, im Rezept unter `params`, im Add-on als Textfeld) schreibt `fields.itemId`.
+cubegen erfindet keine IDs; ohne Angabe bleibt die Zuordnung offen. Für mehrere Items desselben Typs mit
+verschiedenen IDs: je Variante ein Kit-Eintrag mit eigenen `params`.
+
+### Neue Typen: was der Import heute schon kann
+
+| Typ | Teile | Behaviour (vorhanden) | Collider | Status |
+|---|---|---|---|---|
+| `turntable` | `Base` (statisch), `Deck` (Pivot Mitte), `Glow` | `Rotatable` target `Deck`, axis up, step 45/90 | Rahmen-Boxen, `Deck` Box bzw. konvexes Mesh | spielbar als Richtungsrätsel |
+| `retractable_bridge` | `Housing`, `Deck`, `StatusLight_Front/Back`, `Rail` | `Door` panels `Deck`, `openOffset` (-Spannweite, 0,3, 0) | Podest, Taschenwände, Pfosten; `Deck` Box | ausfahrbar per Signal |
+| `spike_trap` | `Base`, `Spikes` (Pivot unten), `StatusLight_*` | `Door` panels `Spikes`, `openOffset` (0, Höhe, 0) | Platte; `Spikes` Box | fährt aus, **ohne Schaden** |
+| `cargo_container` | `Body`, `Door_Left/Right` (Pivot Scharnier), `Glow` | je Flügel ein `Rotatable` (axis up, step +90 / -90, target 1) | Boden, Wände, Dach, Rahmen; Flügel-Boxen | begehbar, Türen per Klick |
+| `portal_frame` | `Frame`, `Surface` (kein Collider), `Glow` | `SignalLight` am Glow | Pfosten und Sturz einzeln | **nur vorbereitet** |
+| `phase_platform` | `Base`, `Deck`, `Glow` | `SignalLight` am Glow | Anker; `Deck` Box | **nur vorbereitet** |
+| `breakable_platform` | `Frame`, `Tile_<n>` (Pivot Plattenmitte) | – (statisch) | Rahmen; je Platte eine Box | **nur vorbereitet** |
+| `fluid_basin` | `Basin`, `Fluid` (kein Collider) | – (statisch) | Wände und Boden einzeln, innen offen | **nur vorbereitet** |
+
+Neue Varianten bestehender Typen (`wall` mit Tür-/Fenster-/Rohröffnung, `catwalk` L/T/Kreuz/Podest/Ende,
+`stairs` mit Podest/Vierteldrehung/Wendepodest) sind statisch und bringen ihre `colliders` mit: Öffnungen
+und Anschlüsse bleiben frei, Geländer sind eigene schmale Boxen.
+
+### Benötigte Unity-Erweiterungen
+
+1. **Portal** (`portal_frame`): Trigger-Volumen aus den Bounds von `Surface`, Verknüpfung zweier Portale
+   (Paar-ID als Datenvertrag in `AssetMetadata`), Teleport mit Ausrichtung; Status über das vorhandene
+   `SignalLight` am `Glow`.
+2. **Phase** (`phase_platform`): Script, das `Deck` (Renderer und Collider) im Takt oder per Signal ein- und
+   ausschaltet; `Glow` als Vorwarnung (z. B. Blink kurz vor dem Ausblenden).
+3. **Bruch** (`breakable_platform`): Belastungs- oder Zeitlogik je `Tile_<n>`; die Platte wird zum
+   Rigidbody bzw. deaktiviert, der Rahmen bleibt.
+4. **Gefahr** (`spike_trap`, wie die bestehenden Fallen): Schadenszone als Trigger auf `Spikes`, nur
+   ausgefahren aktiv; Takt- oder Signalsteuerung des vorhandenen `Door`.
+5. **Flüssigkeit** (`fluid_basin`): Trigger-Volumen unter der `Fluid`-Fläche (Wasser: bremsen/schwimmen,
+   Schlamm: bremsen, toxisch: Schaden); optional eigenes Wassermaterial statt `M_Glass`.
+6. **Mitfahren**: Spieler und Kisten auf `Deck` von `retractable_bridge` (Translation) und `turntable`
+   (Rotation) müssen der Bewegung folgen. `MovingPlatform` deckt Translation ab, sollte dann aber statt `Door`
+   den Deck-Transform steuern; die Rotation der Drehscheibe ist zu prüfen.
+7. **Werkbank-Freigabe**: Ports, Grundfläche und Platzierung der neuen Gameplay-Prefabs im bestehenden
+   `AssetMetadata`-Vertrag authorieren; das Sidecar ersetzt diesen Vertrag nicht.
+8. **Familien-Anschlüsse** (optional): Die Anschlusspunkte im Manifest (`models[].connectors`: Art,
+   Position, Richtung, Breite/Höhe/Radius in Unity-Koordinaten) könnten später ein Einrasten im Editor
+   steuern. Heute liest der Import das Manifest nicht; dafür ist keine Sidecar-Änderung nötig.
+9. **LOD-Hüllen**: Statische Modelle mit `--lods` bekommen in Unity automatisch eine LODGroup. Zu prüfen
+   ist, dass die Registry-Hülle mit einer LODGroup umgeht (Collider nur von LOD0, `colliders` zeigen auf
+   `<Teil>_LOD0`).
