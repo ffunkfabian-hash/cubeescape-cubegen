@@ -263,7 +263,7 @@ result = bpy.ops.cubegen.export(mode="PREVIEW")
 assert result == {"FINISHED"}, s.status
 rig = json.load(open(os.path.join(out, "Models", "Gen_Machine_001.cubegen.json")))
 assert next(p["materials"] for p in rig["parts"] if p["name"] == "Body") == ["MP_Palette"]
-assert "textures" not in rig  # the sidecar contract has no palette mode: the material name is enough
+assert rig["textures"] == {"mode": "palette", "manifest": "Textures/CubeEscape_Palette.json"}, rig["textures"]
 assert os.path.isfile(os.path.join(out, "Models", "Textures", "MP_Palette_Albedo.png"))
 s.palette = "rust"  # a colour palette: same model, its own material
 mats = {slot.material.name for slot in bpy.data.objects["Gen_Machine_001.Body"].material_slots}

@@ -15,7 +15,7 @@
     "reserved_categories": ["Generated"],
     "pivots": ["floor", "top", "center", "wall"],
     "collision_modes": ["envelope", "mesh", "parts", "none"],
-    "texture_modes": ["tiled", "baked"]
+    "texture_modes": ["tiled", "baked", "palette"]
   },
   "part": {
     "keys": ["name", "parent", "localPosition", "empty", "materials", "bounds"],
@@ -80,6 +80,11 @@
     }
   },
   "rules": {
+    "repeatable_behaviours": ["Rotator", "Rotatable"],
+    "single_part_roles": {"SignalLight": ["glow", "rotor", "body"], "Rotator": ["target"],
+                          "Rotatable": ["target", "glow", "body"], "Machine": ["body", "glow", "rotor", "damage"],
+                          "SignalIndicator": ["body"]},
+    "interactive_rotatable_requires_target_collider": true,
     "door_panels": [1, 2],
     "door_upper_frame": ["Frame_Top"],
     "door_speed_positive": true,

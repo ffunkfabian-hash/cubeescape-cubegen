@@ -213,7 +213,7 @@ def material_map(asset, palette: Optional[str] = None) -> PaletteMap:
     """The palette map of an asset: everything into the palette material (``MP_Palette`` or
     ``MP_Palette_<Name>``) except parts its scripts recolour and glass."""
     keep: List[str] = []
-    for b in asset.behaviours:
+    for b in asset.behaviours + asset.meta.get("deferred_behaviours", []):
         for role in SWAPPED_ROLES.get(b["script"], ()):
             value = b["parts"].get(role)
             keep += value if isinstance(value, list) else ([value] if value else [])

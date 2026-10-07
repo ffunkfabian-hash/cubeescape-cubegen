@@ -25,6 +25,62 @@ def sidecars(seed, count, style=None, lods=False):
 
 
 class ContractTests(unittest.TestCase):
+    def test_optional_body_roles_are_single_parts_in_the_unity_adapter(self):
+        for model_type in ("valve", "emergency_light"):
+            config = BatchConfig(seed=42, models={model_type: 1}, out_dir="-")
+            spec = plan_models(config)[0]
+            data = rig_data(build_spec(spec), spec, 42)
+            behaviour = next(b for b in data["behaviours"] if b["script"] in ("Rotatable", "SignalLight"))
+            behaviour["parts"]["body"] = "Body"
+            self.assertEqual(check_sidecar(data)[0], [])
+            behaviour["parts"]["body"] = ["Body"]
+            self.assertTrue(any("single part as text" in e for e in check_sidecar(data)[0]))
+
+    def test_signal_light_rejects_a_list_for_its_single_glow(self):
+        for model_type in ("phase_platform", "portal_frame"):
+            config = BatchConfig(seed=42, models={model_type: 1}, out_dir="-")
+            spec = plan_models(config)[0]
+            data = rig_data(build_spec(spec), spec, 42)
+            self.assertEqual(check_sidecar(data)[0], [])
+            self.assertEqual(data["behaviours"][0]["parts"]["glow"], "Glow")
+            data["behaviours"][0]["parts"]["glow"] = ["Glow"]
+            self.assertTrue(any("single part as text" in e for e in check_sidecar(data)[0]))
+
+    def test_sequence_panel_defers_independent_indicators_until_unity_supports_them(self):
+        config = BatchConfig(seed=42, models={"sequence_panel": 1}, out_dir="-")
+        spec = plan_models(config)[0]
+        asset = build_spec(spec)
+        data = rig_data(asset, spec, 42)
+        self.assertEqual(check_sidecar(data)[0], [])
+        self.assertEqual(len(asset.meta["deferred_behaviours"]), asset.meta["buttons"])
+        self.assertEqual([b["script"] for b in data["behaviours"]], ["SignalLight"])
+        data["behaviours"].extend(copy.deepcopy(asset.meta["deferred_behaviours"]))
+        self.assertTrue(any("duplicate behaviour SignalIndicator" in e for e in check_sidecar(data)[0]))
+
+    def test_water_level_wheels_need_their_own_explicit_colliders(self):
+        for count in (1, 2, 3):
+            config = BatchConfig(seed=42, models={"water_level": 1}, out_dir="-",
+                                 params={"water_level": {"tubes": count}})
+            spec = plan_models(config)[0]
+            data = rig_data(build_spec(spec), spec, 42)
+            self.assertEqual(check_sidecar(data)[0], [])
+            for i in range(1, count + 1):
+                self.assertIn({"type": "mesh", "part": f"Wheel_{i}", "convex": True}, data["colliders"])
+            if count > 1:
+                data["colliders"] = [c for c in data["colliders"] if c["part"] != "Wheel_1"]
+                self.assertTrue(any("'Wheel_1' reachable" in e for e in check_sidecar(data)[0]))
+
+    def test_round_hatch_wheel_remains_reachable_inside_the_lid_hierarchy(self):
+        for seed, style in ((42, Style()), (7, Style(damage="damaged", wear="heavy"))):
+            config = BatchConfig(seed=seed, models={"hatch": 3}, out_dir="-", style=style)
+            spec = plan_models(config)[2]
+            data = rig_data(build_spec(spec), spec, seed)
+            self.assertEqual(check_sidecar(data)[0], [])
+            self.assertIn({"type": "mesh", "part": "Wheel", "convex": True}, data["colliders"])
+            self.assertEqual(next(p for p in data["parts"] if p["name"] == "Wheel")["parent"], "Panel")
+            data["colliders"] = [c for c in data["colliders"] if c["part"] != "Wheel"]
+            self.assertTrue(any("'Wheel' reachable" in e for e in check_sidecar(data)[0]))
+
     def test_all_types_keep_the_contract(self):
         for seed, style, lods in ((42, None, False), (7, Style(damage="damaged", wear="heavy"), False),
                                   (3, Style(damage="destroyed"), False), (11, Style(theme="labor-3"), True)):

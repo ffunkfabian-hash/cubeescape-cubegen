@@ -354,8 +354,10 @@ einen kleinen Impuls vom Treffpunkt weg.
 Glow-Teile behalten `M_…`). Einmal ein Material `MP_Palette` anlegen: Albedo `MP_Palette_Albedo.png` (sRGB),
 Metallic `MP_Palette_MetallicSmoothness.png` (R = Metallic, A = Smoothness, linear), Emission
 `MP_Palette_Emission.png` × `emission` aus `CubeEscape_Palette.json`; alle drei mit Filter Mode **Point** und ohne
-Mipmaps (sonst laufen die Farbzellen ineinander). Der Sidecar hat dafür keinen `textures`-Eintrag (der Vertrag
-kennt nur `tiled`/`baked`); der Materialname genügt für das Remapping.
+Mipmaps (sonst laufen die Farbzellen ineinander). Seit 0.10.2 enthält der Sidecar
+`textures: {"mode": "palette", "manifest": "Textures/CubeEscape_Palette.json"}`; Farbpaletten
+verweisen entsprechend auf `CubeEscape_Palette_<Name>.json`. Der Unity-Importer validiert
+das Manifest und erzeugt das URP-Material selbst, getrennt nach Manifest-GUID.
 Farbpaletten (`--palette rust` …) heißen `MP_Palette_<Name>` mit eigenen Bildern `MP_Palette_<Name>_Albedo.png` …
 und `CubeEscape_Palette_<Name>.json`; die Zellen und UVs sind dieselben. Pro Palette ein Material wie oben anlegen.
 Ein Raum wechselt die Stimmung, indem man das Material tauscht (oder mit einer anderen Palette exportiert).
@@ -373,7 +375,7 @@ Geschütz um −arc/2 (Unity-Gier) vorgedreht, damit ein Schwenk von 0 bis `arc`
 
 | Typ | Teile | Behaviour (vorhanden) | Status |
 |---|---|---|---|
-| `sequence_panel` | `Button_<n>`, `Light_<n>` (Kind der Taste), `Glow` | je Licht `SignalIndicator` (aus: `M_RobotDark`, an: Tastenfarbe), `SignalLight` Blink | Lichter schaltbar; Folge-Logik fehlt (`meta.sequence`) |
+| `sequence_panel` | `Button_<n>`, `Light_<n>` (Kind der Taste), `Glow` | `SignalLight` Blink; unabhängige `SignalIndicator`-Rezepte in `meta.deferred_behaviours` im Manifest | Statusleuchte importierbar; Tasten-Anzeiger und Folge brauchen einen eigenen Adapter (`meta.sequence`) |
 | `water_level` | `Fluid_<n>` (Pivot unten), `Wheel_<n>`, `Glow` | je Rad `Rotatable` (forward, 90°, Ziel = Zielstand × 4), `SignalLight` | Räder drehbar; `Fluid_<n>` je Schritt um ¼ der Säule (`meta.column_m`) anheben fehlt |
 | `laser_filter` | `Filter` (Pivot auf der Achse), `Glow` | `Rotatable` (up, 90°, Ziel 1) | drehbar; Laserfarbe (`meta.colour`) übernehmen fehlt |
 | `symbol_plate` | `Plate_<n>` (Pivot Mitte), `Glow` | je Platte `Rotatable` (forward, 90°, Ziel = aufrecht) | spielbar, wenn alle Ziele erreicht = gelöst |
