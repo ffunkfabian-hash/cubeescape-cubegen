@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 10, 4),
+    "version": (0, 10, 4, 1),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
@@ -140,6 +140,8 @@ def _explicit_style(s):
     for key in ("size", "glow", "material", "warning", "wear", "theme"):
         if getattr(st, key):
             out[key] = getattr(st, key)
+    if s.clutter != SEED:
+        out["clutter"] = s.clutter
     if st.snap:
         out["snap"] = st.snap
     if st.detail != "normal":
@@ -192,6 +194,7 @@ def _cli_command(s):
     flags += [("--snap", style.snap if style.snap else None), ("--wear", style.wear),
               ("--detail", style.detail if style.detail != "normal" else None),
               ("--damage", style.damage if style.damage != "intact" else None),
+              ("--clutter", style.clutter if s.clutter != SEED else None),
               ("--generation", style.generation if style.generation != params_mod.LATEST_GENERATION else None),
               ("--textures", s.textures if s.textures != "none" else None),
               ("--lods", s.lods),  # True = flag without value
@@ -230,7 +233,9 @@ def _style(s):
         glow=None if s.glow_color in unset else s.glow_color,
         material=None if s.material_style in unset else s.material_style,
         warning=None if s.warning in unset else s.warning, wear=None if s.wear in unset else s.wear,
-        detail=s.detail, damage=s.damage, theme=s.theme.strip() or None, generation=int(s.generation),
+        detail=s.detail, damage=s.damage, clutter="none" if s.clutter in unset else s.clutter,
+        theme=s.theme.strip() or None,
+        generation=int(s.generation),
     )
 
 
@@ -697,6 +702,12 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
         ("destroyed", "Zerstört", "Ruine: abgebrochen, Teile am Boden, Lichter aus, Schutt - statisch, ohne Scripts"),
         ("fractured", "Bruchstücke", "Sieht intakt aus, besteht aus Bruchstücken Fragment_<n> (konvexe Collider), "
                                      "die Unity bei Zerstörung herausfallen lässt - statisch, ohne Scripts")])
+    clutter: EnumProperty(name="Accessoires", update=_on_change, default=SEED, items=[
+        (SEED, "Seed / Familie", "Dichte aus Rezept/Familie; ohne Vorgabe aus"),
+        ("none", "Aus", "Keine automatische Accessoire-Verteilung"),
+        ("clean", "Clean", "Wenige separate Props auf unterstützten Tischflächen"),
+        ("lived-in", "Lived-in", "Mittlere Dichte; deterministisch platziert"),
+        ("chaotic", "Chaotic", "Hohe Dichte mit Mindestabstand und Randprüfung")])
     generation: EnumProperty(name="Generation", update=_on_change, default=str(params_mod.LATEST_GENERATION),
                              items=[("3", "3 (aktuell)", "Wie 2, dazu Anker für Ton und Effekte (Audio_*, FX_*); "
                                                          "beschädigte Türrahmen verlieren keine Teile mehr"),
@@ -1196,7 +1207,7 @@ class CUBEGEN_PT_style(_Panel, bpy.types.Panel):
             col.label(text=f"Thema: {rolled['glow']}, {rolled['material']}, Abnutzung {rolled['wear']}, "
                            f"Warnfarbe {rolled['warning'] or 'Seed'}", icon="INFO")
         for name in ("size_class", "snap", "glow_color", "material_style", "warning", "wear", "detail", "damage",
-                     "generation"):
+                     "clutter", "generation"):
             col.prop(s, name)
         self.layout.label(text="Icon-Kamera")
         row = self.layout.row(align=True)

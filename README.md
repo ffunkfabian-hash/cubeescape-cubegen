@@ -1,7 +1,7 @@
 # Cube Escape – Model Generator Seed (`cubegen`)
 
-Aktueller Stand: **0.10.4** (7. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
-Version. Unity-Nachweise und Integrationsgrenzen: [Versionsbericht](VERSION_0.10.4.md).
+Aktueller Stand: **0.10.4.1** (7. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
+Version. Änderungen und Prüfstatus: [Versionsbericht](VERSION_0.10.4.1.md).
 
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,
@@ -22,6 +22,9 @@ Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Ans
   speichert eine Übersichts-`.blend`.
 * **ImageMagick** macht daraus **Inventar-Icons** (`Icon_<Name>.png`), einen **Kontaktbogen** zum Durchsehen und eine
   Material-Übersicht.
+* **Clutter-/Accessoire-Pass** (`--clutter clean|lived-in|chaotic`) verteilt kleine Props deterministisch auf
+  unterstützten Tischflächen. Im Export sind die Accessoires eigene `Clutter_*`-Mesh-Objekte; `tool`,
+  `spare_part` und `keycard` bleiben zusätzlich als Einzelmodelle verfügbar.
 * **Desktop-GUI**: `cubegen gui` (oder `cubegen-gui`) bietet Modell-/Rezeptauswahl, Qualitäts-Vorabprüfung,
   Batch-Export sowie gerenderte und interaktive 3D-Modellvorschauen.
 
@@ -81,7 +84,7 @@ Das Add-on ist eine Oberfläche für denselben Generator, im 3D-Viewport unter *
 * **Parameter**: Eigenschaften des gewählten Typs festlegen (Häkchen bzw. Auswahl statt „Seed“). Rechts steht, was
   der Seed gewählt hätte. Beim Anhaken startet der Wert dort. **Zurücksetzen** lässt wieder alles würfeln.
 * **Stil (alle Typen)**: Raum-Thema, Größe, Raster, Glow-Farbe, Material, Warnfarbe, Abnutzung, Detail,
-  Icon-Kamera. Das **Thema** (beliebiger Text) würfelt Glow-Farbe, Material, Abnutzung und Warnfarbe einmal für
+  Accessoire-Dichte und Icon-Kamera. Bei Accessoires übernimmt „Seed / Familie“ die Rezeptvorgabe, „Aus“ schaltet sie explizit ab. Das **Thema** (beliebiger Text) würfelt Glow-Farbe, Material, Abnutzung und Warnfarbe einmal für
   alle Modelle, damit ein Raum zusammenpasst.
 * **Varianten-Raster**: z. B. 12 Varianten nebeneinander, beschriftet. Gute Varianten im Viewport anklicken
   (Shift = mehrere) und **Auswahl exportieren**. **Als Vorschau** übernimmt die Variante des aktiven Objekts.

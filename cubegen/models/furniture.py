@@ -720,7 +720,12 @@ def table(rng, a):
         else:
             for sy in (-1, 1):
                 cube(body, (w - 0.1, 0.03, 0.08), (0, sy * (d / 2 - 0.05), h - 0.09), "M_RobotDark")
-    if p.bool("clutter", 0.6):
+    legacy_clutter = p.bool("clutter", 0.6)
+    if p.style.clutter != "none" and style in ("table", "lab"):
+        if p.overrides.get("clutter") is True:
+            raise ValueError("table.clutter=true conflicts with style clutter; remove the parameter or set clutter=none")
+        p.used["clutter"] = False
+    if legacy_clutter and (p.style.clutter == "none" or style not in ("table", "lab")):
         for _ in range(rng.randint(2, 5)):
             x, y = rng.uniform(-w * 0.35, w * 0.35), rng.uniform(-d * 0.3, d * 0.3)
             if style == "round" and math.hypot(x, y) > w * 0.4:
@@ -734,6 +739,13 @@ def table(rng, a):
             else:  # small box / device
                 cube(body, (0.15, 0.1, 0.06), (x, y, h + 0.03), rng.choice(BOX_MATS), bevel=0.01,
                      rot=(0, 0, rng.uniform(-0.5, 0.5)))
+    if style in ("table", "lab"):
+        a.meta["clutter_surfaces"] = [{
+            "key": "top",
+            "x": [-w * 0.36, w * 0.36],
+            "y": [-d * 0.28, d * 0.28],
+            "z": h,
+        }]
 
 
 @model("bin", "Bin", "props", "Waste bin: round, square, a recycling row with coloured lids or a hazard bin; "

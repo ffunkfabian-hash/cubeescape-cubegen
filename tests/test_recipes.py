@@ -64,6 +64,13 @@ class RecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "did you mean 'detail'"):
             Style.from_dict({"detial": "low"})
 
+    def test_clutter_style_in_recipe_and_cli_override(self):
+        config = config_for({"seed": 42, "models": {"table": 1}, "style": {"clutter": "clean"}})
+        self.assertEqual(config.style.clutter, "clean")
+        config = config_for({"seed": 42, "models": {"table": 1}, "style": {"clutter": "clean"}},
+                            "--clutter", "chaotic")
+        self.assertEqual(config.style.clutter, "chaotic")
+
 
 if __name__ == "__main__":
     unittest.main()

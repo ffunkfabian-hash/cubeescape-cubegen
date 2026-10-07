@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.4.1 – 2026-10-07
+
+* Neuer seed-deterministischer Clutter-/Accessoire-Pass: `--clutter clean|lived-in|chaotic`
+  bzw. `style.clutter` verteilt eigenständige Werkzeug-, Ersatzteil- und Keycard-Meshes auf
+  explizit markierten Tischflächen. Props bleiben als eigene `Clutter_*`-Objekte im Export;
+  ihre normalen Modelltypen sind weiterhin separat generier- und exportierbar.
+* Erste freigegebene Flächen: intakte Tisch- und Labortische. Randabstände, Objektabstände
+  und Flächenpassung werden beim Platzieren geprüft; fehlgeschlagene Plätze werden im
+  Sidecar als `clutter_pass.skipped` protokolliert. Bestehender Tisch-Kleinkram wird bei
+  aktiviertem Pass durch die separat benannten Props ersetzt.
+* CLI, Rezept/Style, Blender-Add-on und Paketversion auf 0.10.4.1 aktualisiert.
+  Bekannte Grenzen und Prüfstatus stehen in `VERSION_0.10.4.1.md`.
+
 ## 0.10.4 – 2026-10-07
 
 * Schwenk-Vorrotation folgt der Richtung bei Kamera und Geschütz; negative Speed-Parameter

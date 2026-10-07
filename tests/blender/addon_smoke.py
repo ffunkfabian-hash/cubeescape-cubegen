@@ -125,6 +125,13 @@ assert "Gen_Machine_001.Wear" in bpy.data.objects
 cmd = addon._cli_command(s)
 print("CLI", cmd)
 assert "--wear light" in cmd and "--detail low" in cmd
+s.clutter = "lived-in"
+clutter_asset = addon.models.generate_asset("table", 42, params={"style": "table"}, style=addon._style(s))
+assert any(o.name.startswith("Clutter_") for o in clutter_asset.objects)
+assert "--clutter lived-in" in addon._cli_command(s)
+s.clutter = "none"
+assert "--clutter none" in addon._cli_command(s)
+s.clutter = addon.SEED
 s.model_type = "door"
 assert "--param door.style=airlock" in addon._cli_command(s) and "--param door.width=2.0" in addon._cli_command(s)
 s.render_icons = False

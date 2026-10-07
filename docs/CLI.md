@@ -85,6 +85,25 @@ Typs und `similar_to`, falls eine zuvor geplante Variante innerhalb der Ähnlich
 fassen Dreiecksbudget, Draw Calls, Z-Fighting und Collider-Abdeckung zusammen; Fehler und Warnungen bleiben separat
 ausgewiesen.
 
+### Clutter-/Accessoire-Pass
+
+Für `table`-Assets setzt `--clutter` kleine separate Props auf die explizit freigegebene
+Tischfläche. Die Verteilung ist seed-deterministisch; `clean`, `lived-in` und `chaotic`
+steuern die Ziel-Dichte. In Rezepten wird dieselbe Einstellung unter `style.clutter`
+gesetzt. Der erste Pass unterstützt intakte Tisch- und Labortisch-Varianten; bei
+beschädigten Modellen ist Clutter absichtlich nicht erlaubt.
+
+```bash
+python3 -m cubegen generate --seed 42 --types table --count 3 \
+    --param table.style=table --clutter lived-in --no-render
+```
+
+Die Accessoires werden als getrennte `Clutter_*`-Mesh-Objekte in den Export aufgenommen,
+nicht mit dem Tisch-Mesh verschmolzen. Die Typen `tool`, `spare_part` und `keycard` können
+weiterhin einzeln über `--types` exportiert werden. Platzmangel führt nicht zu
+Randüberschreitungen oder Überlappungen: nicht platzierbare Props werden als `skipped` im
+Sidecar ausgewiesen.
+
 ## 4. Was erzeugt wird: Typen, Anzahl, Varianten
 
 | Option | Beispiel | Wirkung |

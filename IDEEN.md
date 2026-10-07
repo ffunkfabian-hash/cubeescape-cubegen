@@ -1767,7 +1767,7 @@ Varianten und Zustände.
 
 ### Generierung
 - **Raum-/Level-Generator** *(nach hinten gestellt)* – aus `families.connectors` + `snapping.py` Räume nach Seed zusammensetzen; Ausgabe Layout-JSON für Unity.
-- **Clutter-/Accessoire-Pass** – kleine Props automatisch auf Flächen verteilen (Dichte: clean → lived-in → chaotic); **Einzelmodelle bleiben separat exportierbar.**
+- [x] **Clutter-/Accessoire-Pass (erste Stufe, 0.10.4.1)** – deterministische Props mit Dichte `clean` → `lived-in` → `chaotic` auf freigegebenen Tischflächen; eigene `Clutter_*`-Meshes, Einzeltypen separat exportierbar. Weitere Oberflächen und Unity-Laufzeitprüfung bleiben offen.
 - **Composite-/Kitbash-Typen** – Rezept, das zwei vorhandene Teile kombiniert (z. B. `wall` + `vent` + `pipe`).
 - **Seed-Morphing** – zwischen zwei Seeds interpolieren, um gezielt zwischen guten Varianten zu suchen.
 
@@ -1896,7 +1896,7 @@ einen nachvollziehbaren Timer und ein definiertes Wiederholen.
 
 ### Level- und Asset-Workflows
 
-- Clutter-/Accessoire-Pass für einzeln exportierbare Props mit einstellbarer Dichte.
+- Clutter-/Accessoire-Pass erste Stufe in 0.10.4.1 umgesetzt; weitere Flächen, Hindernisbeschreibungen und echte Unity-Prüfung offen.
 - Composite-/Kit-Rezepte aus vorhandenen Modellen und kompatiblen Anschlüssen.
 - Raum-/Level-Generator auf Basis von Connectors und Snapping; ausdrücklich später
   priorisieren, bis die Asset- und Puzzle-Grundlagen stabil sind.

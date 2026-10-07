@@ -26,7 +26,8 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail", "damage": "damage", "theme": "theme", "generation": "generation"}
+                "wear": "wear", "detail": "detail", "damage": "damage", "clutter": "clutter",
+                "theme": "theme", "generation": "generation"}
 
 
 def _csv(value: str) -> List[str]:
@@ -365,7 +366,8 @@ def cmd_params(args) -> int:
     print("global: --theme TEXT  --size S|M|L  --snap 0.5  --glow cyan|red|orange")
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
-    print("        --damage intact|damaged|destroyed|fractured  --generation 1|2|3")
+    print("        --damage intact|damaged|destroyed|fractured  --clutter none|clean|lived-in|chaotic")
+    print("        --generation 1|2|3")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
 
@@ -579,6 +581,8 @@ def make_parser() -> argparse.ArgumentParser:
     st.add_argument("--damage", choices=list(DAMAGE_STATES),
                     help="damaged: dents, knocked-off parts; destroyed: ruin (static, goes to the library); "
                          "fractured: split into fragments Fragment_<n> that Unity drops when it is destroyed")
+    st.add_argument("--clutter", choices=["none", "clean", "lived-in", "chaotic"],
+                    help="separate small props on explicitly supported table surfaces; deterministic by seed")
     st.add_argument("--generation", type=int, choices=list(GENERATIONS),
                     help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
                          "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part; "

@@ -116,6 +116,12 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         apply_wear(asset, seed, style.wear)
         if style.generation >= 2:
             fix_z_fighting(asset, entry.pivot, only=("Wear",))  # wear never changes the model itself
+    if style.clutter != "none":
+        from ..clutter import apply_clutter
+
+        apply_clutter(asset, style.clutter)
+    else:
+        asset.meta.pop("clutter_surfaces", None)
     if style.generation >= 3:
         add_anchors(asset, model_type, style.damage)  # empties for sound and effects (Audio_*, FX_*)
     if scale != 1.0:
