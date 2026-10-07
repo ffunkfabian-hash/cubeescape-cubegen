@@ -230,9 +230,14 @@ def sweep_rotator(a, target: str, speed: float, sweep: float, note: str) -> None
     if not sweep:
         a.behaviour("Rotator", {"target": target}, {"axis": "up", "speed": speed}, note=note)
         return
-    speed = speed or 30.0
-    prerotate(a, target, math.radians(sweep / 2))  # Unity yaw +speed = Blender -Z: start half the arc back
+    # Preserve the historical implicit sweep speed and Generation 1 exports.
+    # An explicit zero in current generations means stationary, as documented.
+    if speed == 0 and ("speed" not in a.p.overrides or a.p.style.generation == 1):
+        speed = 30.0
+    direction = 1 if speed > 0 else (-1 if speed < 0 else 0)
+    start = -direction * sweep / 2
+    prerotate(a, target, math.radians(-start))  # Unity yaw is Blender -Z.
     a.meta["sweep_deg"] = [-sweep / 2, sweep / 2]
     a.behaviour("Rotator", {"target": target}, {"axis": "up", "speed": speed, "arc": sweep},
-                note=f"sweeps {sweep:g} degrees: built turned -{sweep / 2:g} degrees (Unity yaw), Rotator.arc swings "
-                     f"it to +{sweep / 2:g} and back")
+                note=f"sweeps {sweep:g} degrees: built turned {start:g} degrees (Unity yaw), Rotator.arc swings "
+                     f"it to {-start:g} and back")

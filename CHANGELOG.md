@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.10.4 – 2026-10-07
+
+* Schwenk-Vorrotation folgt der Richtung bei Kamera und Geschütz; negative Speed-Parameter
+  sind zugelassen. Beide Richtungen decken denselben symmetrischen Winkelbereich ab.
+* Explizites `speed: 0` bleibt bei Schwenken in Generation 2/3 stehen; impliziter
+  30°/s-Sweep und Generation-1-Kompatibilität bleiben erhalten.
+* Druckplatten der Generation 3 exportieren feste und bewegte Kollisionsflächen
+  (`Body`, `Plate`) für beide Formen; ältere Generationen bleiben unverändert.
+* Kamera und Geschütz der Generation 3 erhalten feste und bewegte Mesh-Collider;
+  untergeordnete Geschützteile bewegen sich mit, ältere Generationen bleiben unverändert.
+* Regressionen, aktualisierte Parameterliste und Cube-Escape-Nachweise: `VERSION_0.10.4.md`.
+
+
+Paket, CLI und Blender-Add-on sind einheitlich 0.10.4; Add-on-ZIP neu gebaut.
+Release-Prüfung: 170/170 Python-Tests grün (135 s), einschließlich Blender-Smoke.
+Unity-Phase 3: 859 Tests grün, 16 zusätzliche echte FBX ohne Fehler, neun geprüfte Bilder.
+
 ## 0.10.3 – 2026-10-07
 
 * Paket, CLI und eigenständig installierbares Blender-Add-on auf 0.10.3 vereinheitlicht.

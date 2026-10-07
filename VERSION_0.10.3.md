@@ -62,3 +62,6 @@ Neue Fehler aus folgenden Phasen werden mit Ursache, Korrektur und Nachprüfung 
 Dieser Bericht dokumentiert den Release-Stand 0.10.3. Weitere Integrationsbefunde werden
 mit Ursache, Regression und Nachprüfung nachvollziehbar ergänzt; spätere Codekorrekturen
 erfordern einen eigenen neuen Release-Stand.
+
+Seit Integrationsphase 3 werden neue Befunde im nächsten Arbeitsbericht `VERSION_0.10.4.md`
+gesammelt. Dieser veröffentlichte 0.10.3-Bericht bleibt der historische Release-Nachweis.

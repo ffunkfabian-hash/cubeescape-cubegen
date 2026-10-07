@@ -228,7 +228,7 @@ def robot_arm(rng, a):
            Param("barrels", "choice", "Läufe", choices=(1, 2)),
            Param("size", "float", "Größe (m)", lo=0.3, hi=1.5, size=True),
            Param("shield", "bool", "Schutzschild"),
-           Param("speed", "float", "Schwenk-Tempo (°/s, 0 = steht)", lo=0, hi=360, unity=True, default=0,
+           Param("speed", "float", "Schwenk-Tempo (°/s, 0 = steht)", lo=-360, hi=360, unity=True, default=0,
                  description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
            Param("mode", "choice", "Visier-Modus", choices=("Steady", "Pulse", "Blink"), unity=True, default="Steady"),
            sweep_param(),
@@ -277,6 +277,9 @@ def turret(rng, a):
     sweep_rotator(a, "Turret", p.option("speed"), p.option("sweep"),
                   "yaw around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep); Gun tilts "
                   "around Unity right")
+    if p.style.generation >= 3:
+        for part in ("Body", "Turret", "Gun"):
+            a.mesh_collider(part, convex=True)
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 
 
