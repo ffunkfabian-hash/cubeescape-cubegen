@@ -119,7 +119,7 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
         tex = data["textures"]
         if not isinstance(tex, dict) or tex.get("mode") not in CONTRACT["root"]["texture_modes"] or \
                 not isinstance(tex.get("manifest"), str):
-            errors.append("textures: expected {mode: tiled|baked, manifest: path}")
+            errors.append("textures: expected {mode: tiled|baked|palette, manifest: path}")
 
     # -- parts ---------------------------------------------------------------
     parts: Dict[str, Dict] = {}
@@ -171,6 +171,7 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
     # -- behaviours ----------------------------------------------------------
     moved: Dict[str, str] = {}   # transform -> controller
     moving: set = set()          # moving transforms and everything below them
+    seen_scripts = set()
     if not isinstance(data["behaviours"], list):
         errors.append("behaviours: expected a list")
         behaviours = []
@@ -183,6 +184,9 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
             continue
         script = b["script"]
         where = f"{where} {script}"
+        if script in seen_scripts and script not in RULES["repeatable_behaviours"]:
+            errors.append(f"{where}: duplicate behaviour {script}")
+        seen_scripts.add(script)
         for key in b:
             if key not in BEHAVIOUR_KEYS:
                 errors.append(f"{where}: unknown key {key!r}")
@@ -199,6 +203,8 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
             if role not in roles:
                 errors.append(f"{where}: missing role {role!r}")
         for role, value in roles.items():
+            if role in RULES["single_part_roles"].get(script, []) and not isinstance(value, str):
+                errors.append(f"{where}: role {role!r} must name a single part as text")
             names = _role_parts(value)
             if names is None:
                 errors.append(f"{where}: role {role!r} must name parts")
@@ -264,6 +270,20 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
                 errors.append(f"{where}: a mesh collider needs a mesh part")
             elif part in moving and c["convex"] is not True and CONTRACT["colliders"]["moving_mesh_must_be_convex"]:
                 errors.append(f"{where}: {part!r} moves - its mesh collider must be convex")
+    if RULES["interactive_rotatable_requires_target_collider"] and isinstance(data.get("colliders"), list):
+        turns = [b for b in behaviours if isinstance(b, dict) and b.get("script") == "Rotatable"]
+        for b in turns:
+            roles, fields = b.get("parts", {}), b.get("fields", {})
+            if not isinstance(roles, dict) or not isinstance(fields, dict) or fields.get("interactive") is False:
+                continue
+            target = roles.get("target")
+            if not isinstance(target, str) or target not in parts:
+                continue
+            reachable_parts = {target, *children(target)}
+            colliders = [c for c in data["colliders"] if isinstance(c, dict)]
+            reachable = any(c.get("part") in reachable_parts for c in colliders) if len(turns) > 1 else bool(colliders)
+            if not reachable:
+                errors.append(f"Rotatable: explicit colliders must make interactive target {target!r} reachable")
     return errors, open_items
 
 

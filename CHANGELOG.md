@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.10.2 – 2026-10-07
+
+Nutzerauftrag für alle weiteren Cube-Escape-Integrationsphasen: belegte Cubegen-Fehler sofort
+im Generator beheben, Regressionstest ergänzen und hier mit Ursache und Nachprüfung vermerken.
+Dieser Stand enthält auch die unten dokumentierten Phase-0-Korrekturen aus dem
+0.10.1-Arbeitsstand. Sie werden gemeinsam im 0.10.2-Pull-Request geprüft; der auf
+Nutzerwunsch gesetzte Tag `v0.10.2` verweist auf dessen geprüften Commit.
+
+* Palettenexport: Sidecars enthalten jetzt `textures.mode: palette` und einen relativen Pfad
+  zum Standard- oder Farbpalettenmanifest. Zuvor waren nur `MP_Palette…`-Materialnamen
+  enthalten; der Unity-Importer konnte die Maps damit nicht zuverlässig auflösen.
+  Gemeinsamer Vertrag um den bestehenden Palettenmodus ergänzt. Nach Textur-/Atlasanbindung
+  wird der tatsächlich geschriebene Sidecar erneut geprüft. Standard-/Neon-Regression ergänzt.
+* Gemeinsamer Rollenvertrag: optionale `body`-Rollen von `Rotatable`, `SignalLight` und
+  `SignalIndicator` sind ausdrücklich Einzelteile. Der Unity-Adapter bindet dort einen
+  Transform; die bisherige unvollständige Kardinalitätsliste ließ Listen passieren.
+  Generator-Regression ergänzt; Add-on-Smoke prüft jetzt auch den Palettenmanifestpfad.
+
+Prüfung: **148 Python-Tests grün**, 167 Sekunden (38 Modell-, 12 Qualitäts-, 98 übrige
+Tests), einschließlich echtem Blender-/Add-on-Export. Unity-Adapter mit gemeinsamem Vertrag:
+**842 Tests grün**, volle Regression, 361 Sekunden. Echte Standard-/Rostpaletten-FBX:
+**8 + 6 Quellen**, beide Import-/Reimport-Batches ohne Fehler; Maps, Renderer/Meshreferenzen,
+LOD-Gruppen und Kollision geprüft. Alle **164 vorhandenen 0.10.1-FBX** bestehen ebenfalls
+mit dem erweiterten Importer: 82 Gameplay / 74 statisch / 8 offene Item-Zuordnungen / 0 Fehler.
+Keine Ablehnungsausnahmen. Generator- und Unity-Berichte im Worktree `f1b1` unter
+`QA/Reports/Cubegen0102Phase1`. CLI, Paket und Blender-Add-on melden einheitlich 0.10.2.
+
+## 0.10.1 – historischer Arbeitsstand, 2026-10-07 (in 0.10.2 enthalten)
+
+Korrekturen aus dem echten Cube-Escape-Unity-Audit von Phase 0; weitere belegte Generatorfehler
+aus Phase 1 und den folgenden Integrationsphasen werden im Abschnitt 0.10.2 gesammelt.
+Keine Unity-Prüfung durch Ablehnungsausnahmen oder gelockerte Geometrie-/Collider-Prüfungen grün machen.
+
+* `phase_platform` und `portal_frame`: `SignalLight.parts.glow` ist ein einzelner Teilname (`"Glow"`),
+  keine Liste. Der bisherige Export wurde vom Unity-Importer mit „JSON-Text erwartet“ abgelehnt.
+* `water_level`: Jedes Ventilrad `Wheel_<n>` hat einen eigenen konvexen Mesh-Collider. Die bisherige
+  Gesamtbox reichte für mehrere getrennte interaktive `Rotatable`-Ziele nicht aus.
+* `hatch`, runde Variante: Auch das Verschlussrad `Wheel` unter `Panel` hat einen eigenen konvexen
+  Mesh-Collider. Die erweiterte Prüfung fand die Lücke zusätzlich bei Seed-42-Variante 2 und bei
+  einer beschädigten Seed-7-Variante; Deckel-Collider bleiben erhalten.
+* `sequence_panel`: Der Sidecar enthält nur die unterstützte Statusleuchte. Die unabhängigen Anzeiger
+  für jede Taste bleiben vollständig als `meta.deferred_behaviours` im Manifest erhalten, zusammen
+  mit Tastenfarben und Folge. Der aktuelle Unity-Importer erlaubt nur einen `SignalIndicator` je
+  Prefab-Root; die spätere Knopffolge braucht ihren eigenen Adapter und ist noch nicht spielbereit.
+  Die Paletten-Auflösung schützt auch diese vorbereiteten Tastenlichter vor dem Materialtausch.
+* Der gemeinsame Vertrag und Python-Validator prüfen nun Einzelteil-Rollen, erlaubte Behaviour-
+  Wiederholungen und explizite Collider an mehreren interaktiven Drehzielen. Regressionstests
+  reproduzieren die zuvor übersehenen Ablehnungen.
+* Modellnamen, Seeds, Meshes, Pivots, Materialien und Folgedaten bleiben erhalten. Sidecar-Rezepte
+  und Collider sind absichtlich korrigiert, auch bei Generation 1/2; deren Geometrie bleibt erhalten.
+  Golden-Referenzen ausschließlich für die fünf betroffenen Typen aktualisiert.
+
+Prüfung: **147 Python-Tests grün** (38 Modell-, 12 Qualitäts-/Golden-, 97 übrige Tests; 159 Sekunden).
+Echter Seed-42-FBX-/Unity-Batch aller 164 Typen ohne Ablehnungsausnahmen: **82 Gameplay / 74 statisch /
+8 offene Item-Zuordnungen / 0 Fehler**, ein EditMode-Batchtest grün in 76,70 Sekunden Testzeit.
+Zusätzlich sechs intakte/beschädigte Luke-FBX: **6 Gameplay / 0 Fehler**, ein EditMode-Batchtest grün
+in 1,67 Sekunden. Vergleich gegen unverändertes `c9fde3b`: **135 Geometriefälle unverändert**.
+Die erste vollständige Python-Prüfung fand den zusätzlichen Luke-Fehler; nach dessen Korrektur
+wurde die vollständige Suite wiederholt. Prüfberichte im Cube-Escape-Worktree `2586` unter
+`QA/Reports/Cubegen0100Phase0` und `QA/Reports/Cubegen0101Phase0`; Phase 0 wartet auf Abnahme.
+Am Phase-0-Abschluss waren Versionsangaben auf 0.10.1 angehoben und beide Repositories
+uncommittiert. Es gab keinen eigenen 0.10.1-Tag oder Release; die Korrekturen sind in 0.10.2 enthalten.
+
 ## 0.10.0 – 2026-10-06
 
 Roadmap Phase 3 (Erweiterungen) ohne den Raum- und Level-Generator: Einrasten im Add-on, Paletten-Modus mit acht

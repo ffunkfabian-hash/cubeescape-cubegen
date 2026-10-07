@@ -75,7 +75,7 @@ SEQUENCE_COLOURS = ("M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_W
 
 
 @model("sequence_panel", "SequencePanel", "puzzle", "Wall panel for a tone and colour sequence (Simon): 4-6 "
-       "coloured buttons (Button_<n>) with lights (Light_<n>, SignalIndicator each), speaker grille; sequence in "
+       "coloured buttons (Button_<n>) with lights (Light_<n>), speaker grille; sequence and deferred indicators in "
        "meta", pivot="wall", params=[
            Param("buttons", "int", "Tasten", lo=3, hi=6),
            Param("length", "int", "Länge der Folge", lo=3, hi=10),
@@ -105,6 +105,7 @@ def sequence_panel(rng, a):
     zc = z + 0.06
     cube(body, (w, 0.08, h), (0, 0.06, z), p.material(["M_RobotDark", "M_Wall"]), bevel=0.02)
     colours = SEQUENCE_COLOURS[:n] if n <= len(SEQUENCE_COLOURS) else SEQUENCE_COLOURS
+    indicators = []
     for i, ((x, zz), colour) in enumerate(zip(pos, colours), 1):
         center = (x, -0.0, zc + zz)
         cube(body, (bs * 1.15, 0.03, bs * 1.15), (x, 0.01, zc + zz), "M_Metal")
@@ -114,6 +115,9 @@ def sequence_panel(rng, a):
         a.behaviour("SignalIndicator", {"renderers": [f"Light_{i}"]}, {"offMaterial": "M_RobotDark",
                                                                        "onMaterial": colour},
                     note=f"button {i} lights up ({colour}); Button_{i} moves ~1.5 cm towards the wall when pressed")
+        # The current Unity importer allows only one indicator on a prefab root.
+        # Keep independent button recipes in the manifest until their adapter exists.
+        indicators.append(a.behaviours.pop())
     grille = (0.0, 0.0, z - h / 2 + 0.09)
     for k in range(4):
         cube(body, (w * 0.4, 0.02, 0.012), (grille[0], 0.01, grille[2] - 0.03 + k * 0.02), "M_Ground")
@@ -122,6 +126,7 @@ def sequence_panel(rng, a):
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": "Blink"}, note="status LED: blinks while the sequence plays")
     seq = a.sub("sequence")
     a.meta.update({"buttons": n, "layout": layout, "colours": list(colours[:n]),
+                   "deferred_behaviours": indicators,
                    "sequence": [seq.randint(1, n) for _ in range(length)]})
 
 
@@ -169,6 +174,7 @@ def water_level(rng, a):
         center = (x, -r * 1.5 - 0.1, plinth + 0.45)
         cyl(body, 0.03, r * 1.5, (x, -r * 0.8, plinth + 0.45), "M_Metal", sides=6, rot=ALONG_Y)
         valve_wheel(a.part(f"Wheel_{i}", pivot=center), center, radius=min(0.14, r * 0.9))
+        a.mesh_collider(f"Wheel_{i}", convex=True)
         a.behaviour("Rotatable", {"target": f"Wheel_{i}", "glow": "Glow"},
                     {"axis": "forward", "step": 90, "speed": p.option("speed"), "target": int(target * 4),
                      "interactive": True}, note=f"tube {i}: each step moves Fluid_{i} a quarter of the scale")

@@ -81,6 +81,7 @@ def hatch(rng, a):
         center = (0.0, 0.0, 0.06)
         cyl(lid, 0.05, 0.06, (0, 0, 0.03), "M_RobotDark", sides=8)
         flat_wheel(a.part("Wheel", pivot=center, parent="Panel"), center, radius=s * 0.28)
+        a.mesh_collider("Wheel", convex=True)
         a.behaviour("Rotatable", {"target": "Wheel", "glow": "Glow"},
                     {"axis": "up", "step": 90, "speed": 180, "target": 2, "interactive": True},
                     note="unlock wheel on the lid (turns with the lid)")

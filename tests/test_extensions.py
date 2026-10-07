@@ -52,10 +52,14 @@ class NewTypeTests(unittest.TestCase):
             seq = generate_asset("sequence_panel", seed)
             n = seq.meta["buttons"]
             self.assertTrue(all(1 <= k <= n for k in seq.meta["sequence"]))
-            lights = [b for b in seq.behaviours if b["script"] == "SignalIndicator"]
+            lights = seq.meta["deferred_behaviours"]
             self.assertEqual(len(lights), n)
+            self.assertEqual([b["script"] for b in seq.behaviours], ["SignalLight"])
             for i in range(1, n + 1):
                 self.assertEqual(seq.get(f"Light_{i}").parent, f"Button_{i}")
+                self.assertEqual(lights[i - 1]["parts"]["renderers"], [f"Light_{i}"])
+                self.assertEqual(lights[i - 1]["fields"]["onMaterial"], seq.meta["colours"][i - 1])
+                self.assertIn(f"Light_{i}", palette.material_map(seq).keep_parts)
 
             water = generate_asset("water_level", seed)
             wheels = [b for b in water.behaviours if b["script"] == "Rotatable"]
@@ -317,7 +321,9 @@ class PaletteTests(unittest.TestCase):
             mats = {p["name"]: p["materials"] for p in rig["parts"]}
             self.assertEqual(mats["Panel"], ["MP_Palette"])
             self.assertEqual(mats["StatusLight_Front"], ["M_GlowRed"])
-            self.assertNotIn("textures", rig)  # no new sidecar key: the contract stays as it is
+            self.assertEqual(rig["textures"], {"mode": "palette", "manifest": "Textures/CubeEscape_Palette.json"})
+            from cubegen.contract import check_sidecar
+            self.assertEqual(check_sidecar(rig)[0], [])
             with open(os.path.join(out, "models", "Crate_000.obj"), encoding="utf-8") as fh:
                 obj = fh.read()
             self.assertIn("usemtl MP_Palette", obj)
@@ -370,6 +376,11 @@ class PaletteTests(unittest.TestCase):
             with open(os.path.join(tex, "CubeEscape_Palette_Neon.json"), encoding="utf-8") as fh:
                 info = json.load(fh)
             self.assertEqual((info["name"], info["palette"]), ("MP_Palette_Neon", "neon"))
+            with open(os.path.join(out, "models", "Crate_000.cubegen.json"), encoding="utf-8") as fh:
+                rig = json.load(fh)
+            self.assertEqual(rig["textures"], {"mode": "palette", "manifest": "Textures/CubeEscape_Palette_Neon.json"})
+            from cubegen.contract import check_sidecar
+            self.assertEqual(check_sidecar(rig)[0], [])
             self.assertEqual(info["cells"]["M_Metal"]["uv"], list(palette.uv("M_Metal")))
             with open(os.path.join(out, "models", "Crate_000.obj"), encoding="utf-8") as fh:
                 self.assertIn("usemtl MP_Palette_Neon", fh.read())

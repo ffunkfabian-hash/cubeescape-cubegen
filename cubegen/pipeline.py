@@ -545,6 +545,14 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                                                         spec["models_dir"])}
                     if res.get("baked"):
                         rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()}
+                elif palette:
+                    rig["textures"] = {"mode": "palette",
+                                       "manifest": _rel(os.path.join(textures_dir,
+                                                                     palette_mod.palette_manifest_name(config.palette)),
+                                                        spec["models_dir"])}
+                problems, _ = check_sidecar(rig, rig_path)
+                if problems:
+                    raise RuntimeError(f"{rig_path} breaks the Unity import contract:\n  " + "\n  ".join(problems))
                 json.dump(rig, fh, indent=2)
             res.setdefault("files", {})["rig"] = rig_path
             fbx = res.get("files", {}).get("fbx")

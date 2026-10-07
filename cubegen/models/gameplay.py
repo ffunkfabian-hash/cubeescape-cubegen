@@ -88,7 +88,7 @@ def portal_frame(rng, a):
             cube(lights, (w * 0.7, 0.03, 0.03), (0, s * (d / 2 + 0.03), ring_h + 0.015), glow)
         surf = a.part("Surface", pivot=(0, 0, 0.05))
         cube(surf, (w - 0.02, d - 0.02, 0.02), (0, 0, 0.05), surface_mat)
-    a.behaviour("SignalLight", {"glow": ["Glow"]}, {"mode": p.option("mode")},
+    a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")},
                 note="status glow only; the portal surface (Surface) has no collider and no travel logic yet")
 
 
@@ -142,7 +142,7 @@ def phase_platform(rng, a):
             cube(base, (0.12, 0.5, 0.5), (x, size / 2 + 0.25, -0.2 - gap - 0.25), "M_RobotDark")
             a.collider((0.12, 0.5, 0.5), (x, size / 2 + 0.25, -0.2 - gap - 0.25))
             cube(lights, (0.08, 0.03, 0.08), (x, size / 2 + 0.005 - 0.02, -0.2 - gap - 0.1), glow)
-    a.behaviour("SignalLight", {"glow": ["Glow"]}, {"mode": p.option("mode")},
+    a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")},
                 note="phase indicator; switching the Deck (renderer + collider) on and off needs a phase script")
 
 
