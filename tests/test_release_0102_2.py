@@ -8,6 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cubegen.asset import Asset
+from cubegen import __version__
 from cubegen.cli import main
 from cubegen.families import compatibility_matrix
 from cubegen.models import generate_asset
@@ -51,7 +52,7 @@ class Release01022Tests(unittest.TestCase):
             self.assertFalse(os.path.exists(out))
             with open(report_path, encoding="utf-8") as fh:
                 report = json.load(fh)
-            self.assertEqual(report["version"], "0.10.2.5")
+            self.assertEqual(report["version"], __version__)
             self.assertIn("source_hash", report)
             self.assertEqual(sorted(row["quality_rank"] for row in report["assets"]), [1, 2, 3])
             for row in report["assets"]:
