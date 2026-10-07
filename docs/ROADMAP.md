@@ -1,7 +1,12 @@
 # Roadmap
 
-Stand: 6. Oktober 2026, cubegen 0.10.0 (Phase 3 ohne Raum-Generator, siehe [CHANGELOG](../CHANGELOG.md)).
-Zahlen aus `python -m cubegen check` (Seed 42, 10 Varianten pro Typ). Jede Liste beginnt mit dem Wichtigsten.
+Stand: 7. Oktober 2026, cubegen **0.10.3**; 175 registrierte Typen, einschließlich elf
+experimenteller Ergänzungen aus 0.10.2.5. Paket-/Add-on-Versionen vereinheitlicht und
+Cube-Escape-Integrationsphase 2 dokumentiert: [Versionsbericht](../VERSION_0.10.3.md),
+[Changelog](../CHANGELOG.md). Der Raum-/Level-Generator bleibt offen.
+Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich
+(`check`, Seed 42, 10 Varianten pro Typ); sie sind kein neuer Volltypen-Unity-Nachweis.
+Jede Liste beginnt mit dem Wichtigsten.
 
 ## 1. Bekannte Bugs
 

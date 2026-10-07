@@ -20,6 +20,7 @@ bpy.context.scene.cubegen.model_type = "wall"  # an enabled add-on with a previe
 bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
 bpy.ops.preferences.addon_enable(module="cubegen_addon")
 import cubegen_addon as addon  # noqa: E402
+assert ".".join(str(number) for number in addon.bl_info["version"]) == addon.pipeline.__version__
 
 scene = bpy.context.scene
 s = scene.cubegen

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.3 – 2026-10-07
+
+* Paket, CLI und eigenständig installierbares Blender-Add-on auf 0.10.3 vereinheitlicht.
+  Das Add-on meldete im 0.10.2.5-Paket noch 0.10.2.4. Regression prüft Paketmetadaten,
+  CLI-Ausgabe, Add-on-Metadaten und den tatsächlich gebauten ZIP-Inhalt; der echte
+  Blender-Smoke prüft auch die installierte Add-on-Version.
+* Der Berichtstest für den 0.10.2.2-Validierungsmodus prüft die aktuelle Paketversion
+  statt einer festgeschriebenen späteren Patchnummer. Die übrigen Berichtskriterien bleiben erhalten.
+* Cube-Escape-Integrationsphase 2 mit 0.10.2.5 dokumentiert: 36 echte FBX-Quellen ohne
+  Importfehler, erhaltene IDs/Overrides, sechs explizite Item-Zuordnungen. Kein weiterer
+  Generator-Codefehler im gezielten Prüfumfang; Geometrie und Gameplay-Vertrag unverändert.
+  Einzelheiten und Abgrenzung der experimentellen Typen: `VERSION_0.10.3.md`.
+
+Prüfung: **166 Python-Tests grün**, einschließlich echtem Blender-/Add-on-Export.
+CLI, Paketmetadaten und neu gebautes Add-on-ZIP melden einheitlich 0.10.3.
+
 ## 0.10.2.5 – 2026-10-07
 
 * Geometrie-Primitive für Hohlrohre, U-/L-/T-/I-Profile, Keile, Gitter und gerundete Boxen ergänzt.
@@ -32,8 +48,10 @@
 
 ## 0.10.2 – 2026-10-07
 
-Nutzerauftrag für alle weiteren Cube-Escape-Integrationsphasen: belegte Cubegen-Fehler sofort
+Historischer Auftrag für Cube-Escape-Integrationsphase 0/1: belegte Cubegen-Fehler sofort
 im Generator beheben, Regressionstest ergänzen und hier mit Ursache und Nachprüfung vermerken.
+Seit Integrationsphase 2 mit 0.10.2.5 werden neue Befunde gemäß Nutzerauftrag in
+`VERSION_0.10.3.md` dokumentiert; die veröffentlichten Korrekturen bleiben unten erhalten.
 Dieser Stand enthält auch die unten dokumentierten Phase-0-Korrekturen aus dem
 0.10.1-Arbeitsstand. Sie werden gemeinsam im 0.10.2-Pull-Request geprüft; der auf
 Nutzerwunsch gesetzte Tag `v0.10.2` verweist auf dessen geprüften Commit.
@@ -59,8 +77,8 @@ Keine Ablehnungsausnahmen. Generator- und Unity-Berichte im Worktree `f1b1` unte
 
 ## 0.10.1 – historischer Arbeitsstand, 2026-10-07 (in 0.10.2 enthalten)
 
-Korrekturen aus dem echten Cube-Escape-Unity-Audit von Phase 0; weitere belegte Generatorfehler
-aus Phase 1 und den folgenden Integrationsphasen werden im Abschnitt 0.10.2 gesammelt.
+Korrekturen aus dem echten Cube-Escape-Unity-Audit von Phase 0; die zusätzlichen Phase-1-Korrekturen
+sind im veröffentlichten Abschnitt 0.10.2 gesammelt. Neue Befunde ab Phase 2: `VERSION_0.10.3.md`.
 Keine Unity-Prüfung durch Ablehnungsausnahmen oder gelockerte Geometrie-/Collider-Prüfungen grün machen.
 
 * `phase_platform` und `portal_frame`: `SignalLight.parts.glow` ist ein einzelner Teilname (`"Glow"`),
