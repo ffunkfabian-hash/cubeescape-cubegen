@@ -7,7 +7,28 @@ angeschlossen, ohne Laufzeit-Scripts zu ändern. Ein zweiter, optionaler Prompt
 ([Neue Interaktionen](#optional-neue-interaktionen)) ergänzt die Spiel-Mechanik, für die es noch kein Script gibt
 (Item-Sockel, Laser, Druckplatte, Rohr-Puzzle, Kamera-Schwenk …).
 
-## Prompt
+## Aktueller Integrationsstand (7. Oktober 2026)
+
+Cube Escape hat bereits einen validierten Editor-Importer und eine GUID-basierte Registry.
+Die folgenden ursprünglichen Aufbau-Prompts sind historische Referenz; keinen zweiten
+Importer, keine zweite Bausteinliste und keine neuen Laufzeitsysteme daraus bauen.
+Der aktuelle Vertrag steht in `cubegen/contract.json`; die tatsächliche Unity-Freigabe
+und Prüfbelege stehen im Spielprojekt in `Docs/CUBEGEN_IMPORT.md` und `Docs/ROADMAP.md`.
+
+Phase 3 authoriert konkrete Modelle über `Assets/Editor/Cubegen/interactions.json`:
+Klappen nutzen optionale Zwei-Stellungs-Drehung, der Lift den vorhandenen
+`MovingPlatform`-Empfänger mit separatem Deck, Druckplatten einen ausdrücklich
+zugewiesenen Sensor, Inventar-Sockel `ItemSlot`/`ItemSlotSignal`/`LogicGate`.
+Inventar und physisch abgelegte Lasten bleiben verschiedene Verträge.
+Ein Sidecar oder Modellprofil ist keine automatische Spielerlevel-Freigabe.
+
+Kamera/Geschütz unterstützen positive und negative Schwenkgeschwindigkeit.
+Bei ausdrücklich gesetztem Speed 0 bleiben aktuelle Generationen stehen; ohne
+Speed-Vorgabe bleibt der historische implizite Sweep mit 30°/s erhalten. Generation 1
+bewahrt die frühere Stillstand-/Sweep-Semantik. Korrekturen/Nachweise für den nächsten
+Release: `VERSION_0.10.4.md`.
+
+## Historischer Aufbau-Prompt
 
 ````text
 Projekt: Unity-Spiel "Cube Escape". Prefabs werden von Editor-Buildern gebaut

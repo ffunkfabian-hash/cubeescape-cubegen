@@ -1,7 +1,7 @@
 # Cube Escape – Model Generator Seed (`cubegen`)
 
-Aktueller Stand: **0.10.3** (7. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
-Version. Unity-Nachweise und Integrationsgrenzen: [Versionsbericht](VERSION_0.10.3.md).
+Aktueller Stand: **0.10.4** (7. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
+Version. Unity-Nachweise und Integrationsgrenzen: [Versionsbericht](VERSION_0.10.4.md).
 
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,
@@ -453,7 +453,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `cable_reel` | `radius` (0.06–0.25), `spool` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `cable_tray` | `length` (2.0 / 4.0), `mount_height` (0.3–3), `style` (tray / conduit), `cables` (1–10) |
 | `cage` | `width` (0.8–3), `depth` (0.8–3), `height` (1.2–3), `door_angle` (30–170, Standard 100) 🔗, `status` (off / on, Standard off) |
-| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (0–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `sweep` (0–300, Standard 0) 🔗 |
+| `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (-180–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
 | `cargo_container` | `length` (4.0 / 6.0), `width` (2–3.2), `height` (2.4–3.4), `ribs` (ja/nein), `speed` (10–720, Standard 90) 🔗, `interactive` (ja/nein) 🔗 |
 | `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1) |
@@ -581,7 +581,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |
 | `transformer` | `width` (0.6–3), `height` (0.6–2.5), `bushings` (1–6), `conservator` (ja/nein), `status` (off / on, Standard off) |
 | `turntable` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (round / square), `arrow` (ja/nein), `step` (45 / 90, Standard 90) 🔗, `speed` (10–720, Standard 90) 🔗, `target` (0–7, Standard 1) 🔗, `interactive` (ja/nein) 🔗 |
-| `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (0–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗, `sweep` (0–300, Standard 0) 🔗 |
+| `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (-360–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8, Standard 2) 🔗, `speed` (10–1000, Standard 180) 🔗 |
 | `vending_machine` | `width` (0.7–1.4), `rows` (3–6), `lit` (ja/nein) |
 | `vent` | `width` (0.3–4), `height` (0.3–3), `mount_height` (0.2–3), `fan` (ja/nein), `stripes` (ja/nein), `fan_speed` (0–2000, Standard 160) 🔗 |

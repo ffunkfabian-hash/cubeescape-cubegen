@@ -506,6 +506,9 @@ def pressure_plate(rng, a):
         cyl(plate, r * 0.4, 0.01, (0, 0, 0.145), "M_RobotDark", sides=10)
         if p.bool("stripes", 0.4, warning=True):
             stripes(body, s, (0, -r - 0.06, 0.081), count=5, width=0.04, height=0.01)
+    if p.style.generation >= 3:
+        a.mesh_collider("Body", convex=True)
+        a.mesh_collider("Plate", convex=True)
     _indicator(a, note="Plate sinks by ~4 cm when pressed (pivot at its centre)")
 
 
@@ -554,7 +557,7 @@ def keypad(rng, a):
        params=[
            Param("mount_height", "float", "Höhe über Boden (m)", lo=1.0, hi=4.0),
            Param("style", "choice", "Bauform", choices=("box", "dome")),
-           Param("speed", "float", "Dreh-Tempo (°/s, 0 = steht)", lo=0, hi=180, unity=True, default=0,
+           Param("speed", "float", "Dreh-Tempo (°/s, 0 = steht)", lo=-180, hi=180, unity=True, default=0,
                  description="Rotator dreht endlos; 0, bis es ein Schwenk-Script gibt"),
            Param("mode", "choice", "LED-Modus", choices=("Steady", "Blink", "Pulse"), unity=True, default="Blink"),
            sweep_param(),
@@ -590,6 +593,9 @@ def camera(rng, a):
         prerotate(a, "Rotor", 0.0, adopt=("Glow",))
     sweep_rotator(a, "Rotor", p.option("speed"), sweep,
                   "head turns around Unity up; speed 0 = still (a Rotator spins endlessly, not a sweep)")
+    if p.style.generation >= 3:
+        a.mesh_collider("Body", convex=True)
+        a.mesh_collider("Rotor", convex=True)
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 
 
