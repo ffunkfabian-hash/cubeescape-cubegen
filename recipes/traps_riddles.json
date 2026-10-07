@@ -1,0 +1,24 @@
+{
+  "seed": "traps-riddles-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "models": {
+    "crusher": 2,
+    "saw_blade": 2,
+    "steam_vent": 2,
+    "shock_plate": 2,
+    "combination_lock": 2,
+    "sliding_puzzle": 2,
+    "balance_scale": 2,
+    "freq_dial": 2,
+    "switch_panel": 2,
+    "spiral_stairs": 2,
+    "railing": 3,
+    "cage": 2,
+    "flashlight": 2,
+    "key": 3,
+    "cable_reel": 2,
+    "coffee_machine": 2,
+    "vending_machine": 2
+  }
+}

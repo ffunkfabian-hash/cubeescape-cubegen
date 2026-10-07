@@ -1,0 +1,21 @@
+{
+  "seed": "station-furniture-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "models": {
+    "locker": 3,
+    "shelf": 3,
+    "workbench": 2,
+    "tool_cart": 2,
+    "cryo_pod": 2,
+    "chair": 3,
+    "gas_rack": 2,
+    "extinguisher": 2,
+    "medkit": 2,
+    "barrier": 3,
+    "pallet": 3,
+    "sign": 4,
+    "camera": 2,
+    "antenna": 2
+  }
+}

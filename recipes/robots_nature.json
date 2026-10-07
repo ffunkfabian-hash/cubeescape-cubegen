@@ -1,0 +1,14 @@
+{
+  "seed": "robots-nature-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "models": {
+    "drone": 3,
+    "service_robot": 3,
+    "robot_arm": 2,
+    "rock": 4,
+    "floating_island": 3,
+    "hanging_crystals": 3,
+    "crystal_cluster": 2
+  }
+}

@@ -1,0 +1,285 @@
+"""End-to-end tests. Skipped automatically when ImageMagick / Blender are missing."""
+
+import json
+import os
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from cubegen.blender import find_blender  # noqa: E402
+from cubegen.cli import main  # noqa: E402
+from cubegen.imagemagick import find_imagemagick  # noqa: E402
+
+HAS_MAGICK = find_imagemagick() is not None
+HAS_BLENDER = find_blender() is not None
+
+
+def read(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        return fh.read()
+
+
+def glb_json(path):
+    with open(path, "rb") as fh:
+        data = fh.read()
+    length = struct.unpack("<I", data[12:16])[0]
+    return json.loads(data[20:20 + length])
+
+
+@unittest.skipUnless(HAS_MAGICK, "ImageMagick not installed")
+class OBJFallbackTest(unittest.TestCase):
+    def test_no_blender_batch(self):
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "11", "--types", "crate,door", "--count", "2", "--no-blender",
+                         "--out", out])
+            self.assertEqual(code, 0)
+            manifest = json.loads(read(os.path.join(out, "manifest.json")))
+            self.assertEqual([m["name"] for m in manifest["models"]],
+                             ["Crate_000", "Crate_001", "Door_000", "Door_001"])
+            self.assertTrue(os.path.isfile(os.path.join(out, "materials.png")))
+            obj = read(os.path.join(out, "models", "Door_000.obj"))
+            self.assertIn("mtllib CubeEscape_Materials.mtl", obj)
+            self.assertIn("o Frame_Left", obj)
+            self.assertIn("usemtl M_GlowRed", obj)
+            self.assertIn("newmtl M_GlowCyan", read(os.path.join(out, "models", "CubeEscape_Materials.mtl")))
+            rig = json.loads(read(os.path.join(out, "models", "Door_000.cubegen.json")))
+            self.assertEqual(rig["behaviours"][0]["script"], "Door")
+            panel = next(p for p in rig["parts"] if p["name"] == "Panel")
+            self.assertGreater(panel["localPosition"][1], 0.5)  # Unity Y = up
+            self.assertTrue(json.loads(read(os.path.join(out, "models", "Crate_000.cubegen.json")))["static"])
+
+    def test_incremental_no_blender_batch(self):
+        from cubegen.cli import build_config, make_parser
+        from cubegen.pipeline import generate_batch
+
+        with tempfile.TemporaryDirectory() as out:
+            args = make_parser().parse_args(["generate", "--seed", "11", "--types", "crate", "--no-blender",
+                                             "--out", out])
+            config = build_config(args)
+            first_log = []
+            generate_batch(config, log=first_log.append)
+            obj = os.path.join(out, "models", "Crate_000.obj")
+            modified = os.stat(obj).st_mtime_ns
+
+            second_log = []
+            generate_batch(config, log=second_log.append)
+            self.assertIn("unchanged since the last run: 1 asset(s) (--force rebuilds them)", second_log)
+            self.assertEqual(os.stat(obj).st_mtime_ns, modified)
+
+            config.force = True
+            forced_log = []
+            generate_batch(config, log=forced_log.append)
+            self.assertFalse(any("unchanged" in line for line in forced_log))
+
+    def test_incremental_cache_tracks_model_output_directory(self):
+        from cubegen.cli import build_config, make_parser
+        from cubegen.pipeline import generate_batch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "output")
+            first_models = os.path.join(tmp, "first-models")
+            second_models = os.path.join(tmp, "second-models")
+
+            def run(models_dir):
+                args = make_parser().parse_args(["generate", "--seed", "11", "--types", "crate", "--no-blender",
+                                                 "--out", out, "--models-dir", models_dir])
+                messages = []
+                generate_batch(build_config(args), log=messages.append)
+                return messages
+
+            run(first_models)
+            messages = run(second_models)
+            self.assertFalse(any("unchanged" in line for line in messages))
+            self.assertTrue(os.path.isfile(os.path.join(second_models, "Crate_000.obj")))
+
+    def test_lods(self):
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "wall,door", "--lods", "--no-blender", "--out", out])
+            self.assertEqual(code, 0)
+            obj = read(os.path.join(out, "models", "Wall_000.obj"))
+            self.assertIn("o Wall_LOD0", obj)
+            self.assertIn("o Wall_LOD1", obj)
+            rig = json.loads(read(os.path.join(out, "models", "Wall_000.cubegen.json")))
+            self.assertNotIn("lods", rig)  # the Unity reader rejects unknown root keys
+            names = [p["name"] for p in rig["parts"]]  # the parts are named as in the FBX
+            self.assertEqual(names, ["Wall_LOD0", "Glow_LOD0", "Wall_LOD1", "Glow_LOD1"])
+            manifest = json.loads(read(os.path.join(out, "manifest.json")))
+            levels = next(m for m in manifest["models"] if m["name"] == "Wall_000")["lods"]["levels"]
+            self.assertEqual([lv["suffix"] for lv in levels], ["_LOD0", "_LOD1"])
+            self.assertLess(levels[1]["triangles"], levels[0]["triangles"] * 0.85)
+            door = json.loads(read(os.path.join(out, "models", "Door_000.cubegen.json")))
+            self.assertEqual(door["parts"][0]["name"], "Frame_Left")  # scripted: no LODs
+            self.assertNotIn("_LOD", read(os.path.join(out, "models", "Door_000.obj")))
+        self.assertEqual(main(["generate", "--seed", "1", "--types", "wall", "--lods", "--textures", "baked",
+                               "--no-blender", "--out", out]), 2)
+
+    def test_same_seed_same_files(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            for out in (a, b):
+                main(["generate", "--seed", "abc", "--types", "machine", "--no-blender", "--out", out])
+            self.assertEqual(read(os.path.join(a, "models", "Machine_000.obj")),
+                             read(os.path.join(b, "models", "Machine_000.obj")))
+
+
+@unittest.skipUnless(HAS_MAGICK and HAS_BLENDER, "Blender and ImageMagick required")
+class BlenderTest(unittest.TestCase):
+    def test_fbx_glb_preview_icon_blend(self):
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "3", "--types", "door", "--formats", "fbx,glb,obj",
+                         "--engine", "cycles", "--render-size", "64", "--samples", "4", "--out", out])
+            self.assertEqual(code, 0)
+            self.assertTrue(os.path.getsize(os.path.join(out, "models", "Door_000.fbx")) > 0)
+            manifest = json.loads(read(os.path.join(out, "manifest.json")))
+            obj_path = os.path.join(out, manifest["models"][0]["files"]["obj"])
+            self.assertTrue(os.path.isfile(obj_path))
+            from cubegen.gui import _load_obj_preview
+            self.assertTrue(_load_obj_preview(obj_path)[1])
+            gltf = glb_json(os.path.join(out, "models", "Door_000.glb"))
+            names = {n["name"] for n in gltf["nodes"]}
+            self.assertTrue({"Frame_Left", "Frame_Top", "Panel", "StatusLight_Front"} <= names)
+            self.assertTrue({m["name"] for m in gltf["materials"]} <= {
+                "M_Wall", "M_RobotDark", "M_Metal", "M_Platform", "M_GlowRed", "M_GlowCyan", "M_Warning",
+                "M_HazardOrange"})
+            self.assertTrue(os.path.isfile(os.path.join(out, "icons", "Icon_Door_000.png")))
+            self.assertTrue(os.path.isfile(os.path.join(out, "contact_sheet.png")))
+            self.assertTrue(os.path.isfile(os.path.join(out, "CubeEscape_Generated_3.blend")))
+
+    def test_incremental_and_parallel(self):
+        from cubegen.fbxread import unity_locals
+
+        def run(out, *extra):
+            lines = []
+            from cubegen.cli import build_config, make_parser
+            from cubegen.pipeline import generate_batch
+
+            args = ["generate", "--seed", "5", "--types", "crate,door,turret", "--count", "2", "--engine", "cycles",
+                    "--render-size", "32", "--samples", "1", "--out", out, *extra]
+            generate_batch(build_config(make_parser().parse_args(args)), log=lines.append)
+            return lines
+
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            run(a)
+            run(b, "--jobs", "3")  # parallel = the same models
+            for name in ("Crate_001", "Door_000", "Turret_001"):
+                fa, fb = (unity_locals(os.path.join(d, "models", name + ".fbx")) for d in (a, b))
+                self.assertEqual(fa, fb, name)
+                self.assertTrue(os.path.isfile(os.path.join(b, "icons", f"Icon_{name}.png")))
+            self.assertTrue(os.path.isfile(os.path.join(b, "CubeEscape_Generated_5.blend")))
+            fbx = os.path.join(a, "models", "Door_001.fbx")
+            stamp = os.path.getmtime(fbx)
+            log = run(a)
+            self.assertIn("unchanged since the last run: 6 asset(s) (--force rebuilds them)", log)
+            self.assertFalse(any(line.startswith("Blender:") for line in log))  # Blender not even started
+            self.assertEqual(os.path.getmtime(fbx), stamp)
+            manifest = json.loads(read(os.path.join(a, "manifest.json")))
+            self.assertEqual(len(manifest["models"]), 6)
+            self.assertTrue(manifest["models"][0]["preview"])
+            log = run(a, "--param", "door.width=2.5")  # only the doors change
+            self.assertIn("unchanged since the last run: 4 asset(s) (--force rebuilds them)", log)
+            self.assertGreater(os.path.getmtime(fbx), stamp)
+            os.remove(os.path.join(a, "models", "Crate_000.fbx"))  # a missing file is rebuilt
+            self.assertIn("unchanged since the last run: 5 asset(s) (--force rebuilds them)",
+                          run(a, "--param", "door.width=2.5"))
+            self.assertFalse(any("unchanged" in line for line in run(a, "--force", "--param", "door.width=2.5")))
+
+    def test_fbx_lods(self):
+        from cubegen.fbxread import unity_locals
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "crate,turret", "--lods", "--no-render", "--out", out])
+            self.assertEqual(code, 0)  # the worker checked both levels against the rig data
+            crate = unity_locals(os.path.join(out, "models", "Crate_000.fbx"))
+            self.assertEqual(sorted(crate), ["Body_LOD0", "Body_LOD1", "Glow_LOD0", "Glow_LOD1"])
+            self.assertLess(len(crate["Body_LOD1"]["vertices"]), len(crate["Body_LOD0"]["vertices"]))
+            self.assertIn("Glow", unity_locals(os.path.join(out, "models", "Turret_000.fbx")))
+
+    def test_unity_contract_audit_all_types(self):
+        # the reproduction of the Unity audit: cubegen 0.7.0 had 3 rejected models (wrong FBX pivots) here
+        import copy
+
+        from cubegen.contract import check_export, check_fbx
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "all", "--count", "1", "--prefix", "Gen_Audit070_",
+                         "--no-render", "--no-blend", "--out", out, "--jobs", "2"])
+            self.assertEqual(code, 0)
+            models = os.path.join(out, "models")
+            result = check_export(models)
+            from cubegen.models import model_types
+
+            self.assertEqual(len(result), len(model_types()))  # the 121 audited types and the new ones
+            self.assertEqual({k: v["errors"] for k, v in result.items() if v["errors"]}, {})
+            pickups = ("CableReel", "Clue", "Flashlight", "Item", "Key", "Keycard", "SparePart", "Tool")
+            self.assertEqual(sorted(k for k, v in result.items() if v["open"]),
+                             sorted(f"Gen_Audit070_{t}_000" for t in pickups))
+            for name, part in (("BalanceScale", "Slot_A"), ("RobotArm", "Arm_Upper"), ("Turret", "Glow")):
+                rig = json.loads(read(os.path.join(models, f"Gen_Audit070_{name}_000.cubegen.json")))
+                fbx = os.path.join(models, f"Gen_Audit070_{name}_000.fbx")
+                broken = copy.deepcopy(rig)  # the check must notice a pivot that is 2 cm off
+                entry = next(p for p in broken["parts"] if p["name"] == part)
+                entry["localPosition"][1] += 0.02
+                self.assertTrue(any(part in e for e in check_fbx(broken, fbx)), name)
+
+    def test_family_kits_real_fbx(self):
+        # every kit part (new types, wall openings, catwalk shapes, stair layouts) exported for real and checked
+        # against the Unity contract and its FBX; the fit checks of the kit are in the manifest
+        from cubegen.contract import check_export
+
+        for family in ("station", "foundry", "lab", "medbay", "derelict", "greenhouse", "reactor"):
+            with tempfile.TemporaryDirectory() as out:
+                code = main(["generate", "--family", family, "--seed", "42", "--prefix", "Gen_", "--no-render",
+                             "--no-blend", "--out", out, "--jobs", "2"])
+                self.assertEqual(code, 0, family)
+                result = check_export(os.path.join(out, "models"))
+                self.assertGreater(len(result), 25)
+                self.assertEqual({k: v["errors"] for k, v in result.items() if v["errors"]}, {}, family)
+                manifest = json.loads(read(os.path.join(out, "manifest.json")))
+                self.assertEqual(manifest["family"]["fit"]["problems"], [], family)
+
+    def test_fbx_pivots_match_rig_data(self):
+        # cubegen 0.7.0: parts nested two levels deep (Slot_A, Arm_Upper, Glow) had wrong pivots and a 90 deg
+        # rotation in the FBX. Unity rejects such models - FBX and <Name>.cubegen.json must agree exactly.
+        from cubegen.fbxread import unity_locals
+
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--seed", "42", "--types", "balance_scale,robot_arm,turret,door", "--count", "2",
+                         "--no-render", "--no-blend", "--out", out])
+            self.assertEqual(code, 0)
+            models_dir = os.path.join(out, "models")
+            for name in sorted(n[:-4] for n in os.listdir(models_dir) if n.endswith(".fbx")):
+                fbx = unity_locals(os.path.join(models_dir, name + ".fbx"))
+                rig = json.loads(read(os.path.join(models_dir, name + ".cubegen.json")))
+                for part in rig["parts"]:
+                    got = fbx[part["name"]]
+                    self.assertEqual(got["parent"], part["parent"], f"{name}.{part['name']}")
+                    for a, b in zip(got["position"], part["localPosition"]):
+                        self.assertAlmostEqual(a, b, places=3, msg=f"{name}.{part['name']}")
+                    self.assertEqual(got["rotation"], (0.0, 0.0, 0.0), f"{name}.{part['name']}")
+
+
+@unittest.skipUnless(HAS_MAGICK and HAS_BLENDER, "Blender and ImageMagick required")
+class BlenderAddonTest(unittest.TestCase):
+    def test_addon_zip_installs_and_exports(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        sys.path.insert(0, os.path.join(root, "tools"))
+        import build_addon
+
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = build_addon.build(os.path.join(tmp, "cubegen_blender_addon.zip"))
+            proc = subprocess.run(
+                [find_blender(), "-b", "--factory-startup", "--python-exit-code", "3",
+                 "-P", os.path.join(root, "tests", "blender", "addon_smoke.py"), "--", zip_path,
+                 os.path.join(tmp, "out")],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=600,
+                # install into a throw-away profile, not into the user's Blender preferences
+                env=dict(os.environ, BLENDER_USER_SCRIPTS=os.path.join(tmp, "scripts"),
+                         BLENDER_USER_CONFIG=os.path.join(tmp, "config")))
+            self.assertIn("ADDON_SMOKE_OK", proc.stdout, proc.stdout[-3000:])
+
+
+if __name__ == "__main__":
+    unittest.main()

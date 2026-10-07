@@ -1,0 +1,25 @@
+{
+  "seed": "escape-extras-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "params": {
+    "spare_part": { "kind": "gear" }
+  },
+  "models": {
+    "button": 3,
+    "gear_puzzle": 2,
+    "spare_part": 2,
+    "laser_splitter": 2,
+    "force_field": 2,
+    "cable_plug": 2,
+    "scanner": 2,
+    "safe": 2,
+    "tool": 4,
+    "clue": 4,
+    "hatch": 2,
+    "shutter": 2,
+    "vent_shaft": 5,
+    "floor_grate": 2,
+    "turret": 2
+  }
+}

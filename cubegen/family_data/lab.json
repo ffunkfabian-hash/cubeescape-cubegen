@@ -1,0 +1,253 @@
+{
+  "family": "lab",
+  "description": "Labor: 3-m-Wände (0,3 m) im 2-m-Raster, Sicherheitstüren, 1-m-Stege auf 2,4 m, dünne Rohre, hell/rot, hoher Detailgrad, eigenes Texturset",
+  "seed": "lab",
+  "style": {
+    "material": "light",
+    "glow": "red",
+    "warning": "none",
+    "wear": "none",
+    "detail": "high"
+  },
+  "palette": "frost",
+  "textures": "tiled",
+  "texture_set": "lab",
+  "dims": {
+    "wall_height": 3.0,
+    "wall_thickness": 0.3,
+    "module": 2.0,
+    "ceiling_thickness": 0.15,
+    "door_style": "security",
+    "door_width": 1.4,
+    "door_height": 2.1,
+    "window_width": 1.2,
+    "window_height": 1.0,
+    "window_sill": 1.0,
+    "walk_width": 1.0,
+    "rail_height": 1.0,
+    "deck_height": 2.4,
+    "platform_size": 1.0,
+    "pipe_radius": 0.09,
+    "pipe_height": 0.5
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "_comment": "corner piece for the walls",
+      "type": "wall_corner",
+      "count": 1,
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
+      "type": "door",
+      "count": 1
+    },
+    {
+      "type": "portal_frame",
+      "count": 1,
+      "params": {
+        "mount": "wall"
+      }
+    },
+    {
+      "_comment": "catwalk pieces on the module grid",
+      "type": "catwalk",
+      "count": 1
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        1
+      ],
+      "params": {
+        "shape": "corner"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        2
+      ],
+      "params": {
+        "shape": "tee"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        3
+      ],
+      "params": {
+        "shape": "cross"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        4
+      ],
+      "params": {
+        "shape": "landing"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        5
+      ],
+      "params": {
+        "shape": "end"
+      }
+    },
+    {
+      "_comment": "stairs up to the walkway level",
+      "type": "stairs",
+      "count": 1,
+      "params": {
+        "style": "stairs"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        1
+      ],
+      "params": {
+        "layout": "landing"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        2
+      ],
+      "params": {
+        "layout": "quarter"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        3
+      ],
+      "params": {
+        "layout": "switchback"
+      }
+    },
+    {
+      "type": "retractable_bridge",
+      "count": 1
+    },
+    {
+      "type": "platform",
+      "count": 1
+    },
+    {
+      "type": "phase_platform",
+      "count": 1
+    },
+    {
+      "type": "turntable",
+      "count": 1
+    },
+    {
+      "type": "breakable_platform",
+      "count": 1
+    },
+    {
+      "type": "lift",
+      "count": 1
+    },
+    {
+      "type": "railing",
+      "count": 1
+    },
+    {
+      "_comment": "pipes",
+      "type": "pipe",
+      "count": 1
+    },
+    {
+      "type": "pipe_bend",
+      "count": 1
+    },
+    {
+      "type": "fluid_basin",
+      "count": 1
+    },
+    {
+      "type": "spike_trap",
+      "count": 1
+    },
+    {
+      "type": "cargo_container",
+      "count": 1
+    },
+    {
+      "_comment": "archway, wall cap, baseboard, ceiling module and ramp (added later: other parts unchanged)",
+      "type": "archway",
+      "count": 1,
+      "params": {
+        "shape": "chamfer"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "count": 1,
+      "params": {
+        "style": "glow"
+      }
+    },
+    {
+      "type": "baseboard",
+      "count": 1,
+      "params": {
+        "style": "plain"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "count": 1,
+      "params": {
+        "style": "coffered"
+      }
+    },
+    {
+      "type": "ramp",
+      "count": 1
+    }
+  ]
+}

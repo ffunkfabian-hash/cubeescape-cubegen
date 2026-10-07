@@ -1,0 +1,19 @@
+{
+  "seed": "station-props-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "models": {
+    "crate": 4,
+    "canister": 3,
+    "tank": 2,
+    "pipe": 3,
+    "machine": 2,
+    "generator": 2,
+    "console": 2,
+    "terminal": 2,
+    "server_rack": 3,
+    "light": 3,
+    "crystal_cluster": 2,
+    "debris": 3
+  }
+}

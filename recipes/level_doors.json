@@ -1,0 +1,11 @@
+{
+  "seed": "level-doors-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "style": { "snap": 0.5, "glow": "cyan", "wear": "light" },
+  "params": {
+    "door": { "width": 2.0, "height": 2.6 },
+    "wall": { "length": 4.0, "lines": "top" }
+  },
+  "models": { "door": 4, "wall": 4, "pillar": 2 }
+}

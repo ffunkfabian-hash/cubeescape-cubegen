@@ -1,0 +1,20 @@
+{
+  "_comment": "Ein Raum aus der Familie station: eigenes Kit, eine bewusste Abweichung (breitere Tür, Wandausschnitt passt automatisch mit)",
+  "family": "station",
+  "seed": "room-a",
+  "prefix": "Gen_RoomA_",
+  "dims": { "door_width": 2.4 },
+  "models": [
+    { "type": "wall", "count": 3 },
+    { "type": "wall", "pick": [3], "params": { "opening": "door" } },
+    { "type": "wall", "pick": [4], "params": { "opening": "window", "opening_x": -0.8 } },
+    { "type": "door", "count": 1 },
+    { "type": "stairs", "count": 1, "params": { "layout": "quarter" } },
+    { "type": "catwalk", "count": 2 },
+    { "type": "catwalk", "pick": [2], "params": { "shape": "corner" } },
+    { "type": "catwalk", "pick": [3], "params": { "shape": "end" } },
+    { "type": "turntable", "count": 1 },
+    { "type": "pipe", "count": 2 },
+    { "type": "pipe_bend", "count": 1 }
+  ]
+}

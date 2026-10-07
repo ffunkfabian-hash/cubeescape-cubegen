@@ -1,0 +1,12 @@
+{
+  "seed": "modular-kit-1",
+  "formats": ["fbx"],
+  "prefix": "Gen_",
+  "models": {
+    "wall": 4,
+    "pillar": 3,
+    "door": 4,
+    "platform": 4,
+    "vent": 3
+  }
+}

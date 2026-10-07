@@ -1,0 +1,270 @@
+{
+  "family": "greenhouse",
+  "description": "Gewächshaus: 3,5-m-Wände (0,3 m), große Fenster, Oberlichter, helle Flächen, orange Pflanzenlampen, Beete, Pflanzen, Ranken, Pilze, Wasser",
+  "seed": "greenhouse",
+  "style": {
+    "material": "light",
+    "glow": "orange",
+    "warning": "none",
+    "wear": "light",
+    "detail": "normal"
+  },
+  "palette": "greenhouse",
+  "dims": {
+    "wall_height": 3.5,
+    "wall_thickness": 0.3,
+    "module": 4.0,
+    "ceiling_thickness": 0.15,
+    "door_style": "sliding",
+    "door_width": 2.0,
+    "door_height": 2.2,
+    "window_width": 2.0,
+    "window_height": 1.4,
+    "window_sill": 0.8,
+    "walk_width": 1.0,
+    "rail_height": 1.0,
+    "deck_height": 2.5,
+    "platform_size": 2.0,
+    "pipe_radius": 0.09,
+    "pipe_height": 0.4
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "_comment": "corner piece, archway, wall cap, baseboard, ceiling / roof module",
+      "type": "wall_corner",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
+      "type": "archway",
+      "pick": [
+        0
+      ],
+      "params": {
+        "shape": "round"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "glow"
+      }
+    },
+    {
+      "type": "baseboard",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "plain"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "skylight"
+      }
+    },
+    {
+      "type": "door",
+      "pick": [
+        0
+      ],
+      "params": {
+        "label": "G-2"
+      }
+    },
+    {
+      "_comment": "glass walls, a roof module, ramp and walkway",
+      "type": "window_wall",
+      "pick": [
+        0
+      ],
+      "params": {
+        "windows": "band"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "pick": [
+        1
+      ],
+      "params": {
+        "style": "roof"
+      }
+    },
+    {
+      "type": "ramp",
+      "count": 1
+    },
+    {
+      "type": "catwalk",
+      "count": 1
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "stairs"
+      }
+    },
+    {
+      "_comment": "irrigation",
+      "type": "pipe",
+      "count": 1
+    },
+    {
+      "type": "pipe_bend",
+      "count": 1
+    },
+    {
+      "type": "fluid_basin",
+      "count": 1
+    },
+    {
+      "type": "water_level",
+      "pick": [
+        0
+      ],
+      "params": {
+        "fluid": "water"
+      }
+    },
+    {
+      "_comment": "props: beds, plants, growth, lamps, window to space",
+      "type": "hydroponic_bed",
+      "count": 1
+    },
+    {
+      "type": "hydroponic_bed",
+      "pick": [
+        1
+      ],
+      "params": {
+        "tiers": 2
+      }
+    },
+    {
+      "type": "plant",
+      "pick": [
+        0
+      ],
+      "params": {
+        "kind": "fern"
+      }
+    },
+    {
+      "type": "plant",
+      "pick": [
+        1
+      ],
+      "params": {
+        "kind": "bulbs"
+      }
+    },
+    {
+      "type": "mushroom",
+      "count": 1
+    },
+    {
+      "type": "vines",
+      "count": 1
+    },
+    {
+      "type": "fungus_carpet",
+      "count": 1
+    },
+    {
+      "type": "cocoon",
+      "count": 1
+    },
+    {
+      "type": "puddle",
+      "pick": [
+        0
+      ],
+      "params": {
+        "kind": "water"
+      }
+    },
+    {
+      "type": "light_strip",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "neon"
+      }
+    },
+    {
+      "type": "floodlight",
+      "pick": [
+        0
+      ],
+      "params": {
+        "mount": "mast"
+      }
+    },
+    {
+      "type": "solar_panel",
+      "count": 1
+    },
+    {
+      "type": "planet_window",
+      "count": 1
+    },
+    {
+      "type": "sign",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "GEWÄCHSHAUS 2"
+      }
+    }
+  ]
+}

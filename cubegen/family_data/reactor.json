@@ -1,0 +1,273 @@
+{
+  "family": "reactor",
+  "description": "Reaktor: 4-m-Wände (0,6 m), Explosionsschutztüren 2,0 x 2,8 m, 1,5-m-Stege auf 3 m, dicke 35-cm-Rohre, Metall/Rot mit Warnstreifen, Reaktorkern, Trafos, Countdown",
+  "seed": "reactor",
+  "style": {
+    "material": "metal",
+    "glow": "red",
+    "warning": "always",
+    "wear": "light",
+    "detail": "normal"
+  },
+  "palette": "toxic",
+  "dims": {
+    "wall_height": 4.0,
+    "wall_thickness": 0.6,
+    "module": 4.0,
+    "ceiling_thickness": 0.35,
+    "door_style": "blast",
+    "door_width": 2.0,
+    "door_height": 2.8,
+    "window_width": 1.6,
+    "window_height": 0.8,
+    "window_sill": 1.8,
+    "walk_width": 2.0,
+    "rail_height": 1.1,
+    "deck_height": 3.0,
+    "platform_size": 3.0,
+    "pipe_radius": 0.35,
+    "pipe_height": 1.0
+  },
+  "models": [
+    {
+      "_comment": "walls: plain, with a door, a window and a pipe pass-through",
+      "type": "wall",
+      "count": 1
+    },
+    {
+      "type": "wall",
+      "pick": [
+        1
+      ],
+      "params": {
+        "opening": "door"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        2
+      ],
+      "params": {
+        "opening": "window"
+      }
+    },
+    {
+      "type": "wall",
+      "pick": [
+        3
+      ],
+      "params": {
+        "opening": "pipe"
+      }
+    },
+    {
+      "_comment": "corner piece, archway, wall cap, baseboard, ceiling / roof module",
+      "type": "wall_corner",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "corner"
+      }
+    },
+    {
+      "type": "archway",
+      "pick": [
+        0
+      ],
+      "params": {
+        "shape": "flat"
+      }
+    },
+    {
+      "type": "wall_cap",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "rail"
+      }
+    },
+    {
+      "type": "baseboard",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "vent"
+      }
+    },
+    {
+      "type": "ceiling_module",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "vent"
+      }
+    },
+    {
+      "type": "door",
+      "pick": [
+        0
+      ],
+      "params": {
+        "label": "R-1"
+      }
+    },
+    {
+      "_comment": "walkways, stairs, lift and a ramp up to the core",
+      "type": "catwalk",
+      "count": 1
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        1
+      ],
+      "params": {
+        "shape": "tee"
+      }
+    },
+    {
+      "type": "catwalk",
+      "pick": [
+        2
+      ],
+      "params": {
+        "shape": "end"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "stairs"
+      }
+    },
+    {
+      "type": "stairs",
+      "pick": [
+        1
+      ],
+      "params": {
+        "layout": "switchback"
+      }
+    },
+    {
+      "type": "lift",
+      "count": 1
+    },
+    {
+      "type": "ramp",
+      "count": 1
+    },
+    {
+      "type": "platform",
+      "count": 1
+    },
+    {
+      "_comment": "coolant pipes",
+      "type": "pipe",
+      "count": 1
+    },
+    {
+      "type": "pipe_bend",
+      "count": 1
+    },
+    {
+      "type": "fluid_basin",
+      "count": 1
+    },
+    {
+      "_comment": "machines and props",
+      "type": "reactor_core",
+      "count": 1
+    },
+    {
+      "type": "transformer",
+      "count": 1
+    },
+    {
+      "type": "generator",
+      "count": 1
+    },
+    {
+      "type": "pump",
+      "count": 1
+    },
+    {
+      "type": "server_rack",
+      "count": 1
+    },
+    {
+      "type": "console",
+      "count": 1
+    },
+    {
+      "type": "shock_plate",
+      "count": 1
+    },
+    {
+      "type": "steam_vent",
+      "count": 1
+    },
+    {
+      "type": "crane",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "jib"
+      }
+    },
+    {
+      "type": "emergency_light",
+      "pick": [
+        0
+      ],
+      "params": {
+        "style": "beacon"
+      }
+    },
+    {
+      "type": "floodlight",
+      "pick": [
+        0
+      ],
+      "params": {
+        "mount": "mast"
+      }
+    },
+    {
+      "type": "countdown",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "KERNSCHMELZE"
+      }
+    },
+    {
+      "type": "sign",
+      "pick": [
+        0
+      ],
+      "params": {
+        "text": "REAKTOR 1"
+      }
+    },
+    {
+      "type": "floor_plan",
+      "pick": [
+        0
+      ],
+      "params": {
+        "title": "REAKTORDECK"
+      }
+    }
+  ]
+}
