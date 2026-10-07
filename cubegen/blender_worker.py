@@ -58,8 +58,11 @@ def clear_scene():
 
 
 def _generate(spec):
-    return generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
-                          params=spec.get("params"), style=Style.from_dict(spec.get("style")))
+    asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
+                           params=spec.get("params"), style=Style.from_dict(spec.get("style")))
+    if spec.get("repair_safe"):
+        asset.repair_safe()
+    return asset
 
 
 def build_asset(spec, material_map=None, palette=None):

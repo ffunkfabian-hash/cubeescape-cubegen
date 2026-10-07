@@ -123,4 +123,5 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
     asset.meta.setdefault("type", model_type)
     asset.meta.setdefault("seed", seed)
     asset.meta["params"] = dict(asset.p.used)
+    asset.validate_contract(model_type)
     return asset

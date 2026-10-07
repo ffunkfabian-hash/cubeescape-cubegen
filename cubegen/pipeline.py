@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -73,6 +74,7 @@ class BatchConfig:
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
+    repair_safe: bool = False
 
     def validate(self) -> None:
         unknown = [t for t in self.models if t not in model_types()]
@@ -133,6 +135,8 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
         spec["param_sources"] = {k: v for k, v in sources.items() if k in params}
     if config.family:
         spec["family"] = config.family["name"]
+    if config.repair_safe:
+        spec["repair_safe"] = True
     return spec
 
 
@@ -251,8 +255,11 @@ def lod_data(asset, lod) -> Dict:
 
 def build_spec(spec: Dict):
     """The asset a planned spec describes (same call as inside Blender)."""
-    return generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"], params=spec.get("params"),
-                          style=Style.from_dict(spec.get("style")))
+    asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"], params=spec.get("params"),
+                           style=Style.from_dict(spec.get("style")))
+    if spec.get("repair_safe"):
+        asset.repair_safe()
+    return asset
 
 
 LOD_MIN_SAVING = 0.15  # a LOD1 must have at least 15 % fewer triangles, else it isn't worth a level
@@ -274,8 +281,8 @@ def wants_lod(spec: Dict, asset=None) -> bool:
 
 def family_fit(specs: List[Dict], log: Optional[Callable[[str], None]] = None,
                dims: Optional[Dict[str, Any]] = None, reference: Optional[Dict[str, Any]] = None) -> Dict:
-    """Fit checks of a family batch (families.fit_report): joints checked and the ones that don't fit."""
-    from .families import fit_report, same_look
+    """Fit checks and pair matrix of a family batch."""
+    from .families import compatibility_matrix, fit_report, same_look
 
     members = [(s["name"], build_spec(s), s["type"]) for s in specs]
     if reference:  # --match: the existing model takes part in the checks
@@ -284,6 +291,7 @@ def family_fit(specs: List[Dict], log: Optional[Callable[[str], None]] = None,
                                                            style=Style.from_dict(reference["style"])),
                         reference["type"]))
     report = fit_report(members, dims)
+    matrix = compatibility_matrix(members, dims, report)
     problems = [{"a": r["a"], "b": r["b"], "joint": r["joint"], "problems": r["problems"]}
                 for r in report if r["problems"]]
     look = same_look(specs)
@@ -292,7 +300,7 @@ def family_fit(specs: List[Dict], log: Optional[Callable[[str], None]] = None,
             f"{', ' + look[0] if look else ''}")
         for p in problems[:10]:
             log(f"  {p['a']} {p['joint']} {p['b']}: {'; '.join(p['problems'])}")
-    return {"joints": len(report), "problems": problems, "look": look}
+    return {"joints": len(report), "problems": problems, "look": look, "compatibility": matrix}
 
 
 def _rel(path: Optional[str], base: str) -> Optional[str]:
@@ -462,7 +470,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
-            spec["build_key"] = build_key(spec, settings)
+            spec["build_key"] = build_key(spec, dict(settings, models_dir=spec["models_dir"]))
         reused = {} if config.force else _previous_results(out, specs, config.render)
         todo = [s for s in specs if s["name"] not in reused]
         if reused:
@@ -501,7 +509,20 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         formats = ["obj"]
         for folder in {spec["models_dir"] for spec in specs}:
             write_mtl(os.path.join(folder, "CubeEscape_Materials.mtl"), textures, palette)
+        settings = {
+            "formats": formats,
+            "textures": [config.textures, config.texture_size, config.texture_set, textures_dir,
+                         sorted(material_map.items())],
+            "palette": config.palette if palette else None,
+        }
         for spec in specs:
+            spec["build_key"] = build_key(spec, dict(settings, models_dir=spec["models_dir"]))
+        reused = {} if config.force else _previous_results(out, specs, render=False)
+        todo = [spec for spec in specs if spec["name"] not in reused]
+        if reused:
+            log(f"unchanged since the last run: {len(reused)} asset(s) (--force rebuilds them)")
+        results.update(reused)
+        for spec in todo:
             asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
             write_obj(asset, path, "CubeEscape_Materials.mtl", asset_materials(asset),
@@ -571,6 +592,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "pivots": {o.name: [round(c, 4) for c in o.pivot] for o in asset.objects if any(o.pivot)},
             "behaviours": asset.behaviours,
             "stats": asset.stats(),
+            "asset_hash": asset.digest(),
             **({"lods": lod_data(asset, build_spec(lod_spec(spec)))} if spec.get("lod") else {}),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
             **({"family": spec["family"]} if spec.get("family") else {}),
@@ -592,6 +614,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     manifest = {
         "generator": "cubegen",
         "version": __version__,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_hash": code_fingerprint(),
         "seed": config.seed,
         "config": cfg,
         "blender": blender_info or None,

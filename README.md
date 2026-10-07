@@ -10,7 +10,8 @@ Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Damp
 Gameplay-Bausteine (Portal, Phasen- und Bruchplattform, ausfahrbare Brücke, Drehscheibe, Stachelfalle, Becken,
 Frachtcontainer), Bau-Kit-Ergänzungen (Rampe, Decken- und Dachmodul, Torbogen, Wandabschluss, Sockelleiste), weitere
 Rätsel (Schiebeblock, Ton- und Farbfolge, Wasserstand, Laserfilter, Symbolplatten, Kran, Countdown), Labor, Messe,
-Waschraum, Lageplan, Licht, Roboter, Alien-Bewuchs, Weltraum und Wracks – 164 Typen in 8 Kategorien.
+Waschraum, Lageplan, Licht, Roboter, Alien-Bewuchs, Weltraum und Wracks – 175 registrierte Typen einschließlich
+Geometrie-Demo und experimenteller Test-Assets in 8 Kategorien.
 **Modellfamilien** (`--family`) erzeugen Bau-Kits, deren Teile über verbindliche Maße zusammenpassen: Wand und Tür,
 Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Anschlusspunkten ein.
 
@@ -18,6 +19,13 @@ Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Ans
   speichert eine Übersichts-`.blend`.
 * **ImageMagick** macht daraus **Inventar-Icons** (`Icon_<Name>.png`), einen **Kontaktbogen** zum Durchsehen und eine
   Material-Übersicht.
+* **Desktop-GUI**: `cubegen gui` (oder `cubegen-gui`) bietet Modell-/Rezeptauswahl, Qualitäts-Vorabprüfung,
+  Batch-Export sowie gerenderte und interaktive 3D-Modellvorschauen.
+
+Zum visuellen Ausprobieren gibt es außerdem `geometry_test` und zehn experimentelle `test_...` Gameplay-Prototypen
+(Technikrinne, Rohrgestell, Relaiskasten, Kühlkreislauf, Warnleuchte, Linsen-Array, Magnetsperre, Scanner-Matte,
+Energie-Verteilpanel und Thermoschalter). Sie sind nicht Unity-geprüft und enthalten keine implementierte Puzzle-Logik.
+Zum Beispiel alle zehn rendern: `python -m cubegen generate --seed 42 --types test_utility_trench,test_pipe_rack,test_relay_box,test_coolant_loop,test_warning_beacon,test_lens_array,test_magnetic_lock,test_scanner_pad,test_power_routing,test_thermal_switch --count 1 --out /tmp/cubegen_gameplay_tests`.
 
 Bekannte Bugs, geplante Verbesserungen, Erweiterungen und offene Punkte im Unity-Projekt: [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -119,6 +127,19 @@ und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen:
 ## Schnellstart (Kommandozeile)
 
 Ausführliche Anleitung mit allen Optionen: [`docs/CLI.md`](docs/CLI.md).
+
+Die Desktop-Oberfläche startest du nach Installation mit:
+
+```bash
+cubegen gui
+```
+
+Die GUI bietet zusätzlich zur vorhandenen Blender-Add-on-Oberfläche einen eigenständigen Build-Workflow. Wähle
+Modelltypen oder ein JSON-Rezept, Seed und Ausgabeordner; die Vorabprüfung bewertet und sortiert Varianten, und der
+Export übernimmt unveränderte Assets aus dem letzten Lauf. **Modellvorschau öffnen** zeigt die Vorschau in einem
+eigenen, größenverstellbaren Fenster. Nach dem Export öffnet es sich automatisch und zeigt gerenderte Bilder sowie
+eine interaktive 3D-Ansicht (ziehen zum Drehen, Mausrad zum Zoomen). Für gerenderte Bilder wird Blender benötigt;
+die 3D-Ansicht verwendet die zusätzlich exportierte OBJ-Datei. **Alles neu bauen** erzwingt einen vollständigen Neuaufbau.
 
 Die `#`-Zeilen in den Beispielen sind Kommentare. Die zsh auf dem Mac kennt sie im Terminal nur nach
 `setopt interactivecomments`; sonst einfach nur die Befehlszeilen kopieren.

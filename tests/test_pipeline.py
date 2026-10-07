@@ -52,6 +52,50 @@ class OBJFallbackTest(unittest.TestCase):
             self.assertGreater(panel["localPosition"][1], 0.5)  # Unity Y = up
             self.assertTrue(json.loads(read(os.path.join(out, "models", "Crate_000.cubegen.json")))["static"])
 
+    def test_incremental_no_blender_batch(self):
+        from cubegen.cli import build_config, make_parser
+        from cubegen.pipeline import generate_batch
+
+        with tempfile.TemporaryDirectory() as out:
+            args = make_parser().parse_args(["generate", "--seed", "11", "--types", "crate", "--no-blender",
+                                             "--out", out])
+            config = build_config(args)
+            first_log = []
+            generate_batch(config, log=first_log.append)
+            obj = os.path.join(out, "models", "Crate_000.obj")
+            modified = os.stat(obj).st_mtime_ns
+
+            second_log = []
+            generate_batch(config, log=second_log.append)
+            self.assertIn("unchanged since the last run: 1 asset(s) (--force rebuilds them)", second_log)
+            self.assertEqual(os.stat(obj).st_mtime_ns, modified)
+
+            config.force = True
+            forced_log = []
+            generate_batch(config, log=forced_log.append)
+            self.assertFalse(any("unchanged" in line for line in forced_log))
+
+    def test_incremental_cache_tracks_model_output_directory(self):
+        from cubegen.cli import build_config, make_parser
+        from cubegen.pipeline import generate_batch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "output")
+            first_models = os.path.join(tmp, "first-models")
+            second_models = os.path.join(tmp, "second-models")
+
+            def run(models_dir):
+                args = make_parser().parse_args(["generate", "--seed", "11", "--types", "crate", "--no-blender",
+                                                 "--out", out, "--models-dir", models_dir])
+                messages = []
+                generate_batch(build_config(args), log=messages.append)
+                return messages
+
+            run(first_models)
+            messages = run(second_models)
+            self.assertFalse(any("unchanged" in line for line in messages))
+            self.assertTrue(os.path.isfile(os.path.join(second_models, "Crate_000.obj")))
+
     def test_lods(self):
         with tempfile.TemporaryDirectory() as out:
             code = main(["generate", "--seed", "42", "--types", "wall,door", "--lods", "--no-blender", "--out", out])
@@ -85,10 +129,15 @@ class OBJFallbackTest(unittest.TestCase):
 class BlenderTest(unittest.TestCase):
     def test_fbx_glb_preview_icon_blend(self):
         with tempfile.TemporaryDirectory() as out:
-            code = main(["generate", "--seed", "3", "--types", "door", "--formats", "fbx,glb", "--engine", "cycles",
-                         "--render-size", "64", "--samples", "4", "--out", out])
+            code = main(["generate", "--seed", "3", "--types", "door", "--formats", "fbx,glb,obj",
+                         "--engine", "cycles", "--render-size", "64", "--samples", "4", "--out", out])
             self.assertEqual(code, 0)
             self.assertTrue(os.path.getsize(os.path.join(out, "models", "Door_000.fbx")) > 0)
+            manifest = json.loads(read(os.path.join(out, "manifest.json")))
+            obj_path = os.path.join(out, manifest["models"][0]["files"]["obj"])
+            self.assertTrue(os.path.isfile(obj_path))
+            from cubegen.gui import _load_obj_preview
+            self.assertTrue(_load_obj_preview(obj_path)[1])
             gltf = glb_json(os.path.join(out, "models", "Door_000.glb"))
             names = {n["name"] for n in gltf["nodes"]}
             self.assertTrue({"Frame_Left", "Frame_Top", "Panel", "StatusLight_Front"} <= names)

@@ -218,6 +218,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["blend"] = False
     if args.no_rig_data:
         values["rig_data"] = False
+    if args.repair_safe:
+        values["repair_safe"] = True
     recipe = merged
     out = args.out or recipe.get("out") or os.path.join("output", f"seed_{seed}")
     return BatchConfig(seed=seed, models=models, out_dir=out, use_blender=not args.no_blender,
@@ -243,8 +245,94 @@ def cmd_generate(args) -> int:
             print(f"  {spec['name']:<20} seed {spec['seed']:>10}  {st['triangles']:>5} tris  {dims} m  "
                   f"[{', '.join(st['objects'])}]")
         return 0
-    generate_batch(config, log=lambda m: print("  " + m))
+    specs = plan_models(config)
+    if args.validate_only or args.strict:
+        validation_report = validate_batch(config, specs, strict=args.strict)
+        if args.validate_only:
+            if args.report:
+                _write_json(args.report, validation_report)
+            print(f"validation: {validation_report['severity']} ({len(validation_report['assets'])} asset(s))")
+            return 1 if validation_report["severity"] == "error" else 0
+        if validation_report["severity"] == "error":
+            if args.report:
+                _write_json(args.report, validation_report)
+            print("strict validation failed; export was not started", file=sys.stderr)
+            return 1
+    else:
+        validation_report = None
+    manifest = generate_batch(config, log=lambda m: print("  " + m))
+    if args.report:
+        if validation_report:
+            manifest["validation"] = validation_report
+        _write_json(args.report, manifest)
     return 0
+
+
+def _write_json(path: str, data: Dict) -> None:
+    folder = os.path.dirname(os.path.abspath(path))
+    os.makedirs(folder, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+
+
+def validate_batch(config: BatchConfig, specs: List[Dict], *, strict: bool = False) -> Dict:
+    """Build and validate planned assets without invoking Blender or writing model exports."""
+    from datetime import datetime, timezone
+
+    from .pipeline import build_spec, code_fingerprint, family_fit
+    from .quality import asset_quality_report, check
+    from .variety import signature, similar
+
+    if not specs:
+        raise ValueError("nothing to validate (all counts are 0)")
+    assets = []
+    signatures: Dict[str, List] = {}
+    for spec in specs:
+        asset = build_spec(spec)
+        errors = []
+        try:
+            asset.validate_contract(spec["type"])
+        except ValueError as exc:
+            errors.append(str(exc))
+        entry = REGISTRY[spec["type"]]
+        quality = check(asset, entry.category, entry.pivot,
+                        budget_scale=1.5 if config.style.detail == "high" else 1.0,
+                        palette=config.textures == "palette")
+        summary = asset_quality_report(
+            asset, entry.pivot, entry.category,
+            budget_scale=1.5 if config.style.detail == "high" else 1.0,
+            palette=config.textures == "palette", checked=quality,
+        )
+        errors.extend(quality["errors"])
+        warnings = quality["warnings"]
+        severity = "error" if errors or (strict and warnings) else "warning" if warnings else "pass"
+        asset_signature = signature(asset)
+        similar_to = next((prior_name for prior_name, prior_signature in signatures.get(spec["type"], [])
+                           if similar(asset_signature, prior_signature)), None)
+        signatures.setdefault(spec["type"], []).append((spec["name"], asset_signature))
+        assets.append({
+            "name": spec["name"], "type": spec["type"], "seed": spec["seed"],
+            "asset_hash": asset.digest(), "stats": asset.stats(),
+            "severity": severity, "errors": errors, "warnings": warnings,
+            "quality": summary, "quality_score": summary["score"], "similar_to": similar_to,
+            "safe_repairs": asset.meta.get("safe_repairs", []),
+        })
+    for model_type in {row["type"] for row in assets}:
+        ranked = sorted((row for row in assets if row["type"] == model_type),
+                        key=lambda row: (-row["quality_score"], row["stats"]["triangles"], row["name"]))
+        for rank, row in enumerate(ranked, 1):
+            row["quality_rank"] = rank
+    family = family_fit(specs, dims=config.family["dims"]) if config.family else None
+    has_error = any(row["severity"] == "error" for row in assets) or bool(family and family["problems"])
+    has_warning = any(row["severity"] == "warning" for row in assets) or bool(family and family["look"])
+    return {
+        "generator": "cubegen", "version": __version__,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_hash": code_fingerprint(), "seed": config.seed, "strict": strict,
+        "severity": "error" if has_error else "warning" if has_warning else "pass",
+        "family": family, "assets": assets,
+    }
 
 
 def cmd_list(args) -> int:
@@ -449,6 +537,12 @@ def cmd_doctor(args) -> int:
     return 0 if ok else 1
 
 
+def cmd_gui(args) -> int:
+    from .gui import main as gui_main
+
+    return gui_main()
+
+
 # ---------------------------------------------------------------------------
 
 def make_parser() -> argparse.ArgumentParser:
@@ -528,6 +622,14 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--blender", help="path to the Blender executable")
     g.add_argument("--magick", help="path to ImageMagick (magick or convert)")
     g.add_argument("--dry-run", action="store_true", help="only print names, seeds and stats")
+    g.add_argument("--validate-only", action="store_true",
+                   help="build and validate assets without exporting or requiring Blender")
+    g.add_argument("--strict", action="store_true", help="treat validation warnings as failures before export")
+    g.add_argument("--relaxed", action="store_true",
+                   help="allow warnings (default; cannot be combined with --strict)")
+    g.add_argument("--repair-safe", action="store_true",
+                   help="remove only unreferenced empty mesh objects and record each repair in the report")
+    g.add_argument("--report", metavar="FILE", help="write the build manifest or validation report as JSON")
     g.add_argument("-v", "--verbose", action="store_true", help="show Blender output")
     g.set_defaults(func=cmd_generate)
 
@@ -569,12 +671,17 @@ def make_parser() -> argparse.ArgumentParser:
     d.add_argument("--blender")
     d.add_argument("--magick")
     d.set_defaults(func=cmd_doctor)
+
+    ui = sub.add_parser("gui", help="open the desktop interface")
+    ui.set_defaults(func=cmd_gui)
     return parser
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = make_parser().parse_args(argv)
     try:
+        if getattr(args, "strict", False) and getattr(args, "relaxed", False):
+            raise ValueError("--strict and --relaxed cannot be used together")
         return args.func(args)
     except (BlenderError, ImageMagickError, ValueError, KeyError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)

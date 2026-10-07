@@ -45,7 +45,7 @@ def sidecar_errors(asset, model_type, seed=0):
 class NewTypeTests(unittest.TestCase):
     def test_all_new_types_are_registered(self):
         self.assertEqual(sorted(set(NEW_TYPES) - set(model_types())), [])
-        self.assertEqual(len(model_types()), 164)
+        self.assertEqual(len(model_types()), 175)
 
     def test_puzzle_solutions_and_wiring(self):
         for seed in range(20):

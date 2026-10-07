@@ -130,6 +130,65 @@ def check_dims(dims: Dict[str, Any], where: str = "dims") -> Dict[str, Any]:
     return out
 
 
+def validate_family_recipe(recipe: Dict[str, Any], *, family_name: str = "") -> Dict[str, Any]:
+    """Validate a family recipe by building the referenced asset types and checking the asset contract.
+
+    This is a lightweight family-compatibility guard: models that are part of a kit must remain
+    valid when generated under the family measures and style, and they must report connectors so the
+    kit can snap together reliably.
+    """
+    from .models import generate_asset
+    from .params import Style
+
+    models = recipe.get("models", {})
+    if not isinstance(models, dict):
+        raise ValueError(f"family recipe must define models as a mapping, got {type(models).__name__}")
+
+    checked: List[str] = []
+    issues: List[str] = []
+    for model_type in sorted(models):
+        params = recipe.get("params", {}).get(model_type, {})
+        style = Style.from_dict(recipe.get("style", {})) if recipe.get("style") else Style()
+        try:
+            asset = generate_asset(model_type, 0, params=params, style=style)
+            asset.validate_contract(model_type)
+            if model_type in {"wall", "door", "platform", "catwalk", "ramp", "stairs", "pipe", "pipe_bend"}:
+                from .families import connectors
+                if not connectors(asset, model_type):
+                    issues.append(f"{model_type}: no connectors reported for the family recipe")
+            checked.append(model_type)
+        except Exception as exc:  # pragma: no cover - surfaces family-level build contract problems
+            issues.append(f"{model_type}: {exc}")
+    if issues:
+        raise ValueError("family validation failed: " + "; ".join(issues))
+    return {"family": family_name or recipe.get("family", ""), "checked": checked}
+
+
+def compatibility_matrix(members: Sequence[Tuple[str, Any, str]],
+                         dims: Optional[Dict[str, Any]] = None,
+                         joint_report: Optional[Sequence[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """Summarize every kit member pair as compatible, incompatible, or without a matching connector."""
+    pair_reports: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    for joint in joint_report if joint_report is not None else fit_report(members, dims):
+        pair = tuple(sorted((joint["a"], joint["b"])))
+        pair_reports.setdefault(pair, []).append(joint)
+
+    matrix = []
+    names = sorted(name for name, _, _ in members)
+    for index, name_a in enumerate(names):
+        for name_b in names[index + 1:]:
+            joints = pair_reports.get((name_a, name_b), [])
+            failures = [joint for joint in joints if joint["problems"]]
+            matrix.append({
+                "a": name_a,
+                "b": name_b,
+                "status": "incompatible" if failures else "compatible" if joints else "no_matching_connector",
+                "joints_checked": len(joints),
+                "problems": [problem for joint in failures for problem in joint["problems"]],
+            })
+    return {"members": names, "pairs": matrix}
+
+
 def derived_params(dims: Dict[str, Any], types: Iterable[str]) -> Dict[str, Dict[str, Tuple[Any, str]]]:
     """{type: {parameter: (value, "dims.<measure>")}} for the given types."""
     from .models import REGISTRY
@@ -702,4 +761,5 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
 
 
 __all__ = ["DIMS", "FIXED", "RULES", "JOINS", "family_files", "find_family", "load_family", "check_dims", "derived_params",
-           "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report", "same_look"]
+           "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report",
+           "compatibility_matrix", "same_look"]
