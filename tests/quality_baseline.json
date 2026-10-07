@@ -395,6 +395,12 @@
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
+ "geometry_test": {
+  "draw_calls": 4,
+  "triangles": 400,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "girders": {
   "draw_calls": 5,
   "triangles": 236,
@@ -854,6 +860,66 @@
  "terminal": {
   "draw_calls": 5,
   "triangles": 232,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_coolant_loop": {
+  "draw_calls": 5,
+  "triangles": 672,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_lens_array": {
+  "draw_calls": 6,
+  "triangles": 748,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_magnetic_lock": {
+  "draw_calls": 4,
+  "triangles": 592,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_pipe_rack": {
+  "draw_calls": 4,
+  "triangles": 756,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_power_routing": {
+  "draw_calls": 5,
+  "triangles": 476,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_relay_box": {
+  "draw_calls": 6,
+  "triangles": 356,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_scanner_pad": {
+  "draw_calls": 4,
+  "triangles": 340,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_thermal_switch": {
+  "draw_calls": 5,
+  "triangles": 416,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_utility_trench": {
+  "draw_calls": 4,
+  "triangles": 248,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
+ "test_warning_beacon": {
+  "draw_calls": 4,
+  "triangles": 224,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },

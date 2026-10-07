@@ -112,6 +112,59 @@ class Asset:
         #: the asset seed (set by generate_asset)
         self.seed = 0
 
+    def validate_contract(self, model_type: str = "") -> None:
+        """Validate the generated asset contract before export or use in a family/kit.
+
+        This catches the most common issues that only show up late in the Blender/Unity pipeline:
+        missing parent objects, collider references to missing parts, duplicate object names,
+        broken behaviour wiring, and empty mesh objects.
+        """
+        seen = set()
+        for obj in self.objects:
+            if obj.name in seen:
+                raise ValueError(f"asset {self.name!r}: duplicate object {obj.name!r}")
+            seen.add(obj.name)
+            if obj.parent is not None and self.get(obj.parent) is None:
+                raise ValueError(f"asset {self.name!r}: object {obj.name!r} parent {obj.parent!r} does not exist")
+            if obj.mesh is not None and len(obj.mesh.faces) == 0:
+                raise ValueError(f"asset {self.name!r}: object {obj.name!r} has no mesh faces")
+        for behaviour in self.behaviours:
+            for role, value in behaviour["parts"].items():
+                for name in value if isinstance(value, list) else [value]:
+                    if self.get(name) is None:
+                        raise ValueError(f"asset {self.name!r}: behaviour {behaviour['script']!r} references {name!r} "
+                                         f"via {role!r}, but it does not exist")
+        for collider in self.colliders:
+            if collider.part is not None and self.get(collider.part) is None:
+                raise ValueError(f"asset {self.name!r}: collider on missing part {collider.part!r}")
+        if model_type and not self.meta.get("type"):
+            self.meta["type"] = model_type
+
+    def repair_safe(self) -> List[str]:
+        """Remove only faceless mesh objects that have no children or contract references."""
+        referenced = set()
+        for obj in self.objects:
+            if obj.parent is not None:
+                referenced.add(obj.parent)
+        for behaviour in self.behaviours:
+            for value in behaviour.get("parts", {}).values():
+                referenced.update(value if isinstance(value, list) else [value])
+        referenced.update(c.part for c in self.colliders if c.part is not None)
+
+        removed = []
+        kept = []
+        for obj in self.objects:
+            if obj.mesh is not None and not obj.mesh.faces and obj.name not in referenced:
+                removed.append(obj.name)
+            else:
+                kept.append(obj)
+        if removed:
+            self.objects = kept
+            self.meta.setdefault("safe_repairs", []).extend(
+                {"action": "remove_empty_mesh", "object": name} for name in removed
+            )
+        return removed
+
     def sub(self, key: str) -> StableRandom:
         """An own random stream for one aspect of the model, e.g. ``a.sub("antenna")``.
 

@@ -146,10 +146,12 @@ def box(
     bottom_role: Optional[str] = None,
     top_scale: Sequence[float] = (1.0, 1.0),
     top_offset: Sequence[float] = (0.0, 0.0),
+    loc: Sequence[float] = (0.0, 0.0, 0.0),
 ) -> Prim:
     """Axis aligned box centred on the origin.
 
     ``top_scale`` tapers the top face (frustum), ``top_offset`` shears it.
+    ``loc`` shifts the box after construction for composing compound profiles.
     """
     x, y, z = sx / 2.0, sy / 2.0, sz / 2.0
     tx, ty = x * top_scale[0], y * top_scale[1]
@@ -158,6 +160,8 @@ def box(
         (-x, -y, -z), (x, -y, -z), (x, y, -z), (-x, y, -z),
         (-tx + ox, -ty + oy, z), (tx + ox, -ty + oy, z), (tx + ox, ty + oy, z), (-tx + ox, ty + oy, z),
     ]
+    if any(loc):
+        verts = [v_add(v, loc) for v in verts]
     faces = [
         (0, 3, 2, 1),  # bottom
         (4, 5, 6, 7),  # top
@@ -402,6 +406,107 @@ def sphere(radius: float, segments: int, rings: int, role: str) -> Prim:
         t = math.pi * k / rings - math.pi / 2.0
         profile.append((radius * math.cos(t) if 0 < k < rings else 0.0, radius * math.sin(t)))
     return lathe(profile, segments, role)
+
+
+def _merge_prims(*parts: Prim) -> Prim:
+    """Fuse multiple prims by concatenating their vertices/faces, suitable for modular profiles."""
+    verts: List[Vec3] = []
+    faces: List[Tuple[int, ...]] = []
+    roles: List[str] = []
+    offset = 0
+    for part in parts:
+        for v in part.verts:
+            verts.append(v)
+        for face in part.faces:
+            faces.append(tuple(i + offset for i in face))
+        roles.extend(part.roles)
+        offset += len(part.verts)
+    return Prim(verts, faces, roles)
+
+
+def pipe_section(radius: float, depth: float, wall: float, sides: int = 10, role: str = "M_Metal") -> Prim:
+    """Hollow cylindrical section / pipe segment."""
+    if radius <= wall:
+        raise ValueError("pipe wall must be smaller than the radius")
+    h = depth / 2.0
+    return lathe(
+        [(radius, -h), (radius, h), (radius - wall, h), (radius - wall, -h)],
+        sides,
+        role,
+        cap_bottom=False,
+        cap_top=False,
+    )
+
+
+def u_channel(width: float, height: float, depth: float, wall: float, role: str = "M_Metal") -> Prim:
+    """Simple U-channel / C-channel structural section for walls, frames and rails."""
+    if wall <= 0 or width <= wall * 2 or height <= wall * 2:
+        raise ValueError("invalid U-channel dimensions")
+    return _merge_prims(
+        box(width, wall, depth, role, loc=(0.0, -height / 2.0 + wall / 2.0, 0.0)),
+        box(wall, height, depth, role, loc=(-width / 2.0 + wall / 2.0, 0.0, 0.0)),
+        box(wall, height, depth, role, loc=(width / 2.0 - wall / 2.0, 0.0, 0.0)),
+    )
+
+
+def angle_profile(width: float, height: float, depth: float, thickness: float, role: str = "M_Metal") -> Prim:
+    """L-profile / angle bracket."""
+    if width <= thickness or height <= thickness:
+        raise ValueError("invalid L-profile dimensions")
+    return _merge_prims(
+        box(width, thickness, depth, role, loc=(0.0, -(height - thickness) / 2.0, 0.0)),
+        box(thickness, height, depth, role, loc=(-width / 2.0 + thickness / 2.0, 0.0, 0.0)),
+    )
+
+
+def tee_profile(width: float, height: float, depth: float, web: float, role: str = "M_Metal") -> Prim:
+    """T-profile / tee beam."""
+    if width <= web or height <= web:
+        raise ValueError("invalid T-profile dimensions")
+    return _merge_prims(
+        box(width, web, depth, role, loc=(0.0, height / 2.0 - web / 2.0, 0.0)),
+        box(web, height, depth, role, loc=(0.0, 0.0, 0.0)),
+    )
+
+
+def i_beam(width: float, height: float, depth: float, web: float, flange: float, role: str = "M_Metal") -> Prim:
+    """I-beam as a symmetric web plus two flanges."""
+    if width <= 0 or height <= 0 or web <= 0 or flange <= 0:
+        raise ValueError("invalid I-beam dimensions")
+    return _merge_prims(
+        box(width, flange, depth, role, loc=(0.0, -height / 2.0 + flange / 2.0, 0.0)),
+        box(width, flange, depth, role, loc=(0.0, height / 2.0 - flange / 2.0, 0.0)),
+        box(web, height - 2.0 * flange, depth, role, loc=(0.0, 0.0, 0.0)),
+    )
+
+
+def wedge(width: float, height: float, depth: float, role: str = "M_Wall") -> Prim:
+    """Right-triangle wedge / ramp segment."""
+    if width <= 0 or height <= 0 or depth <= 0:
+        raise ValueError("invalid wedge dimensions")
+    poly = [(-width / 2.0, 0.0), (width / 2.0, 0.0), (width / 2.0, height)]
+    return prism(poly, depth, role)
+
+
+def grate(width: float, length: float, depth: float, bar: float, gap: float, role: str = "M_Metal") -> Prim:
+    """Simple modular grate made from intersecting bars, suitable for drains and access plates."""
+    if width <= 0 or length <= 0 or depth <= 0 or bar <= 0 or gap <= 0:
+        raise ValueError("invalid grate dimensions")
+    pieces = []
+    steps_x = max(1, int(width / (bar + gap)))
+    steps_y = max(1, int(length / (bar + gap)))
+    for i in range(steps_x):
+        x = -width / 2.0 + (i + 0.5) * (width / steps_x)
+        pieces.append(box(bar, length, depth, role, loc=(x, 0.0, 0.0)))
+    for j in range(steps_y):
+        y = -length / 2.0 + (j + 0.5) * (length / steps_y)
+        pieces.append(box(width, bar, depth, role, loc=(0.0, y, 0.0)))
+    return _merge_prims(*pieces)
+
+
+def rounded_box(sx: float, sy: float, sz: float, role: str, radius: float = 0.05) -> Prim:
+    """Rounded rectangle / capsule-like box; a robust low-poly alternative to sharp corners."""
+    return chamfer_box(sx, sy, sz, role, min(radius, sx / 4.0, sy / 4.0, sz / 4.0))
 
 
 def _polygon_area(poly: Sequence[Vec2]) -> float:

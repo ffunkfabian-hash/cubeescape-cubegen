@@ -18,6 +18,9 @@ python3 -m cubegen doctor
 nicht, gib den Pfad an (`--blender /Applications/Blender.app/Contents/MacOS/Blender`) oder setze ihn einmal
 für die Shell: `export BLENDER=/Applications/Blender.app/Contents/MacOS/Blender`.
 
+Die Desktop-GUI startest du mit `cubegen gui` oder dem installierten Befehl `cubegen-gui`. Sie benötigt Tkinter
+(bei manchen Linux-Distributionen als separates `python3-tk`-Paket) und verwendet dieselbe CLI-Pipeline.
+
 Alternativ als Befehl `cubegen` installieren (dann ohne `python3 -m`, aber ohne die Rezepte aus `recipes/`):
 
 ```bash
@@ -29,6 +32,7 @@ cubegen doctor
 
 | Befehl | Wofür |
 |---|---|
+| `cubegen gui` | Desktop-Oberfläche für Modellwahl, Rezepte, Qualitäts-Vorabprüfung und Export |
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
 | `python3 -m cubegen list` | alle 164 Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
@@ -64,6 +68,22 @@ Tipp: Vorher mit `--dry-run` ansehen, was entstehen würde. Das geht in Sekunden
 ```bash
 python3 -m cubegen generate --seed 42 --types crate,socket,drone --count 3 --dry-run
 ```
+
+Für eine ausführliche Prüfung ohne Export (ebenfalls ohne Blender) nutze `--validate-only`. Der JSON-Report
+enthält je Asset Fehler/Warnungen, Qualitätsstufe, reproduzierbaren Asset-Hash sowie Versions- und Quellcode-Metadaten:
+
+```bash
+python3 -m cubegen generate --seed 42 --types crate,door --validate-only --report validation.json
+```
+
+`--strict` führt dieselbe Prüfung vor dem Export aus und bricht bei Warnungen ab; Standard bzw. `--relaxed`
+erlaubt Warnungen. `--repair-safe` entfernt nur nicht referenzierte leere Mesh-Objekte und protokolliert die
+Reparaturen im Report. Es ändert keine Hierarchien oder Behaviour-/Collider-Referenzen.
+
+Jedes Asset im Validierungsreport enthält außerdem einen Qualitätsscore von 0 bis 100, den Rang innerhalb seines
+Typs und `similar_to`, falls eine zuvor geplante Variante innerhalb der Ähnlichkeitstoleranz liegt. Score und Rang
+fassen Dreiecksbudget, Draw Calls, Z-Fighting und Collider-Abdeckung zusammen; Fehler und Warnungen bleiben separat
+ausgewiesen.
 
 ## 4. Was erzeugt wird: Typen, Anzahl, Varianten
 
@@ -333,10 +353,11 @@ python3 -m cubegen generate --seed 42 --types crate --no-blender
 ```
 
 **Nur Geändertes neu bauen:** Ein erneuter Lauf in denselben Ausgabeordner exportiert und rendert nur Modelle,
-die sich geändert haben. Den Ausschlag geben Seed, Parameter, Stil, Formate, Render- und Textur-Einstellungen,
-Blender-Version und der cubegen-Code selbst. Unverändertes wird übernommen
-(`unchanged since the last run: 240 asset(s)`). Fehlen alle Änderungen, startet Blender gar nicht erst.
-`--force` baut alles neu.
+die sich geändert haben. Den Ausschlag geben Seed, Parameter, Stil, Ausgabeordner, Formate, Render- und
+Textur-Einstellungen, Blender-Version und der cubegen-Code selbst. Unverändertes wird übernommen
+(`unchanged since the last run: 240 asset(s)`). Bei Blender-Exporten startet Blender gar nicht erst, wenn keine
+Änderungen vorliegen; beim reinen OBJ-Export werden unveränderte Meshes ebenfalls übernommen. `--force` baut
+alles neu.
 
 **Parallel:** `--jobs 4` verteilt die Modelle auf 4 Blender-Prozesse; ein weiterer baut nur die Übersichts-.blend.
 Das Ergebnis ist dasselbe wie mit einem Prozess. Wie viele sich lohnen, hängt von CPU-Kernen und Render-Engine ab.
@@ -427,4 +448,8 @@ schon, bevor er Dateien schreibt.
 | `--icon-angle`, `--icon-zoom` | 33,31 / 1 | Kamera für Previews und Icons |
 | `--blender`, `--magick` | automatisch | Programmpfade |
 | `--dry-run` | – | nur Namen, Seeds und Maße ausgeben |
+| `--validate-only` | – | Assets prüfen, Report ausgeben, keinen Export starten |
+| `--strict` / `--relaxed` | – | Warnungen als Fehler behandeln / explizit erlauben (Standard: erlaubt) |
+| `--repair-safe` | – | nur verwaiste leere Mesh-Objekte entfernen und protokollieren |
+| `--report FILE` | – | Build-Manifest bzw. Validierungsreport als JSON schreiben |
 | `-v`, `--verbose` | – | Blender-Ausgabe zeigen |

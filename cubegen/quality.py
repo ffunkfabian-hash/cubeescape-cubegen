@@ -30,6 +30,40 @@ PLANE_TOL = 1e-4   # metres: faces closer than this to the same plane are coplan
 MIN_OVERLAP = 1e-4  # m^2 (1 cm^2): smaller overlaps don't show
 
 
+def asset_quality_report(asset, pivot: str = "", category: str = "props", budget_scale: float = 1.0,
+                         palette: bool = False, checked: Optional[Dict] = None) -> Dict[str, object]:
+    """A compact quality summary for a generated asset.
+
+    This keeps the existing checks intact while exposing a single, machine-readable summary that can be
+    used by a UI, CI, or future diversity pass.
+    """
+    result = checked or check(asset, category, pivot, budget_scale, palette)
+    passes = {
+        "triangle_budget": not result["errors"],
+        "z_fighting": not result["z_fighting"],
+        "collider_coverage": not result["uncovered"],
+        "draw_call_budget": result["draw_calls"] <= result["draw_call_budget"],
+    }
+    score = 100
+    score -= min(40, 10 * len(result["z_fighting"]))
+    score -= min(27, 9 * len(result["uncovered"]))
+    score -= min(20, 4 * max(0, result["draw_calls"] - result["draw_call_budget"]))
+    if result["triangles"] > result["budget"]:
+        over_budget = (result["triangles"] - result["budget"]) / result["budget"]
+        score -= min(30, math.ceil(over_budget * 30))
+    return {
+        "triangles": result["triangles"],
+        "triangle_budget": result["budget"],
+        "draw_calls": result["draw_calls"],
+        "draw_call_budget": result["draw_call_budget"],
+        "z_fighting_pairs": len(result["z_fighting"]),
+        "uncovered_geometry": len(result["uncovered"]),
+        "score": max(0, score),
+        "severity": result["severity"],
+        "passes": passes,
+    }
+
+
 def _poly_area(pts: Sequence[Tuple[float, float]]) -> float:
     return abs(add_up(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
                       for i in range(len(pts)))) / 2.0
@@ -313,8 +347,8 @@ def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0, pale
         warnings.append(f"z-fighting: {len(fights)} face pair(s), e.g. {top['a']}/{top['b']} "
                         f"{top['area'] * 1e4:.0f} cm2 ({' vs '.join(top['materials'])})")
     return {"triangles": stats["triangles"], "budget": budget, "draw_calls": calls, "draw_call_budget": call_budget,
-            "z_fighting": fights, "uncovered": uncovered,
-            "errors": errors, "warnings": warnings}
+            "z_fighting": fights, "uncovered": uncovered, "severity": "error" if errors else
+            "warning" if warnings else "pass", "errors": errors, "warnings": warnings}
 
 
 def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_scale: float = 1.0,
@@ -331,8 +365,12 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
         entry = registry[t]
         rows = [check(build(t, i), entry.category, entry.pivot, budget_scale, palette) for i in range(seeds)]
         fights = [len(r["z_fighting"]) for r in rows]
+        severity = "error" if any(r["errors"] for r in rows) else "warning" if any(
+            r["warnings"] for r in rows
+        ) else "pass"
         result[t] = {
             "category": entry.category,
+            "severity": severity,
             "triangles": max(r["triangles"] for r in rows),
             "budget": rows[0]["budget"],
             "draw_calls": max(r["draw_calls"] for r in rows),

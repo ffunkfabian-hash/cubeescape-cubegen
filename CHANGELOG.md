@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.10.2.5 – 2026-10-07
+
+* Geometrie-Primitive für Hohlrohre, U-/L-/T-/I-Profile, Keile, Gitter und gerundete Boxen ergänzt.
+* `geometry_test` stellt alle acht Formen als renderbare CLI-Demo bereit.
+* Zehn experimentelle Gameplay-Prototypen aus `IDEEN.md` integriert; sie sind ausdrücklich nicht Unity-geprüft und
+  enthalten keine Puzzle-Logik.
+
+## 0.10.2.4 – 2026-10-07
+
+* Die Desktop-GUI zeigt nach einem Build gerenderte Vorschauen und bietet eine interaktive OBJ-Ansicht mit Drehen und
+  Zoomen. Bei Blender-Builds exportiert die GUI dafür zusätzlich OBJ.
+
+## 0.10.2.3 – 2026-10-07
+
+* Vorab- und Qualitätsberichte enthalten pro Variante einen nachvollziehbaren Score, Rang, Qualitätsmetriken und
+  Hinweise auf ähnliche Varianten.
+* Inkrementelle Builds erkennen unveränderte OBJ-Assets jetzt ebenfalls; `--force` baut sie weiterhin neu.
+* Neue Desktop-GUI (`cubegen gui` oder `cubegen-gui`) mit Modellwahl, Rezepten, Vorabprüfung, Ähnlichkeitsfilter
+  und Exportstatus.
+
+## 0.10.2.2 – 2026-10-07
+
+* Optionale sichere Asset-Bereinigung entfernt nur unreferenzierte leere Meshes und protokolliert die Eingriffe.
+* Qualitätsberichte klassifizieren Assets als `pass`, `warning` oder `error`; `generate --strict` kann vor dem Export
+  Warnungen als Fehler behandeln, während `--relaxed` sie ausdrücklich zulässt.
+* Family-Checks und Build-Manifeste enthalten eine paarweise Connector-Kompatibilitätsmatrix.
+* Build-Manifeste erhalten UTC-Erstellungszeit, Generator-Quellcodehash und SHA-256-Assethashes.
+* `generate --validate-only` prüft Assets ohne Blender-Export; `--report FILE` speichert Validierungs- oder
+  Build-Reports als JSON. `--dry-run` bleibt unverändert.
+
 ## 0.10.2 – 2026-10-07
 
 Nutzerauftrag für alle weiteren Cube-Escape-Integrationsphasen: belegte Cubegen-Fehler sofort

@@ -8,7 +8,24 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from cubegen.asset import Asset  # noqa: E402
-from cubegen.geometry import Mesh, box, chamfer_box, cylinder, lathe, prism, sphere, torus  # noqa: E402
+from cubegen.geometry import (  # noqa: E402
+    Mesh,
+    angle_profile,
+    box,
+    chamfer_box,
+    cylinder,
+    grate,
+    i_beam,
+    lathe,
+    pipe_section,
+    prism,
+    rounded_box,
+    sphere,
+    tee_profile,
+    torus,
+    u_channel,
+    wedge,
+)
 from cubegen.materials import MATERIALS  # noqa: E402
 from cubegen.models import REGISTRY, asset_name, generate_asset, model_types  # noqa: E402
 from cubegen.seeds import MAX_SEED, StableRandom, model_seed, parse_seed, sub_rng  # noqa: E402
@@ -46,6 +63,21 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(len(prim.faces), 26)
         expected = 6.0 - b * b / 2 * 4 * (1 + 2 + 3) + 8 * b ** 3 / 6 * 4  # box - edge prisms + corner fix-up
         self.assertAlmostEqual(volume(prim), expected, places=3)
+
+    def test_structural_profiles_have_positive_volume(self):
+        prims = [
+            pipe_section(0.4, 1.0, 0.07, sides=8, role="M_Metal"),
+            u_channel(1.0, 0.7, 0.2, 0.08, role="M_Metal"),
+            angle_profile(1.0, 0.9, 0.2, 0.08, role="M_Metal"),
+            tee_profile(1.0, 0.8, 0.2, 0.09, role="M_Metal"),
+            i_beam(1.3, 1.0, 0.2, 0.08, 0.12, role="M_Metal"),
+            wedge(1.0, 0.6, 0.2, role="M_Wall"),
+            grate(1.2, 1.0, 0.1, 0.06, 0.03, role="M_Metal"),
+            rounded_box(1.0, 0.8, 0.5, "M_Wall", radius=0.12),
+        ]
+        for prim in prims:
+            with self.subTest(prim=prim.__class__.__name__):
+                self.assertGreater(volume(prim), 0)
 
     def test_cylinder_volume(self):
         sides = 64
@@ -177,6 +209,27 @@ class ModelTests(unittest.TestCase):
                         self.assertLess(z0, 0.0)
                     elif pivot == "wall":
                         self.assertGreater(z0, 0.0)
+
+    def test_geometry_test_showcases_all_eight_primitives(self):
+        asset = generate_asset("geometry_test", 42)
+        expected = {
+            "01_PipeSection", "02_UChannel", "03_AngleProfile", "04_TeeProfile",
+            "05_IBeam", "06_Wedge", "07_Grate", "08_RoundedBox",
+        }
+        self.assertEqual({obj.name for obj in asset.meshes()}, expected)
+        self.assertTrue(asset.meta["experimental"])
+        self.assertEqual(len(asset.meta["geometry_demo"]), 8)
+
+    def test_ten_experimental_gameplay_assets_are_registered_and_marked(self):
+        test_types = [name for name in model_types() if name.startswith("test_")]
+        self.assertEqual(len(test_types), 10)
+        for model_type in test_types:
+            with self.subTest(model=model_type):
+                asset = generate_asset(model_type, 42)
+                self.assertTrue(asset.meta["experimental"])
+                self.assertTrue(asset.meta["gameplay_note"])
+                self.assertTrue(asset.meshes())
+                self.assertTrue(asset.colliders)
 
     def test_moving_parts_have_pivots_inside(self):
         for model_type in model_types():
