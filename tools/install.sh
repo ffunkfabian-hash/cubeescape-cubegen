@@ -49,7 +49,16 @@ if [ -d "$DIR/.git" ] && command -v git >/dev/null 2>&1 && [ -z "${CUBEGEN_NO_GI
     git -C "$DIR" fetch --quiet origin "$BRANCH"
     git -C "$DIR" checkout --quiet -B "$BRANCH" FETCH_HEAD
   else
-    git -C "$DIR" pull --quiet --ff-only
+    git -C "$DIR" fetch --quiet origin
+    git -C "$DIR" remote set-head origin --auto >/dev/null
+    DEFAULT_BRANCH="$(git -C "$DIR" symbolic-ref --quiet --short refs/remotes/origin/HEAD)"
+    DEFAULT_BRANCH="${DEFAULT_BRANCH#origin/}"
+    if git -C "$DIR" show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH"; then
+      git -C "$DIR" checkout --quiet "$DEFAULT_BRANCH"
+    else
+      git -C "$DIR" checkout --quiet --track -b "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
+    fi
+    git -C "$DIR" merge --quiet --ff-only "origin/$DEFAULT_BRANCH"
   fi
 elif command -v git >/dev/null 2>&1 && [ -z "${CUBEGEN_NO_GIT:-}" ]; then
   if [ -e "$DIR" ] && [ -n "$(ls -A "$DIR" 2>/dev/null)" ]; then

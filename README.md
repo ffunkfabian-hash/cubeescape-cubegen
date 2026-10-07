@@ -121,8 +121,9 @@ curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape
 
 Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),
 legt den Befehl `cubegen` in `~/.local/bin` an, baut das Blender-Add-on (`~/cubegen/dist/cubegen_blender_addon.zip`)
-und prüft Blender und ImageMagick. Erneut ausführen = aktualisieren. Optionen: `--dir ORDNER`, `--branch BRANCH`,
-`--no-link` (als `… | bash -s -- --dir ~/tools/cubegen`).
+und prüft Blender und ImageMagick. Erneut ausführen aktualisiert auf den GitHub-Standardbranch; `--branch BRANCH`
+wählt stattdessen explizit einen anderen Branch. Weitere Optionen: `--dir ORDNER`, `--no-link`
+(als `… | bash -s -- --dir ~/tools/cubegen`).
 
 ## Schnellstart (Kommandozeile)
 
