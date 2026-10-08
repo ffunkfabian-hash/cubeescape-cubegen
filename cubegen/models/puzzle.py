@@ -576,7 +576,9 @@ def camera(rng, a):
     cx, cy, cz = center
     cyl(head, 0.04, 0.1, (cx, cy, cz), "M_Metal", sides=6)
     if style == "box":
-        tilt = (deg(-rng.uniform(15, 30)), 0.0, 0.0)
+        pitch = rng.uniform(15, 30)
+        # The front is -Y: positive Blender X pitch points the lens down.
+        tilt = (deg(pitch if p.style.generation >= 3 else -pitch), 0.0, 0.0)
         cube(head, (0.18, 0.4, 0.16), add_vec(center, rotated(tilt, (0, -0.12, -0.1))), p.material(["M_Platform", "M_RobotBody", "M_Wall"]),
              bevel=0.02, rot=tilt)
         cube(head, (0.22, 0.3, 0.02), add_vec(center, rotated(tilt, (0, -0.1, -0.01))), "M_RobotDark", rot=tilt)

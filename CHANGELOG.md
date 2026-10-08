@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.5 – 2026-10-08
+
+* Gameplay-Kollisionsprüfung verwendet den tatsächlichen Unity-Vertrag statt einer angenommenen Gesamthülle; fehlende feste Kollision ist ein Fehler.
+* Generation 3 ergänzt fehlende Collider pro Teil: genaue feste Meshes erhalten Öffnungen, bewegte Ziele und Kinder bleiben konvex. Eigene Rezepte, Pickups und Generation 1/2 bleiben erhalten.
+* Statische und zerstörte Generation-3-Modelle ohne eigene Shapes bekommen genaue nichtkonvexe Mesh-Collider; freie Zwischenräume bleiben frei. Alte Exporte benötigen Reexport/Reimport.
+* Dampfventile bekommen Body-/Wheel-Kollision. Feste Mesh-Öffnungen werden auch im Anschlusscheck genau geprüft.
+* Generation-3-Kastenkameras schauen 15–30° nach unten; negative Neigung führte zuvor zum Blick in die Luft. Historische Generationen bleiben erhalten.
+* Zerstörte Generation-3-Exporte triangulieren zerbrochene Flächen explizit, damit Unity keine nichtplanaren Abschlussflächen und deren Materialrollen verwirft.
+* Ursachen, Kompatibilität und Nachweise: `VERSION_0.10.5.md`. Paket, CLI und Blender-Add-on gemeinsam auf 0.10.5 aktualisiert.
+
 ## 0.10.4.1 – 2026-10-07
 
 * Neuer seed-deterministischer Clutter-/Accessoire-Pass: `--clutter clean|lived-in|chaotic`

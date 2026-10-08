@@ -105,7 +105,7 @@ class Asset:
         self.meta: Dict[str, object] = {}
         #: which existing Unity scripts drive which parts, with field values in Unity units
         self.behaviours: List[Dict[str, object]] = []
-        #: explicit collision shapes; empty = the importer's default (box hull)
+        #: explicit shapes; static imports may use a hull, gameplay recipes never do
         self.colliders: List[Collider] = []
         #: parameter reader of the build (set by generate_asset): rolls values, applies overrides / style
         self.p = None

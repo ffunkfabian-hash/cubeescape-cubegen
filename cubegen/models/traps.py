@@ -175,6 +175,10 @@ def steam_vent(rng, a):
         a.behaviour("Rotatable", {"target": "Wheel", "glow": "Glow"},
                     {"axis": "up", "step": 90, "speed": 180, "target": 2, "interactive": True},
                     note="closing the valve stops the steam")
+        if p.style.generation >= 3:
+            a.mesh_collider("Wheel", convex=True)
+    if p.style.generation >= 3:
+        a.mesh_collider("Body", convex=True)
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")},
                 note="Steam: particle emitter along Unity up; damage zone = game logic")
 

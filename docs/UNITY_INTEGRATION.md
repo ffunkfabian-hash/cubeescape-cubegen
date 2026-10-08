@@ -87,7 +87,7 @@ Weitere Regeln:
 - Rotator dreht endlos. Für antenna/radar und Lüfter ist das richtig; camera hat deshalb standardmäßig
   speed 0 (steht), service_robot bekommt für den Kopf nur mit head_speed > 0 einen Rotator. Einen Rotator
   mit speed 0 trotzdem anlegen (deaktiviert), damit ein späteres Schwenk-Script ihn ersetzen kann.
-- Collider: statische Modelle bekommen über AssetRegistry eine BoxCollider-Hülle. Hat die JSON "colliders",
+- Collider: statische Modelle können eine Hülle erhalten; begehbare Modelle verwenden die geprüften Flächen der AssetRegistry. Gameplay-Modelle bekommen **keine** allgemeine Gesamthülle. Hat die JSON "colliders",
   ersetzen diese die Hülle - bei Prefabs mit Script UND bei statischen Modellen (prüfe, wie AssetRegistry die
   Hülle anlegt, und lies dort die JSON neben der FBX mit). Regeln:
   - "part": null = Wurzel, sonst das Teil (Transform per Name). Der Collider bewegt sich mit dem Teil (Luken-Deckel,
@@ -97,8 +97,7 @@ Weitere Regeln:
     "Collider_<n>" mit localPosition = center, localRotation = new Quaternion(x, y, z, w) und einem BoxCollider
     (center 0, size = size) - BoxCollider selbst kann nicht drehen (Rampe, Wendeltreppe, Treppengeländer).
   - "mesh": MeshCollider mit sharedMesh = Mesh des Teils, convex wie angegeben (platform, floating_island).
-  - Gibt es kein "colliders", bleibt alles wie bisher. Wand- und Deckenteile (pivot "wall") brauchen nur
-    Collider, wenn man sie berühren kann.
+  - Ohne "colliders" bauen Gameplay-Adapter nur die ausdrücklich benannten Kollisionsrollen bzw. interaktiven Ziel-Bounds. Generation 3 ergänzt deshalb bei Gameplay-Modellen ohne eigene Shapes Collider pro Teil: feste Meshes nichtkonvex, bewegte Ziele und Kinder konvex. Pickups behalten ihren Interaktionstrigger. Ältere Generationen bleiben historisch; ein erfolgreicher Import beweist keine Begehbarkeit.
   Typen mit "colliders": stairs, spiral_stairs, catwalk, platform, floor_tile, floating_island, hatch,
   floor_grate, vent_shaft (innen begehbar), lift, force_field, crusher, cage, railing, shock_plate, saw_blade.
 - Weitere Typen mit den vorhandenen Scripts:
@@ -413,3 +412,35 @@ Geschütz um −arc/2 (Unity-Gier) vorgedreht, damit ein Schwenk von 0 bis `arc`
 Statisch mit eigenen Collidern: `ramp` (Schräge + ebenes Ende), `archway` (Pfosten und Sturz, Durchgang frei),
 `ceiling_module` (Platte), `wall_cap` mit Geländer, `collapsed_catwalk` (schräges Deck), `push_block`. Alle anderen
 neuen Typen sind statische Deko mit Hülle.
+
+
+## Kollisionskorrektur · 0.10.5
+
+Qualität und Anschlusschecks verwenden jetzt standardmäßig den tatsächlichen Gameplay-Import.
+Eine fehlende Kollisionsfläche ist ein Fehler. Eine explizite historische Layoutschätzung
+(`collision_boxes(..., gameplay_import=False)`) ist kein Unity-Nachweis. Feste
+nichtkonvexe Meshes werden als Vereinigung ihrer geschlossenen Teile geprüft;
+eine Gesamtbox darf keine freie Öffnung als belegt melden. Konvexe Meshes werden
+in Python konservativ begrenzt; echte FBX-/Unity-Physikprüfungen bleiben erforderlich.
+
+Cube Escape Integrationsphase 4 authoriert 13 konkrete Modellprofile an den vorhandenen
+Gefahren-/Plattform-/Fluid-/Portal-Systemen. Diese Freigabe gilt nur in Cube Escape,
+nicht automatisch für jeden Export desselben Modelltyps. Korrekturen, Regressionen
+und aktueller Prüfstatus stehen in `../VERSION_0.10.5.md`.
+
+
+Statische und zerstörte Modelle der Generation 3 erhalten ohne eigenes Shape-Rezept
+nun genaue nichtkonvexe Mesh-Collider pro Teil. Der frühere Gesamthüllen-Rückfall ist
+für neue Exporte damit nicht erforderlich. Vorhandene Exporte werden nicht rückwirkend
+repariert; Generation 1/2 bleiben historisch. Kollisionspflicht und Abnahmekriterien
+für künftige Agenten stehen in `../AGENTS.md`, Befunde in `../VERSION_0.10.5.md`.
+
+
+### Kameraneigung und zerstörte Exportflächen · 0.10.5
+
+Generation-3-Kastenkameras schauen nach der Vorzeichenkorrektur 15–30° nach unten
+(Blender-Vorderseite −Y, positive X-Neigung). Dome-Kameras und historische Generationen
+bleiben erhalten. Bestehende Vorschauen/Exporte erneut erzeugen und reimportieren.
+Zerstörte Generation-3-Meshes werden beim Blender-Export ausdrücklich trianguliert,
+damit Unity nichtplanare Bruchflächen samt Materialrolle nicht verwirft. Regressionen
+prüfen Blickrichtung, echten FBX und Frakturmaterial im GLB. Prüfbericht: `VERSION_0.10.5.md`.

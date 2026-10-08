@@ -508,9 +508,48 @@ class Box:
         return Box(center, rot, self.half, self.part)
 
 
-def collision_boxes(asset, model_type: str) -> List[Box]:
-    """The collision shapes the Unity import builds: explicit colliders (mesh colliders as their part's box),
-    else the Door/Machine collider parts, else one box around everything (the static envelope)."""
+class MeshCollision(Box):
+    """Fixed mesh volume: closed primitives form a union, so openings stay empty."""
+    def __init__(self, mesh, part, offset=(0.0, 0.0, 0.0), rotation=0.0):
+        self.mesh, self.offset, self.rotation = mesh, tuple(offset), rotation
+        matrix = euler_matrix(0.0, 0.0, rotation)
+        self.pieces = []
+        all_verts = []
+        for primitive in mesh.parts:
+            if not primitive.closed:
+                continue
+            verts = [tuple(mat_mul_vec(matrix, v)[i] + offset[i] for i in range(3))
+                     for v in mesh.verts[primitive.v0:primitive.v1]]
+            faces = [tuple(i - primitive.v0 for i in face) for face in mesh.faces[primitive.f0:primitive.f1]]
+            lo = tuple(min(v[i] for v in verts) for i in range(3))
+            hi = tuple(max(v[i] for v in verts) for i in range(3))
+            self.pieces.append((verts, faces, lo, hi)); all_verts.extend(verts)
+        if not all_verts:
+            all_verts = [tuple(mat_mul_vec(matrix, v)[i] + offset[i] for i in range(3)) for v in mesh.verts]
+        lo = tuple(min(v[i] for v in all_verts) for i in range(3))
+        hi = tuple(max(v[i] for v in all_verts) for i in range(3))
+        super().__init__([(lo[i]+hi[i])/2 for i in range(3)],
+                         [[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]], [(hi[i]-lo[i])/2 for i in range(3)], part)
+
+    def contains(self, point, margin=0.0):
+        from .quality import _inside_solid
+        for verts, faces, lo, hi in self.pieces:
+            if all(lo[i] - 1e-7 <= point[i] <= hi[i] + 1e-7 for i in range(3)) and _inside_solid(point, verts, faces):
+                return True
+        return False
+
+    def moved(self, offset):
+        return MeshCollision(self.mesh, self.part, tuple(self.offset[i]+offset[i] for i in range(3)), self.rotation)
+
+    def placed(self, rot_z, offset):
+        matrix = euler_matrix(0.0, 0.0, rot_z)
+        return MeshCollision(self.mesh, self.part, tuple(mat_mul_vec(matrix,self.offset)[i]+offset[i] for i in range(3)), self.rotation+rot_z)
+
+
+def collision_boxes(asset, model_type: str, *, gameplay_import: bool = True) -> List[Box]:
+    """Exported shapes and recipe-derived collision. Fixed meshes preserve openings;
+    convex meshes are conservatively bounded. A static envelope is only used for
+    static imports or an explicitly requested historical layout estimate."""
     ident = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     boxes = []
     if asset.colliders:
@@ -518,17 +557,32 @@ def collision_boxes(asset, model_type: str) -> List[Box]:
             if c.kind == "box":
                 boxes.append(Box(c.center, euler_matrix(*c.rot), tuple(s / 2 for s in c.size), c.part))
             else:
+                if not c.convex:
+                    boxes.append(MeshCollision(asset.get(c.part).mesh, c.part))
+                    continue
                 lo, hi = asset.get(c.part).mesh.bbox()
                 boxes.append(Box([(lo[i] + hi[i]) / 2 for i in range(3)], ident,
                                  [(hi[i] - lo[i]) / 2 for i in range(3)], c.part))
         return boxes
     parts = []
     for b in asset.behaviours:
-        for role in ("colliders", "body"):
+        for role in (("colliders", "body", "panels") if gameplay_import else ("colliders", "body")):
             value = b["parts"].get(role)
             parts += value if isinstance(value, list) else ([value] if value else [])
     if parts:
         for name in dict.fromkeys(parts):
+            obj = asset.get(name)
+            if obj is not None and obj.mesh is not None:
+                lo, hi = obj.mesh.bbox()
+                boxes.append(Box([(lo[i] + hi[i]) / 2 for i in range(3)], ident,
+                                 [(hi[i] - lo[i]) / 2 for i in range(3)], name))
+        return boxes
+    if gameplay_import and asset.behaviours:
+        # The Gameplay importer has no static envelope fallback. An interactive
+        # Rotatable without collision roles gets only its own target's bounds.
+        targets = [b["parts"]["target"] for b in asset.behaviours
+                   if b["script"] == "Rotatable" and b["fields"].get("interactive", True)]
+        for name in dict.fromkeys(targets):
             obj = asset.get(name)
             if obj is not None and obj.mesh is not None:
                 lo, hi = obj.mesh.bbox()

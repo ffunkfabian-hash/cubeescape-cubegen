@@ -477,7 +477,9 @@ class ColliderTests(unittest.TestCase):
         self.assertAlmostEqual(lid[0]["size"][1], 0.06, places=4)             # Unity Y = lid thickness
         spec = {"type": "hatch", "seed": 4, "style": {}}
         self.assertEqual(rig_data(hatch, spec, 1)["colliders"], data)
-        self.assertNotIn("colliders", rig_data(generate_asset("crate", 4), {"type": "crate", "seed": 4}, 1))
+        crate = rig_data(generate_asset("crate", 4), {"type": "crate", "seed": 4}, 1)
+        self.assertTrue(crate["colliders"])
+        self.assertTrue(all(c["type"] == "mesh" and not c["convex"] for c in crate["colliders"]))
         self.assertEqual(generate_asset("platform", 1).collider_data(),
                          [{"type": "mesh", "part": "Deck", "convex": True}])
 
@@ -486,7 +488,11 @@ class ColliderTests(unittest.TestCase):
         a, b = generate_asset("stairs", 3), generate_asset("stairs", 3, scale=2.0)
         for ca, cb in zip(a.colliders, b.colliders):
             self.assertEqual(cb.size, tuple(v * 2 for v in ca.size))
-        self.assertFalse(generate_asset("stairs", 3, style=Style(damage="destroyed")).colliders)
+        ruin = generate_asset("stairs", 3, style=Style(damage="destroyed"))
+        self.assertTrue(ruin.colliders)
+        self.assertTrue(all(c.kind == "mesh" and not c.convex for c in ruin.colliders))
+        for generation in (1, 2):
+            self.assertFalse(generate_asset("stairs", 3, style=Style(damage="destroyed", generation=generation)).colliders)
         self.assertTrue(generate_asset("stairs", 3, style=Style(damage="damaged")).colliders)
 
     def test_ramp_has_no_gaps(self):
