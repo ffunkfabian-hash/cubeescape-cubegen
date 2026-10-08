@@ -128,13 +128,16 @@ def transform_points(
 class Prim:
     """A primitive in local space: vertices, faces and one role per face."""
 
-    __slots__ = ("verts", "faces", "roles", "closed")
+    __slots__ = ("verts", "faces", "roles", "closed", "convex_faces")
 
-    def __init__(self, verts, faces, roles, closed=True):
+    def __init__(self, verts, faces, roles, closed=True, convex_faces=None):
         self.verts: List[Vec3] = list(verts)
         self.faces: List[Tuple[int, ...]] = [tuple(f) for f in faces]
         self.roles: List[str] = list(roles)
         self.closed = closed
+        # Optional exact decomposition recipe over the existing vertex indices.
+        # Used only by current fractured exports; normal/historical meshes stay intact.
+        self.convex_faces = convex_faces
 
 
 def box(
@@ -240,7 +243,75 @@ def lathe(
             roles.append(cap_top_role or seg_roles[-1])
         else:
             closed = False
-    return Prim(verts, faces, roles, closed)
+    recipe = _lathe_convex_faces(profile, rings, sides, seg_roles, cap_bottom, cap_top,
+                                 cap_bottom_role, cap_top_role) if closed else None
+    return Prim(verts, faces, roles, closed, recipe)
+
+
+def _lathe_convex_faces(profile, rings, sides, seg_roles, cap_bottom, cap_top,
+                        cap_bottom_role, cap_top_role):
+    """Exact recipes for bounded axial solids and closed radial cross-sections.
+
+    Only original ring vertices are used. Monotone axial bands are frusta;
+    folded profiles with axis endpoints use convex radial polygon sectors.
+    Validation after all model transformations rejects warped or invalid pieces.
+    """
+    if not 2 <= len(profile) <= 128 or sides > 128:
+        return None
+    if any(not math.isfinite(v) for point in profile for v in point) or any(r < 0 for r, _ in profile):
+        return None
+    def band(a, b):
+        result = []
+        for j in range(sides):
+            j2 = (j + 1) % sides
+            face = tuple(dict.fromkeys((rings[a][j if len(rings[a]) > 1 else 0],
+                                        rings[a][j2 if len(rings[a]) > 1 else 0],
+                                        rings[b][j2 if len(rings[b]) > 1 else 0],
+                                        rings[b][j if len(rings[b]) > 1 else 0])))
+            if len(face) >= 3: result.append((face, seg_roles[a]))
+        return result
+    lo, hi = 0, len(profile) - 1
+    # A terminal pole on the same plane is an existing flat cap, not a zero-volume band.
+    if len(rings[lo]) == 1 and profile[lo][1] == profile[lo + 1][1]: lo += 1
+    if len(rings[hi]) == 1 and profile[hi][1] == profile[hi - 1][1]: hi -= 1
+    if hi > lo and all(profile[i + 1][1] > profile[i][1] + 1e-9 for i in range(lo, hi)):
+        pieces = []
+        for i in range(lo, hi):
+            if len(rings[i]) == len(rings[i + 1]) == 1:
+                return None
+            faces = band(i, i + 1)
+            if len(rings[i]) > 1:
+                bottom = seg_roles[0] if lo > 0 else cap_bottom_role or seg_roles[0]
+                faces.append((tuple(reversed(rings[i])), bottom if i == lo else seg_roles[i]))
+            if len(rings[i + 1]) > 1:
+                top = seg_roles[-1] if hi < len(profile) - 1 else cap_top_role or seg_roles[-1]
+                faces.append((tuple(rings[i + 1]), top if i == hi - 1 else seg_roles[i]))
+            pieces.append(faces)
+        return pieces
+    if len(rings[0]) != 1 or len(rings[-1]) != 1:
+        return None
+    polygon = list(profile)
+    indices = list(range(len(profile)))
+    if _polygon_area(polygon) < 0:
+        polygon.reverse(); indices.reverse()
+    parts = _convex_polygon_parts(polygon, keep_convex=True)
+    if not parts:
+        return None
+    pieces = []
+    for j in range(sides):
+        j2 = (j + 1) % sides
+        for part in parts:
+            original = [indices[v] for v in part]
+            def vertex(i, angle): return rings[i][angle if len(rings[i]) > 1 else 0]
+            faces = [(tuple(vertex(i, j) for i in original), seg_roles[0]),
+                     (tuple(vertex(i, j2) for i in reversed(original)), seg_roles[0])]
+            for a, b in zip(original, original[1:] + original[:1]):
+                face = tuple(dict.fromkeys((vertex(a, j), vertex(a, j2), vertex(b, j2), vertex(b, j))))
+                if len(face) >= 3:
+                    role = seg_roles[min(a, b)] if abs(a - b) == 1 else seg_roles[0]
+                    faces.append((face, role))
+            pieces.append(faces)
+    return pieces
 
 
 def flat_front_offset(sides: int) -> float:
@@ -355,7 +426,22 @@ def ring(r_in: float, r_out: float, depth: float, sides: int, role: str) -> Prim
         cap_bottom=False,
         cap_top=False,
     )
+    if 0 < r_in < r_out and depth > 0:
+        p.convex_faces = _annular_sectors(sides, role)
     return p
+
+
+def _annular_sectors(sides: int, role: str):
+    """Closed angular wall sectors for four rings tracing an annular cross-section."""
+    pieces = []
+    for j in range(sides):
+        next_j = (j + 1) % sides
+        faces = [(tuple(k * sides + v for k, v in ((i, j), (i, next_j),
+                   ((i + 1) % 4, next_j), ((i + 1) % 4, j))), role) for i in range(4)]
+        faces.append((tuple(i * sides + j for i in range(4)), role))
+        faces.append((tuple(i * sides + next_j for i in range(4)), role))
+        pieces.append(faces)
+    return pieces
 
 
 def torus(major: float, minor: float, sides_major: int, sides_minor: int, role: str) -> Prim:
@@ -378,7 +464,89 @@ def torus(major: float, minor: float, sides_major: int, sides_minor: int, role: 
                 i2 * sides_minor + j2,
                 i * sides_minor + j2,
             ))
-    return Prim(verts, faces, [role] * len(faces))
+    recipe = None
+    if major > minor > 0 and sides_major >= 3 and sides_minor >= 3:
+        recipe = []
+        for i in range(sides_major):
+            next_i = (i + 1) % sides_major
+            sector = [(faces[i * sides_minor + j], role) for j in range(sides_minor)]
+            sector.append((tuple(i * sides_minor + j for j in range(sides_minor)), role))
+            sector.append((tuple(next_i * sides_minor + j for j in range(sides_minor)), role))
+            recipe.append(sector)
+    return Prim(verts, faces, [role] * len(faces), convex_faces=recipe)
+
+
+def _convex_polygon_parts(polygon: Sequence[Vec2], keep_convex=False):
+    """Exact deterministic partition of a simple concave profile, bounded to 128 points.
+
+    Ear clipping uses only existing vertices; adjacent triangles are greedily merged
+    when their union is convex. Invalid/self-touching profiles receive no recipe.
+    Convex profiles keep the original mesh instead of creating unnecessary shards.
+    """
+    n = len(polygon)
+    if n < 3 or n > 128:
+        return None
+    span = max(max(p[k] for p in polygon) - min(p[k] for p in polygon) for k in (0, 1))
+    if span <= 0:
+        return None
+    eps, distance_eps = span * span * 1e-12, span * 1e-12
+    def cross(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    def on_segment(p, a, b):
+        return abs(cross(a, b, p)) <= eps and all(min(a[k], b[k]) - distance_eps <= p[k] <= max(a[k], b[k]) + distance_eps for k in (0, 1))
+    for i, a in enumerate(polygon):
+        b = polygon[(i + 1) % n]
+        if max(abs(a[k] - b[k]) for k in (0, 1)) <= distance_eps:
+            return None
+        for j in range(i + 1, n):
+            if j == (i + 1) % n or (j + 1) % n == i:
+                continue
+            c, d = polygon[j], polygon[(j + 1) % n]
+            ab = cross(a, b, c) * cross(a, b, d)
+            cd = cross(c, d, a) * cross(c, d, b)
+            if (ab < -eps * eps and cd < -eps * eps) or any((on_segment(c, a, b), on_segment(d, a, b), on_segment(a, c, d), on_segment(b, c, d))):
+                return None
+    if _polygon_area(polygon) <= eps:
+        return None
+    if all(cross(polygon[i - 1], polygon[i], polygon[(i + 1) % n]) >= -eps for i in range(n)):
+        return [list(range(n))] if keep_convex else None
+    remaining, pieces = list(range(n)), []
+    while len(remaining) > 3:
+        for i, b in enumerate(remaining):
+            a, c = remaining[i - 1], remaining[(i + 1) % len(remaining)]
+            if cross(polygon[a], polygon[b], polygon[c]) <= eps:
+                continue
+            if any(all(cross(polygon[u], polygon[v], polygon[p]) >= -eps for u, v in ((a, b), (b, c), (c, a)))
+                   for p in remaining if p not in (a, b, c)):
+                continue
+            pieces.append([a, b, c]); remaining.pop(i)
+            break
+        else:
+            return None
+    if cross(*(polygon[i] for i in remaining)) <= eps:
+        return None
+    pieces.append(remaining)
+    merged = True
+    while merged:
+        merged = False
+        for i, first in enumerate(pieces):
+            for j in range(i + 1, len(pieces)):
+                second = pieces[j]
+                shared = [(a, b) for a in range(len(first)) for b in range(len(second))
+                          if first[a] == second[(b + 1) % len(second)] and first[(a + 1) % len(first)] == second[b]]
+                if len(shared) != 1:
+                    continue
+                a, b = shared[0]
+                path_a = [first[(a + 1 + k) % len(first)] for k in range(len(first))]
+                path_b = [second[(b + 1 + k) % len(second)] for k in range(len(second))]
+                union = path_a + path_b[1:-1]
+                if len(set(union)) != len(union) or any(cross(polygon[union[k - 1]], polygon[union[k]], polygon[union[(k + 1) % len(union)]]) < -eps for k in range(len(union))):
+                    continue
+                pieces[i] = union; pieces.pop(j); merged = True
+                break
+            if merged:
+                break
+    return pieces
 
 
 def prism(polygon: Sequence[Vec2], depth: float, role: str, cap_role: Optional[str] = None) -> Prim:
@@ -396,7 +564,17 @@ def prism(polygon: Sequence[Vec2], depth: float, role: str, cap_role: Optional[s
         i2 = (i + 1) % n
         faces.append((i, i2, n + i2, n + i))
         roles.append(role)
-    return Prim(verts, faces, roles)
+    parts = _convex_polygon_parts(polygon) if depth > 0 else None
+    recipe = None
+    if parts:
+        recipe = []
+        for part in parts:
+            sector = [(tuple(reversed(part)), cap_role or role), (tuple(i + n for i in part), cap_role or role)]
+            for i, a in enumerate(part):
+                b = part[(i + 1) % len(part)]
+                sector.append(((a, b, n + b, n + a), role))
+            recipe.append(sector)
+    return Prim(verts, faces, roles, convex_faces=recipe)
 
 
 def sphere(radius: float, segments: int, rings: int, role: str) -> Prim:
@@ -429,13 +607,16 @@ def pipe_section(radius: float, depth: float, wall: float, sides: int = 10, role
     if radius <= wall:
         raise ValueError("pipe wall must be smaller than the radius")
     h = depth / 2.0
-    return lathe(
+    primitive = lathe(
         [(radius, -h), (radius, h), (radius - wall, h), (radius - wall, -h)],
         sides,
         role,
         cap_bottom=False,
         cap_top=False,
     )
+    if radius > wall > 0 and depth > 0:
+        primitive.convex_faces = _annular_sectors(sides, role)
+    return primitive
 
 
 def u_channel(width: float, height: float, depth: float, wall: float, role: str = "M_Metal") -> Prim:
@@ -537,12 +718,13 @@ def face_normal(points: Sequence[Vec3]) -> Vec3:
 class Part:
     """Slice of a :class:`Mesh` created by one ``add`` call."""
 
-    __slots__ = ("mesh", "name", "v0", "v1", "f0", "f1", "closed")
+    __slots__ = ("mesh", "name", "v0", "v1", "f0", "f1", "closed", "convex_faces")
 
-    def __init__(self, mesh, name, v0, v1, f0, f1, closed):
+    def __init__(self, mesh, name, v0, v1, f0, f1, closed, convex_faces=None):
         self.mesh, self.name = mesh, name
         self.v0, self.v1, self.f0, self.f1 = v0, v1, f0, f1
         self.closed = closed
+        self.convex_faces = convex_faces
 
     def vertex_indices(self) -> range:
         return range(self.v0, self.v1)
@@ -575,7 +757,7 @@ class Mesh:
         self.verts.extend(transform_points(prim.verts, scale, rot, loc, basis))
         self.faces.extend(tuple(i + v0 for i in f) for f in prim.faces)
         self.roles.extend(prim.roles)
-        part = Part(self, name, v0, len(self.verts), f0, len(self.faces), prim.closed)
+        part = Part(self, name, v0, len(self.verts), f0, len(self.faces), prim.closed, prim.convex_faces)
         self.parts.append(part)
         return part
 

@@ -1,11 +1,14 @@
 # Roadmap
 
-Stand: 7. Oktober 2026, cubegen **0.10.3**; 175 registrierte Typen, einschließlich elf
-experimenteller Ergänzungen aus 0.10.2.5. Paket-/Add-on-Versionen vereinheitlicht und
-Cube-Escape-Integrationsphase 2 dokumentiert: [Versionsbericht](../VERSION_0.10.3.md),
-[Changelog](../CHANGELOG.md). Der Raum-/Level-Generator bleibt offen.
-Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich
-(`check`, Seed 42, 10 Varianten pro Typ); sie sind kein neuer Volltypen-Unity-Nachweis.
+Stand: 8. Oktober 2026, cubegen **0.11.0** (Release-Branch `release/0.11.0`; vorherige Version 0.10.5, `c47fdf4`); 175 registrierte Typen,
+einschließlich elf experimenteller Ergänzungen. Unity-Integrationsphasen 0–4 sind in
+Cube Escape integriert (`847d90f`); Phase 5 ist mit `464717e` und Dokumentation
+`f11867e` in Unity-main übernommen. Fehlerkorrekturen aus Phase 5 sind in
+[0.11.0](../VERSION_0.11.0.md) dokumentiert; das geplante 0.10.6-Vorhaben ist
+übernommen. Neue Befunde gehören in den nächsten unveröffentlichten Versionsbericht.
+Veröffentlichte Berichte bleiben historisch.
+Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich;
+neue Nachweise stehen in den Versionsberichten und im Unity-Systemdoc.
 Jede Liste beginnt mit dem Wichtigsten.
 
 ## 1. Bekannte Bugs
@@ -91,67 +94,127 @@ Punkte 2–8 und alle vorgeschlagenen Modelltypen erledigt (0.10.0, siehe [CHANG
 
 ## 4. ToDo für Unity
 
-Details zu den Mechaniken in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
+Abgleich mit dem produktiven Unity-Code und `Docs/CUBEGEN_IMPORT.md` vom 8. Oktober 2026.
+`[x]` gilt für den ausdrücklich beschriebenen geprüften Umfang; teilweise erledigte
+Punkte bleiben offen. Die Nummern 1–22 bleiben als Referenz der Integrationsübergabe erhalten.
+Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 
-**Sofort**
+**Export und Bestand (Phasen 0–2)**
 
-1. **Audit-Test aktualisieren:** Er erwartet noch 3 Ablehnungen
-   (`CUBEGEN_EXPECT_REJECTED=balance_scale,robot_arm,turret`); diese Pivot-Fehler sind seit 0.8.0 behoben. Mit dem
-   aktuellen Stand ohne die Ausnahme neu laufen lassen, erwartet: 0 Ablehnungen.
-2. **Neu exportieren und importieren**, sobald die Korrekturen in `main` sind: Luftschleusen (Sidecar) und die
-   Typen, deren Geometrie sich für die flackernden Flächen und Draw Calls um 2 mm bzw. im Material geändert hat
-   (Liste im CHANGELOG), dazu `archway`, `ramp`, `ceiling_module`, `solar_panel` und die Typen mit neuen Collidern
-   der Generation 3 (`crusher`, `floating_island`, `stairs` Stil `ramp`). Gleiche Namen, die Prefabs behalten ihre
-   GUIDs. Wer die bisherigen Dateien behalten will, exportiert mit `--generation 1` (bitgleich zu 0.9.0).
-3. **8 offene Item-IDs:** `ItemData` für Akku, Datenchip, Sicherung, Keycards, Werkzeuge und Hinweise festlegen,
-   dann im Rezept per `item_id` setzen (cubegen erfindet keine IDs).
+- [x] **1 · Audit ohne Ablehnungsausnahmen:** Der echte FBX-Audit erwartet bereits null
+  unerwartete Ablehnungen. Phase 4 hat je 175 intakte und zerstörte Quellen ohne Fehler
+  geprüft. Die drei Ausnahmen aus 0.7 sind historisch; sie werden nicht mehr gesetzt.
+- [x] **2 · Verwendete Bestandsquellen neu exportieren/reimportieren:** Phase 2 hat sieben
+  Bestandsmodelle mit Generation 3 aktualisiert und GUIDs, Gameplay-/Modell-fileIDs,
+  Katalog-IDs und gespeicherte Overrides geprüft. Neue Phasenprofile erhalten eigene
+  Exporte und Physiknachweise. Dies ist kein pauschaler Reexport jeder alten Library-Datei.
+  Generation 1 bleibt historisch und ist kein Weg, aktuelle Korrekturen zu übernehmen.
+- [x] **3 · Item-Zuordnung klären:** Reale vorhandene `ItemData`-IDs werden per Rezept
+  wiederverwendet; sechs Pickup-Prüfvarianten sind geprüft. Die acht offenen IDs waren
+  ein alter Batch-Befund, keine acht fehlenden Datensätze. Neue Story-Items und weitere
+  Content-Varianten bleiben eigene Aufträge, ohne pauschale Ersatz-ID.
 
-**Mit vorhandenen Scripts oder kleinen Ergänzungen**
+**Interaktionen (Phase 3)**
 
-4. **Zwei-Stellungs-Klappen** für `hatch`, `fuse_box`, `cage`, `safe`: `Rotatable` dreht zyklisch weiter, der
-   zweite Klick dreht den Deckel durch den Körper.
-5. **Lift über `MovingPlatform`** statt `Door`.
-6. **Mitfahren** auf `retractable_bridge` (Verschiebung) und `turntable` (Drehung).
-7. **Sockel über `ItemSlot`** (`socket`, `chip_reader`, `battery_bank`, `fuse_box`, `Slot` als Einsetzpunkt);
-   Mehrfachsockel ergänzen.
-8. **`pressure_plate` an `PressurePlate`** anbinden.
+- [ ] **4 · Zwei-Stellungs-Klappen:** Generischer Vertrag, eckige/runde Luke und
+  Mehrfach-Slot-Deckel sind erledigt. Weitere `fuse_box`-/`cage`-/`safe`-/Kapsel-/
+  Containerprofile brauchen noch ihre eigene Freigabe; zyklisches Durchdrehen vermeiden.
+- [x] **5 · Lift:** Geprüftes Liftprofil verwendet `MovingPlatform` im Modus `Follow`
+  mit bewegtem Deck und festem Rahmen, einem Bewegungscontroller.
+- [x] **6 · Mitfahren:** Roboter auf Ausfahrbrücke, Lift und Drehscheibe in Iso/Ego,
+  beide Richtungen und Abspringen geprüft. Allgemeines Mitfahren kinematischer Kisten
+  ist weiterhin offen und nicht Teil dieser Freigabe.
+- [ ] **7 · Sockel:** Einzel-/Mehrfachslots, `ItemSlot`/`ItemSlotSignal`, UND-Ausgang,
+  Deckelzugang und Teil-IDs sind für die geprüften Sockelmodelle umgesetzt. Weitere
+  Modellprofile und eine Spielerlevel-Freigabe für Inventar-Sockel bleiben offen.
+- [x] **8 · Druckplatte:** Eckige/runde Varianten an `PressurePlate` angeschlossen;
+  Gewicht, Roboter, Mehrfach-Collider, Teleport, Haltezeit und Einsinken geprüft.
 
-**Neue Mechaniken**
+**Gefahren, Plattformen und spätere Rätsel**
 
-9. **Schadenszonen:** `spike_trap`, `crusher`, `saw_blade`, `steam_vent`, `shock_plate`.
-10. **Nur vorbereitet:** `portal_frame`, `phase_platform`, `breakable_platform`, `fluid_basin`.
-11. **Laser im Raum** mit Spiegeln und Teiler; Controller für das Rohr-Puzzle.
-12. **Weitere Interaktionen:** Knopffolgen, Steckfeld, Scanner, Tresor, Werkzeuge als Schlüssel, Schieberätsel,
-    Waage, Frequenz-Regler, Taschenlampe, Leiter, Pads, Förderband, Geschütz, Leerlauf-Animation für Drohne und
-    Roboterarm.
+- [x] **9 · Schadenszonen:** Stacheln, Presse, Säge, zwei Dampfventile und Stromplatte
+  verwenden vorhandene Hazard-Zustände und geprüfte aktive Schadensvolumen.
+- [x] **10 · Vorbereitete Modelle:** 13 ausdrücklich authorierte Phase-4-Profile für
+  Gefahren, Phasen-/Bruchplattform, Wasser/Schlamm und feste Wand-/Bodenportale sind
+  spielbereit. Weitere Typ-/Parameterformen benötigen weiterhin eigene Abnahmen.
+- [ ] **11 · Raumlaser und Rohr-Puzzle:** Separate spätere Aufträge; Raumstrahlen und
+  Terminal-Laser bleiben verschiedene Systeme.
+- [ ] **12 · Weitere Interaktionen:** Knopffolgen, Steckfeld, Scanner, Schlösser,
+  Waage, Frequenz, Leiter/Pads, Förderband, Geschütz und Idle-Animationen einzeln planen.
 
-**Freigabe und Struktur**
+**Freigabe und Importfundament (Phase 1 und je Mechanik)**
 
-13. **Werkbank-Freigabe** neuer Gameplay-Prefabs im `AssetMetadata`-Vertrag.
-14. **LOD-Hüllen prüfen:** Collider nur von LOD0.
-15. **Statische Library-Prefabs als Static markieren** (Static Batching): Der Draw-Call-Bericht zählt bei
-    statischen Modellen ein Material einmal und geht davon aus.
-16. **Import der Anschlusspunkte bzw. des Layout-JSON**, falls der Raum-Generator kommt. Die Anschlussarten und wie
-    sie zusammengehören stehen in `cubegen/families.py` (`connectors`, `JOINS`); das Einrasten im Add-on nutzt sie.
-17. **Gemeinsamer Vertrag:** Der `CubegenImporter` liest `cubegen_contract.json`
-    (`python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json`) statt eigener
-    Listen für Schlüssel, Rollen, Feldtypen und Toleranzen.
+- [x] **13 · Werkbank-Freigabe:** `AssetMetadata` ist die ausdrückliche Freigabe für
+  geprüfte Profile; Eigenschaften/Defaults, Ports, Interaktivität und Lichtlimits sind
+  geprüft. Ein Sidecar schaltet kein unbekanntes Gameplay frei. Neue Mechaniken folgen
+  diesem Vertrag; Inventar-Sockel bleiben bewusst außerhalb der Spielerlevel-Whitelist.
+- [x] **14 · LOD-Kollision:** Kollisionsquellen ausschließlich aus LOD0;
+  automatische LODGroup, Wechsel und freier Raum sind geprüft.
+- [x] **15 · Static Batching:** Nur fest authorierte Dekoration mit `static-batching`-
+  Tag darf markiert werden. Im aktiven GPU-Resident-Drawer-Profil keine automatische
+  Markierung; bewegte, brechende und flüssige Varianten bleiben dynamisch. Messung im
+  Rückfallrenderer: 130 → 80 normale Draw Calls. Keine angenommene Kostenfreiheit für
+  alle statischen Modelle und keine automatische Kombination von Werkbankinstanzen.
+- [ ] **16 · Anschlüsse/Layout-JSON:** Manifestadapter und Raumgenerator bleiben offen.
+- [x] **17 · Gemeinsamer Vertrag:** Unity lädt und validiert den exportierten
+  `cubegen_contract.json`; C#-Adapter bleiben die feste Komponentenfreigabe.
+- [x] **18 · Palette:** Standard-/Rostpaletten und je Manifest-GUID getrennte
+  URP-Materialien mit richtigen Textur-/Filtereinstellungen sind umgesetzt und geprüft.
 
-**Für die Erweiterungen aus Phase 3** (Details in [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md))
+**Effekte/Zerstörung (Phase 5) und Erweiterungen**
 
-18. **Paletten-Material:** einmal `MP_Palette` aus `CubeEscape_Palette.json` anlegen (Albedo, MetallicSmoothness,
-    Emission; Filter Point, keine Mipmaps), damit der Import das FBX-Material per Name ersetzt. Für jede genutzte
-    Farbpalette ebenso `MP_Palette_<Name>` aus `CubeEscape_Palette_<Name>.json` (z. B. `MP_Palette_Rust`).
-19. **Bruchstücke** (`style.damage` = `fractured`): solche Prefabs nicht als Static markieren; bei Zerstörung jedem
-    `Fragment_<nn>` einen Rigidbody geben (Collider: konvexe Mesh-Collider aus dem Sidecar).
-20. **Anker** `Audio_*` / `FX_*`: `AudioSource` bzw. Partikelsystem nach Namen anhängen (Tabelle in
-    `cubegen/models/anchors.py`); beim nächsten Export kommen sie mit Generation 3 automatisch mit.
-21. **Schwenken:** prüfen, dass `Rotator.arc` vom Bau-Zustand aus in Richtung `speed` schwenkt (cubegen baut
-    `camera.sweep` / `turret.sweep` um −arc/2 vorgedreht); sonst Vorzeichen in `models/common.sweep_rotator` drehen.
-22. **Neue Mechaniken:** Schieben (`push_block` auf `pressure_plate`), Folge-Logik (`sequence_panel`,
-    `meta.sequence`), Wasserstand (`Fluid_<n>` je Ventilschritt anheben), Laserfarbe durch `laser_filter`,
-    Symbolplatten-Prüfung, Kranmagnet, Countdown-Zeit (`meta.seconds_total`), Patrouillenwege und Gangarten für
-    `patrol_drone`, `vent_crawler`, `robot_dog`, `mech`.
+- [x] **19 · Bruchstücke:** Für zwölf ausdrücklich authorierte Generation-3-Profile
+  umgesetzt und geprüft: Compound-Fragmente, vorhandener Bruch-/Reset-Lebenszyklus,
+  Aufräumen sowie Objekt- und globale Physikbudgets. Der Hüllenfehler, die Pivot-
+  Rundung und die Z-Fighting-Folge gehören jetzt zum 0.11.0-Stand. Weitere
+  Modellprofile bleiben eigene Freigaben; nichtkonvexe Shards bleiben statisch.
+  Erste gezielte Nacharbeit gewinnt vorhandene konvexe Körper aus Kastenprofilen
+  zurück: sieben Typen profitieren ohne weitere Rigidbodies; im Seed-42-Prüfsatz
+  bleiben 32 statt 34 Quellen mit nichtkonvexen Shapes. Details im 0.11.0-Bericht.
+  Der anschließende Rohr-/Ring-Schritt reduziert den geprüften Stand weiter auf
+  20 Quellen; zwölf weitere Typen sind vollständig konvex. Physikbudgets gelten
+  weiter, zusätzliche Shapes sind keine kostenlose Rendering-/Physikerweiterung.
+  Die dritte Nacharbeit für konkave Extrusionsprofile ergänzt fünf vollständige
+  Quellen (Torbogen, Träger, Symbolplatten, Pilzteppich, Pfütze): im selben Prüfsatz
+  bleiben 15 Quellen. 210 Generator-Tests und acht echte FBX-Importe grün;
+  Aussparungen, Bewegung, Pause und insgesamt 30 serialisierte Resets an drei
+  isolierten Profilen geprüft. Details und Abschlussregression in `VERSION_0.11.0.md`.
+  Alle 15 verbleibenden Quellen nach Ursache untersucht; gezielte Drehprofil-
+  Nacharbeit macht Antenne, Kristallsockel und Transformator zusätzlich konvex.
+  Im selben Prüfsatz bleiben zwölf Quellen mit verformten Flächen offen.
+  215 Generator-Tests, sechs echte FBX-Importe und Physik-/Resetnachweise grün.
+  Körperzahl unverändert; zusätzliche Shapes bleiben innerhalb der geprüften Budgets.
+  Die anschließende Kasten-Nacharbeit ergänzt `broken_wall`, `burnt_console` und
+  `fallen_pillar`: im selben Prüfsatz verbleiben neun radiale Quellen.
+  Nicht plane Vierecke bekommen eindeutige gemeinsame Render-/Collider-Dreiecke.
+  Körperzahl steigt im Prüfsatz nicht; 222 Generator-Tests und acht echte FBX-
+  Importe grün. Invertierte breite Säulenstümpfe sofort für Generation 3 korrigiert.
+  Abschließend ergänzt die radiale Partition alle neun verbleibenden Quellen:
+  **9 → 0**, insgesamt **34 → 0** im festen 175-Typen-Prüfsatz, 166 Digests gegenüber
+  dem Kasten-Schritt unverändert. 36 aktuelle Seed-Fälle konvex; 227 Generator-Tests,
+  14 echte FBX und Physik-/Reset-/Bildnachweise grün. Kein pauschales Versprechen für
+  beliebige Parameter; offene/ungeeignete Netze bleiben statisch. Lokales Blender-
+  Add-on und CLI jetzt 0.11.0, alte Exporte benötigen Neugenerierung. Weitere
+  Gameplayprofile bleiben eigene Freigaben. Abschlussbelege und Grenzen im
+  [0.11.0-Bericht](../VERSION_0.11.0.md).
+  Sichtbare Bruch-Testanlage Z-1 mit zwölf konkreten Profilen ergänzt: je Station
+  BRUCH/RESET, Fall über Fangboden, bestehende E/F-Bedienung und V-Ansichtswechsel.
+  Alle zwölf Stationen in Iso/Ego zweimal einschließlich Reset nach Cleanup
+  gespielt; 25 tatsächliche FBX der Bruch-/Phase-4-Profile mit 0.11.0 neu exportiert,
+  geprüft und reimportiert. Übernahme des geprüften Unity-Standes in main ist
+  erfolgt: `464717e` per Fast-Forward, 891/891 Unity-Tests grün (406 s).
+  Abschlussstatus und Grenzen im Versionsbericht.
+- [x] **20 · Audio-/FX-Anker:** Zustandsabhängige Adapter mit vorhandenen Loop-Clips
+  und FX, echte Dampfanker, Servo-/Maschinen-/Portalanker und Wiederimport ohne doppelte
+  Quellen sind für den geprüften Umfang umgesetzt. Weitere Mechaniken erhalten erst bei
+  ihrer eigenen Freigabe eine funktionale Zuordnung.
+- [x] **21 · Schwenken:** Kamera und Geschütz mit beiden Vorzeichen und Stillstand
+  gegen echte FBX-Geometrie geprüft. Generation-3-Kastenkameras seit 0.10.5 nach unten
+  geneigt; historische Generationen bleiben getrennt. Kein Schuss-/Schadensvertrag.
+- [ ] **22 · Erweiterungsmodelle:** Schiebeblock, Knopffolge, Wasserstand,
+  Laserfilter, Symbolplatten, Kran, Countdown, Patrouillen/Gangarten bleiben eigene
+  Aufgaben. Datenabhängige Rätsel benötigen vorher validierten Manifestzugriff:
+  `meta.sequence`, `meta.seconds_total` usw. stehen nicht im Sidecar.
 
 ## 5. Nächste Vorschläge
 

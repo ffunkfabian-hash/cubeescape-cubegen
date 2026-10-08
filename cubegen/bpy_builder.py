@@ -203,6 +203,9 @@ def make_mesh(name, asset_object, material_map=None, *, triangulate=False):
 
 
 def select_collection(collection):
+    # Removing/rebuilding a collection can leave stale view-layer entries in Blender.
+    # Refresh before iteration so sequential exports never select deleted objects.
+    bpy.context.view_layer.update()
     for obj in bpy.context.view_layer.objects:
         obj.select_set(False)
     for obj in collection.all_objects:

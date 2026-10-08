@@ -28,8 +28,10 @@ Ein erfolgreicher Export oder eine reine Prüfung der Bounds ist kein Physiknach
   Geometrie-/Shape-Zuordnung, freie Öffnungen, bewegte Collider, Reimport und passende
   Laufzeit-/Physiktests. Kein Unity-Start auf einem Checkout.
 
-Belegte Kollisionsfehler sofort beheben. Neue Befunde gehören bis zur Veröffentlichung
-in `VERSION_0.10.5.md`; danach in den nächsten unveröffentlichten Versionsbericht.
+Belegte Kollisionsfehler sofort beheben. Neue Befunde gehören in den nächsten unveröffentlichten
+Versionsbericht `VERSION_<Version>.md`; Zielversion aus Nutzerauftrag und Changelog ermitteln.
+0.11.0 übernimmt das frühere 0.10.6-Vorhaben und besitzt den Bericht `VERSION_0.11.0.md`.
+Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
 

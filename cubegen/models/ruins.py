@@ -201,7 +201,11 @@ def fallen_pillar(rng, a):
         for vi in part.vertex_indices():
             vx, vy, vz = m.verts[vi]
             if vz > sh - 1e-6:
-                m.verts[vi] = (vx, vy, vz - rng.uniform(0, w * 0.4))
+                dent = rng.uniform(0, w * 0.4)
+                if p.style.generation >= 3:
+                    # Wide, short stumps must not pull their top through the floor.
+                    dent = min(dent, sh * 0.6)
+                m.verts[vi] = (vx, vy, vz - dent)
         x, y = math.cos(heading) * w, math.sin(heading) * w
     for i in range(p.int("segments", 2, 3)):
         ln = rng.uniform(0.6, 1.4)

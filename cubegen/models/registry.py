@@ -111,7 +111,8 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
             asset.colliders = []
     if style.generation >= 2:
         # flush details would flicker in the game: lift them 2 mm (fragments: split faces need more passes)
-        fix_z_fighting(asset, entry.pivot, passes=8 if style.damage == "fractured" else 3)
+        fix_z_fighting(asset, entry.pivot, passes=8 if style.damage == "fractured" else 3,
+                       whole_primitives=style.generation >= 3 and style.damage == "fractured")
     if style.wear != "none" and entry.pivot == "floor":
         apply_wear(asset, seed, style.wear)
         if style.generation >= 2:
