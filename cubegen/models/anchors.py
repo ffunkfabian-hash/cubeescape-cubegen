@@ -55,7 +55,7 @@ ANCHORS: Dict[str, Sequence[Anchor]] = {
     # traps and puzzles
     "crusher": (("Audio_Impact", "Base", "top"), ("FX_Dust", "Base", "top")),
     "saw_blade": (("Audio_Saw", "Rotor", "center"), ("FX_Sparks", "Rotor", "top")),
-    "steam_vent": (("Audio_Hiss", "Body", "top"),),
+    "steam_vent": (("Audio_Hiss", "Body", "top"), ("FX_Steam", "Body", "top")),
     "shock_plate": (("Audio_Zap", "Body", "top"), ("FX_Sparks", "Body", "top")),
     "spike_trap": (("Audio_Spikes", "Base", "top"),),
     "force_field": (("Audio_Hum", "Field", "center"),),

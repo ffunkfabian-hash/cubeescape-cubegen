@@ -557,7 +557,9 @@ def collision_boxes(asset, model_type: str, *, gameplay_import: bool = True) -> 
             if c.kind == "box":
                 boxes.append(Box(c.center, euler_matrix(*c.rot), tuple(s / 2 for s in c.size), c.part))
             else:
-                if not c.convex:
+                if not c.convex or c.part.startswith("Shard_"):
+                    # Current fracture shards are individually validated convex primitives,
+                    # not a conservative bounding box spanning the free gaps.
                     boxes.append(MeshCollision(asset.get(c.part).mesh, c.part))
                     continue
                 lo, hi = asset.get(c.part).mesh.bbox()

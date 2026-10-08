@@ -143,7 +143,8 @@ def _fighting_faces(asset, min_overlap: float = MIN_OVERLAP, pivot: str = "") ->
                 if j <= i and j in members or (min(i, j), max(i, j)) in seen:
                     continue
                 ob, pb, mb, nb, db, pts_b, fb = faces[j]
-                if (oa is ob and pa == pb) or (ma == mb and oa is ob):
+                if (oa is ob and pa == pb) or (ma == mb and (oa is ob or
+                        oa.parent is not None and oa.parent == ob.parent and oa.parent.startswith("Fragment_"))):
                     continue  # same primitive, or same material in the same object: renders identically
                 if v_dot(na, nb) < 0.9999 or abs(da - db) > PLANE_TOL:
                     continue
@@ -176,7 +177,7 @@ DECAL_OFFSET = 0.002  # metres a flush detail face is lifted off the face under 
 
 
 def fix_z_fighting(asset, pivot: str = "", offset: float = DECAL_OFFSET, passes: int = 3,
-                   only: Optional[Sequence[str]] = None) -> int:
+                   only: Optional[Sequence[str]] = None, whole_primitives: bool = False) -> int:
     """Lift the smaller face of every flickering pair ``offset`` along its normal: a stripe, a glow strip or a
     panel flush with the body now sits on it. Moves only that face's vertices (its primitive grows by
     ``offset``). With ``only``, just faces of these objects move (wear never changes the model itself).
@@ -195,12 +196,28 @@ def fix_z_fighting(asset, pivot: str = "", offset: float = DECAL_OFFSET, passes:
             lift[(id(obj), fi)] = (obj, fi)
         if not lift:
             break
+        shifted = set()
         for (_, fi), (obj, _) in sorted(lift.items(), key=lambda kv: (order[kv[0][0]], kv[0][1])):
             mesh = obj.mesh
             n = mesh.face_normal(fi)
-            for vi in mesh.faces[fi]:
+            if whole_primitives:
+                primitive = next(p for p in mesh.parts if p.f0 <= fi < p.f1)
+                key = (id(obj), primitive.v0)
+                if key in shifted:
+                    continue
+                shifted.add(key)
+                # Separate closed shards without deforming their convex faces.
+                # A tiny deterministic tangent avoids cycling between opposite faces.
+                rank = order[id(obj)] + 1
+                delta = tuple(n[i] * offset + offset * .17 * math.sin(rank * (i + 1) * 1.618)
+                              for i in range(3))
+                vertices = primitive.vertex_indices()
+            else:
+                delta = tuple(n[i] * offset for i in range(3))
+                vertices = mesh.faces[fi]
+            for vi in vertices:
                 v = mesh.verts[vi]
-                mesh.verts[vi] = (v[0] + n[0] * offset, v[1] + n[1] * offset, v[2] + n[2] * offset)
+                mesh.verts[vi] = tuple(v[i] + delta[i] for i in range(3))
             moved += 1
     return moved
 
@@ -208,7 +225,7 @@ def fix_z_fighting(asset, pivot: str = "", offset: float = DECAL_OFFSET, passes:
 def draw_calls(asset) -> int:
     """One per material per object (Unity sub-meshes). A static model (no scripts) is batched by Unity's static
     batching (Library prefabs marked Static): one per material."""
-    if not asset.behaviours:
+    if not asset.behaviours and asset.meta.get("damage") != "fractured":
         return len({r for o in asset.meshes() for r in o.mesh.roles})
     return sum(len(set(o.mesh.roles)) for o in asset.meshes())
 

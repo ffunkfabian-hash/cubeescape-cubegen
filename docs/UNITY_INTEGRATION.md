@@ -7,7 +7,7 @@ angeschlossen, ohne Laufzeit-Scripts zu ändern. Ein zweiter, optionaler Prompt
 ([Neue Interaktionen](#optional-neue-interaktionen)) ergänzt die Spiel-Mechanik, für die es noch kein Script gibt
 (Item-Sockel, Laser, Druckplatte, Rohr-Puzzle, Kamera-Schwenk …).
 
-## Aktueller Integrationsstand (7. Oktober 2026)
+## Aktueller Integrationsstand (8. Oktober 2026)
 
 Cube Escape hat bereits einen validierten Editor-Importer und eine GUID-basierte Registry.
 Die folgenden ursprünglichen Aufbau-Prompts sind historische Referenz; keinen zweiten
@@ -25,8 +25,8 @@ Ein Sidecar oder Modellprofil ist keine automatische Spielerlevel-Freigabe.
 Kamera/Geschütz unterstützen positive und negative Schwenkgeschwindigkeit.
 Bei ausdrücklich gesetztem Speed 0 bleiben aktuelle Generationen stehen; ohne
 Speed-Vorgabe bleibt der historische implizite Sweep mit 30°/s erhalten. Generation 1
-bewahrt die frühere Stillstand-/Sweep-Semantik. Korrekturen/Nachweise für den nächsten
-Release: `VERSION_0.10.4.md`.
+bewahrt die frühere Stillstand-/Sweep-Semantik. Der damalige Korrekturbericht
+steht in `VERSION_0.10.4.md`; aktueller Arbeitsstand: [0.11.0](../VERSION_0.11.0.md).
 
 ## Historischer Aufbau-Prompt
 
@@ -365,10 +365,82 @@ und Anschlüsse bleiben frei, Geländer sind eigene schmale Boxen.
 nach Namen eine `AudioSource` (Schleife, 3D) bzw. ein Partikelsystem anhängen; Effekte zeigen nach Unity-oben,
 Front-Anker (`FX_Muzzle`) nach Unity-forward. `--generation 2` exportiert ohne Anker, bitgleich wie bisher.
 
-**Bruchstücke** (`style.damage` = `fractured`): Teile `Fragment_01` … (Pivot in der Mitte des Bruchstücks), je
-ein Collider `{"type": "mesh", "part": "Fragment_nn", "convex": true}`, keine Behaviours (`"static": true`). Solche
-Prefabs nicht Static markieren; bei Zerstörung jedem Bruchstück einen Rigidbody (Masse nach Bounds) geben und
-einen kleinen Impuls vom Treffpunkt weg.
+**Bruchstücke** (`style.damage` = `fractured`): Generation 3 im 0.11.0
+verwendet leere `Fragment_01` … als Compound-Parents. Die Meshes heißen
+`Shard_<Fragment>_<Teil>` und tragen ihre eigenen Collider. Ein Rigidbody gehört an
+den Fragment-Parent, nicht an jeden Shard. Konvexe Körper bleiben konvex; seltene
+nichtkonvexe Shards behalten genaue feste Mesh-Kollision. Solche Quellen erhalten
+keine dynamische Freigabe, bevor eine echte Zerlegung vorliegt. Generation 1/2
+behalten historische zusammengesetzte Einzelhüllen, die Zwischenräume schließen
+können. Neue/geänderte Quellen neu exportieren, keine alte Ausgabe als repariert melden.
+
+Der erste gezielte Zerlegungsschritt gewinnt bereits getrennte geschlossene konvexe
+Komponenten zusammengesetzter Kastenprofile zurück. U-/L-/T-/I-Profile und Gitter
+behalten ihre Flächen und Materialrollen; alle Shapes eines bisherigen Fragments
+teilen weiter denselben Rigidbody. Offene Schalen oder echt konkave zusammenhängende
+Komponenten werden nicht mit einer Hülle ersetzt. `python3 -m tools.audit_fragment_profiles`
+misst den aktuellen Umfang ohne Blender-/Renderläufe; weitere Familien benötigen
+eigene Geometrie- und echte Unity-Physiknachweise.
+
+Hohlrohre (`pipe_section`), einfache Bandringe (`ring`) und Torusformen (`torus`)
+liefern zusätzlich genaue Wandsegment-Rezepte. In Generation-3-Fragmenten werden
+deren geschlossene, konvexe Segmente am bisherigen Fragment-Parent ausgegeben.
+Zentrale Öffnungen bleiben frei; Abschlussflächen werden ergänzt. Nach allen
+Transformationen Konvexität, Kantenabschluss und Volumen prüfen; verformte/ungültige
+Rezepte bleiben fest. `--baseline structural` am Auditwerkzeug vergleicht nur diesen
+zweiten Schritt. Mehr Shapes erfordern weiterhin Objekt- und globale Physikbudgets;
+ein erfolgreicher Export erteilt keine automatische Gameplay-Freigabe.
+
+Einfache konkave Extrusionsquerschnitte (`prism`, höchstens 128 Originalpunkte)
+werden deterministisch trianguliert; benachbarte Stücke werden nur bei konvexer
+Vereinigung zusammengeführt. Aussparungen, Umfang, Fläche/Volumen und Materialrollen
+bleiben erhalten. Selbstschneidende/-berührende, degenerierte oder zu große Profile
+erhalten kein Rezept. Anschließende 3D-Prüfungen sichern verformte Modelle ab.
+`python3 -m tools.audit_fragment_profiles --baseline round` vergleicht gezielt
+diesen dritten Schritt. Echter Blender-Batch: `tests/blender/round_export.py
+--family extrusion`; gleicher Export- und Physikvertrag wie bei Rohr-/Ringproben.
+Im Master-Seed-42-Prüfsatz sinkt die verbleibende Zahl von 20 auf 15 Quellen;
+fünf weitere Quellen sind vollständig konvex, ohne zusätzliche Rigidbodies.
+
+Profilierte volle Drehkörper (`lathe`) liefern zusätzlich geschlossene Kegelstümpfe;
+radiale Querschnitte mit Achsen-Enden erhalten konvexe Winkelstücke aus denselben
+Originalpunkten. Flache Endpole bleiben Abschlussflächen ohne eigenes Nullvolumen-
+Shape. Originalflächen/Materialrollen und Vertiefungen erhalten; bereits konvexe
+Körper bleiben einzelne Shapes. Profil-/Seitenzahl begrenzt, ungültige/offene oder
+verformte Rezepte behalten genaue feste Kollision. Nach allen Transformationen
+prüft der Fragmentvertrag außerdem plane Rezeptflächen.
+`--baseline extrusion` am Auditwerkzeug vergleicht den Drehprofil-Schritt;
+`tests/blender/round_export.py --family lathe` exportiert echte gezielte Proben.
+Im Master-Seed-42-Prüfsatz bleiben zwölf statt 15 Quellen; die drei zusätzlichen
+konvexen Quellen sind Antenne, Kristallsockel und Transformator. Körperzahl gleich,
+mehr Shapes erfordern weiterhin die bestehenden Budgets. Eine Schüsselvertiefung
+ist kein Durchgang: ihre freie Kavität und der feste Boden werden getrennt geprüft.
+
+Verformte achtpunktige Kästen erhalten eine begrenzte Partition über zwölf
+Außendreiecke und einen nachgewiesenen inneren Punkt. Nur konvexe Nachbar-
+vereinigungen werden zusammengeführt. Render- und Kollisionsflächen verwenden
+dieselben expliziten Dreiecke; eine gemittelte Vierecknormale reicht bei nicht
+planen Flächen nicht aus. Invalides, invertiertes oder nicht geschlossenes Netz
+bleibt ohne dynamische Freigabe. Bereits konvex triangulierte Kästen bleiben ein
+Shape; plane konvexe Kästen bleiben unverändert. Historische Generationen erhalten.
+`--baseline lathe` vergleicht diese Nacharbeit; `--family box` am bestehenden
+Blender-Prüfexport exportiert Standardquellen, isolierte Proben und den korrigierten
+breiten kurzen Säulenstumpf. Im Master-Seed-42-Prüfsatz bleiben neun statt zwölf
+Quellen. Die separate Stumpfhöhen-Korrektur in `fallen_pillar` gilt für aktuelle
+Modelle in allen Zuständen; alte fehlerhafte Exporte müssen neu erzeugt werden.
+
+`"static": true` beschreibt nur fehlende Generator-Behaviours. Fragment-Prefabs
+niemals automatisch für Static Batching freigeben. Unity verwendet seinen vorhandenen
+Bruch-/Schaden-/Signal-/Reset-Lebenszyklus, baut Körper einmalig und begrenzt aktive
+Körper, Shapes und Lebensdauer. Der Draw-Call-Bericht zählt Fragment-Meshes auch im
+Paletten-Modus einzeln. Unity-Abnahme und geprüfte Modellprofile stehen im aktuellen
+`Docs/CUBEGEN_IMPORT.md` von Cube Escape. Alle unmittelbaren Generatorbefunde für
+Phase 5 und kommende Aufträge: [VERSION_0.11.0.md](../VERSION_0.11.0.md).
+
+Audio-/FX-Anker werden bei verfügbaren Unity-Mechaniken an deren echten Zustand
+gebunden. Dampf, Strom und bewegte Teile dürfen ohne Aktivität weder Loop noch
+Partikelausstoß behalten; Reset/Disable entfernt Restpartikel. Unbekannte Anker
+bleiben vorbereitet, bis die betreffende Mechanik freigegeben wird.
 
 **Paletten-Modus** (`--textures palette`): Die Teile nennen `MP_Palette` als Material (Glas, Status- und
 Glow-Teile behalten `M_…`). Einmal ein Material `MP_Palette` anlegen: Albedo `MP_Palette_Albedo.png` (sRGB),
@@ -444,3 +516,37 @@ bleiben erhalten. Bestehende Vorschauen/Exporte erneut erzeugen und reimportiere
 Zerstörte Generation-3-Meshes werden beim Blender-Export ausdrücklich trianguliert,
 damit Unity nichtplanare Bruchflächen samt Materialrolle nicht verwirft. Regressionen
 prüfen Blickrichtung, echten FBX und Frakturmaterial im GLB. Prüfbericht: `VERSION_0.10.5.md`.
+
+
+## Compound-Bruch und radiale Partition · 0.11.0
+
+Generation 3 zerlegt Strukturprofile, Hohlrohr-/Ringwände, konkave Extrusionen,
+profilierte Drehkörper, verformte Kästen und nachweisbar sternförmige radiale Netze
+in passende konvexe Shards. Ein Fragment-Parent erhält mehrere Collider und einen
+Rigidbody; Öffnungen werden nicht durch eine gemeinsame Hülle verschlossen.
+Die radiale Partition übernimmt die Außen-Dreiecke exakt und prüft einen strikten
+inneren Punkt, geschlossene orientierte Topologie, Windung und Volumenerhalt.
+Sie ist auf 64 Punkte/128 Dreiecke und eine begrenzte Punktsuche beschränkt.
+Nicht plane Flächen verwenden gemeinsame explizite Render-/Collider-Dreiecke.
+Offene, invertierte oder nicht beweisbar partitionierbare Geometrie bleibt fest.
+
+175 Typen, Master-Seed 42, Index 0: kumulativ 34 → 0 Quellen mit nichtkonvexen
+Shapes; letzte radiale Nacharbeit 9 → 0 bei 166 unveränderten Digests. Weitere
+36 Seed-Fälle konvex, 227 Generator-Tests und 14 echte FBX grün. Zusätzliche Shapes
+sind kostenpflichtig; keine Laufzeitzerlegung, keine weiteren Rigidbodies und keine
+automatische Gameplay-/Spielerlevel-Freigabe. Import-/Physikbudgets bleiben erhalten.
+Generation 1/2 und bestehende Exporte bleiben historisch; für Korrekturen neu
+exportieren. Das vorhandene Blender-Add-on ist lokal auf 0.11.0 aktualisiert.
+Vollständige Nachweise, Modellkorrekturen und Grenzen: [Versionsbericht](../VERSION_0.11.0.md).
+
+
+### Sichtbare Abnahme in Cube Escape
+
+Die Daten-Testanlage Z-1 kombiniert zwölf konkrete Bruchprofile: Kiste/Käfig/Rohr
+und die neun radialen Quellen, Master-Seed 42/Index 0. Links BRUCH, rechts RESET
+über die vorhandenen benannten Signalports; E/F bedient, V wechselt die Sicht.
+Alle zwölf Stationen sind in beiden Ansichten je zweimal gespielt, einschließlich
+Reset nach zeitgesteuertem Cleanup. Zwölf Bruch- und 13 Phase-4-Profile sind mit
+0.11.0 neu exportiert und als echte FBX geprüft/importiert. Die konkrete Anlage
+ersetzt keine allgemeine Freigabe anderer Parameterformen. Zugang im Spiel:
+OPTIONEN > ENTWICKLUNG > DEV-MENÜ, dann ENTWICKLERWERKZEUGE > Bruch-Testanlage Z-1.

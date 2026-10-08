@@ -231,14 +231,18 @@ class AnchorTests(unittest.TestCase):
             same = [(o.name, o.mesh.verts, o.mesh.faces) for o in new.meshes()]
             # Generation 3 deliberately corrects the camera's upward lens pitch.
             # Its direction is covered across seeds and signed sweeps in test_camera_pitch.
-            if t != "camera":
+            # The pillar's height-bound dent correction is covered in test_phase5_fragments.
+            if t not in ("camera", "fallen_pillar"):
                 self.assertEqual(same, [(o.name, o.mesh.verts, o.mesh.faces) for o in old.meshes()], t)
+            elif t == "fallen_pillar":
+                self.assertEqual([(o.name, o.mesh.faces, o.mesh.roles) for o in new.meshes()],
+                                 [(o.name, o.mesh.faces, o.mesh.roles) for o in old.meshes()], t)
 
     def test_ruins_get_smoke(self):
         ruin = generate_asset("machine", 1, style=Style(damage="destroyed"))
         self.assertEqual([o.name for o in ruin.objects if o.is_empty], ["FX_Smoke"])
-        self.assertFalse(any(o.is_empty for o in generate_asset("machine", 1, style=Style(damage="fractured"))
-                             .objects))
+        self.assertFalse(any(o.name.startswith(("Audio_", "FX_")) for o in
+                             generate_asset("machine", 1, style=Style(generation=3, damage="fractured")).objects))
 
     def test_damaged_doors_keep_their_frame(self):
         # generation 3: a piece knocked off a door frame no longer lies in the passage (the frame is a collider)
@@ -257,7 +261,7 @@ class FractureTests(unittest.TestCase):
         for t in ("crate", "wall", "machine", "door", "pillar", "tank"):
             for seed in range(3):
                 whole = generate_asset(t, seed)
-                broken = generate_asset(t, seed, style=Style(damage="fractured"))
+                broken = generate_asset(t, seed, style=Style(generation=2, damage="fractured"))
                 names = [o.name for o in broken.objects]
                 self.assertTrue(names and all(n.startswith("Fragment_") for n in names), names)
                 self.assertEqual(broken.meta["fragments"], len(names))
@@ -273,7 +277,7 @@ class FractureTests(unittest.TestCase):
                     lo, hi = o.mesh.bbox()
                     self.assertTrue(all(lo[i] - 1e-6 <= o.pivot[i] <= hi[i] + 1e-6 for i in range(3)))
                 self.assertEqual(sidecar_errors(broken, t, seed), [])
-                self.assertEqual(broken.digest(), generate_asset(t, seed, style=Style(damage="fractured")).digest())
+                self.assertEqual(broken.digest(), generate_asset(t, seed, style=Style(generation=2, damage="fractured")).digest())
 
 
 def families_with_palette():

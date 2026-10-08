@@ -591,7 +591,7 @@ def make_parser() -> argparse.ArgumentParser:
     tx = g.add_argument_group("textures (optional, default: none = plain M_ materials)")
     tx.add_argument("--textures", choices=["none", "tiled", "baked", "palette"],
                     help="tiled: ImageMagick tile textures as MT_ materials; baked: + per-asset grime atlas; "
-                         "palette: one material MP_Palette with a colour palette texture per model (1 draw call)")
+                         "palette: one material MP_Palette with a colour palette texture per model (one material per mesh; batching is a Unity release decision)")
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")

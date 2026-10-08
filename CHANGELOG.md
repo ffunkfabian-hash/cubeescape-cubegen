@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 – 2026-10-08
+
+* Paket, CLI und Blender-Add-on auf 0.11.0 umgestellt. Unveröffentlichtes 0.10.6-Vorhaben übernommen; historische Prüfbelege bleiben erhalten.
+* `cocoon` Seed 1 und `stalagmite` Seed 1: begrenzte Zweiebenenlösung und flächenabhängiger Innenabstand beheben zwei numerische Grenzfälle; nicht plane Flächen umgehen keinen exakten Dreiecks-/Volumennachweis.
+* Geschlossene verformte radiale Oberflächen erhalten eine begrenzte, volumengetreue konvexe Partition über unveränderte Außendreiecke. Topologie, innerer Punkt und Raumabdeckung werden geprüft; offene, invertierte oder nicht sicher partitionierbare Netze bleiben fest.
+* Generation-3-Fragmente bestehen aus Compound-Parents und getrennten Shard-Collidern; konvexe Hüllen schließen keine Zwischenräume zwischen getrennten Körpern mehr. Nichtkonvexe Shards behalten genaue feste Kollision und brauchen vor dynamischer Freigabe eine Zerlegung.
+* Fragment-Z-Fighting-Korrektur verschiebt ganze Körper und erhält deren Konvexität; Fragmentpivots werden vor dem FBX-Export auf das bestehende Sidecarraster quantisiert.
+* Der echte FBX-Audit reproduziert und korrigiert den Kryokapsel-Pivotfehler; keine Importtoleranzen gelockert. Historische Generationen 1/2 bleiben unverändert.
+* `steam_vent` erhält in Generation 3 den bisher fehlenden `FX_Steam`-Anker für beide Formen und intakte/beschädigte Varianten.
+* Fragment-Draw-Calls werden auch im Palettenmodus pro Mesh gezählt. CLI-Hilfe behauptet keine einzelne Draw Call für ein ganzes mehrteiliges Modell.
+* Generation-3-Fragmente gewinnen bereits geschlossene konvexe Komponenten aus zusammengesetzten Kastenprofilen zurück. U-/L-/T-/I-Profile und Gitter benötigen keine allgemeine Zerlegung; Teilflächen und Fragmentkörper bleiben erhalten. Offene Schalen und tatsächlich konkave Komponenten bleiben statisch.
+* Hohlrohre, einfache Bandringe und Torusformen besitzen genaue Wandsegment-Rezepte für aktuelle Fragmente. Öffnungen bleiben frei, vorhandene Außenflächen bleiben erhalten; die Segmente teilen den bisherigen Fragmentkörper. Ungültige/verformte Rezepte werden abgelehnt; nur eine unabhängig nachgewiesene exakte Partition kann sie ersetzen, sonst behalten sie feste Kollision.
+* Einfache konkave Extrusionsprofile erhalten genaue konvexe Teilstücke aus Originalpunkten; benachbarte Stücke werden nur bei konvexer Vereinigung zusammengeführt. Torbögen, Träger und Symbole behalten Aussparungen, Volumen und Materialrollen. Ungültige oder verformte Rezepte werden abgelehnt; ohne unabhängig nachgewiesene exakte Partition bleiben sie statisch. Fragmentkörper und Budgets gelten weiter.
+* Profilierte volle Drehkörper und geschlossene Schüsselquerschnitte bekommen genaue Kegelstumpf-/Winkelstücke. Originalvolumen, Außenmaterialien und Vertiefungen bleiben erhalten; bereits konvexe Körper erzeugen keine zusätzlichen Shapes. Nicht plane oder ungültige Rezeptflächen benötigen eine unabhängig nachgewiesene exakte Partition, sonst bleiben sie statisch. Antenne, Kristallsockel und Transformator im festen Prüfsatz zusätzlich konvex.
+* Verformte achtpunktige Kästen erhalten eine feste gemeinsame Render-/Kollisionstriangulierung und eine begrenzte konvexe Partition. Außenflächen, Volumen und Materialien bleiben erhalten; konvex triangulierte Körper bleiben ein Shape. Ungültige oder invertierte Kästen erhalten keine dynamische Freigabe.
+* Breite kurze Stümpfe in `fallen_pillar` können ihre Oberkante nicht mehr unter die Grundfläche ziehen: Generation 3 begrenzt die Verformung an der tatsächlichen Höhe, bei gleicher Zufallsfolge. Historische Generationen bleiben erhalten; Regression und echte Extremvarianten ergänzt.
+* Blender-Export aktualisiert den View-Layer vor der Collection-Auswahl, damit Entfernen/Neuaufbau im selben Prozess keine veralteten Objekteinträge auswählt. Echter Drei-Collection-FBX-Regressionstest ergänzt.
+* Unity-ToDo-Liste gegen die integrierten Phasen 0–4 abgeglichen; Phase 5 und verbleibende Modell-/Mechanikfreigaben ausdrücklich getrennt. Auftrag für sofortige Fehlerkorrekturen gilt weiterhin.
+* Sichtbare Bruch-Testanlage Z-1 in Cube Escape: zwölf konkrete Profile und 13 Phase-4-Profile mit 0.11.0 neu exportiert; tatsächliche FBX, Iso-/Ego-Buttonzyklen, Cleanup/Reset und Bestandsidentitäten geprüft. Unity-Übernahme als `464717e` per Fast-Forward erfolgt; 891/891 Tests grün, Nachweise im Versionsbericht.
+* Prüfbelege und Grenzen: [VERSION_0.11.0.md](VERSION_0.11.0.md). Die geplante 0.10.6 wurde auf Nutzerwunsch in 0.11.0 übernommen. Veröffentlichung des Quellstands über `release/0.11.0`; historische Berichte bleiben erhalten.
+
 ## 0.10.5 – 2026-10-08
 
 * Gameplay-Kollisionsprüfung verwendet den tatsächlichen Unity-Vertrag statt einer angenommenen Gesamthülle; fehlende feste Kollision ist ein Fehler.

@@ -92,7 +92,7 @@ def damage_asset(asset, seed: int, level: str, pivot: str, generation: int = 1) 
     if level == "fractured":
         from .fracture import fracture_asset
 
-        fracture_asset(asset, seed, pivot)
+        fracture_asset(asset, seed, pivot, generation=generation)
         return
     rng = StableRandom(seed ^ 0xD35)
     (x0, y0, z0), (x1, y1, z1) = asset.bbox()

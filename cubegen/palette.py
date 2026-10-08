@@ -328,7 +328,7 @@ def write_swatches(path: str, names: Optional[Iterable[str]] = None, cell_px: in
 def draw_calls(asset, palette: Optional[PaletteMap] = None) -> int:
     """Draw calls of an asset in palette mode (see ``quality.draw_calls``)."""
     palette = palette or material_map(asset)
-    if not asset.behaviours:
+    if not asset.behaviours and asset.meta.get("damage") != "fractured":
         return len({palette(o.name, r) for o in asset.meshes() for r in o.mesh.roles})
     return sum(len({palette(o.name, r) for r in o.mesh.roles}) for o in asset.meshes())
 
