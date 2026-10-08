@@ -39,7 +39,7 @@ def asset_quality_report(asset, pivot: str = "", category: str = "props", budget
     """
     result = checked or check(asset, category, pivot, budget_scale, palette)
     passes = {
-        "triangle_budget": not result["errors"],
+        "triangle_budget": result["triangles"] <= result["budget"],
         "z_fighting": not result["z_fighting"],
         "collider_coverage": not result["uncovered"],
         "draw_call_budget": result["draw_calls"] <= result["draw_call_budget"],
@@ -274,7 +274,7 @@ def needs_collider(mesh, part) -> bool:
     return _solid_volume(verts, faces) >= SOLID_MIN_VOLUME
 
 
-def uncovered_geometry(asset, pivot: str = "") -> List[Dict]:
+def uncovered_geometry(asset, pivot: str = "", *, gameplay_import: bool = True) -> List[Dict]:
     """Solid pieces the Unity collision shapes (``families.collision_boxes``) don't cover - the player walks into
     them. Per closed piece of at least ``SOLID_MIN_VOLUME`` (and ``SOLID_MIN_SIZE`` thick): points on a grid inside
     the piece that lie outside every collider (``COLLIDER_TOL``).
@@ -283,8 +283,11 @@ def uncovered_geometry(asset, pivot: str = "") -> List[Dict]:
     own (the game's door setup gives them theirs) and, for platforms (pivot ``top``), what lies under the floor."""
     from .families import collision_boxes  # families needs nothing from here, but keep the import lazy
 
-    boxes = collision_boxes(asset, "")
-    skip = {"Damage"}
+    boxes = collision_boxes(asset, "", gameplay_import=gameplay_import)
+    skip = {"Damage", "Wear"}
+    if any(b["script"] == "ItemPickup" for b in asset.behaviours):
+        # Pickups deliberately have an interaction trigger, not solid surfaces.
+        return []
     if not asset.colliders:
         for b in asset.behaviours:
             if b["script"] == "Door":
@@ -340,8 +343,14 @@ def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0, pale
     uncovered = uncovered_geometry(asset, pivot)
     if uncovered:
         top = uncovered[0]
-        warnings.append(f"no collider: {len(uncovered)} solid piece(s), e.g. {top['object']} "
-                        f"{top['uncovered']:.0%} uncovered")
+        message = (f"no collider: {len(uncovered)} solid piece(s), e.g. {top['object']} "
+                   f"{top['uncovered']:.0%} uncovered")
+        warnings.append(message)
+        errors.append(message)
+    if asset.behaviours and not any(b["script"] == "ItemPickup" for b in asset.behaviours):
+        from .families import collision_boxes
+        if not collision_boxes(asset, "", gameplay_import=True):
+            errors.append("gameplay recipe has no exported or recipe-derived solid collision")
     if fights:
         top = fights[0]
         warnings.append(f"z-fighting: {len(fights)} face pair(s), e.g. {top['a']}/{top['b']} "

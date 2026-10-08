@@ -197,6 +197,26 @@ class BlenderTest(unittest.TestCase):
             self.assertLess(len(crate["Body_LOD1"]["vertices"]), len(crate["Body_LOD0"]["vertices"]))
             self.assertIn("Glow", unity_locals(os.path.join(out, "models", "Turret_000.fbx")))
 
+    def test_destroyed_crane_exports_triangles_and_retains_its_fracture_material(self):
+        from cubegen.fbxread import read as read_fbx
+        with tempfile.TemporaryDirectory() as out:
+            code = main(["generate", "--types", "crane", "--count", "1", "--seed", "42",
+                         "--damage", "destroyed", "--generation", "3", "--formats", "fbx,glb",
+                         "--no-render", "--no-blend", "--out", out])
+            self.assertEqual(code, 0)
+            data = glb_json(os.path.join(out, "models", "Crane_000.glb"))
+            ground = next(i for i, m in enumerate(data["materials"]) if m["name"] == "M_Ground")
+            jib = next(n for n in data["nodes"] if n["name"] == "Jib")
+            self.assertIn(ground, [p["material"] for p in data["meshes"][jib["mesh"]]["primitives"]])
+            root = read_fbx(os.path.join(out, "models", "Crane_000.fbx"))
+            for geometry in root.find("Objects").find_all("Geometry"):
+                count = 0
+                for index in geometry.find("PolygonVertexIndex").props[0]:
+                    count += 1
+                    if index < 0:
+                        self.assertEqual(count, 3)
+                        count = 0
+
     def test_unity_contract_audit_all_types(self):
         # the reproduction of the Unity audit: cubegen 0.7.0 had 3 rejected models (wrong FBX pivots) here
         import copy

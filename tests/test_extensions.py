@@ -218,7 +218,7 @@ class SweepTests(unittest.TestCase):
 
 
 class AnchorTests(unittest.TestCase):
-    def test_generation_3_adds_only_empties(self):
+    def test_generation_3_adds_only_anchor_objects_and_preserves_unmodified_meshes(self):
         for t in model_types():
             new, old = generate_asset(t, 2), generate_asset(t, 2, style=Style(generation=2))
             added = [o for o in new.objects if o.name not in {p.name for p in old.objects}]
@@ -229,7 +229,10 @@ class AnchorTests(unittest.TestCase):
                 lo, hi = new.get(o.parent).mesh.bbox()
                 self.assertTrue(all(lo[i] - 1e-6 <= o.pivot[i] <= hi[i] + 1e-6 for i in range(3)), f"{t} {o.name}")
             same = [(o.name, o.mesh.verts, o.mesh.faces) for o in new.meshes()]
-            self.assertEqual(same, [(o.name, o.mesh.verts, o.mesh.faces) for o in old.meshes()], t)
+            # Generation 3 deliberately corrects the camera's upward lens pitch.
+            # Its direction is covered across seeds and signed sweeps in test_camera_pitch.
+            if t != "camera":
+                self.assertEqual(same, [(o.name, o.mesh.verts, o.mesh.faces) for o in old.meshes()], t)
 
     def test_ruins_get_smoke(self):
         ruin = generate_asset("machine", 1, style=Style(damage="destroyed"))

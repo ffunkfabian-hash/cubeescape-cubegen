@@ -221,7 +221,8 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
         "bounds": {"center": list(center), "size": [abs(c) for c in size]},
         "parts": parts,
         "behaviours": asset.behaviours,
-        # explicit collision shapes (walkable pieces, moving lids / decks); missing = use a box hull
+        # Explicit shapes win. Static imports may use a hull; gameplay imports
+        # only build collision from recipe roles, never a blanket hull.
         **({"colliders": colliders} if asset.colliders else {}),
     }
 

@@ -1,7 +1,7 @@
 # Cube Escape – Model Generator Seed (`cubegen`)
 
-Aktueller Stand: **0.10.4.1** (7. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
-Version. Änderungen und Prüfstatus: [Versionsbericht](VERSION_0.10.4.1.md).
+Aktueller Stand: **0.10.5** (8. Oktober 2026). Paket, CLI und Blender-Add-on verwenden dieselbe
+Version. Änderungen und Prüfstatus: [Versionsbericht](VERSION_0.10.5.md).
 
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,

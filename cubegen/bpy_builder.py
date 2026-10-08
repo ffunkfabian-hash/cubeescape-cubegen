@@ -5,7 +5,7 @@ Only import this inside Blender (it needs ``bpy``).
 
 import bpy
 
-from .geometry import box_uvs
+from .geometry import box_uvs, face_normal
 from .materials import MATERIALS, srgb_to_linear
 from .palette import is_palette_material, resolve, uv as palette_uv
 
@@ -153,7 +153,8 @@ def build_collection(asset, collection, object_name=None, tags=None, material_ma
             obj.empty_display_type = "PLAIN_AXES"
             obj.empty_display_size = 0.2
         else:
-            obj = bpy.data.objects.new(name, make_mesh(f"{asset.name}.{o.name}", o, material_map))
+            triangulate = asset.meta.get("damage") == "destroyed" and asset.p is not None and asset.p.style.generation >= 3
+            obj = bpy.data.objects.new(name, make_mesh(f"{asset.name}.{o.name}", o, material_map, triangulate=triangulate))
         collection.objects.link(obj)
         if o.parent:
             parent = asset.get(o.parent)
@@ -167,12 +168,18 @@ def build_collection(asset, collection, object_name=None, tags=None, material_ma
     return objects
 
 
-def make_mesh(name, asset_object, material_map=None):
+def make_mesh(name, asset_object, material_map=None, *, triangulate=False):
     src = asset_object.mesh
     verts = asset_object.local_verts()
     me = bpy.data.meshes.new(name)
-    me.from_pydata(verts, [], src.faces)
-    roles = [resolve(material_map, asset_object.name, r) for r in src.roles]
+    faces, source_faces = [], []
+    for fi, face in enumerate(src.faces):
+        emitted = [(face[0], face[i], face[i+1]) for i in range(1, len(face)-1)] if triangulate else [face]
+        faces.extend(emitted); source_faces.extend([fi] * len(emitted))
+    # Jagged fracture caps are non-planar n-gons. Unity can discard their entire
+    # material slot while triangulating FBX; explicit triangles retain the cap.
+    me.from_pydata(verts, [], faces)
+    roles = [resolve(material_map, asset_object.name, src.roles[fi]) for fi in source_faces]
     materials = sorted(set(roles))
     for m in materials:
         me.materials.append(bpy.data.materials[m])
@@ -184,9 +191,10 @@ def make_mesh(name, asset_object, material_map=None):
         except AttributeError:  # newer Blender: from_pydata already creates flat faces
             pass
         if is_palette_material(roles[fi]):  # palette mode: the centre of the colour's cell
-            uvs = [palette_uv(src.roles[fi])] * len(src.faces[fi])
+            uvs = [palette_uv(src.roles[source_faces[fi]])] * len(faces[fi])
         else:
-            uvs = box_uvs([verts[i] for i in src.faces[fi]], src.face_normal(fi))
+            points = [verts[i] for i in faces[fi]]
+            uvs = box_uvs(points, face_normal(points))
         for loop_index, uv in zip(poly.loop_indices, uvs):
             uv_layer.data[loop_index].uv = uv
     me.validate(clean_customdata=False)

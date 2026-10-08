@@ -107,7 +107,7 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
     asset.normalize(entry.pivot)
     if style.damage != "intact":
         damage_asset(asset, seed, style.damage, entry.pivot, style.generation)
-        if style.damage == "destroyed":  # a ruin is static decoration with a hull collider
+        if style.damage == "destroyed":  # old generation ruins used a static envelope
             asset.colliders = []
     if style.generation >= 2:
         # flush details would flicker in the game: lift them 2 mm (fragments: split faces need more passes)
@@ -123,6 +123,9 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
     else:
         asset.meta.pop("clutter_surfaces", None)
     if style.generation >= 3:
+        from ..collision import complete_gameplay_collision, complete_static_collision
+        complete_gameplay_collision(asset)
+        complete_static_collision(asset)
         add_anchors(asset, model_type, style.damage)  # empties for sound and effects (Audio_*, FX_*)
     if scale != 1.0:
         asset.scale(scale)
