@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.12.0 – 2026-10-10
+
+* Release der bisher unveröffentlichten Arbeitsstände 0.11.1–0.11.4 (Einträge unten): erste Asset-Welle, zweite und
+  dritte Stationswelle, sieben Modell-Kits, Kollisions- und Modellkorrekturen in Generation 3. Historische
+  Generationen 1/2 bleiben unverändert.
+* Paket, CLI, Blender-Quell-Add-on und Add-on-ZIP auf 0.12.0. Release-Zweig `release/0.12.0`.
+* Prüfung: 258 Python-Tests grün (inkl. Blender-Smoke). Bericht: [VERSION_0.12.0.md](VERSION_0.12.0.md).
+
+## 0.11.4 – veröffentlicht mit 0.12.0
+
+* Standardmodelle in Generation 3: hohle Spindfächer mit Ablagen/Kleiderstange, freier Leitereinstieg am Etagenbett mit verbleibender Absturzsicherung, mittige eingefasste Boden-Wartungsdeckel und budgetgerechte Geländerprofile für Stegkreuzungen. Historische Generationen 1/2 erhalten; fünf neue Geometrie-/Kollisionsregressionen. Details: [VERSION_0.11.4.md](VERSION_0.11.4.md).
+* Generation 3: offenes Waschbecken statt Metallplatte, erkennbarer hohler Wasserbehälter an der Kaffeemaschine und feste Halterungen für die Statuspfosten der Ausfahrbrücke. Generation 1/2 bleiben unverändert.
+* Familienrezepte mit demselben Dateinamen wie eine eingebaute Familie laden für Overlays ohne eigene `dims` wieder deren Maßvertrag. Eigene Familiendefinitionen bleiben möglich.
+* Dritte Stationswelle: zwölf weitere Modelle über `recipes/station_wave3.json`; sieben Kits mit je neun passenden Modellen unter `recipes/kits`. Keine neuen Typen oder Gameplay-Skripte.
+* Unity: Portalflächen an tatsächliche Rahmenmaße angepasst, Bodenmontage korrigiert; Kategorien-/Kitsuche und gemerkte Kategorien sowie datenbasierte Kitauswahl. Bericht und Abnahme: [VERSION_0.11.4.md](VERSION_0.11.4.md).
+
+## 0.11.3 – veröffentlicht mit 0.12.0
+
+* Zweite Stationswelle aus IDEEN.md: reproduzierbares Rezept `recipes/station_wave2.json`, 28 zusätzliche
+  Exportmodelle aus vorhandenen Typen für Labor, Versorgung, Sicherheit, Natur, Ruinen und stationäre Roboter.
+* Kollision `collapsed_catwalk`: Generation 3 ersetzt die reine Bodenbox durch genaue feste Mesh-Collider
+  für Steg/Stützen/Geländer und Schutt. Geometrie und Generation 1/2 unverändert; acht Golden-Digests
+  gezielt auf den vollständigen Kollisionsvertrag aktualisiert. Bericht: [VERSION_0.11.3.md](VERSION_0.11.3.md).
+
+## 0.11.2 – 2026-10-09
+
+* Erste Asset-Welle aus IDEEN.md: elf neue Typen `airlock_chamber`, `pipe_rack`, `ceiling_beam`, `pressure_tank`,
+  `turbine`, `compressor`, `relay_box`, `diagnostics_port`, `coolant_loop`, `warning_beacon`, `emergency_case`
+  (186 Typen). Standardmäßig statische Modelle mit genauen Mesh-Collidern je Teil; Gameplay-Skripte nur über
+  ausdrückliche Optionen (`turbine.machine`, `compressor.machine`, `warning_beacon.signal`). Rohr-/Trägeranschlüsse
+  (`pipe`, neu `beam_end`) und Klang-/Effektanker ergänzt.
+* Varianten statt neuer Typen: `door.variant=iris` (Irisblende, `iris_open`), `hatch.variant=maintenance`
+  (Wartungsluke), `keypad.variant=access` (Zugangspanel mit Kartenleser). Stille Optionen: bestehende Seeds bleiben bitgleich.
+* Korrektur: Die zehn `test_*`-Prototypen exportierten in Generation 3 eine Gesamtbox über Rohrläufe, U-Kanal und
+  Schleifeninneres. Generation 3 nutzt jetzt genaue Mesh-Collider; Generation 1/2 bleiben historisch. Geometrie
+  unverändert belegt (alle 270 alten Digests mit eingespielter alter Logik identisch).
+* Paket, CLI, Blender-Add-on und ZIP auf 0.11.2; lokales Blender-5.2-Add-on aktualisiert. 0.11.1 wurde nie
+  veröffentlicht, sein offener Bericht bleibt erhalten und ist in diesem Stand enthalten.
+* Prüfung: 240 Python-Tests grün inkl. Blender-Smoke; 32 echte Wellen-FBX und je zwei Varianten-FBX ohne Ablehnung.
+  Unity-Abnahme in Cube Escape. Einzelheiten: [VERSION_0.11.2.md](VERSION_0.11.2.md).
+
 ## 0.11.0 – 2026-10-08
 
 * Paket, CLI und Blender-Add-on auf 0.11.0 umgestellt. Unveröffentlichtes 0.10.6-Vorhaben übernommen; historische Prüfbelege bleiben erhalten.

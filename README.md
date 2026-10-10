@@ -1,11 +1,16 @@
 # Cube Escape – Model Generator Seed (`cubegen`)
 
-Aktuelle Version: **0.11.0** (8. Oktober 2026). Release-Branch: `release/0.11.0`.
-Paket, CLI und Blender-Quell-Add-on verwenden dieselbe Version. Umfang, Prüfstatus
-und verbleibende Grenzen: [Versionsbericht](VERSION_0.11.0.md).
+Aktuelle Version: **0.12.0** (10. Oktober 2026). Release-Zweig: `release/0.12.0`.
+Paket, CLI und Blender-Quell-Add-on verwenden dieselbe Version. 0.12.0 veröffentlicht die bisher
+unveröffentlichten Arbeitsstände 0.11.1–0.11.4: erste Asset-Welle (elf Typen, drei Varianten, genaue
+Kollision der Prototypen, [0.11.2](VERSION_0.11.2.md)), zweite Stationswelle und Kollision des eingestürzten
+Stegs ([0.11.3](VERSION_0.11.3.md)), dritte Stationswelle, sieben Modell-Kits und Modellkorrekturen
+([0.11.4](VERSION_0.11.4.md)) – [Versionsbericht 0.12.0](VERSION_0.12.0.md). Vorheriger veröffentlichter
+Stand: [0.11.0](VERSION_0.11.0.md).
 Die bisher geplanten 0.10.6-Arbeiten sind darin übernommen; historische Nachweise
 stehen im [archivierten Arbeitsbericht](docs/archive/VERSION_0.10.6_WORKING.md).
-Das vorhandene lokale Blender-Add-on wurde auf 0.11.0 aktualisiert und geprüft;
+Das Blender-Add-on-ZIP wird mit `python3 tools/build_addon.py` für 0.12.0 gebaut; ein lokal installiertes Add-on
+muss danach neu installiert werden;
 bereits geöffnete Blender-Sitzungen laden den Code nach Neustart/Neuladen.
 Cube Escape enthält den geprüften Stand seit `464717e`, einschließlich der
 sichtbaren Bruch-Testanlage Z-1. Bedienung und Prüfbelege stehen im Versionsbericht.
@@ -21,7 +26,7 @@ Maschinen, Einrichtung, Roboter und Natur, dazu Fallen (Presse, Sägeblatt, Damp
 Gameplay-Bausteine (Portal, Phasen- und Bruchplattform, ausfahrbare Brücke, Drehscheibe, Stachelfalle, Becken,
 Frachtcontainer), Bau-Kit-Ergänzungen (Rampe, Decken- und Dachmodul, Torbogen, Wandabschluss, Sockelleiste), weitere
 Rätsel (Schiebeblock, Ton- und Farbfolge, Wasserstand, Laserfilter, Symbolplatten, Kran, Countdown), Labor, Messe,
-Waschraum, Lageplan, Licht, Roboter, Alien-Bewuchs, Weltraum und Wracks – 175 registrierte Typen einschließlich
+Waschraum, Lageplan, Licht, Roboter, Alien-Bewuchs, Weltraum, Wracks und die erste Stationswelle (0.11.2) – 186 registrierte Typen einschließlich
 Geometrie-Demo und experimenteller Test-Assets in 8 Kategorien.
 **Modellfamilien** (`--family`) erzeugen Bau-Kits, deren Teile über verbindliche Maße zusammenpassen: Wand und Tür,
 Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Anschlusspunkten ein.
@@ -444,6 +449,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 <!-- params:begin -->
 | Typ | Parameter (Wertebereich; 🔗 = Wert für ein Unity-Script) |
 |---|---|
+| `airlock_chamber` | `length` (2–6), `width` (1.4–3), `height` (2.2–3.4), `window` (ja/nein), `stripes` (ja/nein), `state` (closed / outer_open / inner_open / open, Standard closed) |
 | `android` | `pose` (standing / slumped), `height` (1.2–2.4), `visor` (visor / eyes) |
 | `antenna` | `style` (mast / radar / dish), `height` (0.8–6), `speed` (0–360) 🔗 |
 | `archway` | `length` (1.5–8), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5), `width` (0.8–4), `opening_height` (1.8–5.5), `shape` (round / pointed / chamfer / flat), `glow` (ja/nein) |
@@ -468,6 +474,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
 | `cargo_container` | `length` (4.0 / 6.0), `width` (2–3.2), `height` (2.4–3.4), `ribs` (ja/nein), `speed` (10–720, Standard 90) 🔗, `interactive` (ja/nein) 🔗 |
 | `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1) |
+| `ceiling_beam` | `length` (2.0 / 4.0 / 6.0), `profile` (i_beam / truss / box), `depth` (0.2–0.8), `tray` (ja/nein), `lamps` (ja/nein), `mount_height` (2.2–8, Standard 3) |
 | `ceiling_module` | `size` (1–8), `style` (beams / coffered / skylight / vent / roof), `mount_height` (2–6, Standard 3), `thickness` (0.1–0.5) |
 | `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6, Standard 3), `fan_speed` (0–2000, Standard 200) 🔗 |
 | `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180–180) |
@@ -477,8 +484,10 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `coffee_machine` | `style` (counter / standing), `cups` (0–4) |
 | `collapsed_catwalk` | `length` (2–6), `width` (0.8–3), `height` (1–3.5) |
 | `combination_lock` | `dials` (3–5), `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
+| `compressor` | `size` (0.12–0.45), `heads` (1–3), `receiver` (ja/nein), `status` (off / on, Standard off), `machine` (ja/nein) |
 | `console` | `width` (0.6–4), `screens` (1 / 2 / 3), `tilt` (0–60), `cables` (ja/nein) |
 | `conveyor` | `style` (rollers / belt), `length` (0.8–4), `width` (0.4–1.5), `height` (0.3–1.2), `speed` (0–1000, Standard 180) 🔗 |
+| `coolant_loop` | `width` (1.2–4), `height` (1–3), `radius` (0.09 / 0.18), `state` (cold / hot), `pump` (ja/nein), `valve` (ja/nein) |
 | `countdown` | `minutes` (0–99), `seconds` (0–59), `digit_height` (0.08–0.6), `mount_height` (1–3.5), `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `stripes` (ja/nein), `text` (Text) |
 | `crane` | `style` (jib / gantry), `height` (2–5), `reach` (1–3.5), `speed` (5–360, Standard 45) 🔗 |
 | `crashed_pod` | `length` (1.8–4.5), `embers` (ja/nein) |
@@ -488,8 +497,10 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `cryo_pod` | `pose` (standing / lying), `length` (1.6–3), `occupied` (ja/nein), `frost` (ja/nein) |
 | `crystal_cluster` | `radius` (0.2–4), `crystals` (1–20), `rubble` (0–12) |
 | `debris` | `radius` (0.2–3), `chunks` (1–20), `plate` (ja/nein), `cable` (ja/nein) |
-| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗, `label` (Text) |
+| `diagnostics_port` | `mount_height` (0.3–2), `cover` (open / closed / none), `screen` (ja/nein), `cable` (ja/nein), `status` (off / on, Standard off) |
+| `door` | `style` (airlock / blast / elevator / heavy / security / sliding), `width` (0.6–8), `height` (1.2–8), `speed` (0.05–20) 🔗, `label` (Text), `variant` (standard / iris, Standard standard), `iris_open` (0–1, Standard 0) |
 | `drone` | `rotors` (2 / 3 / 4), `size` (0.3–1.5), `tool` (none / claw / spotlight), `rotor_speed` (0–3000, Standard 1440) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
+| `emergency_case` | `content` (extinguisher / axe / first_aid), `mount_height` (0.1–1.6), `hammer` (ja/nein), `label` (ja/nein) |
 | `emergency_light` | `style` (twin / beacon / exit), `mount_height` (1.5–4), `mode` (Steady / Blink / Pulse / Rotate) 🔗 |
 | `escape_pod` | `length` (1.8–4.5), `pose` (lying / standing), `speed` (10–360, Standard 90) 🔗 |
 | `extinguisher` | `height` (0.3–1), `holder` (none / stand / cabinet) |
@@ -512,14 +523,14 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
 | `girders` | `count` (1–8), `length` (0.5–8) |
 | `hanging_crystals` | `mount_height` (2–6, Standard 3), `crystals` (1–12), `length` (0.3–1.8) |
-| `hatch` | `shape` (square / round), `size` (0.6–2), `ladder` (ja/nein), `lid_angle` (30–180, Standard 110) 🔗, `status` (off / on, Standard off) |
+| `hatch` | `shape` (square / round), `size` (0.6–2), `ladder` (ja/nein), `lid_angle` (30–180, Standard 110) 🔗, `status` (off / on, Standard off), `variant` (standard / maintenance, Standard standard) |
 | `hologram` | `style` (table / pedestal), `kind` (globe / station / cube), `radius` (0.3–1.5), `speed` (0–360, Standard 20) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `hydroponic_bed` | `length` (0.8–4), `tiers` (1–3), `lamp` (ja/nein) |
 | `intercom` | `style` (audio / video), `mount_height` (0.8–2.2), `mode` (Steady / Pulse / Blink, Standard Blink) 🔗 |
 | `item` | `kind` (energy_cell / battery / data_chip / fuse), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `key` | `style` (bit / modern / tubular), `length` (0.06–0.3), `tag` (ja/nein), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `keycard` | `kind` (card / fob / key), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
-| `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on, Standard off) |
+| `keypad` | `layout` (numpad / buttons / big_button), `mount_height` (0.5–2.5), `status` (off / on, Standard off), `variant` (standard / access, Standard standard) |
 | `lab_device` | `kind` (microscope / tube_rack / centrifuge), `size` (0.2–0.8), `speed` (0–3000, Standard 720) 🔗 |
 | `ladder` | `height` (1–6), `width` (0.3–1), `cage` (ja/nein), `hoops` (ja/nein) |
 | `laser_emitter` | `height` (0.3–2), `style` (stand / box), `mode` (Steady / Blink / Pulse, Standard Steady) 🔗 |
@@ -545,17 +556,20 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000, Standard 180) 🔗 |
 | `pipe_bend` | `kind` (elbow / elbow_up / tee / cross), `radius` (0.09 / 0.18 / 0.35), `arm` (0.5 / 1.0), `axis_height` (0.2–3), `support` (ja/nein) |
 | `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3, Standard 0) 🔗, `speed` (10–1000, Standard 240) 🔗 |
+| `pipe_rack` | `length` (2.0 / 4.0 / 6.0), `levels` (1–3), `pipes` (1–3), `radius` (0.09 / 0.18), `height` (1.4–4), `tray` (ja/nein) |
 | `planet_window` | `shape` (round / wide), `size` (0.6–3), `mount_height` (1–3), `rings` (ja/nein) |
 | `plant` | `kind` (fern / bulbs / spikes), `pot` (round / square / none), `height` (0.3–2.5) |
 | `platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `underside` (frustum / keel), `stripes` (ja/nein) |
 | `portal_frame` | `mount` (wall / floor), `width` (0.6–6), `height` (0.6–6), `frame_style` (airlock / blast / elevator / heavy / security / sliding), `surface` (panel / glow), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
 | `pressure_plate` | `size` (0.4–3), `shape` (square / round), `stripes` (ja/nein), `status` (off / on, Standard off) |
+| `pressure_tank` | `orientation` (horizontal / vertical), `radius` (0.3–1.4), `length` (1–5), `relief_valve` (ja/nein), `warning_band` (ja/nein), `status` (off / on, Standard off) |
 | `puddle` | `kind` (water / slime / oil / toxic), `size` (0.3–4), `drops` (0–8) |
 | `pump` | `size` (0.1–0.6), `outlet` (up / side), `guard` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–3000, Standard 720) 🔗 |
 | `push_block` | `size` (0.4–2), `style` (crate / metal / stone), `handles` (ja/nein), `glow` (ja/nein) |
 | `railing` | `length` (1.0 / 2.0 / 4.0), `height` (0.8–1.4), `style` (bars / rails / glass), `kick` (ja/nein), `glow` (ja/nein) |
 | `ramp` | `width` (0.6–4), `length` (1–8), `rise` (0.1–1.5), `surface` (bars / plates / chevrons), `curbs` (ja/nein), `rails` (none / left / both), `glow_edges` (ja/nein), `stripes` (ja/nein) |
 | `reactor_core` | `radius` (0.4–1.8), `height` (1.5–5), `pillars` (3–8), `pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–720, Standard 30) 🔗 |
+| `relay_box` | `style` (box / tall), `rows` (1–4), `mount_height` (0.8–2.2), `conduits` (ja/nein), `warning` (ja/nein), `status` (off / on, Standard off) |
 | `retractable_bridge` | `length` (2.0 / 4.0), `width` (0.8–3), `rails` (ja/nein), `speed` (0.1–5, Standard 0.8) 🔗, `starts_open` (ja/nein) 🔗 |
 | `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180, Standard 0) 🔗 |
 | `robot_dog` | `size` (0.5–1.6), `module` (none / sensor / cargo / turret), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
@@ -591,6 +605,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |
 | `transformer` | `width` (0.6–3), `height` (0.6–2.5), `bushings` (1–6), `conservator` (ja/nein), `status` (off / on, Standard off) |
+| `turbine` | `radius` (0.3–1.2), `length` (1.2–4), `exhaust` (up / back), `guard` (ja/nein), `status` (off / on, Standard off), `machine` (ja/nein), `rotor_speed` (0–3000, Standard 900) 🔗 |
 | `turntable` | `size` (1.0 / 2.0 / 3.0 / 4.0), `shape` (round / square), `arrow` (ja/nein), `step` (45 / 90, Standard 90) 🔗, `speed` (10–720, Standard 90) 🔗, `target` (0–7, Standard 1) 🔗, `interactive` (ja/nein) 🔗 |
 | `turret` | `mount` (tripod / pedestal), `barrels` (1 / 2), `size` (0.3–1.5), `shield` (ja/nein), `speed` (-360–360, Standard 0) 🔗, `mode` (Steady / Pulse / Blink, Standard Steady) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `valve` | `radius` (0.12–0.6), `mount_height` (0.4–2.5), `pipes` (ja/nein), `steps` (1–8, Standard 2) 🔗, `speed` (10–1000, Standard 180) 🔗 |
@@ -604,6 +619,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
 | `wall_panel` | `length` (2.0 / 4.0), `style` (consoles / pipes / cabinets / panels), `stripes` (ja/nein) |
 | `wall_roots` | `size` (0.8–3), `roots` (2–8), `glow` (ja/nein) |
+| `warning_beacon` | `mount` (pole / base), `tiers` (1–4), `height` (0.4–3), `horn` (ja/nein), `signal` (ja/nein), `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
 | `washroom` | `style` (sink / toilet / shower), `mirror` (ja/nein) |
 | `water_level` | `tubes` (1–3), `height` (1–3), `fluid` (water / glowing / toxic), `speed` (10–1000, Standard 180) 🔗 |
 | `window_wall` | `length` (2.0 / 4.0), `windows` (single / split / band), `sill` (0.2–2), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
@@ -916,3 +932,14 @@ tools/run_tests.py    Tests in drei Gruppen parallel (wie die CI)
 recipes/              Beispiel-Batches
 tests/                unittest (Blender-/ImageMagick-Tests werden ohne die Tools übersprungen)
 ```
+
+## Stationsmodelle und Modell-Kits (seit 0.12.0)
+
+`recipes/station_wave3.json` ergänzt zwölf Bau-/Naturmodelle aus IDEEN.md. Unter `recipes/kits`
+liegen sieben kompakte Auswahlen mit gemeinsamen Maßen und Stil aus den eingebauten Modellfamilien.
+Ein Kit ist die konkrete Auswahl, eine Familie ihr Maß-/Stilvertrag; je Kit sind neun statische Modelle
+und 38 geprüfte Anschlüsse enthalten. In Cube Escape sind beliebige Kit-Mitgliedschaften aus Metadaten
+mit Kategorien und Suche kombinierbar. Die Rezepte bauen keine Level automatisch.
+Pro Kit einen eigenen Texturordner verwenden, damit jeder Materialmanifest seine eindeutige Quelle behält.
+Beispiel: `python3 -m cubegen generate --recipe recipes/kits/lab.json --out output/lab --textures-dir output/lab/Textures`.
+Modellkorrekturen und Prüfstatus: [VERSION_0.11.4.md](VERSION_0.11.4.md).

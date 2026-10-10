@@ -434,6 +434,22 @@ def connectors(asset, model_type: str) -> List[Dict[str, Any]]:
             kind = "pipe" if d[2] == 0 else "pipe_up"
             out.append(_con(f"arm_{d[0]:+d}{d[1]:+d}{d[2]:+d}", kind, (d[0] * arm, d[1] * arm, z + d[2] * arm), d,
                             radius=r))
+    elif model_type == "pipe_rack":  # every run ends in a pipe joint at both ends
+        r, ln = meta["radius"], meta["length_m"]
+        for i, (y, z) in enumerate(meta["pipe_axes"]):
+            for s in (-1, 1):
+                out.append(_con(f"run{i + 1}_{s:+d}", "pipe", (s * ln / 2, y, z), (s, 0, 0), radius=r))
+    elif model_type == "coolant_loop":
+        r, z = meta["radius"], meta["axis_height"]
+        for s, x in zip((-1, 1), meta["ends_x"]):
+            out.append(_con(f"end_{s:+d}", "pipe", (x, 0, z), (s, 0, 0), radius=r))
+    elif model_type in ("pressure_tank", "compressor") and meta.get("outlet"):
+        x, y, z = meta["outlet"]
+        out.append(_con("outlet", "pipe", (x, y, z), (1 if x > 0 else -1, 0, 0), radius=0.09))
+    elif model_type == "ceiling_beam":
+        ln, top = meta["length_m"], meta["top_m"]
+        for s in (-1, 1):
+            out.append(_con(f"end_{s:+d}", "beam_end", (s * ln / 2, 0, top), (s, 0, 0), height=meta["depth_m"]))
     elif model_type == "fluid_basin":
         r = params.get("pipe_radius", 0.09)
         if "outlet" in meta.get("pipe_ends", {}):  # the inlet pours in over the rim: no pipe joint
@@ -766,7 +782,7 @@ JOINS = {
     ("ramp_top", "walk_edge"): "face", ("opening", "door"): "align", ("duct", "pipe"): "face",
     ("pipe", "pipe"): "face", ("wall_end", "wall_end"): "face", ("wall_top", "cap"): "align",
     ("face", "trim"): "align", ("cap_end", "cap_end"): "face", ("trim_end", "trim_end"): "face",
-    ("ceiling", "ceiling"): "face", ("walk_edge", "walk_edge"): "face",
+    ("ceiling", "ceiling"): "face", ("walk_edge", "walk_edge"): "face", ("beam_end", "beam_end"): "face",
 }
 
 

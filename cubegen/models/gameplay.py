@@ -188,6 +188,11 @@ def retractable_bridge(rng, a):
     for s in (-1, 1):
         cube(housing, (0.08, 0.08, 0.84), (-0.08, s * (w / 2 + 0.16), 0.42), "M_RobotDark")
         a.collider((0.08, 0.08, 0.84), (-0.08, s * (w / 2 + 0.16), 0.42))
+        if p.style.generation >= 3:
+            # Tie the fixed posts to the landing rather than leaving them outside its edge.
+            center = (-0.08, s * (w / 2 + 0.09), -0.05)
+            cube(housing, (0.2, 0.22, 0.1), center, "M_RobotDark")
+            a.collider((0.2, 0.22, 0.1), center)
     if p.bool("rails", 0.5):
         r = a.part("Rail")
         for s in (-1, 1):

@@ -45,7 +45,7 @@ def sidecar_errors(asset, model_type, seed=0):
 class NewTypeTests(unittest.TestCase):
     def test_all_new_types_are_registered(self):
         self.assertEqual(sorted(set(NEW_TYPES) - set(model_types())), [])
-        self.assertEqual(len(model_types()), 175)
+        self.assertEqual(len(model_types()), 186)  # 0.11.2: + eleven types of the first asset wave
 
     def test_puzzle_solutions_and_wiring(self):
         for seed in range(20):
@@ -232,7 +232,12 @@ class AnchorTests(unittest.TestCase):
             # Generation 3 deliberately corrects the camera's upward lens pitch.
             # Its direction is covered across seeds and signed sweeps in test_camera_pitch.
             # The pillar's height-bound dent correction is covered in test_phase5_fragments.
-            if t not in ("camera", "fallen_pillar"):
+            # 0.11.4 also corrects the sink recess, reservoir shell and bridge post mounts.
+            # Their geometry/physics contracts and unchanged historical generations are covered
+            # by test_wave_0114 and the generation-specific golden fingerprints.
+            # Open locker compartments, ladder access, hatch placement and railed junction budgets
+            # are deliberately corrected by generation 3; test_standard_geometry covers these contracts.
+            if t not in ("camera", "fallen_pillar", "washroom", "coffee_machine", "retractable_bridge", "locker", "bed", "floor_tile", "catwalk"):
                 self.assertEqual(same, [(o.name, o.mesh.verts, o.mesh.faces) for o in old.meshes()], t)
             elif t == "fallen_pillar":
                 self.assertEqual([(o.name, o.mesh.faces, o.mesh.roles) for o in new.meshes()],

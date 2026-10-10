@@ -89,6 +89,16 @@ ANCHORS: Dict[str, Sequence[Anchor]] = {
     "escape_pod": (("Audio_Hum", "Body", "center"),),
     "crashed_pod": (("FX_Smoke", "Wreck", "top"), ("FX_Sparks", "Wreck", "center")),
     "burnt_console": (("FX_Smoke", "Wreck", "top"), ("FX_Sparks", "Lights", "center")),
+    # first asset wave (0.11.2)
+    "airlock_chamber": (("Audio_Door", "Body", "top"), ("Audio_Hiss", "Body", "center")),
+    "pipe_rack": (("Audio_Flow", "Pipes", "center"),),
+    "coolant_loop": (("Audio_Flow", "Pipe", "center"),),
+    "pressure_tank": (("Audio_Hiss", "Body", "top"),),
+    "turbine": (("Audio_Hum", "Body", "center"), ("Audio_Fan", "Rotor", "center")),
+    "compressor": (("Audio_Pump", "Body", "center"),),
+    "relay_box": (("Audio_Hum", "Body", "front"),),
+    "diagnostics_port": (("Audio_Beep", "Body", "front"),),
+    "warning_beacon": (("Audio_Alarm", "Glow", "center"),),
 }
 
 

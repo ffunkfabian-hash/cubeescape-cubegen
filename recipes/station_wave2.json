@@ -1,0 +1,98 @@
+{
+  "seed": 113,
+  "prefix": "Gen_Wave2_",
+  "models": {
+    "plant": 1,
+    "hydroponic_bed": 1,
+    "mushroom": 1,
+    "vines": 1,
+    "wall_roots": 1,
+    "hanging_crystals": 1,
+    "broken_wall": 1,
+    "collapsed_catwalk": 1,
+    "burnt_console": 1,
+    "cable_mess": 1,
+    "fallen_pillar": 1,
+    "scrap_heap": 1,
+    "android": 1,
+    "service_robot": 1,
+    "robot_dog": 1,
+    "vent_crawler": 1,
+    "lab_device": 1,
+    "cryo_pod": 1,
+    "extinguisher": 1,
+    "barrier": 1,
+    "bin": 1,
+    "coffee_machine": 1,
+    "vending_machine": 1,
+    "galley": 1,
+    "washroom": 1,
+    "bed": 1,
+    "chair": 1,
+    "table": 1
+  },
+  "textures": "tiled",
+  "texture_size": 512,
+  "texture_set": "station",
+  "style": {
+    "generation": 3
+  },
+  "render": false,
+  "blend": false,
+  "params": {
+    "plant": {
+      "kind": "fern",
+      "pot": "round"
+    },
+    "hydroponic_bed": {
+      "length": 2.0,
+      "tiers": 2,
+      "lamp": true
+    },
+    "hanging_crystals": {
+      "mount_height": 3.0
+    },
+    "broken_wall": {
+      "length": 2.0,
+      "hole": true
+    },
+    "collapsed_catwalk": {
+      "length": 3.0,
+      "width": 1.5,
+      "height": 1.5
+    },
+    "service_robot": {
+      "head_speed": 0,
+      "drive": "wheels"
+    },
+    "android": {
+      "pose": "standing"
+    },
+    "robot_dog": {
+      "mode": "Steady"
+    },
+    "vent_crawler": {
+      "mode": "Steady",
+      "drive": "treads"
+    },
+    "lab_device": {
+      "kind": "microscope"
+    },
+    "table": {
+      "style": "lab"
+    },
+    "cryo_pod": {
+      "pose": "standing",
+      "occupied": false
+    },
+    "extinguisher": {
+      "holder": "cabinet"
+    },
+    "barrier": {
+      "style": "gate"
+    },
+    "washroom": {
+      "style": "sink"
+    }
+  }
+}

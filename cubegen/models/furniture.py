@@ -43,18 +43,28 @@ def locker(rng, a):
     w = n * lw
     mat = p.material(["M_Wall", "M_Metal", "M_RobotBody", "M_RobotDark"])
     body = a.part("Body")
-    cube(body, (w, d, h), (0, 0, h / 2), "M_RobotDark", bevel=0.02)
+    if p.style.generation < 3:
+        cube(body, (w, d, h), (0, 0, h / 2), "M_RobotDark", bevel=0.02)
+    else:  # real compartments: no solid block behind an open door
+        cube(body, (w, .035, h), (0, d / 2 - .0175, h / 2), "M_RobotDark")
+        cube(body, (w, d, .04), (0, 0, .02), mat)
+        for i in range(n + 1):
+            cube(body, (.03, d, h), (-w / 2 + i * lw, 0, h / 2), mat)
     cube(body, (w + 0.04, d + 0.04, 0.06), (0, 0, h + 0.03), mat, bevel=0.01)
     opened = rng.randrange(n) if p.bool("open", 0.3) else -1
     for i in range(n):
         x = -w / 2 + lw * (i + 0.5)
         if i == opened:  # open door swung out to the left, dark inside
-            cube(body, (lw - 0.04, 0.02, h - 0.1), (x, -d / 2 + 0.02, h / 2), "M_Ground")
+            if p.style.generation < 3:
+                cube(body, (lw - 0.04, 0.02, h - 0.1), (x, -d / 2 + 0.02, h / 2), "M_Ground")
             hx = x - lw / 2 + 0.02
             cube(body, (lw - 0.04, 0.03, h - 0.12), (hx - (lw - 0.04) / 2 * math.cos(deg(70)),
                                                      -d / 2 - (lw - 0.04) / 2 * math.sin(deg(70)), h / 2), mat,
                  rot=(0, 0, deg(70)))
             cube(body, (lw - 0.08, d - 0.08, 0.02), (x, 0, h * 0.75), "M_Metal")  # shelf
+            if p.style.generation >= 3:
+                cube(body, (lw - .06, d - .06, .025), (x, 0, h * .28), "M_Metal")
+                cyl(body, .012, lw - .08, (x, .02, h * .64), "M_Metal", sides=6, rot=ALONG_X)
             continue
         cube(body, (lw - 0.04, 0.03, h - 0.1), (x, -d / 2 - 0.005, h / 2), mat, bevel=0.005)
         for k in range(4):  # vent slots at the top
@@ -651,7 +661,14 @@ def bed(rng, a):
             cube(body, (0.04, 0.04, top - 0.1), (x, -width / 2 - 0.06, (top - 0.1) / 2), "M_Metal")
         for k in range(4):
             cube(body, (0.4, 0.04, 0.03), (lx, -width / 2 - 0.06, 0.35 + k * 0.3), "M_Metal")
-        cube(body, (length, 0.04, 0.2), (0, -width / 2 + 0.02, levels[1] + 0.25), frame)  # fall guard
+        if p.style.generation < 3:
+            cube(body, (length, 0.04, 0.2), (0, -width / 2 + 0.02, levels[1] + 0.25), frame)
+        else:  # guard stops at both sides of the ladder; rear edge remains protected
+            gap_left, gap_right = lx - .23, lx + .23
+            for left, right in ((-length / 2, gap_left), (gap_right, length / 2)):
+                cube(body, (right - left, .04, .2), ((left + right) / 2, -width / 2 + .02, levels[1] + .25), frame)
+            cube(body, (length, .04, .2), (0, width / 2 - .02, levels[1] + .25), frame)
+            a.meta["ladder_entry"] = [lx, -width / 2 + .02, levels[1] + .25]
     if style == "medical":
         for sx in (-1, 1):  # castors
             for sy in (-1, 1):

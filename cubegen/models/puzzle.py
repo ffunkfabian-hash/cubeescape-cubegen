@@ -517,6 +517,9 @@ def pressure_plate(rng, a):
            Param("layout", "choice", "Tasten", choices=("numpad", "buttons", "big_button")),
            Param("mount_height", "float", "Mitte über Boden (m)", lo=0.5, hi=2.5),
            _status_param(),
+           Param("variant", "choice", "Variante", choices=("standard", "access"), default="standard", quiet=True,
+                 description="access: Zugangspanel mit Kartenleser-Modul (Slot), Schutzhaube und Statusleiste; "
+                             "Script und Anzeigen wie standard"),
        ])
 def keypad(rng, a):
     p = a.p
@@ -546,6 +549,16 @@ def keypad(rng, a):
         cyl(body, w * 0.32, 0.03, (0, yf - 0.01, z - h * 0.1), "M_Warning", sides=10, rot=ALONG_Y)
         cyl(lights, w * 0.24, 0.06, (0, yf - 0.03, z - h * 0.1), "M_GlowRed", sides=10, rot=ALONG_Y)
     cube(glow, (w * 0.15, 0.02, 0.03), (w * 0.3, yf - 0.005, z - h * 0.42), status)
+    if p.option("variant") == "access":  # access panel: card reader module beside it, hood, status bar
+        cx = w / 2 + 0.11
+        cube(body, (0.18, d + 0.02, h * 0.7), (cx, 0.1 - (d + 0.02) / 2, z - h * 0.05), "M_RobotDark", bevel=0.012)
+        cube(body, (0.12, 0.05, 0.03), (cx, yf - 0.035, z + h * 0.05), "M_Metal")  # card slot bezel
+        cube(body, (0.09, 0.012, 0.008), (cx, yf - 0.061, z + h * 0.05), "M_Ground")
+        a.empty("Slot", (cx, yf - 0.07, z + h * 0.05))
+        cube(glow, (0.03, 0.02, 0.03), (cx, yf - 0.03, z - h * 0.25), status)
+        cube(body, (w + 0.3, 0.12, 0.03), (0.11, 0.1 - 0.06, z + h / 2 + 0.035), "M_Metal")  # hood
+        cube(lights, (w + 0.22, 0.015, 0.025), (0.11, yf - 0.015, z - h / 2 - 0.04), "M_GlowCyan")  # status bar
+        a.meta["variant"] = "access"
     _indicator(a)
 
 

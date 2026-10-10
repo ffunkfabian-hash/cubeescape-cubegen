@@ -123,7 +123,10 @@ def collapsed_catwalk(rng, a):
     deck_c = (0.0, 0.0, hs / 2 + 0.06)
     rot = (slope, deg(rng.uniform(-6, 6)), 0.0)
     cube(body, (w, ln, 0.08), deck_c, mat, rot=rot)
-    a.collider((w, ln * 0.98, 0.08), deck_c, rot=rot)
+    if p.style.generation < 3:
+        a.collider((w, ln * 0.98, 0.08), deck_c, rot=rot)
+    # Generation 3 completes exact static collision for Wreck and Rubble after
+    # generation: the old deck-only box left rails, posts and debris non-solid.
     for k in range(int(ln / 0.5)):  # grating bars on the deck
         t = (k + 0.5) / int(ln / 0.5) - 0.5
         cube(body, (w * 0.95, 0.04, 0.03), add_vec(deck_c, rotated(rot, (0, t * ln, 0.05))), "M_RobotDark", rot=rot)

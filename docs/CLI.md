@@ -34,7 +34,7 @@ cubegen doctor
 |---|---|
 | `cubegen gui` | Desktop-Oberfläche für Modellwahl, Rezepte, Qualitäts-Vorabprüfung und Export |
 | `python3 -m cubegen generate …` | Modelle erzeugen (FBX, Icons, Kontaktbogen, Übersichts-.blend) |
-| `python3 -m cubegen list` | alle 164 Modelltypen nach Kategorie (`--json` für Skripte) |
+| `python3 -m cubegen list` | alle Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
 | `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Collider, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
 | `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
