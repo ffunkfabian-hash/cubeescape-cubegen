@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0 „Patina“ – unveröffentlicht
+
+* Desktop-GUI: Auswahl **Texturen** (keine / Kacheln / Kacheln + Gebrauchsspuren / Farbpalette), Texturgröße und
+  Farbpalette – dieselben Arten wie `--textures`; Argumente aus `texture_args()` mit Tests (`tests/test_gui_textures.py`).
+* AGENTS.md: Abschluss in zwei Stufen (ungeprüft ohne Blender/Unity, abgenommen lokal) mit fester Vorlage für den
+  lokalen Test-Prompt; Werkzeuge ImageMagick (auch zum Gestalten) und Blender-Plugin (MCP) als Prüfstand;
+  Texturen sind erlaubt (Standard bleibt einfarbig).
+* Paket, CLI, Blender-Quell-Add-on und Add-on-ZIP auf 0.13.0. Bericht: [VERSION_0.13.0.md](VERSION_0.13.0.md).
+
 ## 0.12.0 – 2026-10-10
 
 * Release der bisher unveröffentlichten Arbeitsstände 0.11.1–0.11.4 (Einträge unten): erste Asset-Welle, zweite und

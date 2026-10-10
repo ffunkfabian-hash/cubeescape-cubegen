@@ -160,6 +160,8 @@ Export übernimmt unveränderte Assets aus dem letzten Lauf. **Modellvorschau ö
 eigenen, größenverstellbaren Fenster. Nach dem Export öffnet es sich automatisch und zeigt gerenderte Bilder sowie
 eine interaktive 3D-Ansicht (ziehen zum Drehen, Mausrad zum Zoomen). Für gerenderte Bilder wird Blender benötigt;
 die 3D-Ansicht verwendet die zusätzlich exportierte OBJ-Datei. **Alles neu bauen** erzwingt einen vollständigen Neuaufbau.
+**Texturen** (seit 0.13) wählt dieselben Arten wie `--textures` (keine, Kacheln, Kacheln + Gebrauchsspuren, Farbpalette),
+dazu Texturgröße und – nur im Paletten-Modus – die Farbpalette; siehe [Texturen](#texturen-optional).
 
 Die `#`-Zeilen in den Beispielen sind Kommentare. Die zsh auf dem Mac kennt sie im Terminal nur nach
 `setopt interactivecomments`; sonst einfach nur die Befehlszeilen kopieren.
@@ -779,8 +781,9 @@ Bruchstück-Modelle keine. Die Geometrie bleibt exakt wie in Generation 2; `--ge
 
 ![Oben: Kachel-Texturen · Mitte: Ruinen-Typen · unten: intakt / zerstört im Wechsel](docs/example_textures_ruins.png)
 
-Standard ist **keine Textur**: Die Modelle tragen wie bisher die einfarbigen `M_…`-Materialien. Per Auswahlfeld
-(Add-on: „Texturen“, Kommandozeile: `--textures`) gibt es drei Alternativen:
+Standard ist **keine Textur**: Die Modelle tragen wie bisher die einfarbigen `M_…`-Materialien. Texturen sind ausdrücklich
+erlaubt; per Auswahlfeld (Add-on und Desktop-GUI: „Texturen“, Cube-Escape-Werkbank: MATERIAL UND TEXTUR,
+Kommandozeile: `--textures`) gibt es drei Alternativen:
 
 | Stufe | Was passiert | Material in der FBX |
 |---|---|---|
