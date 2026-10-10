@@ -31,14 +31,29 @@ Ein erfolgreicher Export oder eine reine Prüfung der Bounds ist kein Physiknach
   Laufzeit-/Physiktests. Kein Unity-Start auf einem Checkout.
 
 Belegte Generatorfehler (Kollision, Geometrie, Export, Sidecar-/Metadaten) sofort beheben. Neue Befunde
-gehören in den nächsten unveröffentlichten Versionsbericht `VERSION_<Version>.md`; Zielversion aus
-Nutzerauftrag und Changelog ermitteln. 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und besitzt den
-Bericht `VERSION_0.11.0.md`. 0.12.0 (10. Oktober 2026) veröffentlicht die Arbeitsstände 0.11.1–0.11.4
-(`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`); neue Befunde gehören in
-den nächsten offenen Bericht `VERSION_0.12.1.md` (bei Bedarf anlegen).
+gehören in den Versionsbericht der laufenden Arbeitsversion `VERSION_<Version>.md` (siehe „Versionen,
+Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und besitzt den Bericht
+`VERSION_0.11.0.md`. 0.12.0 (10. Oktober 2026) veröffentlicht die Arbeitsstände 0.11.1–0.11.4
+(`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`); die nächste Version ist 0.13.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
+
+## Versionen, Branches und Worktrees
+
+Jeder neue Branch, Worktree oder Arbeitsauftrag ist eine **neue Version**: Minor +1 (0.12.0 → 0.13.0 → 0.14.0 …)
+mit einem eigenen, ausgedachten Namen (kurz, sprechend, z. B. „Eisenwald“). Setzt eine Sitzung dieselbe Arbeit in
+einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht erst beim Release:
+
+- Version in `pyproject.toml`, `cubegen/__init__.py` und `blender_addon/cubegen_addon/__init__.py` (`bl_info`)
+  gemeinsam anheben – `tests/test_versions.py` prüft die Gleichheit samt gebautem Add-on-ZIP.
+- Branch `release/<Version>`, Bericht `VERSION_<Version>.md` mit Titel „Cubegen <Version> – <Name>“ und
+  Changelog-Eintrag „## <Version> „<Name>“ – unveröffentlicht“.
+- Release (nur auf Wunsch des Nutzers): Datum statt „unveröffentlicht“, Tests grün, `git merge --no-ff` in `main`
+  („Cubegen <Version> – Release übernehmen“), Tag `v<Version>`, Push von `main`, `release/<Version>` und Tag.
+  `main` ist der Standard-Branch auf GitHub (ffunkfabian-hash/lowpoly_cubeescape_model_generatior).
+
+Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getrennt nach derselben Regel.
 
 ## Ausrichtung gerichteter Modelle
 
