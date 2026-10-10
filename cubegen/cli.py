@@ -137,6 +137,13 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
             path = find_family(family_name, base)
         except ValueError:
             path = None
+        # An overlay named lab.json can reference the built-in lab family. Its
+        # filename alone must not turn it into a new, dimensionless definition.
+        if path is not None and args.recipe and os.path.samefile(path, args.recipe) and "dims" not in recipe:
+            from .families import FAMILY_DIR
+            builtin = os.path.join(FAMILY_DIR, family_name + ".json")
+            if os.path.isfile(builtin) and not os.path.samefile(builtin, args.recipe):
+                path = builtin
         defines = args.recipe and recipe.get("family") == family_name and not getattr(args, "family", None) and \
             (path is None or os.path.samefile(path, args.recipe))
         if defines:  # the recipe is the family definition itself
@@ -369,6 +376,71 @@ def cmd_params(args) -> int:
     print("        --damage intact|damaged|destroyed|fractured  --clutter none|clean|lived-in|chaotic")
     print("        --generation 1|2|3")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
+    return 0
+
+
+#: generate options a game UI may offer (style and textures); everything else is batch plumbing
+CATALOG_OPTIONS = ("theme", "size", "snap", "glow", "material_style", "warning", "wear", "detail", "damage", "clutter",
+                   "generation", "textures", "texture_size", "palette")
+
+
+def catalog_data() -> Dict[str, object]:
+    """Everything a front end needs to offer generation: types with their parameter schema, the style and texture
+    options of ``generate`` (read from its argument parser - one source), palettes and families.
+
+    ``typical`` is one reference build per type (seed 0, default style, pure Python, no Blender): its behaviours and
+    size are a hint - parameters and damage states may change both.
+    """
+    from .families import family_files, load_family
+    from .palette import COLOR_PALETTES, palette_material
+
+    commands = next(a for a in make_parser()._actions if isinstance(a, argparse._SubParsersAction))  # noqa: SLF001
+    options: Dict[str, object] = {}
+    for action in commands.choices["generate"]._actions:  # noqa: SLF001
+        if action.dest not in CATALOG_OPTIONS:
+            continue
+        kind = "choice" if action.choices else "float" if action.type is float else "int" if action.type is int else "text"
+        options[action.dest] = {"flag": action.option_strings[0], "kind": kind,
+                                "choices": [str(c) for c in action.choices] if action.choices else [],
+                                "help": action.help or ""}
+    types = {}
+    for entry in REGISTRY.values():
+        params = []
+        for p in entry.params:
+            params.append({"name": p.name, "kind": p.kind, "label": p.label, "description": p.description,
+                           "min": p.lo, "max": p.hi, "choices": [str(c) for c in p.choices], "unity": p.unity,
+                           "size": p.size, "default": p.default})
+        typical = generate_asset(entry.name, 0)
+        lo, hi = typical.bbox()
+        types[entry.name] = {"title": entry.title, "category": entry.category, "pivot": entry.pivot,
+                             "view": entry.view, "description": entry.description, "params": params,
+                             "experimental": entry.name.startswith("test_") or entry.name == "geometry_test",
+                             "typical": {"static": not typical.behaviours,
+                                         "behaviours": sorted({str(b["script"]) for b in typical.behaviours}),
+                                         "size": [round(hi[i] - lo[i], 3) for i in range(3)]}}
+    families = {}
+    for name, path in family_files().items():
+        fam = load_family(path)
+        families[name] = {"description": fam.get("description", ""), "dims": fam.get("dims", {}),
+                          "style": fam.get("style", {}), "palette": fam.get("palette"),
+                          "kit": {t: (len(v) if isinstance(v, list) else v) for t, v in fam.get("models", {}).items()}}
+    palettes = {name: {"material": palette_material(name),
+                       "description": str(COLOR_PALETTES.get(name, {}).get("description", ""))}
+                for name in palette_names()}
+    return {"catalog": 1, "generator": f"cubegen {__version__}", "version": __version__,
+            "generations": list(GENERATIONS), "latestGeneration": LATEST_GENERATION, "formats": list(FORMATS),
+            "options": options, "palettes": palettes, "families": families, "types": types}
+
+
+def cmd_catalog(args) -> int:
+    """Machine-readable catalog for game front ends (Cube Escape's workbench builds its fields from it)."""
+    text = json.dumps(catalog_data(), indent=2 if args.pretty else None, ensure_ascii=False, sort_keys=True)
+    if args.out:
+        os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+        with open(args.out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+    else:
+        sys.stdout.write(text + "\n")
     return 0
 
 
@@ -644,6 +716,13 @@ def make_parser() -> argparse.ArgumentParser:
     pa = sub.add_parser("params", help="list the parameters of the model types")
     pa.add_argument("type", nargs="?", help="only this model type")
     pa.set_defaults(func=cmd_params)
+
+    cg = sub.add_parser("catalog", help="types, parameter schema, style options, palettes and families as JSON "
+                                        "(for game front ends)")
+    cg.add_argument("--json", action="store_true", help="accepted for symmetry with list; output is always JSON")
+    cg.add_argument("--pretty", action="store_true", help="indent the JSON")
+    cg.add_argument("--out", help="write it to this file instead of stdout")
+    cg.set_defaults(func=cmd_catalog)
 
     c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, colliders, "
                                      "distinct variants")

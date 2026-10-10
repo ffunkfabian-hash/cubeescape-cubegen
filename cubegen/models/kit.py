@@ -386,7 +386,7 @@ def _catwalk_rail_lines(shape, length, width):
     return [ln for ln in lines if abs(ln[1][0] - ln[0][0]) + abs(ln[1][1] - ln[0][1]) > 0.05]
 
 
-def rail_run(m, start, end, height=1.0, material="M_Metal", z0=0.0):
+def rail_run(m, start, end, height=1.0, material="M_Metal", z0=0.0, bevel=0.01):
     """Railing between two points at floor height z0 (axis-aligned): posts about every metre, top and
     middle bar. Returns size and centre of its fence collider."""
     (x0, y0), (x1, y1) = start, end
@@ -396,10 +396,10 @@ def rail_run(m, start, end, height=1.0, material="M_Metal", z0=0.0):
     for i in range(posts):
         t = i / (posts - 1)
         cube(m, (0.07, 0.07, height), (x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + height / 2), material,
-             bevel=0.01)
+             bevel=bevel)
     for z in (height, height * 0.5):
         size = (ln, 0.06, 0.06) if along_x else (0.06, ln, 0.06)
-        cube(m, size, ((x0 + x1) / 2, (y0 + y1) / 2, z0 + z), material, bevel=0.01)
+        cube(m, size, ((x0 + x1) / 2, (y0 + y1) / 2, z0 + z), material, bevel=bevel)
     return ((ln, 0.08, height + 0.03) if along_x else (0.08, ln, height + 0.03)), \
         ((x0 + x1) / 2, (y0 + y1) / 2, z0 + (height + 0.03) / 2)
 
@@ -438,7 +438,7 @@ def _catwalk_shape(rng, a, p, shape, length, width, frame, rail_h):
     if rails != "none":  # shapes: rails on every open edge ("one" counts as both)
         r = a.part("Rail")
         for start, end in _catwalk_rail_lines(shape, length, width):
-            size, center = rail_run(r, start, end, rail_h)
+            size, center = rail_run(r, start, end, rail_h, bevel=0 if p.style.generation >= 3 else .01)
             a.collider(size, center, part="Rail")
     sup = p.value("supports", rng.choice([0.0, 0.0, rng.uniform(1.0, 3.0)]))
     if sup > 0.05:
@@ -466,7 +466,22 @@ def floor_tile(rng, a):
     a.meta.update({"size_m": size, "style": style})
     depth = 0.1 + rng.uniform(0.0, 0.1)
     a.collider((size, size, depth), (0, 0, -depth / 2), part="Deck")
-    if style == "grate":
+    if style == "hatch" and p.style.generation >= 3:
+        cube(m, (size, size, depth), (0, 0, -depth / 2), mat, bevel=.02)
+        hatch = min(1.1, size - .2)
+        # Centre the access cover. Surrounding panels show the scale of large tiles.
+        span = (size - hatch - .12) / 2
+        if span > .08:
+            for side in (-1, 1):
+                cube(m, (span, size - .08, .01), (side * (hatch / 2 + .04 + span / 2), 0, .005), "M_Wall")
+                cube(m, (hatch + .08, span, .01), (0, side * (hatch / 2 + .04 + span / 2), .005), "M_Wall")
+        cube(m, (hatch + .08, hatch + .08, .02), (0, 0, .01), "M_RobotDark")
+        cube(m, (hatch, hatch, .02), (0, 0, .025), mat, bevel=.01)
+        for side in (-1, 1):
+            cube(m, (.12, .04, .035), (side * hatch * .35, hatch * .43, .04), "M_Metal")
+        cube(m, (.24, .045, .025), (0, -hatch * .32, .0475), "M_RobotDark")
+        a.meta["hatch_center"] = [0, 0]
+    elif style == "grate":
         for s in (-1, 1):
             cube(m, (size, 0.06, depth), (0, s * (size / 2 - 0.03), -depth / 2), "M_RobotDark")
             cube(m, (0.06, size - 0.12, depth), (s * (size / 2 - 0.03), 0, -depth / 2), "M_RobotDark")

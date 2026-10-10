@@ -15,9 +15,12 @@ from __future__ import annotations
 import math
 
 from ..params import Param
+from ..geometry import prism, ring
 from .common import ALONG_X, cube, cyl, deg, frustum, stripes
 from .lettering import add_text, check_text, text_width
 from .registry import model
+
+UPRIGHT = ((1, 0, 0), (0, 0, -1), (0, 1, 0))  # (x, z) polygon facing the front, extruded towards -y
 
 DOOR_STYLES = {
     #            width       height      post  depth frame          panel          split  stripes      accent        top
@@ -43,6 +46,36 @@ DOOR_MOTION = {
 }
 
 
+DOOR_VARIANTS = ("standard", "iris")
+
+
+def _iris(a, width: float, height: float, opened: float) -> None:
+    """A round iris diaphragm filling the door opening: corner plates (Iris_Frame) around a round hole, a trim ring
+    and six layered blades (Iris). ``opened`` 0..1 pulls the blade tips from the centre to the rim."""
+    r = min(width, height) * 0.475
+    zc = height / 2
+    plate = a.part("Iris_Frame")
+    arc = 6
+    for qx in (-1, 1):
+        for qz in (-1, 1):
+            pts = [(qx * width / 2, 0.0), (qx * width / 2, qz * height / 2), (0.0, qz * height / 2)]
+            pts += [(qx * r * math.sin(math.pi / 2 * k / arc), qz * r * math.cos(math.pi / 2 * k / arc))
+                    for k in range(arc + 1)]
+            plate.add(prism(pts, 0.2, "M_RobotDark"), loc=(0, 0, zc), basis=UPRIGHT)
+    trim = a.part("Iris_Trim")
+    trim.add(ring(r - 0.02, r + 0.1, 0.26, 24, "M_Metal"), loc=(0, 0, zc), rot=(math.pi / 2, 0, 0))
+    blades = a.part("Iris")
+    n, step = 6, 2 * math.pi / 6
+    tip = opened * 0.9  # blade tip radius as a share of r: 0 = the six tips meet in the centre
+    for i in range(n):
+        t0 = step * i
+        pts = [(r * math.cos(t0), r * math.sin(t0)), (r * math.cos(t0 + step * 1.35), r * math.sin(t0 + step * 1.35)),
+               (r * tip * math.cos(t0 + step * 0.9), r * tip * math.sin(t0 + step * 0.9))]
+        y = -0.03 + i * 0.012  # layered: every blade in its own plane, no flickering overlaps
+        blades.add(prism(pts, 0.01, "M_Metal" if i % 2 else "M_Wall"), loc=(0, y + 0.005, zc), basis=UPRIGHT)
+    a.meta["iris"] = {"radius_m": round(r, 4), "open": round(opened, 3), "clear_radius_m": round(r * tip, 4)}
+
+
 def _door_offset(style: str, width: float, height: float, split) -> list:
     direction, _ = DOOR_MOTION[style]
     if direction == "side":
@@ -61,6 +94,11 @@ def _door_offset(style: str, width: float, height: float, split) -> list:
            Param("speed", "float", "Öffnungstempo (m/s)", lo=0.05, hi=20.0, unity=True),
            Param("label", "text", "Raumnummer / Beschriftung", quiet=True,
                  description="Schild über der Tür, z. B. B-12 (bis 12 Zeichen); eigenes statisches Teil Label"),
+           Param("variant", "choice", "Variante", choices=DOOR_VARIANTS, default="standard", quiet=True,
+                 description="iris: runde Irisblende (Iris) im Rahmen - statisches Modell ohne Door-Script, "
+                             "die Lamellen öffnen nicht linear"),
+           Param("iris_open", "float", "Irisblende offen (0-1)", lo=0.0, hi=1.0, default=0.0, quiet=True,
+                 description="Nur Variante iris: 0 = geschlossen, 1 = offen (freier Durchgang in der Mitte)"),
        ])
 def door(rng, a):
     p = a.p
@@ -104,7 +142,11 @@ def door(rng, a):
                 cube(p, (0.12, 0.27, h * 0.25), (cx - w / 2 + 0.25 + i * 0.5, cy, cz - h * 0.35), stripe_mat,
                      rot=(0, deg(30), 0))
 
-    if split == "x":
+    variant = p.option("variant")
+    if variant == "iris":
+        _iris(a, width, height, p.option("iris_open"))
+        a.meta["variant"] = "iris"
+    elif split == "x":
         leaf("Panel", width / 2, height, (-width / 4, 0, height / 2))
         leaf("Panel_B", width / 2, height, (width / 4, 0, height / 2))
     elif split == "z":
@@ -124,6 +166,8 @@ def door(rng, a):
         add_text(plate, label, (0, -depth / 2 - 0.04, z), letters, 0.015, "M_Platform")
         a.meta["label"] = label
 
+    if variant == "iris":
+        return  # no linear leaves: a static model until an iris script exists (generation 3 gives exact meshes)
     # Unity moves the second leaf by -openOffset: first the leaf that moves along +openOffset
     panels = {"x": ["Panel", "Panel_B"], "z": ["Panel_B", "Panel"]}.get(split, ["Panel"])
     a.behaviour("Door", {"panels": panels, "statusLights": ["StatusLight_Front", "StatusLight_Back"],

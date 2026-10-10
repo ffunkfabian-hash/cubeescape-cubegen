@@ -19,6 +19,8 @@ Ein erfolgreicher Export oder eine reine Prüfung der Bounds ist kein Physiknach
   Gameplay-/statische Shapes; ältere Generationen sind historische Ausgabe. Erhaltene
   alte Ausgabe niemals als korrigiert deklarieren. Alte fehlerhafte Exporte müssen
   mit dem aktuellen Rezept neu erzeugt und in Unity erneut geprüft werden.
+- Dünne feste Teile (z. B. Stegstützen) zusätzlich durch tatsächliche Innenpunkte und
+  exportierte Unity-Physik prüfen; Mindestvolumen-/Dickenfilter allein sind kein vollständiger Nachweis.
 - Fehlende Kollisionsdeckung und blockierte Freiräume sind Fehler. Qualitätsprüfung
   muss den tatsächlichen Unity-Import abbilden, keine ersatzweise angenommene Hülle.
 - Regressionen für Modelle, Seeds, Parameter und Zustände ergänzen. Bestehende Tests
@@ -28,9 +30,12 @@ Ein erfolgreicher Export oder eine reine Prüfung der Bounds ist kein Physiknach
   Geometrie-/Shape-Zuordnung, freie Öffnungen, bewegte Collider, Reimport und passende
   Laufzeit-/Physiktests. Kein Unity-Start auf einem Checkout.
 
-Belegte Kollisionsfehler sofort beheben. Neue Befunde gehören in den nächsten unveröffentlichten
-Versionsbericht `VERSION_<Version>.md`; Zielversion aus Nutzerauftrag und Changelog ermitteln.
-0.11.0 übernimmt das frühere 0.10.6-Vorhaben und besitzt den Bericht `VERSION_0.11.0.md`.
+Belegte Generatorfehler (Kollision, Geometrie, Export, Sidecar-/Metadaten) sofort beheben. Neue Befunde
+gehören in den nächsten unveröffentlichten Versionsbericht `VERSION_<Version>.md`; Zielversion aus
+Nutzerauftrag und Changelog ermitteln. 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und besitzt den
+Bericht `VERSION_0.11.0.md`. 0.12.0 (10. Oktober 2026) veröffentlicht die Arbeitsstände 0.11.1–0.11.4
+(`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`); neue Befunde gehören in
+den nächsten offenen Bericht `VERSION_0.12.1.md` (bei Bedarf anlegen).
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.

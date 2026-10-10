@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -24,11 +25,13 @@ def config_for(recipe, *extra):
 
 class RecipeTests(unittest.TestCase):
     def test_shipped_recipes_load(self):
-        folder = os.path.join(ROOT, "recipes")
-        for name in sorted(os.listdir(folder)):
-            config = build_config(make_parser().parse_args(["generate", "--recipe", os.path.join(folder, name)]))
-            config.validate()
-            self.assertTrue(config.models, name)
+        recipes = sorted(Path(ROOT, "recipes").rglob("*.json"))
+        self.assertTrue(recipes)
+        for recipe in recipes:
+            with self.subTest(recipe=str(recipe)):
+                config = build_config(make_parser().parse_args(["generate", "--recipe", str(recipe)]))
+                config.validate()
+                self.assertTrue(config.models, str(recipe))
 
     def test_unknown_key_with_suggestion(self):
         with self.assertRaisesRegex(ValueError, "unknown key 'stlye' \\(did you mean 'style'\\?\\)"):

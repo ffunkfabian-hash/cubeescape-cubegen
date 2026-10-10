@@ -1,0 +1,35 @@
+# Cubegen 0.12.0 – Stationswellen, Modell-Kits und Generation-3-Korrekturen
+
+Release vom 10. Oktober 2026. Release-Zweig `release/0.12.0`; vorherige veröffentlichte Version
+[0.11.0](VERSION_0.11.0.md). Paket, CLI, Blender-Quell-Add-on und Add-on-ZIP melden einheitlich **0.12.0**.
+
+## Inhalt
+
+0.12.0 veröffentlicht die lokalen Arbeitsstände, die nach 0.11.0 entstanden und nie veröffentlicht wurden.
+Ihre Berichte bleiben als Nachweis erhalten und sind als „veröffentlicht mit 0.12.0“ markiert:
+
+| Arbeitsstand | Inhalt | Bericht |
+|---|---|---|
+| 0.11.1 | Korrekturen aus der Unity-Integration nach 0.11.0 (in 0.11.2 enthalten) | [VERSION_0.11.1.md](VERSION_0.11.1.md) |
+| 0.11.2 | erste Asset-Welle aus IDEEN.md: elf Typen (186 registriert), Varianten `door.variant=iris`, `hatch.variant=maintenance`, `keypad.variant=access`; genaue Mesh-Collider der `test_*`-Prototypen in Generation 3 | [VERSION_0.11.2.md](VERSION_0.11.2.md) |
+| 0.11.3 | zweite Stationswelle `recipes/station_wave2.json` (28 Exportmodelle aus vorhandenen Typen); vollständige Kollision von `collapsed_catwalk` in Generation 3 | [VERSION_0.11.3.md](VERSION_0.11.3.md) |
+| 0.11.4 | dritte Stationswelle `recipes/station_wave3.json` (zwölf Modelle), sieben Modell-Kits unter `recipes/kits`; Generation-3-Korrekturen an Waschbecken, Kaffeemaschine (Wassertank), Ausfahrbrücke, Spind, Etagenbett, Wartungsdeckel und Steggeländern; Familienrezepte mit gleichem Dateinamen laden wieder den Maßvertrag der eingebauten Familie | [VERSION_0.11.4.md](VERSION_0.11.4.md) |
+
+Keine neuen Gameplay-Skripte oder Typen über die genannten hinaus. Historische Generationen 1 und 2 bleiben
+bitgleich; geänderte Golden-Digests betreffen nur ausdrücklich korrigierte Generation-3-Modelle (Belege in den
+Einzelberichten).
+
+## Prüfung
+
+- Python-Suite `python3 -m unittest discover -s tests`: 258 Tests grün auf dem Release-Stand (inkl. Blender-Smoke
+  und Versionsabgleich von Paket, CLI, Quell-Add-on und gebautem ZIP).
+- Unity-Nachweise der Arbeitsstände: siehe Einzelberichte (zuletzt 0.11.4: vollständiger Stufenplan in der
+  Cube-Escape-Testkopie, echte externe FBX importiert und erneut importiert). Für das Release selbst wurden keine
+  neuen Exporte erzeugt; die Generatorlogik ist gegenüber dem geprüften 0.11.4-Stand unverändert, nur die
+  Versionsangaben wurden angehoben.
+
+## Grenzen
+
+- Ein lokal installiertes Blender-Add-on muss mit dem neuen ZIP (`python3 tools/build_addon.py`) neu installiert
+  werden; laufende Blender-Sitzungen laden den Code erst nach Neustart.
+- Neue Befunde gehören in den nächsten offenen Bericht `VERSION_0.12.1.md`.

@@ -4,7 +4,7 @@
 > Modellierungs-, Unity- und Level-Agenten eindeutige Arbeitsregeln geben.
 >
 > **Gestaltungskern:** Industrial-/Cyberpunk-Puzzle-Plattformer in einer Indoor-Station.
-> **Registry-Stand geprüft am 7. Oktober 2026:** 175 Typen einschließlich experimenteller Demos. Die Registry, nicht diese
+> **Registry-Stand geprüft am 10. Oktober 2026 (cubegen 0.12.0):** 186 Typen einschließlich experimenteller Demos. Die Registry, nicht diese
 > Ideensammlung, ist maßgeblich: `python3 -m cubegen list`.
 >
 > Die langen Kategorien weiter unten sind ein Brainstorming-Backlog, keine verbindliche
@@ -32,27 +32,108 @@ bloße Menge neuer Typnamen.
 
 ### Erste Umsetzungswelle – vorhandene Registry-Bausteine
 
-Diese Liste ist eine Auswahl bereits registrierter Bausteine, keine neue Implementierungsliste:
+Diese Liste ist eine Auswahl bereits registrierter Bausteine, keine neue Implementierungsliste. Stand 0.11.2:
+alle Typen in der Registry geprüft und den Einsatzgruppen sowie den Kategorien des Cube-Escape-Modell-Browsers
+zugeordnet (Zuordnung dort in `AssetBrowserCategories`). **Fett** = in Cube Escape als statisches Modell der
+ersten Welle über die Registry freigegeben (`Blender/Recipes/cubegen_wave1.json`); die übrigen tragen Behaviours
+und brauchen einen eigenen Gameplay-Vertrag.
 
-| Einsatz | Vorhandene Typen |
-|---|---|
-| Architektur | `door`, `wall`, `bulkhead`, `cargo_container`, `catwalk`, `platform`, `pillar`, `floor_grate`, `railing`, `stairs`, `shutter`, `ceiling_panel`, `vent_shaft` |
-| Maschinen | `machine`, `generator`, `reactor_core`, `transformer`, `tank`, `conveyor`, `pump`, `vent`, `pipe`, `fan` |
-| Technik | `server_rack`, `terminal`, `monitor_wall`, `console`, `camera`, `antenna`, `light`, `emergency_light`, `floodlight`, `hologram`, `intercom`, `portal_frame` |
-| Interaktion | `laser_emitter`, `laser_receiver`, `laser_mirror`, `laser_splitter`, `pressure_plate`, `button`, `fuse_box`, `keypad`, `combination_lock`, `safe`, `switch_panel`, `sequence_panel`, `water_level` |
-| Stations-Props | `crate`, `pallet`, `toolbox`, `workbench`, `locker`, `medkit`, `canister`, `gas_rack`, `shelf`, `sign`, `keycard`, `spare_part`, `tool_cart` |
+| | Einsatz | Vorhandene Typen | Browserkategorien in Cube Escape |
+|---|---|---|---|
+| [x] | Architektur | `door`, **`wall`**, **`bulkhead`**, `cargo_container`, `catwalk`, **`platform`**, **`pillar`**, **`floor_grate`**, **`railing`**, `stairs`, `shutter`, `ceiling_panel`, **`vent_shaft`** | Architektur, Böden und Decken, Treppen und Stege, Türen und Luken, Rohre und Lüftung |
+| [x] | Maschinen | `machine`, `generator`, `reactor_core`, `transformer`, **`tank`**, `conveyor`, `pump`, `vent`, `pipe`, `fan` | Maschinen, Energie, Rohre und Lüftung |
+| [x] | Technik | **`server_rack`**, `terminal`, `monitor_wall`, **`console`**, `camera`, `antenna`, `light`, `emergency_light`, `floodlight`, `hologram`, `intercom`, `portal_frame` | Technik, Überwachung, Beleuchtung, Portale |
+| [x] | Interaktion | `laser_emitter`, `laser_receiver`, `laser_mirror`, `laser_splitter`, `pressure_plate`, `button`, `fuse_box`, `keypad`, `combination_lock`, `safe`, `switch_panel`, `sequence_panel`, `water_level` | Bedienelemente, Rätsel, Energie |
+| [x] | Stations-Props | `crate`, **`pallet`**, **`toolbox`**, **`workbench`**, **`locker`**, **`medkit`**, **`canister`**, **`gas_rack`**, **`shelf`**, **`sign`**, `keycard`, `spare_part`, **`tool_cart`** | Lager und Fracht, Werkstatt, Labor und Medizin, Notfall und Schutz, Stationsgegenstände |
+
+`stairs`, `catwalk` und `crate` waren bereits als Cubegen-Beispiele in Cube Escape; `door`, `camera`,
+`pressure_plate` u. a. als Gameplay-Varianten früherer Phasen.
 
 ### Kandidaten für neue Assets
 
-Zuerst gegen Registry und Katalog prüfen; dies ist keine Implementierungsfreigabe.
-Eigenständige Kandidaten: `airlock_chamber`, `pipe_rack`, `ceiling_beam`,
-`pressure_tank`, `turbine`, `compressor`, `relay_box`, `diagnostics_port`,
-`coolant_loop`, `warning_beacon` und `emergency_case`.
+Freigegeben und umgesetzt mit cubegen 0.11.2 (Einzelheiten, Maße, Kollision: [VERSION_0.11.2.md](VERSION_0.11.2.md)).
+Status: implementiert = registriert; export-geprüft = echte FBX ohne Ablehnung; Unity-geprüft = in Cube Escape als
+Modell importiert und im Modell-Browser geprüft. Die Gameplay-Freigabe ist ein eigener, noch offener Schritt.
 
-Vor einer eigenen Typregistrierung erst als Variante oder Puzzle-Komponente prüfen:
-`iris_door` und `maintenance_hatch` sind Varianten von `door` beziehungsweise `hatch`;
-`access_panel` ist eine interaktive Komponente und könnte in ein vorhandenes Panel/Terminal
-integriert werden.
+| | Kandidat | Ergebnis | implementiert | export-geprüft | Unity-geprüft (Modell) | Gameplay |
+|---|---|---|---|---|---|---|
+| [x] | `airlock_chamber` | neuer Typ | ja | ja | ja | offen |
+| [x] | `pipe_rack` | neuer Typ (aus `test_pipe_rack`) | ja | ja | ja | Deko |
+| [x] | `ceiling_beam` | neuer Typ | ja | ja | ja | Deko |
+| [x] | `pressure_tank` | neuer Typ | ja | ja | ja | Deko |
+| [x] | `turbine` | neuer Typ (Option `machine`) | ja | ja | ja | offen |
+| [x] | `compressor` | neuer Typ (Option `machine`) | ja | ja | ja | offen |
+| [x] | `relay_box` | neuer Typ (aus `test_relay_box`) | ja | ja | ja | offen |
+| [x] | `diagnostics_port` | neuer Typ | ja | ja | ja | offen |
+| [x] | `coolant_loop` | neuer Typ (aus `test_coolant_loop`) | ja | ja | ja | Deko |
+| [x] | `warning_beacon` | neuer Typ (aus `test_warning_beacon`, Option `signal`) | ja | ja | ja | offen |
+| [x] | `emergency_case` | neuer Typ | ja | ja | ja | offen |
+| [x] | `iris_door` | Variante `door.variant=iris` | ja | ja | ja | offen |
+| [x] | `maintenance_hatch` | Variante `hatch.variant=maintenance` | ja | ja | nein | offen |
+| [x] | `access_panel` | Variante `keypad.variant=access` | ja | ja | nein | offen |
+
+### Zweite Umsetzungswelle – zusätzliche funktionale Browserkategorien
+
+Umgesetzt mit Cubegen 0.11.3 (veröffentlicht in 0.12.0):
+`recipes/station_wave2.json` (Seed 113, Generation 3) erzeugt 28 weitere Modelle aus vorhandenen Registry-Typen.
+In Cube Escape gibt es eine gemeinsame Kategorienliste für Standard-, Cubegen- und Kit-Modelle;
+keinen eigenen Punkt „Cubegen-Kategorien“. Herkunft und Generator-Kategorie bleiben Metadaten.
+Die fünf neuen Funktionsgruppen ordnen auch Modelle aus Welle 1 neu ein.
+
+| Browserkategorie | Modelle | Registry | FBX-Export | Unity |
+|---|---|---|---|---|
+| Labor und Medizin (neu) | `lab_device` (Mikroskop), `cryo_pod`, `table.style=lab`; aus Welle 1 `medkit` | vorhanden | geprüft | geprüft |
+| Lager und Fracht (neu) | aus Welle 1 `pallet`, `locker`, `shelf`, `canister`, `gas_rack`; vorhandene Kisten/Frachtcontainer | vorhanden | Welle 1 geprüft | Welle 1 und neue Zuordnung geprüft |
+| Werkstatt (neu) | aus Welle 1 `workbench`, `toolbox`, `tool_cart`; Werkzeuge/Ersatzteile als Funktionszuordnung | vorhanden | Welle 1 geprüft | Welle 1 und neue Zuordnung geprüft |
+| Aufenthalt und Alltag (neu) | `bed`, `chair`, `bin`, `coffee_machine`, `vending_machine`, `galley`, `washroom` | vorhanden | geprüft | geprüft |
+| Notfall und Schutz (neu) | `extinguisher`, `barrier`; aus Welle 1 `emergency_case` | vorhanden | geprüft | geprüft |
+| Natur und Gestein | `plant`, `hydroponic_bed`, `mushroom`, `vines`, `wall_roots`, `hanging_crystals` | vorhanden | geprüft | geprüft |
+| Trümmer und Ruinen | `broken_wall`, `collapsed_catwalk`, `burnt_console`, `cable_mess`, `fallen_pillar`, `scrap_heap` | vorhanden | geprüft | geprüft |
+| Roboter und Drohnen | `android`, `service_robot`, `robot_dog`, `vent_crawler` | vorhanden | geprüft | geprüft |
+
+Die 24 statischen Modelle haben keine neue Gameplay-Funktion. Vier stationäre Robotermodelle verwenden
+nur den bestehenden SignalLight-Vertrag (Serviceroboter Pulse, sonst Steady), ohne Fahr-/Laufsteuerung oder
+Begleiterverhalten. Export-Kollisionen werden direkt aus dem Sidecar übernommen. Fehler am eingestürzten
+Steg: Bodenbox deckte Stützen, Geländer und Schutt nicht ab; Generation 3 nutzt jetzt genaue Mesh-Collider.
+Geometrie und historische Generationen bleiben identisch; Nachweise in [VERSION_0.11.3.md](VERSION_0.11.3.md).
+
+Abnahme: alle 28 echten FBX im Generator und Unity ohne Ablehnung geprüft, einschließlich Collider-
+Zuordnung und Wiederimport. Volle Cube-Escape-Regression 917 Prüfungen grün (495 s), abschließend
+14 Kategorieprüfungen und 18 UI-/Laufzeit-/Screenshotprüfungen grün. Acht Browseransichten bei
+1470 × 956 visuell geprüft. Python: 243 Tests plus vier gezielte Wellen-/Stützenprüfungen grün.
+Die Modelle sind damit für die beschriebene statische bzw. SignalLight-Verwendung freigegeben;
+weitergehende Gameplay-Funktionen bleiben offen.
+
+### Dritte Umsetzungswelle – Bauflächen, Wege und Modell-Kits
+
+Umgesetzt mit Cubegen 0.11.4 (veröffentlicht in 0.12.0). `recipes/station_wave3.json` (Seed 114, Generation 3) ergänzt zwölf
+Modelle. In Cube Escape kommen zwei gemeinsame Kategorien hinzu: „Böden und Decken“ und
+„Treppen und Stege“, einschließlich passender Standard- und Umgebungs-Kit-Modelle.
+
+| Browserkategorie | Zusätzliche Modelle | Verwendung |
+|---|---|---|
+| Architektur | `baseboard`, `wall_cap`, `archway`, `window_wall` | statische Bauabschlüsse, Durchgangsrahmen und Fensterwand |
+| Böden und Decken (neu) | `floor_tile`, `ceiling_module`, `ceiling_panel`; vorhandene Böden, Decken, Bodengitter | feste Flächen; Deckenpaneel mit bestehendem SignalLight-Vertrag |
+| Treppen und Stege (neu) | `ramp`; vorhandene Treppen, Laufstege, Geländer und Leitern | statische Wege mit passender Kollision |
+| Natur und Gestein | `fungus_carpet`, `puddle`, `asteroid`, `stalagmite` | statische Dekoration für Station, Leck-/Bewuchs- und Gesteinsbereiche; Pfütze ist keine Flüssigkeitsmechanik |
+
+Die sieben Rezepte in `recipes/kits` nutzen vorhandene Modellfamilien Station, Gießerei, Labor,
+Krankenstation, Wrack, Gewächshaus und Reaktor. Je neun Modelle: Wand, Wandecke, Fensterwand,
+Deckenmodul, Durchgangsrahmen, Plattform, Treppe, Laufsteg und Geländer. Ein Kit ist die konkrete
+Auswahl, die Familie ihr gemeinsamer Maß-/Stilvertrag. Zusammen 63 zusätzliche statische Modelle;
+je Kit 38 Anschlüsse ohne Abweichung. Weitere Modelle können später über denselben Vertrag folgen.
+Kits sind in Unity frei auswählbar und aus Metadaten erweiterbar; keine automatische Raumplatzierung.
+
+Modellprüfung: Waschbecken mit freier Vertiefung statt Metallplatte, Kaffeemaschinen-Tank mit hohlen
+Glaswänden und Füllmarken sowie feste Halterungen für die Brücken-Statuspfosten. Familienoverlays
+namens `lab.json` erhalten wieder den eingebauten Maßvertrag. Fehler sofort an der Quelle korrigiert;
+Generation 1/2 unverändert. Portalgröße und Bodenmontage sind separat im Unity-Adapter korrigiert.
+Kategorien-/Kitsuche und gemerkte Kategorien erleichtern die gemeinsame Katalogauswahl.
+Abnahme: 248 Generatorprüfungen und 921 Unity-Regressionstests grün. Zusätzlich 24 gezielte
+EditMode-, 20 UI-/Portal-/Screenshotprüfungen, zwei Bodenportal-/Bildschirmprüfungen und echter
+Unity-Import-/Wiederimport-Audit von 78 FBX (75 neu + drei Modellkorrekturen) ohne Fehler.
+32 Ansichten bei 1470 × 956 und 1280 × 800 angesehen. Export und Unity-Verwendung aus der
+Tabelle sind damit geprüft. Generatornachweis: [VERSION_0.11.4.md](VERSION_0.11.4.md).
 
 ### Zurückstellen statt löschen
 
@@ -131,8 +212,8 @@ Nach der Implementierung:
 > Assets sind hier ausdrücklich keine neuen Top-Level-Typen.
 
 **Architektur & Station**
-- airlock_door 🔵 – `door`-Variante mit Druck-/Sicherheitslogik, kein unabhängiger Typ
-- maintenance_hatch 🟢 – Wartungszugang als Variante von `hatch`
+- airlock_door 🔵 – `door`-Variante mit Druck-/Sicherheitslogik, kein unabhängiger Typ (Stil `airlock`; Kammer: `airlock_chamber` 0.11.2)
+- [x] maintenance_hatch 🟢 – Wartungszugang als Variante von `hatch` → `hatch.variant=maintenance` (0.11.2)
 - service_corridor 🟢 – enger Versorgungsgang
 - control_walkway 🟢 – Wartungs-/Steuersteg
 - utility_trench 🟢 – Technikrinne / Kabelkanal
@@ -146,7 +227,7 @@ Nach der Implementierung:
 
 **Technik / Maschinen**
 - power_cell 🟢 – Energiezelle / Akku-Modul
-- relay_box 🟢 – Relais-/Verteilerkasten
+- [x] relay_box 🟢 – Relais-/Verteilerkasten → Typ `relay_box` (0.11.2)
 - breaker_switch 🔵 – Leistungsschalter
 - power_cabinet 🟢 – Energie-/Verteilerschrank
 - coolant_pump 🔵 – Kühlmittelpumpe
@@ -161,7 +242,7 @@ Nach der Implementierung:
 - inertial_damper 🟢 – Dämpfer/Impulsabsorber
 
 **Puzzle / Interaktion**
-- access_panel 🔵 – Zugangssteuerung / Sicherheits-Panel
+- [x] access_panel 🔵 – Zugangssteuerung / Sicherheits-Panel → `keypad.variant=access` (0.11.2, Modell; Logik offen)
 - code_terminal 🔵 – Programmier-/Code-Terminal
 - lockbox 🟢 – verschließbare Box
 - cipher_console 🔵 – Chiffre-/Code-Konsole
@@ -178,7 +259,7 @@ Nach der Implementierung:
 - energy_bridge 🔵 – Energielink / Brücke aus Licht oder Plasma
 
 **Hazards / Atmosphäre**
-- warning_lamp 🟢 – Warnleuchte / Alarmlampe
+- [x] warning_lamp 🟢 – Warnleuchte / Alarmlampe → abgedeckt durch `warning_beacon` (0.11.2) und `emergency_light`
 - arc_trap 🔵 – Strom-/Lichtbogensperre
 - pulse_field 🔵 – Pulsfeld / Energiestrahlung
 - toxic_vapor 🟢 – giftiger Dampf / Nebelbereich
@@ -189,7 +270,7 @@ Nach der Implementierung:
 
 ### Experimentelle visuelle Prototypen
 
-Die Registry enthält zusätzlich `geometry_test` sowie zehn ausdrücklich als Test gekennzeichnete Typen: `test_utility_trench`, `test_pipe_rack`, `test_relay_box`, `test_coolant_loop`, `test_warning_beacon`, `test_lens_array`, `test_magnetic_lock`, `test_scanner_pad`, `test_power_routing` und `test_thermal_switch`. Sie illustrieren ausgewählte Ideen mit den neuen Geometrie-Primitiven, sind aber weder kanonische Asset-Typen noch Unity-geprüft; Interaktionslogik ist nicht enthalten.
+Die Registry enthält zusätzlich `geometry_test` sowie zehn ausdrücklich als Test gekennzeichnete Typen: `test_utility_trench`, `test_pipe_rack`, `test_relay_box`, `test_coolant_loop`, `test_warning_beacon`, `test_lens_array`, `test_magnetic_lock`, `test_scanner_pad`, `test_power_routing` und `test_thermal_switch`. Sie illustrieren ausgewählte Ideen mit den neuen Geometrie-Primitiven, sind aber weder kanonische Asset-Typen noch Unity-geprüft; Interaktionslogik ist nicht enthalten. Seit 0.11.2 haben sie in Generation 3 genaue Mesh-Collider statt einer Gesamtbox; die kanonischen Nachfolger sind `pipe_rack`, `relay_box`, `coolant_loop` und `warning_beacon`.
 
 ---
 
@@ -313,11 +394,11 @@ Eine neue Puzzle-Idee wird für Agenten mit diesen Feldern beschrieben:
 **Technik & Infrastruktur**
 - relay_matrix 🟢 – gruppierte Relais als Strom-/Signalverteiler
 - signal_node 🟢 – einzelner Knoten in einem Signalnetz
-- diagnostics_port 🟢 – Wartungsanschluss für Diagnose oder Datenübertragung
+- [x] diagnostics_port 🟢 – Wartungsanschluss für Diagnose oder Datenübertragung → Typ (0.11.2)
 - data_bank 🟢 – robuster Datenspeicher / Archivblock
 - shield_module 🟢 – separates Energie-/Strahlungsabschirmungsmodul
 - power_bus 🟢 – zentrale Sammelschiene zur Stromverteilung
-- coolant_loop 🟢 – geschlossener Kühlkreislauf aus Rohren und Ventilen
+- [x] coolant_loop 🟢 – geschlossener Kühlkreislauf aus Rohren und Ventilen → Typ (0.11.2)
 - battery_stack 🟢 – modularer Stapel aus Stationsakkus
 - feed_line 🟢 – Zufuhrleitung für Gas, Kühlmittel oder Prozessmaterial
 - junction_box 🟢 – kompakter Abzweigkasten für Leitungen
@@ -330,7 +411,7 @@ Eine neue Puzzle-Idee wird für Agenten mit diesen Feldern beschrieben:
 **Props & Facility-Details**
 - maintenance_kit 🟢 – Werkzeug- und Prüfset für Reparaturen; `repair_kit` als mögliche Variante statt eigenem Typ
 - spare_parts_bin 🟢 – beschrifteter Behälter für Ersatzteile
-- emergency_case 🟢 – Wandkasten mit Notfallausrüstung
+- [x] emergency_case 🟢 – Wandkasten mit Notfallausrüstung → Typ (0.11.2)
 - utility_cart 🟢 – mobiler Versorgungskarren
 - welding_station 🔵 – stationärer Schweißplatz mit Stromquelle und Halterung
 - service_crate 🟢 – robuste, markierte Versorgungskiste
@@ -390,13 +471,13 @@ Für jedes Pattern muss das Level zusätzlich festlegen: Hinweisquelle, erlaubte
 
 ### environment
 
-### Vorhanden (34)
-archway, baseboard, breakable_platform, bulkhead, cable_tray, cage, cargo_container, catwalk, ceiling_module, ceiling_panel, door, escape_pod, floor_grate, floor_tile, hatch, ladder, lift, pad, phase_platform, pillar, planet_window, platform, railing, ramp, retractable_bridge, shutter, spiral_stairs, stairs, vent_shaft, wall, wall_cap, wall_corner, wall_panel, window_wall
+### Vorhanden (36)
+airlock_chamber, archway, baseboard, breakable_platform, bulkhead, cable_tray, cage, cargo_container, catwalk, ceiling_beam, ceiling_module, ceiling_panel, door, escape_pod, floor_grate, floor_tile, hatch, ladder, lift, pad, phase_platform, pillar, planet_window, platform, railing, ramp, retractable_bridge, shutter, spiral_stairs, stairs, vent_shaft, wall, wall_cap, wall_corner, wall_panel, window_wall
 
 ### Vorgeschlagen
 
 **Türen & Öffnungen**
-- iris_door 🔵 – runde Mehrsegment-Blende, drehend öffnend (Sci-Fi-Signatur)
+- [x] iris_door 🔵 – runde Mehrsegment-Blende, drehend öffnend (Sci-Fi-Signatur) → `door.variant=iris` (0.11.2, statisch)
 - saloon_door 🔵 – Schwingtür (Wilder Westen)
 - cell_door 🔵 – Zellentür
 - security_gate 🔵 – Sicherheitstor
@@ -408,7 +489,7 @@ archway, baseboard, breakable_platform, bulkhead, cable_tray, cage, cargo_contai
 
 **Bau-Kit & Architektur**
 - corridor_module 🟢 – vorgefertigter Gang
-- airlock_chamber 🔵 – komplette Schleuse als Modul
+- [x] airlock_chamber 🔵 – komplette Schleuse als Modul → Typ (0.11.2, Türstellung statisch)
 - dome 🟢 – Kuppel
 - scaffolding 🟢 – Baugerüst
 - greenhouse 🟢 – Gewächshaus (Struktur)
@@ -417,8 +498,8 @@ archway, baseboard, breakable_platform, bulkhead, cable_tray, cage, cargo_contai
 
 **Geländer & Träger**
 - railing_corner 🟢 – Eck-/Bogen-Geländer
-- ceiling_beam 🟢 – Decken-/Stützträger
-- pipe_rack 🟢 – Überkopf-Rohrtrasse
+- [x] ceiling_beam 🟢 – Decken-/Stützträger → Typ (0.11.2)
+- [x] pipe_rack 🟢 – Überkopf-Rohrtrasse → Typ (0.11.2)
 - jeffries_tube 🟢 – vertikaler Wartungsschacht
 
 **Boden & Decke**
@@ -528,8 +609,8 @@ archway, baseboard, breakable_platform, bulkhead, cable_tray, cage, cargo_contai
 
 ### industrial
 
-### Vorhanden (12)
-conveyor, fan, fluid_basin, generator, machine, pipe, pipe_bend, pump, reactor_core, tank, transformer, vent
+### Vorhanden (18)
+compressor, conveyor, coolant_loop, fan, fluid_basin, generator, machine, pipe, pipe_bend, pipe_rack, pressure_tank, pump, reactor_core, relay_box, tank, transformer, turbine, vent
 
 ### Vorgeschlagen
 
@@ -544,8 +625,8 @@ conveyor, fan, fluid_basin, generator, machine, pipe, pipe_bend, pump, reactor_c
 - anvil 🟢 – Amboss
 
 **Maschinen & Antrieb**
-- turbine 🔵 – Turbine mit Laufrad
-- compressor 🔵 – Kompressor
+- [x] turbine 🔵 – Turbine mit Laufrad → Typ (0.11.2)
+- [x] compressor 🔵 – Kompressor → Typ (0.11.2)
 - pneumatic_piston 🔵 – Hydraulik-/Pneumatikzylinder
 - flywheel 🔵 – Schwungradspeicher
 - motor 🔵 – Elektromotor
@@ -561,7 +642,7 @@ conveyor, fan, fluid_basin, generator, machine, pipe, pipe_bend, pump, reactor_c
 **Lager & Behälter**
 - silo 🟢 – Silo/Trichter
 - hopper 🟢 – Trichter
-- pressure_tank 🟢 – kugelförmiger Druckbehälter
+- [x] pressure_tank 🟢 – kugelförmiger Druckbehälter → Typ (0.11.2, liegend/stehend; Kugelform offen)
 - valve_manifold 🟢 – Ventilbatterie/Verteiler
 
 **Energie & Strahlung**
@@ -836,8 +917,8 @@ asteroid, cocoon, floating_island, fungus_carpet, hanging_crystals, hydroponic_b
 
 ### props
 
-### Vorhanden (33)
-barrier, bed, bin, cable_reel, canister, chair, clue, coffee_machine, crate, cryo_pod, debris, extinguisher, flashlight, floor_plan, galley, gas_rack, item, key, keycard, lab_device, locker, medkit, pallet, shelf, sign, spare_part, table, tool, tool_cart, toolbox, vending_machine, washroom, workbench
+### Vorhanden (34)
+barrier, bed, bin, cable_reel, canister, chair, clue, coffee_machine, crate, cryo_pod, debris, emergency_case, extinguisher, flashlight, floor_plan, galley, gas_rack, item, key, keycard, lab_device, locker, medkit, pallet, shelf, sign, spare_part, table, tool, tool_cart, toolbox, vending_machine, washroom, workbench
 
 ### Vorgeschlagen
 
@@ -910,7 +991,7 @@ barrier, bed, bin, cable_reel, canister, chair, clue, coffee_machine, crate, cry
 - ball 🟢, kite 🟢, frisbee 🟢, yo_yo 🟢, jigsaw_puzzle 🟢, rubik_cube 🟢, jack_in_the_box 🔵, spinning_top 🔵, marble 🟢
 
 **Sicherheit & Notfall**
-- warning_beacon 🔵, fire_alarm 🟢, exit_sign 🔵, life_ring 🟢, hazard_barricade 🟢, metal_detector 🔵, turnstile 🔵
+- warning_beacon 🔵 ([x] Typ 0.11.2), fire_alarm 🟢, exit_sign 🔵, life_ring 🟢, hazard_barricade 🟢, metal_detector 🔵, turnstile 🔵
 - prison_bars 🟢, handcuffs 🟢, chain_link_fence 🟢, watchtower 🟢, bunker 🟢
 - flare 🔵, whistle 🟢, emergency_blanket 🟢, survival_kit 🟢, emergency_beacon 🔵, signal_mirror 🟢
 
@@ -1282,8 +1363,8 @@ broken_wall, burnt_console, cable_mess, collapsed_catwalk, crashed_pod, crate_pi
 
 ### tech
 
-### Vorhanden (15)
-antenna, camera, console, crystal_cluster, emergency_light, floodlight, hologram, intercom, light, light_strip, monitor_wall, portal_frame, server_rack, solar_panel, terminal
+### Vorhanden (17)
+antenna, camera, console, crystal_cluster, diagnostics_port, emergency_light, floodlight, hologram, intercom, light, light_strip, monitor_wall, portal_frame, server_rack, solar_panel, terminal, warning_beacon
 
 ### Vorgeschlagen
 
@@ -1897,7 +1978,7 @@ einen nachvollziehbaren Timer und ein definiertes Wiederholen.
 ### Level- und Asset-Workflows
 
 - Clutter-/Accessoire-Pass erste Stufe in 0.10.4.1 umgesetzt; weitere Flächen, Hindernisbeschreibungen und echte Unity-Prüfung offen.
-- Composite-/Kit-Rezepte aus vorhandenen Modellen und kompatiblen Anschlüssen.
+- Erste sieben kompakte Familien-Kits mit je neun statischen Modellen und Unity-Kitauswahl für 0.11.4 umgesetzt; zusammengesetzte Räume und weitere Gameplay-Mitglieder bleiben offen.
 - Raum-/Level-Generator auf Basis von Connectors und Snapping; ausdrücklich später
   priorisieren, bis die Asset- und Puzzle-Grundlagen stabil sind.
 - Seed-Galerie zum Durchsehen und Auswählen reproduzierbarer Modellvarianten.

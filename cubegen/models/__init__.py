@@ -8,3 +8,4 @@ from . import (appliances, construction, environment, furniture, industrial, ite
                facilities, lighting, rovers, alien, space, wrecks)
 from . import geometry_demo  # noqa: F401,E402
 from . import gameplay_tests  # noqa: F401,E402
+from . import station_wave  # noqa: F401,E402

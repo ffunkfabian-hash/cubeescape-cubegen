@@ -1,7 +1,12 @@
 # Roadmap
 
-Stand: 8. Oktober 2026, cubegen **0.11.0** (Release-Branch `release/0.11.0`; vorherige Version 0.10.5, `c47fdf4`); 175 registrierte Typen,
-einschließlich elf experimenteller Ergänzungen. Unity-Integrationsphasen 0–4 sind in
+**Arbeitsstand 0.11.3 (9. Oktober 2026, unveröffentlicht):** Zweite Stationswelle mit 28 Modellen;
+Generation-3-Kollision des eingestürzten Stegs vervollständigt. Gemeinsame funktionale Kategorien
+in Cube Escape einschließlich Labor/Medizin, Lager/Fracht, Werkstatt, Aufenthalt/Alltag und Notfall/Schutz.
+Prüfbelege: [VERSION_0.11.3.md](../VERSION_0.11.3.md), Inhaltsstatus: [IDEEN.md](../IDEEN.md).
+
+Stand: 10. Oktober 2026, cubegen **0.12.0** (Release-Zweig `release/0.12.0`; enthält 0.11.1–0.11.4, vorherige veröffentlichte Version 0.11.0); 186 registrierte Typen,
+einschließlich elf experimenteller Ergänzungen und der elf Typen der ersten Asset-Welle ([0.11.2](../VERSION_0.11.2.md)). Unity-Integrationsphasen 0–4 sind in
 Cube Escape integriert (`847d90f`); Phase 5 ist mit `464717e` und Dokumentation
 `f11867e` in Unity-main übernommen. Fehlerkorrekturen aus Phase 5 sind in
 [0.11.0](../VERSION_0.11.0.md) dokumentiert; das geplante 0.10.6-Vorhaben ist
@@ -215,6 +220,12 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   Laserfilter, Symbolplatten, Kran, Countdown, Patrouillen/Gangarten bleiben eigene
   Aufgaben. Datenabhängige Rätsel benötigen vorher validierten Manifestzugriff:
   `meta.sequence`, `meta.seconds_total` usw. stehen nicht im Sidecar.
+
+- [x] **23 · Erste Asset-Welle (0.11.2):** elf neue Typen und drei Varianten aus IDEEN.md, 32 statische
+  Modelle in Cube Escape über die Registry freigegeben und nach Funktion einsortiert (Modell-Browser).
+- [ ] **24 · Gameplay der ersten Welle:** Schleusenzyklus (`airlock_chamber`), Irismechanik (`door.variant=iris`),
+  Maschinenvertrag für `turbine`/`compressor`, Signalsäule als Lampe, Wartungsluke (Hinge) und Zugangspanel
+  (Keypad) brauchen je einen eigenen Gameplay-Vertrag in Cube Escape.
 
 ## 5. Nächste Vorschläge
 

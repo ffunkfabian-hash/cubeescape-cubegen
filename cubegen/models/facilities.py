@@ -185,8 +185,17 @@ def washroom(rng, a):
     a.meta["style"] = style
     if style == "sink":
         w = rng.uniform(0.5, 0.9)
-        cube(body, (w, 0.45, 0.15), (0, 0, 0.8), ceramic, bevel=0.02)
-        cube(body, (w * 0.7, 0.3, 0.02), (0, -0.03, 0.885), "M_Ground")
+        if p.style.generation < 3:
+            cube(body, (w, 0.45, 0.15), (0, 0, 0.8), ceramic, bevel=0.02)
+            cube(body, (w * 0.7, 0.3, 0.02), (0, -0.03, 0.885), "M_Ground")
+        else:
+            # A real recess: ceramic floor and four rim walls, no plate closing the basin.
+            cube(body, (w, 0.45, 0.03), (0, 0, 0.74), ceramic)
+            for x in (-1, 1):
+                cube(body, (0.055, 0.45, 0.14), (x * (w / 2 - 0.0275), 0, 0.815), ceramic)
+            for y in (-1, 1):
+                cube(body, (w - 0.11, 0.055, 0.14), (0, y * (0.225 - 0.0275), 0.815), ceramic)
+            cyl(body, 0.025, 0.003, (0, -0.03, 0.757), "M_Metal", sides=8)
         cube(body, (0.16, 0.2, 0.65), (0, 0.1, 0.4), ceramic)  # pedestal
         strut(body, (0, 0.18, 0.875), (0, 0.18, 1.0), 0.015, "M_Metal")
         strut(body, (0, 0.18, 1.0), (0, 0.06, 1.0), 0.012, "M_Metal")

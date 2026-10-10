@@ -24,10 +24,14 @@ NOTE = "Experimental visual prototype only; interaction and Unity gameplay wirin
 
 def _mark(asset, rng, idea: str):
     asset.scale(rng.uniform(0.92, 1.08))
-    lo, hi = asset.bbox()
-    size = tuple(hi[i] - lo[i] for i in range(3))
-    center = tuple((hi[i] + lo[i]) / 2 for i in range(3))
-    asset.collider(size, center)
+    if asset.p.style.generation < 3:
+        # Generations 1/2 (historic, kept bit for bit): one box over the whole model. It filled the free space
+        # under the pipe runs, the U-channel and the inside of the loop; generation 3 leaves the prototypes without
+        # an own shape, so every part gets an exact mesh collider (collision.complete_static_collision).
+        lo, hi = asset.bbox()
+        size = tuple(hi[i] - lo[i] for i in range(3))
+        center = tuple((hi[i] + lo[i]) / 2 for i in range(3))
+        asset.collider(size, center)
     asset.meta.update({"experimental": True, "idea": idea, "gameplay_note": NOTE})
 
 

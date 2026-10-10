@@ -1,0 +1,38 @@
+{
+  "family": "foundry",
+  "models": {
+    "wall": 1,
+    "wall_corner": 1,
+    "window_wall": 1,
+    "ceiling_module": 1,
+    "archway": 1,
+    "platform": 1,
+    "stairs": 1,
+    "catwalk": 1,
+    "railing": 1
+  },
+  "seed": 114,
+  "prefix": "Gen_Kit_Foundry_",
+  "textures": "tiled",
+  "texture_size": 512,
+  "texture_set": "kit_foundry",
+  "render": false,
+  "blend": false,
+  "style": {
+    "generation": 3
+  },
+  "_browser": {
+    "name": "Gießerei",
+    "names": {
+      "wall": "Wand",
+      "wall_corner": "Wandecke",
+      "window_wall": "Fensterwand",
+      "ceiling_module": "Deckenmodul",
+      "archway": "Durchgangsrahmen",
+      "platform": "Plattform",
+      "stairs": "Treppe",
+      "catwalk": "Laufsteg",
+      "railing": "Geländer"
+    }
+  }
+}

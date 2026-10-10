@@ -1,0 +1,26 @@
+{
+  "seed": 114,
+  "prefix": "Gen_Wave3_",
+  "models": {
+    "baseboard": 1,
+    "wall_cap": 1,
+    "ceiling_panel": 1,
+    "floor_tile": 1,
+    "ramp": 1,
+    "ceiling_module": 1,
+    "archway": 1,
+    "window_wall": 1,
+    "fungus_carpet": 1,
+    "puddle": 1,
+    "asteroid": 1,
+    "stalagmite": 1
+  },
+  "textures": "tiled",
+  "texture_size": 512,
+  "texture_set": "station",
+  "render": false,
+  "blend": false,
+  "style": {
+    "generation": 3
+  }
+}

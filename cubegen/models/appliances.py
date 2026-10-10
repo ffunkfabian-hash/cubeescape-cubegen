@@ -39,7 +39,23 @@ def coffee_machine(rng, a):
     for i in range(3):
         cyl(body, 0.015, 0.02, (-w * 0.25 + i * w * 0.25, -d / 2 - 0.01, sz + 0.08), "M_Platform", sides=6,
             rot=ALONG_Y)
-    cube(a.part("Glass"), (0.12, d * 0.6, h * 0.5), (w / 2 + 0.06, 0, base + h * 0.4), "M_Glass")  # water tank
+    tank = a.part("Glass")
+    if p.style.generation < 3:
+        cube(tank, (0.12, d * 0.6, h * 0.5), (w / 2 + 0.06, 0, base + h * 0.4), "M_Glass")
+    else:
+        # Recognisable removable reservoir: thin glass walls, cap, cradle and level marks.
+        th = h * (0.28 if style == "standing" else 0.5)
+        tz, tx, td = base + h * 0.4, w / 2 + 0.06, d * 0.6
+        for sx in (-1, 1):
+            cube(tank, (0.006, td, th), (tx + sx * 0.057, 0, tz), "M_Glass")
+        for sy in (-1, 1):
+            cube(tank, (0.108, 0.006, th), (tx, sy * (td / 2 - 0.003), tz), "M_Glass")
+        cube(tank, (0.108, td - 0.012, 0.006), (tx, 0, tz - th / 2 + 0.003), "M_Glass")
+        for z in (tz - th / 2 - 0.012, tz + th / 2 + 0.012):
+            cube(body, (0.14, td + 0.02, 0.024), (tx, 0, z), "M_RobotDark")
+        cube(body, (0.16, 0.06, 0.06), (w / 2 + 0.04, 0, tz - th / 2 - 0.04), mat)
+        for i in range(3):
+            cube(body, (0.04, 0.008, 0.009), (tx, -td / 2 - 0.005, tz - th * 0.25 + i * th * 0.25), "M_Platform")
     cups = p.int("cups", 1, 3)
     for i in range(cups if style == "counter" else min(cups, 1)):  # next to the machine / in the bay
         x = -w / 2 - 0.12 - i * 0.11 if style == "counter" else 0.0

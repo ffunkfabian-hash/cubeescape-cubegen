@@ -366,7 +366,7 @@ class ModelTests(unittest.TestCase):
 
     def test_ceiling_pieces_are_viewed_from_below(self):
         self.assertEqual({t for t, e in REGISTRY.items() if e.view == "below"},
-                         {"ceiling_panel", "hanging_crystals", "ceiling_module"})
+                         {"ceiling_panel", "hanging_crystals", "ceiling_module", "ceiling_beam"})
 
     def test_doors_have_game_part_names(self):
         for seed in range(20):

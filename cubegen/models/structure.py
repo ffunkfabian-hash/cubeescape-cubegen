@@ -34,10 +34,16 @@ def _status_param():
            Param("ladder", "bool", "Leiter nach unten"),
            Param("lid_angle", "float", "Deckel-Winkel offen (°)", lo=30, hi=180, unity=True, default=110),
            _status_param(),
+           Param("variant", "choice", "Variante", choices=("standard", "maintenance"), default="standard", quiet=True,
+                 description="maintenance: eckige Wartungsluke mit verschraubtem Rahmen, Warnkante, zwei "
+                             "Klappgriffen und Schließlasche; Deckel und Script wie standard"),
        ])
 def hatch(rng, a):
     p = a.p
     shape = p.choice("shape", ["square", "square", "round"])
+    maintenance = p.option("variant") == "maintenance"
+    if maintenance and "shape" not in p.overrides:
+        shape = "square"  # a service hatch is square unless the shape is set explicitly
     s = p.float("size", 0.8, 1.2)
     rim, depth = 0.15, rng.uniform(0.5, 0.9)
     frame = p.material(["M_RobotDark", "M_Metal", "M_Wall"])
@@ -85,6 +91,25 @@ def hatch(rng, a):
         a.behaviour("Rotatable", {"target": "Wheel", "glow": "Glow"},
                     {"axis": "up", "step": 90, "speed": 180, "target": 2, "interactive": True},
                     note="unlock wheel on the lid (turns with the lid)")
+    elif maintenance:
+        cube(lid, (s - 0.02, s - 0.02, 0.06), (0, 0, -0.03), "M_Metal", bevel=0.01)
+        for sx in (-1, 1):  # two fold-down lift handles near the front edge
+            cube(lid, (0.04, 0.12, 0.025), (sx * s * 0.22, -s / 2 + 0.16, 0.0125), "M_RobotDark")
+            cube(lid, (0.12, 0.03, 0.025), (sx * s * 0.22, -s / 2 + 0.1, 0.0125), "M_RobotDark")
+        for sx in (-1, 1):  # countersunk bolts in the lid corners
+            for sy in (-1, 1):
+                cyl(lid, 0.025, 0.012, (sx * (s / 2 - 0.08), sy * (s / 2 - 0.08), 0.006), "M_Platform", sides=6)
+        cube(lid, (s * 0.5, s * 0.12, 0.008), (0, 0.05, 0.004), "M_Warning")  # service marking
+        cube(body, (0.08, 0.05, 0.05), (0, -s / 2 - rim / 2, 0.025), "M_Metal")  # hasp for a padlock on the frame
+        for k in range(4):  # warning edge on the frame and frame bolts
+            ang = math.pi / 2 * k
+            dx, dy = round(math.cos(ang)), round(math.sin(ang))
+            size = (rim * 0.4, s + rim, 0.006) if dx else (s + rim, rim * 0.4, 0.006)
+            cube(body, size, (dx * (s / 2 + rim * 0.7), dy * (s / 2 + rim * 0.7), 0.003), "M_Warning")
+            for t in (-0.3, 0.3):
+                pos = (dx * (s + rim) / 2 + (0 if dx else t * s), dy * (s + rim) / 2 + (t * s if dx else 0), 0.006)
+                cyl(body, 0.02, 0.012, pos, "M_Platform", sides=6)
+        a.meta["variant"] = "maintenance"
     else:
         cube(lid, (s - 0.02, s - 0.02, 0.06), (0, 0, -0.03), lid_mat, bevel=0.01)
         cube(lid, (s * 0.35, 0.08, 0.03), (0, -s / 2 + 0.12, 0.015), "M_RobotDark")  # recessed pull handle
