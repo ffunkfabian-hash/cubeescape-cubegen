@@ -13,6 +13,33 @@ import threading
 from typing import Optional
 
 from . import __version__
+from .palette import palette_names
+
+#: the texture modes the GUI offers (label, value of --textures); "none" keeps the game's one-colour M_ materials
+TEXTURE_CHOICES = [("Keine (einfarbige Spielmaterialien)", "none"), ("Kacheln (tiled)", "tiled"),
+                   ("Kacheln + Gebrauchsspuren (baked)", "baked"), ("Farbpalette (palette)", "palette")]
+TEXTURE_SIZES = ["256", "512", "1024", "2048"]
+
+
+def texture_args(textures: str, size: str = "", palette: str = "") -> list:
+    """The --textures/--texture-size/--palette arguments for the GUI's choice; none = no arguments at all."""
+    textures = (textures or "none").strip()
+    if textures not in [value for _, value in TEXTURE_CHOICES]:
+        raise ValueError(f"Unbekannte Texturart: {textures}")
+    if textures == "none":
+        return []
+    args = ["--textures", textures]
+    size = (size or "").strip()
+    if size:
+        if not size.isdigit() or int(size) < 16:
+            raise ValueError("Die Texturgröße muss eine ganze Zahl in Pixeln sein (mindestens 16).")
+        args.extend(["--texture-size", size])
+    palette = (palette or "").strip()
+    if textures == "palette" and palette:
+        if palette not in palette_names():
+            raise ValueError(f"Unbekannte Farbpalette: {palette}")
+        args.extend(["--palette", palette])
+    return args
 
 
 def _load_obj_preview(path: str):
@@ -103,6 +130,9 @@ def main() -> int:
             self.strict = tk.BooleanVar(value=False)
             self.force = tk.BooleanVar(value=False)
             self.no_blender = tk.BooleanVar(value=False)
+            self.textures = tk.StringVar(value=TEXTURE_CHOICES[0][0])
+            self.texture_size = tk.StringVar(value="512")
+            self.palette = tk.StringVar(value="")
 
             root.columnconfigure(0, weight=1)
             root.rowconfigure(1, weight=1)
@@ -150,6 +180,23 @@ def main() -> int:
                                                                pady=3)
             ttk.Button(settings, text="Datei wählen…", command=self.choose_recipe).grid(row=2, column=3, padx=4,
                                                                                        pady=3)
+
+            # Textures (0.13): the same modes as --textures; ImageMagick paints them (cubegen doctor shows whether it is found)
+            ttk.Label(settings, text="Texturen:").grid(row=3, column=0, sticky="w", padx=4, pady=3)
+            texture_box = ttk.Combobox(settings, textvariable=self.textures, state="readonly", width=34,
+                                       values=[label for label, _ in TEXTURE_CHOICES])
+            texture_box.grid(row=3, column=1, sticky="w", padx=4, pady=3)
+            ttk.Label(settings, text="Texturgröße (px):").grid(row=3, column=2, sticky="w", padx=4, pady=3)
+            self.size_box = ttk.Combobox(settings, textvariable=self.texture_size, values=TEXTURE_SIZES, width=8)
+            self.size_box.grid(row=3, column=3, sticky="w", padx=4, pady=3)
+            ttk.Label(settings, text="Farbpalette:").grid(row=4, column=0, sticky="w", padx=4, pady=3)
+            self.palette_box = ttk.Combobox(settings, textvariable=self.palette, state="readonly", width=24,
+                                            values=[""] + palette_names())
+            self.palette_box.grid(row=4, column=1, sticky="w", padx=4, pady=3)
+            ttk.Label(settings, text="Texturen brauchen ImageMagick; ohne Textur bleiben die Spielmaterialien M_….",
+                      foreground="#667").grid(row=4, column=2, columnspan=2, sticky="w", padx=4, pady=3)
+            self.textures.trace_add("write", lambda *_: self.update_texture_fields())
+            self.update_texture_fields()
 
             options = ttk.Frame(root, padding=(12, 4))
             options.grid(row=3, column=0, sticky="ew")
@@ -261,6 +308,14 @@ def main() -> int:
             if selected:
                 self.recipe.set(selected)
 
+        def texture_value(self) -> str:
+            return dict(TEXTURE_CHOICES).get(self.textures.get(), "none")
+
+        def update_texture_fields(self):
+            mode = self.texture_value()
+            self.size_box.configure(state="normal" if mode != "none" else "disabled")
+            self.palette_box.configure(state="readonly" if mode == "palette" else "disabled")
+
         def command(self, validate: bool):
             recipe = self.recipe.get().strip()
             selected = [self.filtered_types[i] for i in self.type_list.curselection()]
@@ -284,6 +339,7 @@ def main() -> int:
             if self.seed.get().strip():
                 args.extend(["--seed", self.seed.get().strip()])
             args.extend(["--out", os.path.abspath(output)])
+            args.extend(texture_args(self.texture_value(), self.texture_size.get(), self.palette.get()))
             if self.unique.get():
                 args.append("--unique")
             if self.strict.get():
