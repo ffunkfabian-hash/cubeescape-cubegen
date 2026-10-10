@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.13.0 „Patina“ – unveröffentlicht
+## 0.13.0 „Patina“ – 2026-10-10
 
 * Desktop-GUI: Auswahl **Texturen** (keine / Kacheln / Kacheln + Gebrauchsspuren / Farbpalette), Texturgröße und
   Farbpalette – dieselben Arten wie `--textures`; Argumente aus `texture_args()` mit Tests (`tests/test_gui_textures.py`).

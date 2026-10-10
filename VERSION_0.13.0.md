@@ -1,6 +1,6 @@
 # Cubegen 0.13.0 – Patina
 
-Arbeitsversion, unveröffentlicht. Branch `release/0.13.0`; vorherige Version [0.12.0](VERSION_0.12.0.md).
+Release vom 10. Oktober 2026. Release-Zweig `release/0.13.0`; vorherige Version [0.12.0](VERSION_0.12.0.md).
 Begleitet Cube Escape 0.35 „Prägung“, in dem Texturen ausdrücklich erlaubt werden.
 
 ## Inhalt
