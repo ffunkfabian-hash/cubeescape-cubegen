@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 14, 2),
+    "version": (0, 16, 0),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
@@ -658,8 +658,9 @@ class CUBEGEN_Settings(bpy.types.PropertyGroup):
     fmt_fbx: BoolProperty(name="FBX", default=True)
     fmt_glb: BoolProperty(name="GLB", default=False)
     fmt_obj: BoolProperty(name="OBJ", default=False)
-    jobs: IntProperty(name="Parallel", default=1, min=1, max=16,
-                      description="So viele Blender-Prozesse exportieren gleichzeitig (lohnt bei „Alle Typen“)")
+    jobs: IntProperty(name="Parallel", default=0, min=0, max=16,
+                      description="So viele Blender-Prozesse exportieren gleichzeitig; 0 = automatisch (bis Kerne − 1, "
+                                  "nur so viele, wie sich lohnen)")
     force: BoolProperty(name="Alles neu bauen", default=False,
                         description="Auch Modelle neu exportieren, die sich seit dem letzten Export nicht geändert "
                                     "haben (sonst werden sie übernommen)")

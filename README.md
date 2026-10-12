@@ -40,6 +40,8 @@ Treppe und Laufsteg, Rohr und Rohrbogen; im Add-on rasten die Teile an ihren Ans
   `spare_part` und `keycard` bleiben zusätzlich als Einzelmodelle verfügbar.
 * **Desktop-GUI**: `cubegen gui` (oder `cubegen-gui`) bietet Modell-/Rezeptauswahl, Qualitäts-Vorabprüfung,
   Batch-Export sowie gerenderte und interaktive 3D-Modellvorschauen.
+* **macOS-App** (`app/`, seit 0.16.0): dasselbe als eigenständige `Cubegen.app` nach dem Vorbild des Robot Viewers –
+  siehe [App (macOS)](#app-macos).
 
 Zum visuellen Ausprobieren gibt es außerdem `geometry_test` und zehn experimentelle `test_...` Gameplay-Prototypen
 (Technikrinne, Rohrgestell, Relaiskasten, Kühlkreislauf, Warnleuchte, Linsen-Array, Magnetsperre, Scanner-Matte,
@@ -78,6 +80,28 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 # prüft Blender, ImageMagick und die Render-Engines
 python -m cubegen doctor
 ```
+
+## App (macOS)
+
+`Cubegen.app` (SwiftUI + SceneKit, ohne Xcode-Projekt gebaut wie der Robot Viewer des Roboter-Generators) erzeugt
+Modelle wie das Desktop-Fenster: Typen nach Kategorie mit Filter, Familie oder Rezept, Seed, Varianten,
+Ausgabeordner, Texturen (Art, Größe, Palette, Backgerät), Stil (alle Auswahloptionen aus `cubegen catalog`),
+ähnliche Varianten überspringen, strikte Prüfung, alles neu bauen, nur OBJ, Blender-Prozesse. „Vorab prüfen“ zeigt
+das Qualitätsranking, „Assets erzeugen“ (⌘R) den Fortschritt und das Protokoll, danach die Modelle als Galerie und
+eins davon in 3D (Ansichten Iso/Vorne/Seite/Oben, Drehteller, Boden, Screenshot). Die Einstellungen bleiben zwischen
+zwei Starts erhalten; der letzte Lauf erscheint beim Öffnen wieder.
+
+```bash
+app/build.sh            # -> output/app/Cubegen.app (universal, macOS 13+)
+app/test_app.sh         # 17 Prüfungen ohne Fenster: Version, Katalog, Kommandozeile, 3D, Fenster, echte Läufe
+open output/app/Cubegen.app
+```
+
+Die App trägt das cubegen-Paket in sich (`Contents/Resources/python`) und startet es mit Python 3.9+ (Homebrew,
+python.org oder die Xcode-Kommandozeilenwerkzeuge); Blender und ImageMagick findet sie wie die Kommandozeile
+(`python3 -m cubegen doctor`). Alle Symbole und das App-Icon zeichnet ImageMagick beim Bauen (`app/make_icons.sh`).
+Die Kommandozeile der App ist dieselbe wie die des Desktop-Fensters (`app/test_app.sh` vergleicht die Textur-Argumente
+mit `cubegen.gui.texture_args`); für die 3D-Ansicht exportiert sie zusätzlich OBJ.
 
 ## Blender-Add-on (GUI)
 
@@ -896,8 +920,9 @@ Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils besti
 Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
 zeigende Normalen, Pivot-Konvention, Collider und Determinismus. Schneller: `python3 tools/run_tests.py` startet
-die Tests in drei etwa gleich langen Gruppen parallel (rund 2 statt 6½ Minuten; `--list` zeigt die Gruppen); die
-CI läuft genauso, eine Gruppe pro Job.
+die Tests in vier Gruppen parallel (`--list` zeigt sie); die CI läuft genauso, eine Gruppe pro Job. Teststufen wie
+im Roboter-Generator: `--tier quick` (ohne Blender und ohne die Durchläufe über alle Typen, rund 30 s) nach jeder
+Änderung, `--tier standard` (alle Module ohne Blender), `full` (Standard, alles) vor dem Release.
 
 ## Projektstruktur
 
@@ -931,7 +956,9 @@ cubegen/
 └── objwriter.py      OBJ/MTL-Fallback ohne Blender
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
-tools/run_tests.py    Tests in drei Gruppen parallel (wie die CI)
+tools/run_tests.py    Tests in vier Gruppen parallel (wie die CI), Stufen quick / standard / full
+tools/profile_run.py  cProfile um einen cubegen-Befehl (die teuersten Funktionen)
+app/                  macOS-App: Sources/*.swift, build.sh, test_app.sh, make_icons.sh (ImageMagick), tests/
 recipes/              Beispiel-Batches
 tests/                unittest (Blender-/ImageMagick-Tests werden ohne die Tools übersprungen)
 ```

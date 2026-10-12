@@ -24,6 +24,7 @@ import math
 import os
 import random
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from .imagemagick import ImageMagick
@@ -168,15 +169,38 @@ def _normal_from_height(im: ImageMagick, height: str, out: str, strength: float)
             "-delete", "0", "-set", "colorspace", "sRGB", "-combine", "-depth", "8", f"PNG24:{out}"])
 
 
+def texture_info(material: str, out_dir: str, name: str) -> Dict:
+    """What a textured material is and where its maps go - known before (and without) building them."""
+    color, smoothness, metallic, _ = MATERIALS[material]
+    paths = {k: os.path.join(out_dir, f"{name}_{k}.png") for k in ("Albedo", "Normal", "Roughness",
+                                                                      "MetallicSmoothness")}
+    return {
+        "name": name,
+        "base": material,
+        "recipe": RECIPES[material],
+        "color": list(color),
+        "metallic": metallic,
+        "smoothness": smoothness,
+        "tile_m": 1.0,
+        "maps": {k: os.path.basename(v) for k, v in paths.items()},
+        "paths": paths,
+    }
+
+
+def plan_texture_set(out_dir: str, texture_set: str = "") -> Dict[str, Dict]:
+    """``build_texture_set``'s result without building: lets Blender start while ImageMagick still works."""
+    return {m: texture_info(m, out_dir, textured_name(m, texture_set)) for m in RECIPES}
+
+
 def build_material_texture(im: ImageMagick, material: str, out_dir: str, name: str, size: int, seed: int) -> Dict:
     """Generate all maps of one textured material."""
+    info = texture_info(material, out_dir, name)
     recipe = RECIPES[material]
     color, smoothness, metallic, _ = MATERIALS[material]
     rough = 1.0 - smoothness
     rng = StableRandom(f"{seed}:{material}")
     n = size
-    paths = {k: os.path.join(out_dir, f"{name}_{k}.png") for k in ("Albedo", "Normal", "Roughness",
-                                                                      "MetallicSmoothness")}
+    paths = info["paths"]
     with tempfile.TemporaryDirectory(prefix="cubegen_tex_") as work:
         L = _Layers(im, work, n, rng)
         grime = L.noise(blur=rng.uniform(14, 22))
@@ -238,30 +262,32 @@ def build_material_texture(im: ImageMagick, material: str, out_dir: str, name: s
         im.run(["-size", f"{n}x{n}", f"xc:gray({metallic * 100:.0f}%)", "(", paths["Roughness"], "-negate", ")",
                 "-alpha", "off", "-compose", "CopyOpacity", "-composite", f"PNG32:{paths['MetallicSmoothness']}"])
 
-    return {
-        "name": name,
-        "base": material,
-        "recipe": recipe,
-        "color": list(color),
-        "metallic": metallic,
-        "smoothness": smoothness,
-        "tile_m": 1.0,
-        "maps": {k: os.path.basename(v) for k, v in paths.items()},
-        "paths": paths,
-    }
+    return info
 
 
 def build_texture_set(im: ImageMagick, out_dir: str, size: int = 512, texture_set: str = "",
-                      seed: Optional[int] = None, log=print) -> Dict[str, Dict]:
-    """All textured materials -> ``{plain material: info}`` + ``CubeEscape_Textures.json`` in ``out_dir``."""
+                      seed: Optional[int] = None, log=print, workers: int = 0) -> Dict[str, Dict]:
+    """All textured materials -> ``{plain material: info}`` + ``CubeEscape_Textures.json`` in ``out_dir``.
+
+    ``workers``: materials built at the same time (0 = one per core, 1 = one after the other); each material has
+    its own random stream and temp folder, so the files are the same either way."""
     from .seeds import parse_seed
 
     os.makedirs(out_dir, exist_ok=True)
     seed = parse_seed(texture_set or "default") if seed is None else seed
-    result = {}
-    for material in RECIPES:
-        name = textured_name(material, texture_set)
-        result[material] = build_material_texture(im, material, out_dir, name, size, seed)
+    materials = list(RECIPES)
+    workers = min(len(materials), workers or os.cpu_count() or 1)
+
+    def build(material, magick=im):
+        return build_material_texture(magick, material, out_dir, textured_name(material, texture_set), size, seed)
+
+    if workers > 1:
+        single = im.single_threaded()
+        with ThreadPoolExecutor(max_workers=workers) as pool:  # the work is in ImageMagick processes
+            infos = list(pool.map(lambda m: build(m, single), materials))
+    else:
+        infos = [build(m) for m in materials]
+    result = dict(zip(materials, infos))
     manifest = {
         "textureSet": texture_set or "default",
         "seed": seed,

@@ -220,15 +220,36 @@ def _set_aside(collection, asset):
             obj.hide_set(True)
 
 
+def _claim(queue, name):
+    """Work package: the first process that creates ``<queue>/<name>.claim`` builds the model."""
+    try:
+        os.close(os.open(os.path.join(queue, f"{name}.claim"), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        return True
+    except FileExistsError:
+        return False
+
+
+def wait_ready(path, timeout=1800.0):
+    """The host builds the tile textures while this process starts: wait for its ``ok`` (or its error)."""
+    end = time.time() + timeout
+    while not os.path.isfile(path):
+        if time.time() > end:
+            raise RuntimeError(f"textures not ready after {timeout:.0f} s")
+        time.sleep(0.02)
+    with open(path, "r", encoding="utf-8") as fh:
+        state = fh.read().strip()
+    if state != "ok":
+        raise RuntimeError(f"texture build failed: {state}")
+
+
 def run_job(job_path):
+    started = time.time()
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
     scene = clear_scene()
     create_materials(overwrite=True)
     textures = job.get("textures") or {}
     material_map = {plain: info["name"] for plain, info in textures.items()}
-    if textures:
-        create_textured_materials(textures)
     palette = job.get("palette")
     if palette:
         create_palette_material(palette)
@@ -238,12 +259,24 @@ def run_job(job_path):
         cam = setup_render(scene, render.get("engine", "cycles"), render.get("size", 256), render.get("samples", 32),
                            textured=bool(job.get("textures") or palette))
         log(f"rendering previews with {scene.render.engine}")
+    if textures:
+        if job.get("textures_ready"):
+            waited = time.time()
+            wait_ready(job["textures_ready"])
+            if time.time() - waited > 0.05:
+                log(f"waited {time.time() - waited:.1f}s for the textures")
+        create_textured_materials(textures)
 
     results, collections, biggest = [], [], 1.0
+    queue = job.get("queue_dir")  # parallel run: the models are work packages, every process claims the next free one
     total = len(job["models"])
     for i, spec in enumerate(job["models"], 1):
+        if queue and not spec.get("skip") and not _claim(queue, spec["name"]):
+            continue
         t0 = time.time()
+        timings = {}
         asset, lod, collection = build_asset(spec, material_map, palette=palette and palette["palette"])
+        timings["build"] = time.time() - t0
         if spec.get("skip"):  # unchanged / exported by another process: only part of the overview .blend
             _set_aside(collection, asset)
             collections.append(collection)
@@ -253,8 +286,11 @@ def run_job(job_path):
         if job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
 
+            t = time.time()
             baked = bake_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
-                               job["magick"], seed=spec["seed"])
+                               job["magick"], seed=spec["seed"], device=job.get("bake_device", "cpu"))
+            timings["bake"] = time.time() - t
+        t = time.time()
         files = {}
         for fmt in job["formats"]:
             path = os.path.join(spec.get("models_dir") or job["models_dir"], f"{asset.name}.{fmt}")
@@ -266,8 +302,10 @@ def run_job(job_path):
                 if problems:
                     raise RuntimeError(f"{path} does not match its rig data:\n  " + "\n  ".join(problems))
             files[fmt] = path
+        timings["export"] = time.time() - t
         preview = None
         if cam is not None:
+            t = time.time()
             for other in collections:
                 other.hide_render = True
             elevation = render.get("elevation", 31.0)
@@ -276,11 +314,14 @@ def run_job(job_path):
             frame_camera(cam, collection, render.get("azimuth", 33.0), elevation, render.get("zoom", 1.0))
             preview = os.path.join(job["previews_dir"], f"{asset.name}.png")
             render_preview(scene, preview)
-        entry = {"name": asset.name, "files": files, "preview": preview}
+            timings["render"] = time.time() - t
+        entry = {"name": asset.name, "files": files, "preview": preview,
+                 "timings": {k: round(v, 3) for k, v in timings.items()}}
         if baked:
-            entry.update({"baked": baked["maps"], "baked_material": baked["material"]})
+            entry.update({"baked": baked["maps"], "baked_material": baked["material"], "bake_device": baked["device"]})
         results.append(entry)
-        log(f"({i}/{total}) {asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
+        counter = "" if queue else f"({i}/{total}) "
+        log(f"{counter}{asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
 
         _set_aside(collection, asset)
         collections.append(collection)
@@ -296,7 +337,9 @@ def run_job(job_path):
         log(f"saved {job['blend']}")
 
     with open(job["result_path"], "w", encoding="utf-8") as fh:
-        json.dump({"blender": bpy.app.version_string, "engine": scene.render.engine, "models": results}, fh, indent=2)
+        json.dump({"blender": bpy.app.version_string, "engine": scene.render.engine, "models": results,
+                   "worker": {"pid": os.getpid(), "models": len(results), "seconds": round(time.time() - started, 2),
+                              "blend": bool(job.get("blend"))}}, fh, indent=2)
 
 
 def main():

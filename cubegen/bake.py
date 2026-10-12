@@ -3,8 +3,11 @@
 For one asset (a collection):
 
 1. a shared atlas UV map for all its mesh objects (Smart UV Project)
-2. Cycles bakes of the tiled ``MT_`` materials into that atlas: colour, roughness,
-   tangent normals, metallic (via a temporary emission), ambient occlusion
+2. Cycles bakes of the tiled ``MT_`` materials into that atlas: colour, tangent normals,
+   ambient occlusion and roughness + metallic in one pass (red / green of a temporary
+   emission, like the robot generator's surface bake) - into one
+   temporary joined copy of the parts (Cycles bakes every selected object in a session
+   of its own; on Metal each session costs a GPU sync, on the CPU it is slower too)
 3. ImageMagick puts grime into crevices (AO) with a little noise breakup
 4. one material ``MTA_<Asset>`` replaces all non-glow materials; the atlas UV
    becomes the only UV map (Unity's UV0)
@@ -19,8 +22,39 @@ import subprocess
 
 import bpy
 
+from .imagemagick import REPRODUCIBLE
+
 KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}
 BAKE_UV = "BakeUV"
+DEVICES = ("auto", "cpu", "gpu")
+GPU_FROM = 1024  # auto: GPU from this atlas size; measured 0.15.0 (M5, Metal): 512 px CPU faster, 1024 px GPU ~1.8x
+GPU_TYPES = ("METAL", "OPTIX", "CUDA", "HIP", "ONEAPI")
+
+
+def use_device(scene, requested, size):
+    """Point Cycles at the CPU or the GPU; returns what is used ("CPU" or e.g. "METAL").
+
+    ``auto``: GPU from ``GPU_FROM`` px when there is one. GPU only (the CPU devices stay off) so a run gives the same
+    pixels every time; CPU and GPU results differ in the noise."""
+    scene.cycles.device = "CPU"
+    if requested == "cpu" or (requested == "auto" and size < GPU_FROM):
+        return "CPU"
+    try:
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+        for kind in GPU_TYPES:
+            try:
+                prefs.compute_device_type = kind
+            except TypeError:
+                continue
+            prefs.get_devices()
+            if any(d.type != "CPU" for d in prefs.devices):
+                for d in prefs.devices:
+                    d.use = d.type != "CPU"
+                scene.cycles.device = "GPU"
+                return kind
+    except Exception:  # noqa: BLE001 - the GPU is optional
+        pass
+    return "CPU"
 
 
 def _mesh_objects(collection):
@@ -45,6 +79,35 @@ def _atlas_uvs(objects):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.02)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def _joined_copy(objects):
+    """One temporary object with the parts' meshes in world space (same atlas UVs, same material slots)."""
+    scene = bpy.context.scene
+    copies = []
+    for o in objects:
+        copy = o.copy()
+        copy.data = o.data.copy()
+        scene.collection.objects.link(copy)
+        world = o.matrix_world.copy()
+        copy.parent = None
+        copy.data.transform(world)
+        copy.matrix_world.identity()
+        copies.append(copy)
+    _select(copies)
+    if len(copies) > 1:
+        bpy.ops.object.join()
+    joined = bpy.context.view_layer.objects.active
+    joined.data.uv_layers.active = joined.data.uv_layers[BAKE_UV]
+    joined.hide_render = False
+    return joined
+
+
+def _remove(obj):
+    mesh = obj.data
+    bpy.data.objects.remove(obj, do_unlink=True)
+    if mesh is not None and mesh.users == 0:
+        bpy.data.meshes.remove(mesh)
 
 
 def _materials(objects):
@@ -72,8 +135,24 @@ def _bake(objects, materials, image, bake_type, **kwargs):
             mat.node_tree.nodes.remove(node)
 
 
-def _metallic_bake(objects, materials, image):
-    """Metallic has no bake pass: temporarily route the metallic value through an emission shader."""
+def _combine_node(nodes):
+    try:
+        return nodes.new("ShaderNodeCombineColor")
+    except RuntimeError:  # Blender < 3.3
+        return nodes.new("ShaderNodeCombineRGB")
+
+
+def _feed(links, source, target):
+    """``target`` gets what drives ``source``: its link (e.g. a roughness map) or its value."""
+    if source.is_linked:
+        links.new(source.links[0].from_socket, target)
+    else:
+        target.default_value = source.default_value
+
+
+def _surface_bake(objects, materials, image):
+    """Roughness (red) and metallic (green) in one pass: both routed through a temporary emission shader.
+    Same values as the ROUGHNESS pass plus a metallic emission bake (0.15.0), one Cycles pass less."""
     restore = []
     for mat in materials:
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
@@ -82,16 +161,20 @@ def _metallic_bake(objects, materials, image):
         if out is None or bsdf is None:
             continue
         old = [l.from_socket for l in out.inputs["Surface"].links]
-        value = bsdf.inputs["Metallic"].default_value
+        combine = _combine_node(nodes)
+        _feed(links, bsdf.inputs["Roughness"], combine.inputs[0])
+        _feed(links, bsdf.inputs["Metallic"], combine.inputs[1])
+        combine.inputs[2].default_value = 0.0
         emit = nodes.new("ShaderNodeEmission")
-        emit.inputs["Color"].default_value = (value, value, value, 1.0)
+        links.new(combine.outputs[0], emit.inputs["Color"])
         links.new(emit.outputs["Emission"], out.inputs["Surface"])
-        restore.append((mat, out, emit, old))
+        restore.append((mat, out, (emit, combine), old))
     try:
         _bake(objects, materials, image, "EMIT")
     finally:
-        for mat, out, emit, old in restore:
-            mat.node_tree.nodes.remove(emit)
+        for mat, out, temp, old in restore:
+            for node in temp:
+                mat.node_tree.nodes.remove(node)
             for socket in old:
                 mat.node_tree.links.new(socket, out.inputs["Surface"])
 
@@ -113,13 +196,15 @@ def _save(img, path):
 
 
 def _magick(cmd, args):
-    proc = subprocess.run(list(cmd) + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(list(cmd) + list(REPRODUCIBLE) + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"ImageMagick failed: {proc.stderr.strip()}")
 
 
-def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, seed=0):
-    """Bake one asset; returns ``{"material": name, "maps": {kind: path}}`` or None (nothing to bake)."""
+def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, seed=0, device="cpu"):
+    """Bake one asset; returns ``{"material": name, "maps": {kind: path}, "device": "CPU" | "METAL" ...}``
+    or None (nothing to bake). ``device``: auto | cpu | gpu (see :func:`use_device`)."""
     objects = _mesh_objects(collection)
     if not objects:
         return None
@@ -128,10 +213,10 @@ def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, se
     scene.render.engine = "CYCLES"
     scene.cycles.samples = samples
     scene.cycles.use_denoising = False
-    scene.cycles.device = "CPU"
+    used = use_device(scene, device, size)
     os.makedirs(out_dir, exist_ok=True)
     base = os.path.join(out_dir, f"{asset_name}_Bake")
-    paths = {k: f"{base}{k}.png" for k in ("Color", "AO", "Roughness", "Metallic")}
+    paths = {k: f"{base}{k}.png" for k in ("Color", "AO", "Surface")}
     final = {k: os.path.join(out_dir, f"MTA_{asset_name}_{k}.png")
              for k in ("Albedo", "Normal", "Roughness", "MetallicSmoothness")}
     # only this asset may be visible while baking (other assets sit at the origin too and would shade the AO);
@@ -142,22 +227,27 @@ def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, se
         c.hide_render = True
     for o in hidden_objs:
         o.hide_render = False
+    target = None
     try:
         _atlas_uvs(objects)
         materials = _materials(objects)
         images = {}
-        for kind, non_color in (("Color", False), ("AO", True), ("Roughness", True), ("Metallic", True),
-                                ("Normal", True)):
+        for kind, non_color in (("Color", False), ("AO", True), ("Surface", True), ("Normal", True)):
             images[kind] = _image(f"{asset_name}_{kind}", size, non_color)
-        _bake(objects, materials, images["Color"], "DIFFUSE", pass_filter={"COLOR"})
-        _bake(objects, materials, images["AO"], "AO")
-        _bake(objects, materials, images["Roughness"], "ROUGHNESS")
-        _bake(objects, materials, images["Normal"], "NORMAL", normal_space="TANGENT")
-        _metallic_bake(objects, materials, images["Metallic"])
-        for kind in ("Color", "AO", "Roughness", "Metallic"):
+        target = _joined_copy(objects)
+        for o in objects:  # the copy stands in for them (restored below); they'd double the AO occluders
+            o.hide_render = True
+        bake = [target]
+        _bake(bake, materials, images["Color"], "DIFFUSE", pass_filter={"COLOR"})
+        _bake(bake, materials, images["AO"], "AO")
+        _bake(bake, materials, images["Normal"], "NORMAL", normal_space="TANGENT")
+        _surface_bake(bake, materials, images["Surface"])
+        for kind in ("Color", "AO", "Surface"):
             _save(images[kind], paths[kind])
         _save(images["Normal"], final["Normal"])
     finally:
+        if target is not None:
+            _remove(target)
         scene.render.engine = engine
         for c, state in hidden_colls.items():
             c.hide_render = state
@@ -171,10 +261,12 @@ def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, se
     _magick(magick_cmd, [paths["Color"], "(", paths["AO"], "-colorspace", "gray", "-evaluate", "pow", "1.6",
                          "+level", "30%,100%", ")", "-compose", "Multiply", "-composite"] + noise +
             ["-compose", "Multiply", "-composite", "-depth", "8", f"PNG24:{final['Albedo']}"])
-    _magick(magick_cmd, [paths["Roughness"], "-colorspace", "gray", "(", paths["AO"], "-colorspace", "gray",
+    roughness = [paths["Surface"], "-channel", "R", "-separate", "+channel"]
+    metallic = [paths["Surface"], "-channel", "G", "-separate", "+channel"]
+    _magick(magick_cmd, roughness + ["-colorspace", "gray", "(", paths["AO"], "-colorspace", "gray",
                          "-negate", "-evaluate", "multiply", "0.25", ")", "-compose", "Plus", "-composite",
                          f"PNG8:{final['Roughness']}"])
-    _magick(magick_cmd, [paths["Metallic"], "-colorspace", "gray", "(", final["Roughness"], "-negate", ")",
+    _magick(magick_cmd, metallic + ["-colorspace", "gray", "(", final["Roughness"], "-negate", ")",
                          "-alpha", "off", "-compose", "CopyOpacity", "-composite",
                          f"PNG32:{final['MetallicSmoothness']}"])
     for p in paths.values():
@@ -192,7 +284,7 @@ def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, se
         if tiled is not None:
             o.data.uv_layers.remove(tiled)
         o.data.uv_layers[BAKE_UV].name = "UVMap"
-    return {"material": material.name, "maps": final}
+    return {"material": material.name, "maps": final, "device": used}
 
 
 def _baked_material(name, maps):

@@ -1,0 +1,2 @@
+["generate", "--family", "lab", "--out", "/tmp/cubegen-app-test", "--textures", "palette", "--palette", "frost",
+ "--strict", "--no-blender", "--jobs", "3"]

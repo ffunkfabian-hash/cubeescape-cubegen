@@ -129,6 +129,20 @@ def _fighting_faces(asset, min_overlap: float = MIN_OVERLAP, pivot: str = "") ->
             if v_dot(n, n) < 0.5 or hidden(n, pts):  # degenerate / never visible
                 continue
             faces.append((obj, part_of.get(fi, -1), mesh.roles[fi], n, v_dot(n, pts[0]), pts, fi))
+    # bounding boxes, widened by the plane tolerance: two faces whose boxes don't touch can't overlap - a cheap
+    # reject before the plane and clipping maths (like the robot generator's box test; same result, just fewer tests)
+    pad = 2 * PLANE_TOL
+    boxes: Dict[int, Tuple] = {}  # only for faces that meet another one in a bucket (most never do)
+
+    def box(k):
+        found = boxes.get(k)
+        if found is None:
+            pts = faces[k][5]
+            xs, ys, zs = [p[0] for p in pts], [p[1] for p in pts], [p[2] for p in pts]
+            found = boxes[k] = (min(xs) - pad, min(ys) - pad, min(zs) - pad, max(xs) + pad, max(ys) + pad,
+                                max(zs) + pad)
+        return found
+
     buckets: Dict[Tuple, List[int]] = {}
     for k, (_, _, _, n, d, _, _) in enumerate(faces):
         key = (round(n[0], 2), round(n[1], 2), round(n[2], 2), math.floor(d / (PLANE_TOL * 20)))
@@ -146,6 +160,9 @@ def _fighting_faces(asset, min_overlap: float = MIN_OVERLAP, pivot: str = "") ->
                 if (oa is ob and pa == pb) or (ma == mb and (oa is ob or
                         oa.parent is not None and oa.parent == ob.parent and oa.parent.startswith("Fragment_"))):
                     continue  # same primitive, or same material in the same object: renders identically
+                ba, bb = box(i), box(j)
+                if ba[0] > bb[3] or bb[0] > ba[3] or ba[1] > bb[4] or bb[1] > ba[4] or ba[2] > bb[5] or bb[2] > ba[5]:
+                    continue
                 if v_dot(na, nb) < 0.9999 or abs(da - db) > PLANE_TOL:
                     continue
                 if any(abs(v_dot(na, v_sub(p, pts_a[0]))) > PLANE_TOL for p in pts_b):
@@ -258,10 +275,10 @@ def _solid_volume(verts, faces) -> float:
     return abs(total)
 
 
-def _inside_solid(p, verts, faces) -> bool:
-    """Point in a closed mesh: ray towards +x, odd number of crossings (faces may be concave n-gons)."""
-    px, py, pz = p
-    crossings = 0
+def ray_faces(verts, faces) -> List[Tuple]:
+    """The faces of a closed mesh prepared for :func:`_inside_solid`: (points, nx, ny, nz), faces parallel to the ray
+    left out. Computed once per mesh instead of once per test point (same numbers, same order)."""
+    prepared = []
     for f in faces:
         pts = [verts[i] for i in f]
         nx = add_up((a[1] - b[1]) * (a[2] + b[2]) for a, b in zip(pts, pts[1:] + pts[:1]))
@@ -269,6 +286,16 @@ def _inside_solid(p, verts, faces) -> bool:
             continue
         ny = add_up((a[2] - b[2]) * (a[0] + b[0]) for a, b in zip(pts, pts[1:] + pts[:1]))
         nz = add_up((a[0] - b[0]) * (a[1] + b[1]) for a, b in zip(pts, pts[1:] + pts[:1]))
+        prepared.append((pts, nx, ny, nz))
+    return prepared
+
+
+def _inside_solid(p, verts, faces, prepared=None) -> bool:
+    """Point in a closed mesh: ray towards +x, odd number of crossings (faces may be concave n-gons).
+    ``prepared``: :func:`ray_faces` of the same mesh, when many points are tested against it."""
+    px, py, pz = p
+    crossings = 0
+    for pts, nx, ny, nz in (ray_faces(verts, faces) if prepared is None else prepared):
         x = (nx * pts[0][0] + ny * (pts[0][1] - py) + nz * (pts[0][2] - pz)) / nx
         if x <= px:
             continue
@@ -321,6 +348,7 @@ def uncovered_geometry(asset, pivot: str = "", *, gameplay_import: bool = True) 
             lo = [min(v[i] for v in verts) for i in range(3)]
             hi = [max(v[i] for v in verts) for i in range(3)]
             faces = [tuple(i - part.v0 for i in mesh.faces[fi]) for fi in range(part.f0, part.f1)]
+            prepared = ray_faces(verts, faces)
             points = []
             for gx in range(SAMPLES):
                 for gy in range(SAMPLES):
@@ -328,7 +356,7 @@ def uncovered_geometry(asset, pivot: str = "", *, gameplay_import: bool = True) 
                         p = tuple(lo[i] + (hi[i] - lo[i]) * (g + 0.5) / SAMPLES for i, g in enumerate((gx, gy, gz)))
                         if pivot == "top" and p[2] < -COLLIDER_TOL:  # platforms: under the floor
                             continue
-                        if _inside_solid(p, verts, faces):
+                        if _inside_solid(p, verts, faces, prepared):
                             points.append(p)
             if not points:
                 continue

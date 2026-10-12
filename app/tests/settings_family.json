@@ -1,0 +1,3 @@
+{"types": ["crate"], "family": "lab", "seed": "", "count": 1, "output": "/tmp/cubegen-app-test",
+ "textures": "palette", "textureSize": "", "palette": "frost", "style": {},
+ "unique": false, "strict": true, "force": false, "noBlender": true, "jobs": 3, "bakeDevice": "auto"}

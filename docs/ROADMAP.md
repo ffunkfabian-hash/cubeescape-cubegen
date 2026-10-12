@@ -1,19 +1,13 @@
 # Roadmap
 
-**Arbeitsstand 0.11.3 (9. Oktober 2026, unveröffentlicht):** Zweite Stationswelle mit 28 Modellen;
-Generation-3-Kollision des eingestürzten Stegs vervollständigt. Gemeinsame funktionale Kategorien
-in Cube Escape einschließlich Labor/Medizin, Lager/Fracht, Werkstatt, Aufenthalt/Alltag und Notfall/Schutz.
-Prüfbelege: [VERSION_0.11.3.md](../VERSION_0.11.3.md), Inhaltsstatus: [IDEEN.md](../IDEEN.md).
-
-Stand: 10. Oktober 2026, cubegen **0.12.0** (Release-Zweig `release/0.12.0`; enthält 0.11.1–0.11.4, vorherige veröffentlichte Version 0.11.0); 186 registrierte Typen,
-einschließlich elf experimenteller Ergänzungen und der elf Typen der ersten Asset-Welle ([0.11.2](../VERSION_0.11.2.md)). Unity-Integrationsphasen 0–4 sind in
-Cube Escape integriert (`847d90f`); Phase 5 ist mit `464717e` und Dokumentation
-`f11867e` in Unity-main übernommen. Fehlerkorrekturen aus Phase 5 sind in
-[0.11.0](../VERSION_0.11.0.md) dokumentiert; das geplante 0.10.6-Vorhaben ist
-übernommen. Neue Befunde gehören in den nächsten unveröffentlichten Versionsbericht.
-Veröffentlichte Berichte bleiben historisch.
-Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich;
-neue Nachweise stehen in den Versionsberichten und im Unity-Systemdoc.
+Stand: 12. Oktober 2026, cubegen **0.16.0 „Overdrive“** veröffentlicht (Tag `v0.16.0`, Release-Zweig
+`release/0.16.0`, [VERSION_0.16.0.md](../VERSION_0.16.0.md)), zusammen mit 0.15.0 „Stoppuhr“
+([VERSION_0.15.0.md](../VERSION_0.15.0.md)). 186 registrierte Typen, macOS-App unter `app/`.
+Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
+1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
+in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
+bleiben historisch. Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich; neue Nachweise stehen in
+den Versionsberichten und im Unity-Systemdoc.
 Jede Liste beginnt mit dem Wichtigsten.
 
 ## 1. Bekannte Bugs
@@ -58,10 +52,12 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
 - [x] **Schnellere Tests:** `tools/run_tests.py` startet drei gleich lange Gruppen parallel, die CI eine pro Job.
 - [x] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, stehen im Typ-Menü mit Warnsymbol und
   Grund; ist so ein Typ gewählt, nennt das Panel den Grund.
-- [ ] **Schnellere Blender-Läufe** (Erfahrungen aus dem Roboter-Generator, AGENTS.md › „Blender-Batch schnell
-  halten“; vor der Umsetzung messen): `--textures baked` über eine zusammengefügte Kopie je Asset backen statt über
-  alle ausgewählten Teile; `--jobs` startet Blender mit `-t <Kerne/Jobs>`; ImageMagick-Aufrufe mit
-  `MAGICK_THREAD_LIMIT=1`. Ausgaben müssen bitgleich bleiben (Golden-Daten).
+- [x] **Schnellere Blender-Läufe** (0.15.0, Erfahrungen aus dem Roboter-Generator): `--textures baked` backt eine
+  zusammengefügte Kopie je Asset (eine Cycles-Sitzung je Durchgang statt je Teil; `sliding_puzzle` 3,7 → 1,1 s,
+  `conveyor` 2,4 → 1,1 s, Modelle mit 1–3 Teilen unverändert); ImageMagick in den Blender-Workern von `--jobs` mit
+  `MAGICK_THREAD_LIMIT=1`. `-t Kerne/Jobs` gemessen und verworfen: Cycles-CPU-Backen wurde langsamer (Station-Kit,
+  `--jobs 3`: 50–54 s statt 47–49 s). Ausgabe: Geometrie, Normalen und Golden-Daten unverändert; die gebackene
+  Umgebungsverdeckung rauscht minimal anders (Station-Kit, 105 Karten: RMSE im Mittel 0,14 %, höchstens 2,5 %).
 - [ ] **Ähnliche Varianten: Signatur toleranter** (gefunden mit der Neural-Engine-Prüfung, 0.14.2): `variety.similar`
   verlangt exakt gleiche Dreieckszahlen; dadurch gelten fast gleich aussehende Varianten als verschieden (Seed 42:
   `Door_003`/`Door_010` – 12 Dreiecke und 7 % Breite Unterschied; `Console_000`/`Console_001`). Toleranz für die
@@ -76,6 +72,50 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
   in denen das Modell nicht im Fokus steht oder angeschnitten ist – nur als Hinweis im Kontaktbogen-/Prüfbericht,
   keine Schranke, Linux-Läufe überspringen es. **Zeitregel:** höchstens 5 % mehr Laufzeit von `generate` mit Icons;
   kostet es mehr Zeit, wird das Feature nicht umgesetzt.
+
+Weitere Punkte aus dem Abgleich mit dem Roboter-Generator, aus Cube Escape und der ImageMagick-Prüfung, umgesetzt in
+0.15.0 (Messwerte in [VERSION_0.15.0.md](../VERSION_0.15.0.md)):
+
+- [x] **Backen auf der GPU:** `--bake-device auto|cpu|gpu` (Standard `auto`: GPU ab 1024 px, sonst CPU). Gemessen mit
+  zusammengefügter Kopie: 512 px CPU 14 s gegen GPU 19 s (10 Modelle), 1024 px CPU 19 s gegen GPU 10 s, 2048 px CPU 73 s
+  gegen GPU 27 s (je 4 Modelle); einzeln gebacken war die GPU 3,5-mal langsamer als die CPU. Jedes Gerät liefert bei
+  jedem Lauf dieselben Pixel, CPU und GPU unterscheiden sich im Rauschen; das Manifest nennt das Gerät je Modell.
+  Cycles-Vorschauen (nur Rückfall ohne OpenGL) bleiben auf der CPU.
+- [x] **Gebackene UVs reproduzierbar:** gemessen kein Problem – `smart_project` liefert in Cubegen bei jedem Lauf und
+  mit `--jobs` dieselben Karten (bytegleich, auch auf der GPU). Ein Blender-Test hält das fest; kein UV-Cache nötig.
+- [x] **PNG-Dateien bytegleich:** jeder ImageMagick-Aufruf mit `-define png:exclude-chunks=date,time`
+  (`imagemagick.REPRODUCIBLE`, auch `bake._magick`); Test: zweimal erzeugen, Bytes vergleichen, keine Zeitstempel.
+- [x] **Texturen, Icons, Kontaktbogen und Material-Übersicht cachen:** `cubegen/cache.py`, Schlüssel aus den Eingaben,
+  Abgleich der Datei-Hashes; `--force` baut neu. Unveränderter Zweitlauf des Station-Kits (35 Modelle, gebacken):
+  8,1 s → 1,4 s; ohne Blender 4,8 s Texturen → 0 s.
+- [x] **`--jobs` mit Arbeitspaketen:** Anspruchsdatei je Modell, größtes zuerst (Dreiecke + 100 je Teil), Ergebnisse in
+  Spec-Reihenfolge; kein `nice` (kein Prozess hat den kritischen Pfad).
+- [x] **Zeitbudget je Stufe und Teststufen:** `manifest.json` › `timings` (Wanduhr je Stufe, Summen aus Blender, Budget,
+  zu langsame Stufen) und Warnung im Log; `tools/run_tests.py --tier quick|standard|full` (quick rund 30 s ohne Blender
+  und ohne die Durchläufe über alle Typen), vierte Gruppe `params` auch in der CI.
+
+Geprüft und entfallen (0.15.0): Paletten aus Gewichtskarten zusammensetzen – der Paletten-Modus backt nicht (reines
+Python, `palette.py`), `--textures baked` backt je Lauf genau eine Palette. EEVEE-Wartezeit durch `BLENDED`-Materialien –
+kein Cubegen-Material setzt eine transparente Render-Methode. `foreach_get` als `float32` – nicht verwendet.
+Werden Texturvarianten je Palette oder transparente Materialien eingeführt, gelten diese Regeln (AGENTS.md).
+
+Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
+[VERSION_0.16.0.md](../VERSION_0.16.0.md)):
+
+- [x] **`--jobs auto` als Standard:** bis Kerne − 1, nur so viele Prozesse, wie sich lohnen; CPU-Backen höchstens 2,
+  GPU-Arbeit höchstens 3.
+- [x] **ImageMagick parallel:** Texturen je Material, Icons je Modell, Kontaktbogen in Blöcken (186 Modelle: Bildnachlauf
+  16,4 → 4,1 s, Kontaktbogen pixelgleich).
+- [x] **Stufen überlappen:** Blender startet, während die Kacheltexturen entstehen.
+- [x] **Ein Back-Durchgang weniger:** Rauheit und Metall in einem Durchgang, Karten bytegleich.
+- [x] **Messung:** Systemlast, Statistik je Blender-Prozess, `tools/profile_run.py`.
+- [x] **`-t 1` ohne Backen:** gemessen, kein Gewinn, nicht übernommen.
+- [x] **Qualitätsprüfung schneller:** Hüllquader-Vorfilter und einmal vorbereitete Strahlflächen, 35 % weniger CPU,
+  Ergebnis bytegleich; numpy bewusst nicht (Golden-Daten).
+- [x] **macOS-App** `app/` (0.16.0): erzeugt Modelle wie das Desktop-Fenster, nach dem Vorbild des Robot Viewers;
+  Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
+- [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
+  Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
 ## 3. Erweiterungen
 

@@ -548,10 +548,14 @@ class MeshCollision(Box):
                          [[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]], [(hi[i]-lo[i])/2 for i in range(3)], part)
 
     def contains(self, point, margin=0.0):
-        from .quality import _inside_solid
-        for verts, faces, lo, hi in self.pieces:
-            if all(lo[i] - 1e-7 <= point[i] <= hi[i] + 1e-7 for i in range(3)) and _inside_solid(point, verts, faces):
-                return True
+        from .quality import _inside_solid, ray_faces
+        rays = self.__dict__.setdefault("_rays", {})  # per piece, prepared on first use (many points per piece)
+        for k, (verts, faces, lo, hi) in enumerate(self.pieces):
+            if all(lo[i] - 1e-7 <= point[i] <= hi[i] + 1e-7 for i in range(3)):
+                if k not in rays:
+                    rays[k] = ray_faces(verts, faces)
+                if _inside_solid(point, verts, faces, rays[k]):
+                    return True
         return False
 
     def moved(self, offset):

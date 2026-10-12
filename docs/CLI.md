@@ -337,6 +337,12 @@ python3 -m cubegen palettes --swatches palettes.png   # alle Paletten, eine Zeil
 Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Im Paletten-Modus behalten Glas
 und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Material. Details in der README.
 
+**Backen auf CPU oder GPU** (`--bake-device auto|cpu|gpu`, Standard `auto`): Cycles backt eine zusammengefügte Kopie
+aller Teile eines Assets, eine Sitzung je Durchgang statt je Teil. `auto` nimmt ab 1024 px die GPU (Metal, CUDA …),
+darunter die CPU – gemessen in 0.15.0 auf einem Apple M5: 512 px CPU 14 s gegen GPU 19 s, 1024 px CPU 19 s gegen
+GPU 10 s, 2048 px CPU 73 s gegen GPU 27 s. CPU und GPU rauschen verschieden; jedes Gerät liefert aber bei jedem Lauf
+dieselben Pixel. Das Manifest nennt je Modell das Gerät (`bake_device`).
+
 **Farbpaletten** (`--palette NAME`): `standard` (die Farben des Spiels, `MP_Palette`), `rust`, `frost`, `toxic`,
 `medical`, `derelict`, `greenhouse`, `neon`. Alle Paletten haben dieselben Farbzellen, die Modelle sind also
 identisch, nur das Material heißt `MP_Palette_<Name>` und hat eigene Bilder (`MP_Palette_<Name>_Albedo.png` …,
@@ -365,7 +371,7 @@ Deckenteile (`ceiling_panel`, `hanging_crystals`, `ceiling_module`) werden autom
 ```bash
 # nur FBX + JSON, schnell
 python3 -m cubegen generate --seed 42 --types all --no-render --no-blend
-# 4 Blender-Prozesse gleichzeitig
+# Blender-Prozesse: automatisch (Standard) oder fest
 python3 -m cubegen generate --seed 42 --types all --count 3 --jobs 4
 # reines Python: OBJ + MTL
 python3 -m cubegen generate --seed 42 --types crate --no-blender
@@ -378,8 +384,31 @@ Textur-Einstellungen, Blender-Version und der cubegen-Code selbst. Unveränderte
 Änderungen vorliegen; beim reinen OBJ-Export werden unveränderte Meshes ebenfalls übernommen. `--force` baut
 alles neu.
 
-**Parallel:** `--jobs 4` verteilt die Modelle auf 4 Blender-Prozesse; ein weiterer baut nur die Übersichts-.blend.
-Das Ergebnis ist dasselbe wie mit einem Prozess. Wie viele sich lohnen, hängt von CPU-Kernen und Render-Engine ab.
+Auch die Bilder entstehen nur bei Bedarf neu: Kacheltexturen, Icons, Kontaktbogen und Material-Übersicht werden
+übernommen, wenn ihre Eingaben gleich sind und die Dateien noch genau so auf der Platte liegen
+(`textures unchanged`, `icons: 0 new, 6 reused`). Die Schlüssel stehen in `.cubegen_cache.json` im Ausgabe- und im
+Texturordner (Unity übergeht Dateien mit Punkt). Alle PNG-Dateien sind bei gleicher Eingabe bytegleich – ImageMagick
+schreibt keine Zeitstempel hinein.
+
+**Parallel:** Ohne `--jobs` (oder mit `--jobs auto`) entscheidet cubegen selbst: bis Kerne − 1 Blender-Prozesse, aber
+nur so viele, wie sich lohnen – jeder soll mindestens 2 s Arbeit bekommen (ein Start kostet etwa 0,6 s). Beim Backen
+auf der CPU höchstens 2 (Cycles nutzt schon alle Kerne; 1 bis 9 Prozesse brauchten für das Station-Kit gleich lang),
+bei GPU-Arbeit (Backen ab 1024 px, EEVEE/Cycles-Vorschauen) höchstens 3. `--jobs 4` legt die Zahl fest. Ein weiterer
+Prozess baut nur die Übersichts-.blend. Die Modelle sind Arbeitspakete, das größte zuerst: Jeder Prozess nimmt sich
+das nächste freie. Das Ergebnis ist dasselbe wie mit einem Prozess.
+
+Mit Kacheltexturen starten die Blender-Prozesse schon, während ImageMagick die Texturen baut, und warten nur noch
+auf das Ende. ImageMagick selbst arbeitet parallel: Texturen je Material, Icons je Modell, der Kontaktbogen in
+Blöcken zu vier Zeilen (pixelgleich zu einem Bogen am Stück; 186 Modelle 2 statt 20 s), jeder Aufruf mit einem Thread.
+
+**Zeiten:** Jeder Lauf schreibt die Dauer seiner Stufen ins Manifest (`timings`: Planung, Texturen, Blender, Bilder
+als Wanduhrzeit; Bauen, Backen, Export, Vorschau aus den Blender-Prozessen summiert) und vergleicht sie mit einem
+Budget je Modell (`STAGE_BUDGETS` in `cubegen/pipeline.py`, etwa das Dreifache der Messung von 0.15.0). Eine zu
+langsame Stufe meldet `warning: bake took … s, budget … s`, der Lauf bricht nicht ab. Dazu stehen die Systemlast bei
+Start und Ende (`timings.load`, Warnung, wenn schon beim Start mehr gerechnet wird, als es Kerne gibt), was jeder
+Blender-Prozess gebaut hat (`timings.workers`) und welche Stufen sich überlappten (`timings.overlap`) im Manifest.
+Zum Suchen der teuren Stelle: `python3 tools/profile_run.py -- check --types door` (cProfile, die teuersten
+Funktionen).
 
 `--no-blender` braucht nur Python (und ImageMagick für die Material-Übersicht). Es entstehen OBJ-Dateien ohne
 Pivots, Previews und Icons - gut zum schnellen Ausprobieren.
@@ -455,7 +484,8 @@ schon, bevor er Dateien schreibt.
 | `--prefix` | – | Namenspräfix, z. B. `Gen_` |
 | `--scale` | 1.0 | Skalierung (1 = Meter) |
 | `--lods` | – | Sparstufe für statische Modelle (`_LOD0` / `_LOD1`), siehe Abschnitt 8 |
-| `--jobs` | 1 | Blender-Prozesse gleichzeitig |
+| `--jobs` | auto | Blender-Prozesse gleichzeitig: Zahl oder `auto` (bis Kerne − 1, nur so viele, wie sich lohnen) |
+| `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |

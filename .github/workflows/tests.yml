@@ -14,7 +14,7 @@ jobs:
         # 3.11 = Blender's Python; the others must build bit-identical models (tests/test_golden.py)
         python-version: ["3.9", "3.11", "3.13"]
         # groups of about 2 minutes each, see tools/run_tests.py (unlisted test modules run in "rest")
-        group: [models, quality, rest]
+        group: [models, quality, params, rest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

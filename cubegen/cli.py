@@ -22,7 +22,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs")
+                  "palette", "unique", "lods", "jobs", "bake_device")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -32,6 +32,19 @@ _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style"
 
 def _csv(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def _jobs(value: str) -> int:
+    """``--jobs auto`` -> 0 (the pipeline decides), else a number >= 1."""
+    if value.strip().lower() == "auto":
+        return 0
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("a number >= 1 or 'auto'") from None
+    if number < 1:
+        raise argparse.ArgumentTypeError("a number >= 1 or 'auto'")
+    return number
 
 
 def unknown_key(what: str, key: str, allowed) -> ValueError:
@@ -188,12 +201,18 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         models = {t: args.count if args.count is not None else 1 for t in model_types()}
 
     values = {k: merged[k] for k in _RECIPE_FIELDS if k in merged}
+    if isinstance(values.get("jobs"), str):  # a recipe may say "jobs": "auto" like the command line
+        try:
+            values["jobs"] = _jobs(values["jobs"])
+        except argparse.ArgumentTypeError as exc:
+            raise ValueError(f"recipe jobs: {exc}") from None
     cli = {
         "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
         "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
         "library_dir": args.library_dir, "textures": args.textures, "texture_size": args.texture_size,
         "texture_set": args.texture_set, "textures_dir": args.textures_dir, "palette": args.palette,
+        "bake_device": args.bake_device,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
     if args.palette:  # a colour palette means palette mode
@@ -667,6 +686,9 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
+    tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
+                    help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
+                         "below that the CPU is faster); CPU and GPU differ in the noise")
     tx.add_argument("--palette", metavar="NAME", help="colour palette for palette mode (implies --textures palette): "
                                                      f"{', '.join(palette_names())} -> material MP_Palette_<Name>")
     g.add_argument("--icon-angle", help="preview/icon camera 'AZIMUTH,ELEVATION' in degrees (default 33,31)")
@@ -682,7 +704,8 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--lods", action="store_true",
                    help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
                         "(Unity builds the LODGroup on import)")
-    g.add_argument("--jobs", type=int, help="Blender processes in parallel (default 1)")
+    g.add_argument("--jobs", type=_jobs, help="Blender processes in parallel: a number or auto (default auto: up to "
+                                              "cores - 1, only as many as pay for their start)")
     g.add_argument("--force", action="store_true",
                    help="rebuild everything (default: models unchanged since the last run in --out are reused)")
     g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
