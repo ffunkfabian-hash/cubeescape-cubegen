@@ -229,15 +229,27 @@ def _claim(queue, name):
         return False
 
 
+def wait_ready(path, timeout=1800.0):
+    """The host builds the tile textures while this process starts: wait for its ``ok`` (or its error)."""
+    end = time.time() + timeout
+    while not os.path.isfile(path):
+        if time.time() > end:
+            raise RuntimeError(f"textures not ready after {timeout:.0f} s")
+        time.sleep(0.02)
+    with open(path, "r", encoding="utf-8") as fh:
+        state = fh.read().strip()
+    if state != "ok":
+        raise RuntimeError(f"texture build failed: {state}")
+
+
 def run_job(job_path):
+    started = time.time()
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
     scene = clear_scene()
     create_materials(overwrite=True)
     textures = job.get("textures") or {}
     material_map = {plain: info["name"] for plain, info in textures.items()}
-    if textures:
-        create_textured_materials(textures)
     palette = job.get("palette")
     if palette:
         create_palette_material(palette)
@@ -247,6 +259,13 @@ def run_job(job_path):
         cam = setup_render(scene, render.get("engine", "cycles"), render.get("size", 256), render.get("samples", 32),
                            textured=bool(job.get("textures") or palette))
         log(f"rendering previews with {scene.render.engine}")
+    if textures:
+        if job.get("textures_ready"):
+            waited = time.time()
+            wait_ready(job["textures_ready"])
+            if time.time() - waited > 0.05:
+                log(f"waited {time.time() - waited:.1f}s for the textures")
+        create_textured_materials(textures)
 
     results, collections, biggest = [], [], 1.0
     queue = job.get("queue_dir")  # parallel run: the models are work packages, every process claims the next free one
@@ -318,7 +337,9 @@ def run_job(job_path):
         log(f"saved {job['blend']}")
 
     with open(job["result_path"], "w", encoding="utf-8") as fh:
-        json.dump({"blender": bpy.app.version_string, "engine": scene.render.engine, "models": results}, fh, indent=2)
+        json.dump({"blender": bpy.app.version_string, "engine": scene.render.engine, "models": results,
+                   "worker": {"pid": os.getpid(), "models": len(results), "seconds": round(time.time() - started, 2),
+                              "blend": bool(job.get("blend"))}}, fh, indent=2)
 
 
 def main():

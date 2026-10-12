@@ -6,10 +6,13 @@ Works with ImageMagick 7 (``magick``) and ImageMagick 6 (``convert`` /
 
 from __future__ import annotations
 
+import copy
 import os
 import shutil
 import subprocess
-from typing import List, Optional, Sequence
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Optional, Sequence
 
 from .materials import MATERIALS, to_hex
 
@@ -40,6 +43,8 @@ def _which(name: str) -> Optional[str]:
 
 
 class ImageMagick:
+    env: Optional[Dict[str, str]] = None  # environment of the calls (None = inherit)
+
     def __init__(self, binary: Optional[str] = None):
         binary = binary or os.environ.get("CUBEGEN_MAGICK")
         if binary:
@@ -63,12 +68,19 @@ class ImageMagick:
                 "ImageMagick not found. Install it (https://imagemagick.org) or pass --magick /path/to/magick"
             )
 
+    def single_threaded(self) -> "ImageMagick":
+        """A copy whose calls use one OpenMP thread - for calls running in parallel: the thread pools of parallel
+        ImageMagick processes wait for each other (robot generator: montage 3.8 s -> 1.6 s). Same pixels."""
+        im = copy.copy(self)
+        im.env = dict(os.environ, MAGICK_THREAD_LIMIT="1")
+        return im
+
     # ------------------------------------------------------------------
     def run(self, args: Sequence[str], montage: bool = False) -> str:
         args = list(args)
         settings = [] if args[:1] == ["-version"] else list(REPRODUCIBLE)
         cmd = list(self.montage if montage else self.convert) + settings + args
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=self.env)
         if proc.returncode != 0:
             raise ImageMagickError(f"ImageMagick failed ({' '.join(cmd[:3])} ...):\n{proc.stderr.strip()}")
         return proc.stdout
@@ -119,9 +131,30 @@ class ImageMagick:
         return dst
 
     def contact_sheet(self, images: Sequence[str], labels: Sequence[str], dst: str, columns: int = 6,
-                      cell: int = 192, background: str = "#1e1e24", title: Optional[str] = None) -> str:
-        """Grid of all previews with names - quick visual review of a batch."""
+                      cell: int = 192, background: str = "#1e1e24", title: Optional[str] = None,
+                      workers: int = 0) -> str:
+        """Grid of all previews with names - quick visual review of a batch.
+
+        The labels are the expensive part (about 70 ms each: 186 previews took 15-20 s), so a big sheet is made as
+        blocks of ``SHEET_ROWS`` rows at the same time and stacked - the same pixels as one montage (checked with
+        ``compare -metric AE``), 2 s instead of 20. ``workers``: 0 = one per core, 1 = one montage."""
         columns = max(1, min(columns, len(images)))
+        block = columns * SHEET_ROWS
+        workers = min(workers or os.cpu_count() or 1, -(-len(images) // block))
+        if workers > 1:
+            single = self.single_threaded()
+            with tempfile.TemporaryDirectory(prefix="cubegen_sheet_") as work:
+                parts = [os.path.join(work, f"block_{k:03d}.png") for k in range(0, len(images), block)]
+                jobs = [(images[k:k + block], labels[k:k + block], part, title if k == 0 else None)
+                        for k, part in zip(range(0, len(images), block), parts)]
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    list(pool.map(lambda j: single._montage(j[0], j[1], j[2], columns, cell, background, j[3]),
+                                  jobs))
+                self.run(parts + ["-background", background, "-append", "-depth", "8", dst])
+            return dst
+        return self._montage(images, labels, dst, columns, cell, background, title)
+
+    def _montage(self, images, labels, dst, columns, cell, background, title) -> str:
         base = ["-background", background, "-fill", "#e8e8e8", "-pointsize", "13"]
         tail = ["-tile", f"{columns}x", "-geometry", f"{cell}x{cell}+8+8", "-depth", "8"]
         titled = tail + (["-title", title] if title else [])
@@ -134,6 +167,9 @@ class ImageMagick:
             # no usable font -> unlabelled sheet
             self.run(["-background", background] + list(images) + tail + [dst], montage=True)
         return dst
+
+
+SHEET_ROWS = 4  # rows per block of a big contact sheet
 
 
 def find_imagemagick(binary: Optional[str] = None) -> Optional[ImageMagick]:

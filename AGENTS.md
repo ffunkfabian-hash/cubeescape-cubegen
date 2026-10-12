@@ -37,7 +37,8 @@ Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und b
 (`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`). 0.13.0 „Patina“ (10. Oktober 2026,
 `VERSION_0.13.0.md`) ist veröffentlicht. 0.14.0 „Werkstattbuch“ (12. Oktober 2026, `VERSION_0.14.0.md`, Leistungserfahrungen
 für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026, `VERSION_0.14.1.md`, Plugins und Hooks für
-Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. Laufende Arbeitsversion: 0.15.0 „Stoppuhr“ (`VERSION_0.15.0.md`).
+Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. 0.15.0 „Stoppuhr“ (`VERSION_0.15.0.md`) ist lokal committet, nicht veröffentlicht. Laufende
+Arbeitsversion: 0.16.0 „Overdrive“ (`VERSION_0.16.0.md`).
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -45,7 +46,8 @@ Diese Regel gilt auch in allen späteren Integrationsphasen.
 ## Versionen, Branches und Worktrees
 
 Jeder neue Branch, Worktree oder Arbeitsauftrag ist eine **neue Version**: Minor +1 (0.12.0 → 0.13.0 → 0.14.0 …)
-mit einem eigenen, ausgedachten Namen (kurz, sprechend, z. B. „Eisenwald“). Setzt eine Sitzung dieselbe Arbeit in
+mit einem eigenen, ausgedachten Namen – cool und auf Englisch (z. B. „Overdrive“, „Afterburner“), nie ein
+beschreibender deutscher Begriff; gilt ab 0.16.0, ältere Namen bleiben. Setzt eine Sitzung dieselbe Arbeit in
 einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht erst beim Release:
 
 - Version in `pyproject.toml`, `cubegen/__init__.py` und `blender_addon/cubegen_addon/__init__.py` (`bl_info`)
@@ -158,11 +160,20 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
   Render-Prozesse lohnen nicht, die GPU ist dann ausgelastet. `--jobs` (`cubegen/pipeline.py`) verteilt seit 0.15.0
   Arbeitspakete; `nice` entfällt, weil kein Prozess den kritischen Pfad hat. **`-t` nicht für Cycles-Backen:** Die
   Grenze gilt für Python-lastige Worker; Cubegens Worker backen echt parallel, mit `-t Kerne/Jobs` war das Station-Kit
-  langsamer (50–54 s statt 47–49 s, `--jobs 3`, gemessen 0.15.0).
+  langsamer (50–54 s statt 47–49 s, `--jobs 3`, gemessen 0.15.0). Auch ohne Backen bringt `-t 1` nichts (186 Typen,
+  Export und Vorschau, innerhalb der Streuung; 0.16.0).
+- **`--jobs auto` (Standard seit 0.16.0, `pipeline.auto_jobs`):** bis Kerne − 1, je Prozess mindestens 2 s Arbeit
+  (Start ≈ 0,6 s). CPU-Backen skaliert nicht (Cycles nutzt alle Kerne: 1–9 Prozesse 69–77 s) → höchstens 2;
+  GPU-Arbeit höchstens 3. Neue Arbeit bekommt ihre Schätzung in `SECONDS_PER_MODEL` aus einer Messung.
 - **ImageMagick parallel nur mit `MAGICK_THREAD_LIMIT=1`.** Die OpenMP-Threads paralleler Prozesse warten aktiv
   aufeinander (eine Montage aus 28 Kacheln: 1,6 s statt 3,8 s, parallel noch deutlich mehr). Die Ausgabe bleibt
-  bitgleich. Cubegen setzt es für die Blender-Worker von `--jobs` (`bake._magick`); Texturen, Icons und
-  Kontaktbogen laufen nacheinander im Hauptprozess.
+  bitgleich. Cubegen setzt es für die Blender-Worker von `--jobs` (`bake._magick`) und für seine eigenen parallelen
+  Aufrufe (`ImageMagick.single_threaded`: Texturen je Material, Icons je Modell, Kontaktbogen in Blöcken).
+- **Beschriftungen in `montage` sind teuer** (≈ 70 ms je Label, 186 Modelle 15–20 s): große Kontaktbögen in Blöcken
+  zu `SHEET_ROWS` Zeilen parallel montieren und mit `-append` stapeln – pixelgleich (Test), 2 statt 20 s.
+- **Stufen überlappen:** Was Blender nicht sofort braucht, läuft daneben. Die Kacheltexturen entstehen, während die
+  Blender-Prozesse starten (`textures.plan_texture_set` liefert Namen und Pfade vorab, eine Bereit-Datei gibt frei);
+  `timings.overlap` nennt solche Stufen, ihre Zeiten sind dann nicht addierbar.
 - **Bytegleiche Bilder sind die Voraussetzung für jeden Cache.** Jeder ImageMagick-Aufruf läuft mit
   `imagemagick.REPRODUCIBLE` (`-define png:exclude-chunks=date,time`); `cubegen/cache.py` übernimmt Texturen, Icons,
   Kontaktbogen und Material-Übersicht nur, wenn Eingabeschlüssel und Datei-Hashes stimmen. Neue Bildschritte nutzen
@@ -172,6 +183,12 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
   (rund 30 s), vor dem Release die volle Suite.
 - **numpy-Kleinkram:** `foreach_get("co", …)` in ein `float32`-Array lesen (das native Format; `float64` erzwingt eine
   langsame Umwandlung, 3× langsamer), Hüllquader-Tests für alle Paare auf einmal statt einzeln je Paar.
+- **Prüfung und Modellbau bleiben reines Python (0.16.0 entschieden):** `fix_z_fighting` bestimmt die Geometrie; eine
+  andere Summationsreihenfolge (numpy) könnte Grenzfälle kippen und die Golden-Daten brechen, und die Flächengruppen
+  sind zu klein, als dass Arrays sich lohnen. Robogens Idee gilt trotzdem: billiger Hüllquader-Test vor der teuren
+  Prüfung – aber nur für Flächen, die überhaupt verglichen werden (alle vorab zu rechnen war langsamer), und teure
+  Vorarbeit einmal je Teil statt je Probepunkt (`quality.ray_faces`). Ergebnis bytegleich prüfen (Prüf-JSON,
+  erzeugte Dateien), CPU-Zeit vergleichen statt Wanduhr, wenn fremde Last läuft.
 - **Nicht übertragbar** (geprüft 0.15.0): Paletten aus Gewichtskarten zusammensetzen – Cubegen backt keine Paletten
   (`palette.py` ist reines Python, `baked` backt eine Palette je Lauf). EEVEE-`BLENDED` – kein Cubegen-Material ist
   transparent. `foreach_get` als `float32` – Cubegen liest keine Meshes mit `foreach_get`. Kommen solche Fälle
@@ -179,6 +196,26 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
 - **Die Neural Engine nutzt Blender nicht** (nur über Core ML erreichbar); Metal verteilt GPU-Arbeit selbst auf alle
   GPU-Kerne. Geprüft in 0.14.2: Vision-Merkmalsvergleiche taugen nicht als Prüfschranke (je Gerät andere Werte,
   trennen Fehler nicht besser als ein exakter Pixelvergleich); höchstens als Hinweiswerkzeug mit Zeitregel (ROADMAP).
+
+## macOS-App (`app/`)
+
+Gebaut wie der Robot Viewer des Roboter-Generators: SwiftUI + SceneKit, `swiftc` ohne Xcode-Projekt, universal,
+ad-hoc signiert; Kommandozeilen-Modi statt UI-Automation für die Tests.
+
+- **Eine Quelle:** Die App startet das mitgelieferte Paket (`python3 -m cubegen`) und liest Typen, Stiloptionen,
+  Paletten und Familien aus `cubegen catalog` – keine eigenen Listen. Ihre Kommandozeile folgt `cubegen/gui.py`
+  (`command`, `texture_args`); ändert sich dort etwas, ändert sich `GenerateSettings.arguments` mit, die Fixtures in
+  `app/tests` und `app/test_app.sh` prüfen es.
+- **Symbole per ImageMagick** (`app/make_icons.sh`), keine SF Symbols: weiße Linien auf Transparent als
+  Vorlagenbilder, eins je Katalog-Kategorie (der Test verlangt das), `cube` als farbiger Platzhalter. Neue Kategorie
+  oder Aktion → neues Symbol im selben Stil.
+- **3D-Ansicht liest die MTL selbst** (`ModelScene.readMTL`): Blender schreibt `Ka 1 1 1`, ModelIO verändert die
+  linearen Farben – beides ergab ein weißes Modell. Farben sind linear (wie Unity), die App rechnet nach sRGB um.
+- **Gespeicherte Einstellungen** (`GenerateSettings`) lesen fehlende Schlüssel mit Standardwerten; Testmodi
+  (`--run`, `--ui-snapshot`) lesen und schreiben sie nie.
+- **Prüfen:** `app/build.sh` und `app/test_app.sh` nach jeder Änderung an `app/` oder an CLI-Optionen, die die App
+  anbietet; Sichtprüfung über `--ui-snapshot` (Fenster offscreen; die SceneKit-Fläche bleibt dort leer) und
+  `--snapshot` (3D-Ansicht).
 
 ## Ausrichtung gerichteter Modelle
 

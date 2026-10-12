@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
@@ -22,7 +23,7 @@ from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
 from .params import Style
 from .materials import MATERIALS
-from .textures import TEXTURE_MODES, build_texture_set
+from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
 from .variety import pick_unique
 from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
@@ -55,7 +56,7 @@ class BatchConfig:
     unique: bool = False           # counts: skip variants that look like an earlier one (see variety.py)
     lods: bool = False             # static models: + low detail level, FBX objects <part>_LOD0 / _LOD1
     force: bool = False            # rebuild everything (default: reuse unchanged models of the last run)
-    jobs: int = 1                  # Blender processes working in parallel (work packages, biggest model first)
+    jobs: int = 0                  # Blender processes in parallel (work packages, biggest first); 0 = auto_jobs
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -126,8 +127,8 @@ class BatchConfig:
         self.palette = palette_mod.check_palette(self.palette)
         if self.icon_zoom <= 0:
             raise ValueError("icon zoom must be > 0")
-        if self.jobs < 1:
-            raise ValueError("jobs must be >= 1")
+        if self.jobs < 0:
+            raise ValueError("jobs must be >= 1 (or 0 = auto)")
         if self.bake_device not in BAKE_DEVICES:
             raise ValueError(f"bake device must be one of {', '.join(BAKE_DEVICES)}")
         if self.lods and self.textures == "baked":
@@ -390,6 +391,59 @@ def _previous_engine(out: str) -> Optional[str]:
         return None
 
 
+# --jobs auto (measured 0.16.0, Apple M5, 10 cores): a Blender process starts in about 0.6 s and should get at least
+# MIN_WORKER_SECONDS of work. Cycles baking on the CPU already uses every core - 1 to 9 processes all took 69-77 s
+# for the station kit -, so it gets two (one bakes while the other exports); GPU work at most three (the robot
+# generator measured the GPU busy from 3-4 EEVEE processes). Export / Workbench previews: up to cores - 1.
+MIN_WORKER_SECONDS = 2.0
+SECONDS_PER_MODEL = {"export": 0.03, "workbench": 0.05, "render": 0.5, "bake": 1.7}
+
+
+def auto_jobs(models: int, config: "BatchConfig", engine: Optional[str]) -> int:
+    """How many Blender processes pay off for ``models`` models (``--jobs auto``)."""
+    cores = os.cpu_count() or 1
+    limit = max(1, cores - 1)
+    per_model = SECONDS_PER_MODEL["export"]
+    if config.render and engine:
+        per_model += SECONDS_PER_MODEL["workbench" if engine == "workbench" else "render"]
+        if engine != "workbench":
+            limit = min(limit, 3)
+    if config.textures == "baked":
+        gpu = config.bake_device == "gpu" or (config.bake_device == "auto" and config.texture_size >= 1024)
+        per_model += SECONDS_PER_MODEL["bake"] * (config.texture_size / 512) ** 2
+        limit = min(limit, 3 if gpu else 2)
+    worth = int(models * per_model / MIN_WORKER_SECONDS)
+    return max(1, min(limit, models, worth))
+
+
+class _Background:
+    """Runs ``work`` in a thread and then marks ``ready`` (a file the Blender workers wait for): ``ok`` or the error."""
+
+    def __init__(self, work: Callable[[], Any], ready: str):
+        self.result = None
+        self.error: Optional[BaseException] = None
+        self.seconds = 0.0
+        self.ready = ready
+        self.thread = threading.Thread(target=self._run, args=(work,), daemon=True)
+        self.thread.start()
+
+    def _run(self, work):
+        start = time.perf_counter()
+        try:
+            self.result = work()
+        except BaseException as exc:  # noqa: BLE001 - re-raised in join()
+            self.error = exc
+        self.seconds = time.perf_counter() - start
+        with open(self.ready, "w", encoding="utf-8") as fh:
+            fh.write("ok" if self.error is None else f"error: {self.error}")
+
+    def join(self):
+        self.thread.join()
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
 def model_cost(spec: Dict) -> int:
     """Rough work of a model for the order of the work packages: triangles + a share per part (export / bake)."""
     asset = build_spec(spec)
@@ -445,6 +499,7 @@ def _run_jobs(blender: str, job: Dict, specs: List[Dict], todo: List[Dict], blen
     if missing:
         raise BlenderError("no Blender process built: " + ", ".join(missing))
     merged = {"models": [by_name[s["name"]] for s in specs if s["name"] in by_name],
+              "workers": [o["worker"] for o in outputs if o.get("worker")],
               "blender": outputs[0].get("blender"),
               "engine": next((o.get("engine") for o in outputs if o["models"]), outputs[0].get("engine"))}
     return merged
@@ -458,15 +513,25 @@ def _budget(stage: str, models: int, config: "BatchConfig") -> float:
     return base * max(1.0, factor)
 
 
-def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: int, config: "BatchConfig") -> Dict:
+def system_load() -> Optional[float]:
+    """1-minute load average (None where the OS has none, e.g. Windows)."""
+    try:
+        return round(os.getloadavg()[0], 2)
+    except (AttributeError, OSError):
+        return None
+
+
+def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: int, config: "BatchConfig",
+                 load: Optional[Dict] = None, workers: Optional[List[Dict]] = None) -> Dict:
     """For the manifest: ``seconds`` (wall clock per stage of this run), ``worker_seconds`` (summed in Blender),
-    ``budgets`` and ``slow`` (stages over their budget)."""
+    ``budgets`` and ``slow`` (stages over their budget), ``load`` (system load at start / end, cores) and ``workers``
+    (per Blender process: models built, seconds) - times are only comparable on an idle machine."""
     measured = dict(seconds, **worker)
     budgets = {stage: round(_budget(stage, models, config), 1) for stage in measured if stage in STAGE_BUDGETS}
     slow = [stage for stage, limit in budgets.items() if measured[stage] > limit]
     return {"seconds": {k: round(v, 2) for k, v in seconds.items()},
             "worker_seconds": {k: round(v, 2) for k, v in worker.items()},
-            "budgets": budgets, "models_built": models, "slow": slow}
+            "budgets": budgets, "models_built": models, "slow": slow, "load": load or {}, "workers": workers or []}
 
 
 def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick_version: str,
@@ -490,6 +555,12 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     config.validate()
     seconds: Dict[str, float] = {}
     worker: Dict[str, float] = {}
+    cores = os.cpu_count() or 1
+    load = {"start": system_load(), "cores": cores}
+    if load["start"] is not None and load["start"] > cores:
+        log(f"warning: the machine is busy (load {load['start']:.1f} on {cores} cores) - times are not comparable")
+    workers: List[Dict] = []
+    overlap: List[str] = []  # stages that ran in parallel with "blender"
     clock = [time.perf_counter()]
 
     def lap(stage: str) -> None:  # time since the last lap -> stage
@@ -538,15 +609,23 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     textures: Dict[str, Dict] = {}
     textures_dir = None
     palette = None
+    texture_job: Optional[_Background] = None
     if config.textures != "none":
         textures_dir = os.path.abspath(config.textures_dir) if config.textures_dir \
             else os.path.join(dirs["models"], "Textures")
     if config.textures == "palette":  # one material per model: written in pure Python
         palette = palette_mod.write_palette(textures_dir, log=log, name=config.palette)
+    elif config.textures != "none" and config.use_blender:
+        # Blender starts while ImageMagick builds the tile textures: the workers know the names and paths up front
+        # and wait for the "ready" file before they load the images (robot generator: workers start before the bake)
+        textures = plan_texture_set(textures_dir, config.texture_set)
+        ready_dir = tempfile.mkdtemp(prefix="cubegen_ready_")
+        texture_job = _Background(lambda: _texture_set(im, textures_dir, config, magick_version, log),
+                                  os.path.join(ready_dir, "textures"))
     elif config.textures != "none":
         textures = _texture_set(im, textures_dir, config, magick_version, log)
     material_map = {plain: info["name"] for plain, info in textures.items()}
-    if config.textures != "none":
+    if config.textures != "none" and texture_job is None:
         lap("textures")
 
     def asset_materials(asset):
@@ -588,6 +667,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "textures_dir": textures_dir,
             "magick": im.convert,
             "bake_device": config.bake_device,
+            "textures_ready": texture_job.ready if texture_job else None,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
                        "elevation": config.icon_elevation, "zoom": config.icon_zoom},
@@ -595,11 +675,28 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         results = dict(reused)
         blender_info = {"version": version, "render_engine": None}
         lap("plan")
-        if todo or (blend_path and not os.path.isfile(blend_path)):
-            log(f"Blender: {blender} - {len(todo)} asset(s), formats: {', '.join(formats)}")
-            result = _run_jobs(blender, job, specs, todo, blend_path, config.jobs, config.verbose, log)
+        jobs = config.jobs or auto_jobs(len(todo), config, engine)
+        try:
+            if todo or (blend_path and not os.path.isfile(blend_path)):
+                log(f"Blender: {blender} - {len(todo)} asset(s), formats: {', '.join(formats)}, "
+                    f"{jobs} process(es){' (auto)' if not config.jobs else ''}")
+                result = _run_jobs(blender, job, specs, todo, blend_path, jobs, config.verbose, log)
+            else:
+                result = None
+        finally:
+            if texture_job is not None:  # also when Blender failed: the thread must not outlive the run
+                built = texture_job.join()
+                shutil.rmtree(os.path.dirname(texture_job.ready), ignore_errors=True)
+                if built != textures:
+                    raise RuntimeError("texture set differs from its plan (textures.texture_info)")
+                seconds["textures"] = texture_job.seconds  # its own duration, in parallel with Blender
+                overlap.append("textures")
+        if result is None:
+            clock[0] = time.perf_counter()  # the wait for the textures is already in seconds["textures"]
+        else:
             results.update({r["name"]: r for r in result["models"]})
-            lap("blender")
+            workers = result.get("workers", [])
+            lap("blender")  # wall clock; overlaps "textures" when they were built in the background
             for r in result["models"]:  # the worker's own clock per model (summed over parallel processes)
                 for stage, value in (r.get("timings") or {}).items():
                     worker[stage] = worker.get(stage, 0.0) + value
@@ -639,8 +736,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         lap("export")
 
     # --- ImageMagick post processing (skipped where the inputs did not change) ------
-    previews, labels, sources = [], [], []
-    made = 0
+    previews, labels, sources, icon_todo = [], [], [], []
     for spec in specs:
         res = results.get(spec["name"], {})
         if res.get("preview") and os.path.isfile(res["preview"]):
@@ -649,13 +745,19 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             key = input_key("icon", preview_hash, config.icon_size, config.icon_background, code_fingerprint(),
                             magick_version)
             if not images.get(f"icon:{icon}", key):
-                im.make_icon(res["preview"], icon, config.icon_size, config.icon_background)
-                images.put(f"icon:{icon}", key, [icon])
-                made += 1
+                icon_todo.append((res["preview"], icon, key))
             res["icon"] = icon
             previews.append(res["preview"])
             labels.append(spec["name"])
             sources.append(preview_hash)
+    made = len(icon_todo)
+    if icon_todo:  # one ImageMagick process per icon, several at once (each with one thread)
+        single = im.single_threaded() if made > 1 else im
+        with ThreadPoolExecutor(max_workers=min(made, os.cpu_count() or 1)) as pool:
+            list(pool.map(lambda t: single.make_icon(t[0], t[1], config.icon_size, config.icon_background),
+                          icon_todo))
+        for _, icon, key in icon_todo:
+            images.put(f"icon:{icon}", key, [icon])
     sheet = None
     if previews:
         sheet = os.path.join(out, "contact_sheet.png")
@@ -760,7 +862,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     }
     lap("manifest")
     built = sum(1 for spec in specs if results.get(spec["name"]) and not results[spec["name"]].get("reused"))
-    report = stage_report(seconds, worker, built, config)
+    load["end"] = system_load()
+    report = stage_report(seconds, worker, built, config, load, workers)
+    report["overlap"] = overlap
     manifest["timings"] = report
     log("timings: " + ", ".join(f"{k} {v:.1f} s" for k, v in report["seconds"].items())
         + ("; in Blender (sum over processes): " + ", ".join(f"{k} {v:.1f} s" for k, v in worker.items())

@@ -1,7 +1,8 @@
 # Roadmap
 
 Stand: 12. Oktober 2026, cubegen **0.14.2** veröffentlicht (Tag `v0.14.2`, Release-Zweig `release/0.14.2`);
-Arbeitsversion 0.15.0 „Stoppuhr“ (unveröffentlicht, [VERSION_0.15.0.md](../VERSION_0.15.0.md)). 186 registrierte Typen.
+0.15.0 „Stoppuhr“ lokal committet ([VERSION_0.15.0.md](../VERSION_0.15.0.md)), Arbeitsversion 0.16.0 „Overdrive“
+(unveröffentlicht, [VERSION_0.16.0.md](../VERSION_0.16.0.md)). 186 registrierte Typen.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -97,6 +98,24 @@ Geprüft und entfallen (0.15.0): Paletten aus Gewichtskarten zusammensetzen – 
 Python, `palette.py`), `--textures baked` backt je Lauf genau eine Palette. EEVEE-Wartezeit durch `BLENDED`-Materialien –
 kein Cubegen-Material setzt eine transparente Render-Methode. `foreach_get` als `float32` – nicht verwendet.
 Werden Texturvarianten je Palette oder transparente Materialien eingeführt, gelten diese Regeln (AGENTS.md).
+
+Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
+[VERSION_0.16.0.md](../VERSION_0.16.0.md)):
+
+- [x] **`--jobs auto` als Standard:** bis Kerne − 1, nur so viele Prozesse, wie sich lohnen; CPU-Backen höchstens 2,
+  GPU-Arbeit höchstens 3.
+- [x] **ImageMagick parallel:** Texturen je Material, Icons je Modell, Kontaktbogen in Blöcken (186 Modelle: Bildnachlauf
+  16,4 → 4,1 s, Kontaktbogen pixelgleich).
+- [x] **Stufen überlappen:** Blender startet, während die Kacheltexturen entstehen.
+- [x] **Ein Back-Durchgang weniger:** Rauheit und Metall in einem Durchgang, Karten bytegleich.
+- [x] **Messung:** Systemlast, Statistik je Blender-Prozess, `tools/profile_run.py`.
+- [x] **`-t 1` ohne Backen:** gemessen, kein Gewinn, nicht übernommen.
+- [x] **Qualitätsprüfung schneller:** Hüllquader-Vorfilter und einmal vorbereitete Strahlflächen, 35 % weniger CPU,
+  Ergebnis bytegleich; numpy bewusst nicht (Golden-Daten).
+- [x] **macOS-App** `app/` (0.16.0): erzeugt Modelle wie das Desktop-Fenster, nach dem Vorbild des Robot Viewers;
+  Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
+- [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
+  Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
 ## 3. Erweiterungen
 

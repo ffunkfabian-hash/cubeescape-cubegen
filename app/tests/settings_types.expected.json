@@ -1,0 +1,3 @@
+["generate", "--types", "crate,door", "--count", "2", "--seed", "42", "--out", "/tmp/cubegen-app-test",
+ "--textures", "baked", "--texture-size", "1024", "--damage", "damaged", "--unique", "--force",
+ "--formats", "fbx,obj", "--bake-device", "cpu"]

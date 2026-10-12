@@ -34,6 +34,19 @@ def _csv(value: str) -> List[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def _jobs(value: str) -> int:
+    """``--jobs auto`` -> 0 (the pipeline decides), else a number >= 1."""
+    if value.strip().lower() == "auto":
+        return 0
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("a number >= 1 or 'auto'") from None
+    if number < 1:
+        raise argparse.ArgumentTypeError("a number >= 1 or 'auto'")
+    return number
+
+
 def unknown_key(what: str, key: str, allowed) -> ValueError:
     """``unknown key 'stlye' (did you mean 'style'?)`` - typos must not be silently ignored."""
     close = difflib.get_close_matches(key, list(allowed), n=1)
@@ -686,7 +699,8 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--lods", action="store_true",
                    help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
                         "(Unity builds the LODGroup on import)")
-    g.add_argument("--jobs", type=int, help="Blender processes in parallel (default 1)")
+    g.add_argument("--jobs", type=_jobs, help="Blender processes in parallel: a number or auto (default auto: up to "
+                                              "cores - 1, only as many as pay for their start)")
     g.add_argument("--force", action="store_true",
                    help="rebuild everything (default: models unchanged since the last run in --out are reused)")
     g.add_argument("--no-blend", action="store_true", help="don't save the overview .blend")
