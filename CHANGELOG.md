@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.0 „Prism“ – unveröffentlicht
+
+* **Stiltest Anstriche** (experimentell, `tools/style_test.py`): das Skin-Prinzip des Roboter-Generators für
+  Umgebungsmodelle – einmal neutral backen (Gewichtskarten der Spielmaterialien, Umgebungsverdeckung, Kanten,
+  „oben“, Detail und Normalen der Kacheltexturen), jeder Anstrich ist Daten (`cubegen/paint.py`: `industrial`,
+  `crystal`) und wird in 0,2–0,3 s zusammengesetzt. Vergleich mit dem Konzeptbogen: `docs/style_test_0170.png`.
+* Normale Ausgabe, Golden-Daten und Unity-Vertrag unverändert. Paket, CLI und Add-on auf 0.17.0.
+  Bericht: [VERSION_0.17.0.md](VERSION_0.17.0.md).
+
 ## 0.16.0 „Overdrive“ – 2026-10-12
 
 * **macOS-App** `app/` (`Cubegen.app`, SwiftUI + SceneKit, wie der Robot Viewer gebaut): erzeugt Modelle wie das

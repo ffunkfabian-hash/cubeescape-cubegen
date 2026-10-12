@@ -81,6 +81,12 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 python -m cubegen doctor
 ```
 
+## Stiltest Anstriche (experimentell)
+
+`python3 tools/style_test.py [--concept <Bild>]` backt Wand, Plattform, Säule und Kiste einmal neutral und setzt daraus
+die Anstriche `industrial` und `crystal` zusammen (`cubegen/paint.py`) – das Skin-Prinzip des Roboter-Generators.
+Ergebnis und offene Fragen: [VERSION_0.17.0.md](VERSION_0.17.0.md), Bild [docs/style_test_0170.png](docs/style_test_0170.png).
+
 ## App (macOS)
 
 `Cubegen.app` (SwiftUI + SceneKit, ohne Xcode-Projekt gebaut wie der Robot Viewer des Roboter-Generators) erzeugt

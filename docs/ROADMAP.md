@@ -2,7 +2,8 @@
 
 Stand: 12. Oktober 2026, cubegen **0.16.0 „Overdrive“** veröffentlicht (Tag `v0.16.0`, Release-Zweig
 `release/0.16.0`, [VERSION_0.16.0.md](../VERSION_0.16.0.md)), zusammen mit 0.15.0 „Stoppuhr“
-([VERSION_0.15.0.md](../VERSION_0.15.0.md)). 186 registrierte Typen, macOS-App unter `app/`.
+([VERSION_0.15.0.md](../VERSION_0.15.0.md)). Arbeitsversion 0.17.0 „Prism“ (Stiltest Anstriche,
+[VERSION_0.17.0.md](../VERSION_0.17.0.md)). 186 registrierte Typen, macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -114,6 +115,10 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Ergebnis bytegleich; numpy bewusst nicht (Golden-Daten).
 - [x] **macOS-App** `app/` (0.16.0): erzeugt Modelle wie das Desktop-Fenster, nach dem Vorbild des Robot Viewers;
   Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
+- [x] **Stiltest Anstriche** (0.17.0, experimentell): einmal neutral backen, Anstriche als Daten
+  zusammensetzen – Ergebnis und offene Richtungsfragen in [VERSION_0.17.0.md](../VERSION_0.17.0.md).
+- [ ] **Anstriche als Ausgabemodus** (nach Entscheidung): `--paint`, Unity-Weg (fertige Karten oder Shader mit
+  Palette), weitere Anstriche des Konzepts (Clean, Ruin, Dark, Organic), Anbauteile für mehr Geometrie.
 - [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
   Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
