@@ -50,6 +50,7 @@ def groups(tier="full"):
 
 def environment(tier):
     env = dict(os.environ)
+    env.pop("CUBEGEN_SKIP_BLENDER", None)  # full means full, even if a quick run left it exported in the shell
     if tier != "full":
         env["CUBEGEN_SKIP_BLENDER"] = "1"
     return env

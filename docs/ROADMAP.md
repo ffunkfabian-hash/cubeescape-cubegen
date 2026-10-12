@@ -1,8 +1,8 @@
 # Roadmap
 
-Stand: 12. Oktober 2026, cubegen **0.14.2** veröffentlicht (Tag `v0.14.2`, Release-Zweig `release/0.14.2`);
-0.15.0 „Stoppuhr“ lokal committet ([VERSION_0.15.0.md](../VERSION_0.15.0.md)), Arbeitsversion 0.16.0 „Overdrive“
-(unveröffentlicht, [VERSION_0.16.0.md](../VERSION_0.16.0.md)). 186 registrierte Typen.
+Stand: 12. Oktober 2026, cubegen **0.16.0 „Overdrive“** veröffentlicht (Tag `v0.16.0`, Release-Zweig
+`release/0.16.0`, [VERSION_0.16.0.md](../VERSION_0.16.0.md)), zusammen mit 0.15.0 „Stoppuhr“
+([VERSION_0.15.0.md](../VERSION_0.15.0.md)). 186 registrierte Typen, macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte

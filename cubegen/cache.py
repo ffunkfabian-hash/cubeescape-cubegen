@@ -63,6 +63,12 @@ class OutputCache:
     def put(self, name: str, key: str, files: Iterable[str], data=None) -> None:
         self.entries[name] = {"key": key, "files": {p: file_hash(p) for p in sorted(set(files))}, "data": data}
 
+    def prune(self, prefix: str, keep) -> None:
+        """Forget entries ``<prefix><x>`` whose ``x`` is not in ``keep`` (e.g. icons of models no longer built here)."""
+        keep = {prefix + k for k in keep}
+        for name in [n for n in self.entries if n.startswith(prefix) and n not in keep]:
+            del self.entries[name]
+
     def save(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         with open(self.path, "w", encoding="utf-8") as fh:

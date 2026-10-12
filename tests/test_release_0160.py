@@ -49,6 +49,54 @@ class AutoJobsTest(unittest.TestCase):
         self.assertEqual(BatchConfig(seed=1, models={}, out_dir="x").jobs, 0)
 
 
+class ReviewFixesTest(unittest.TestCase):
+    def test_recipe_jobs_auto_and_invalid_values(self):
+        with tempfile.TemporaryDirectory() as d:
+            recipe = os.path.join(d, "r.json")
+            for value, expected in (("auto", 0), (3, 3)):
+                with open(recipe, "w", encoding="utf-8") as fh:
+                    json.dump({"seed": 1, "models": {"crate": 1}, "jobs": value}, fh)
+                cfg = build_config(make_parser().parse_args(["generate", "--recipe", recipe, "--out", d]))
+                self.assertEqual(cfg.jobs, expected)
+            with open(recipe, "w", encoding="utf-8") as fh:
+                json.dump({"seed": 1, "models": {"crate": 1}, "jobs": "many"}, fh)
+            with self.assertRaises(ValueError):
+                build_config(make_parser().parse_args(["generate", "--recipe", recipe, "--out", d]))
+        with self.assertRaises(ValueError):
+            config(jobs="auto").validate()
+
+    def test_icon_cache_forgets_models_no_longer_built(self):
+        from cubegen.cache import OutputCache
+
+        with tempfile.TemporaryDirectory() as d:
+            files = []
+            for name in ("a", "b"):
+                path = os.path.join(d, name + ".png")
+                with open(path, "wb") as fh:
+                    fh.write(name.encode())
+                files.append(path)
+            cache = OutputCache(d)
+            for path in files:
+                cache.put("icon:" + path, "k", [path])
+            cache.put("swatch", "k", [files[0]])
+            cache.prune("icon:", [files[0]])
+            self.assertEqual(sorted(cache.entries), ["icon:" + files[0], "swatch"])
+
+    def test_full_tier_ignores_an_exported_skip_variable(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+        import run_tests
+
+        old = os.environ.get("CUBEGEN_SKIP_BLENDER")
+        os.environ["CUBEGEN_SKIP_BLENDER"] = "1"
+        try:
+            self.assertNotIn("CUBEGEN_SKIP_BLENDER", run_tests.environment("full"))
+        finally:
+            if old is None:
+                os.environ.pop("CUBEGEN_SKIP_BLENDER")
+            else:
+                os.environ["CUBEGEN_SKIP_BLENDER"] = old
+
+
 class QualitySpeedupTest(unittest.TestCase):
     def test_prepared_ray_faces_give_the_same_answers(self):
         from cubegen.models import generate_asset

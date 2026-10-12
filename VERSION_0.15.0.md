@@ -1,8 +1,7 @@
 # Cubegen 0.15.0 – Stoppuhr
 
-*ungeprüft: Unity-Abnahme offen* – Generator-Code geändert (Backen, Bilder, Parallelbetrieb); Python-Suite mit Blender
-und ImageMagick grün, echte Exporte geprüft, Import in der Cube-Escape-Testkopie steht aus.
-Unveröffentlicht, Branch `release/0.15.0`; vorherige Version [0.14.2](VERSION_0.14.2.md).
+Release vom 12. Oktober 2026 (zusammen mit [0.16.0](VERSION_0.16.0.md), dort die gemeinsame Abnahme), Release-Zweig
+`release/0.15.0`; vorherige Version [0.14.2](VERSION_0.14.2.md).
 
 ## Inhalt
 
@@ -61,22 +60,4 @@ Material), `foreach_get` als `float32` (nicht verwendet) – in AGENTS.md als Re
 - Zeiten unter wechselnder Last gemessen (zwei Unity-Prozesse anderer Sitzungen, Last bis 28); Vergleiche deshalb
   abwechselnd gefahren. Als Größenordnung verwenden.
 - GPU-Schwelle 1024 px nur auf Apple M5 (Metal) gemessen; andere GPUs können anders liegen (`--bake-device`).
-- Unity-Import der neu gebackenen Texturen in der Cube-Escape-Testkopie steht aus (Stufe 2).
-
-## Lokaler Test (Stufe 2)
-
-```text
-Abnahme und Release nach Cubegen-AGENTS.md (Stufe 2):
-Branch: release/0.15.0 · Version: 0.15.0 „Stoppuhr“ · PR: noch keiner (Branch nicht gepusht)
-Tag: v0.15.0 · Release-Branch: release/0.15.0 · Umfang: Abnahme und Release
-Vor dem Merge noch offen:
-- Unity-Import in der Cube-Escape-Testkopie: Station-Kit mit --textures baked (512 px, CPU) und eine Auswahl mit --texture-size 1024 (GPU) neu exportieren, importieren, Materialien/Texturen und Wiederimport ohne Fehler
-- Sichtprüfung: Kontaktbogen und gebackene Karten alt gegen neu (Rauschen der Umgebungsverdeckung minimal anders)
-- Zweiter Export ohne Änderung: Unity darf Texturen und Icons nicht neu importieren (bytegleiche PNG)
-Abnahme: eigener Worktree; volle Python-Suite mit Blender und ImageMagick ohne übersprungene Tests, echte Exporte der
-geänderten Typen, Sichtprüfung, Import und Physik in der Cube-Escape-Testkopie, Bericht VERSION_0.15.0.md auf
-Endstand, Vermerk „ungeprüft“ entfernen, committen, Branch pushen.
-Stopp: Bleibt etwas rot oder ist eine Richtungsfrage offen – anhalten und fragen, nicht releasen.
-Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Push von main, Release-Branch und Tag ohne --force.
-Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, Ergebnis), Merge-, Tag- und PR-Stand mit Links, was offen ist.
-```
+- Unity-Abnahme gemeinsam mit 0.16.0 bestanden (Editor- und Laufzeitimport, siehe [VERSION_0.16.0.md](VERSION_0.16.0.md)).

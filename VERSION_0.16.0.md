@@ -1,8 +1,7 @@
 # Cubegen 0.16.0 – Overdrive
 
-*ungeprüft: Unity-Abnahme offen* – Generator-Code geändert (Parallelbetrieb, Bilder, Backen, Prüfung) und neue macOS-App.
-Unveröffentlicht, Branch `release/0.16.0`; vorherige Version [0.15.0](VERSION_0.15.0.md) (lokal committet, nicht
-veröffentlicht). Ab dieser Version tragen Cubegen-Versionen coole englische Namen (Regel in `AGENTS.md`).
+Release vom 12. Oktober 2026 (zusammen mit [0.15.0](VERSION_0.15.0.md)), Release-Zweig `release/0.16.0`;
+vorherige veröffentlichte Version [0.14.2](VERSION_0.14.2.md). Ab dieser Version tragen Cubegen-Versionen coole englische Namen (Regel in `AGENTS.md`).
 
 ## Inhalt
 
@@ -74,22 +73,24 @@ Kommandozeilen-Modi für Tests (wie `RobotViewer --snapshot`): `--version`, `--c
 - Die App ist ad-hoc signiert (nicht notarisiert): auf einem anderen Mac beim ersten Start per Rechtsklick › Öffnen.
 - Die interaktive Bedienung (Klicks im Fenster) ist nicht automatisiert geprüft; die Testmodi decken Start, Lauf,
   Ergebnis und Darstellung ab.
-- Unity-Import in der Cube-Escape-Testkopie steht aus (Stufe 2).
 
-## Lokaler Test (Stufe 2)
+## Abnahme (Stufe 2, 12. Oktober 2026)
 
-```text
-Abnahme und Release nach Cubegen-AGENTS.md (Stufe 2):
-Branch: release/0.16.0 · Version: 0.16.0 „Overdrive“ · PR: noch keiner (Branch nicht gepusht)
-Tag: v0.16.0 · Release-Branch: release/0.16.0 · Umfang: Abnahme und Release (0.15.0 „Stoppuhr“ ist enthalten)
-Vor dem Merge noch offen:
-- Unity-Import in der Cube-Escape-Testkopie: Station-Kit mit --textures baked (512 px) und eine Auswahl mit Kacheltexturen 1024 px neu exportieren, importieren, Materialien/Texturen und Wiederimport ohne Fehler
-- App von Hand: output/app/Cubegen.app öffnen, Typen wählen, Assets erzeugen, Galerie und 3D-Ansicht, Vorab prüfen, Abbrechen
-- Sichtprüfung: Kontaktbogen und gebackene Karten gegen 0.14.2
-Abnahme: eigener Worktree; volle Python-Suite mit Blender und ImageMagick ohne übersprungene Tests, app/test_app.sh, echte
-Exporte der geänderten Typen, Sichtprüfung, Import und Physik in der Cube-Escape-Testkopie, Berichte VERSION_0.15.0.md und
-VERSION_0.16.0.md auf Endstand, Vermerk „ungeprüft“ entfernen, committen, Branch pushen.
-Stopp: Bleibt etwas rot oder ist eine Richtungsfrage offen – anhalten und fragen, nicht releasen.
-Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Push von main, Release-Branch und Tag ohne --force.
-Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, Ergebnis), Merge-, Tag- und PR-Stand mit Links, was offen ist.
-```
+Gemeinsam für 0.15.0 und 0.16.0 mit dem Stand von 0.16.0 (inklusive der Korrekturen aus dem Code-Review):
+
+- Python-Suite mit Blender 5.2.2 und ImageMagick 7.1.2: **284 Tests grün**, keiner übersprungen (355 s);
+  `app/test_app.sh` **17 von 17 grün**.
+- Unity-Editor-Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests`, Hierarchie, Materialien,
+  Kollisionsvertrag, stabiler Wiederimport): Station-Kit gebacken 512 px **35 Modelle (10 Gameplay, 25 statisch),
+  0 Ablehnungen, 0 Fehler**; Auswahl mit Kacheltexturen 1024 px **8 Modelle, 0 Fehler**.
+- Unity-Laufzeitimport (`CubegenRealGenerationTests`, GLB): **233 Exporte** – 186 Typen ohne Textur (178 angenommen,
+  8 mit ausdrücklich nicht freigegebenem Verhalten korrekt benannt), 8 gekachelt, 35 gebacken, 4 Palette – alle
+  angenommen.
+- Sichtprüfung gegen 0.14.2: Kontaktbogen des Station-Kits und gebackene Karten nebeneinander angesehen – gleiche
+  Modelle und UV-Layouts; gebackene Albedo `Wall_000` pixelgleich, sonst Rauschen der Umgebungsverdeckung
+  (RMSE ≤ 0,4 %). App von Hand vom Nutzer geprüft (Farben in 3D nach der Korrektur bestätigt).
+- Code-Review vor dem Merge: sechs Funde behoben und mit Tests belegt – `"jobs": "auto"` in Rezepten, ein
+  Texturfehler verdeckte den Blender-Fehler, Lesereihenfolge der Prozessausgabe in der App, volle Teststufe erbte
+  `CUBEGEN_SKIP_BLENDER`, doppelter Python-Modellbau für die Paketreihenfolge, Icon-Cache ohne Bereinigung.
+- Geometrie und Kollision sind unverändert (Golden-Daten, erneuter Export bytegleich bis auf die eingebetteten
+  absoluten Texturpfade der FBX); eine eigene Physikabnahme war deshalb nicht nötig.

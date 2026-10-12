@@ -127,8 +127,8 @@ class BatchConfig:
         self.palette = palette_mod.check_palette(self.palette)
         if self.icon_zoom <= 0:
             raise ValueError("icon zoom must be > 0")
-        if self.jobs < 0:
-            raise ValueError("jobs must be >= 1 (or 0 = auto)")
+        if not isinstance(self.jobs, int) or isinstance(self.jobs, bool) or self.jobs < 0:
+            raise ValueError("jobs must be a number >= 1 (or 0 = auto)")
         if self.bake_device not in BAKE_DEVICES:
             raise ValueError(f"bake device must be one of {', '.join(BAKE_DEVICES)}")
         if self.lods and self.textures == "baked":
@@ -444,14 +444,15 @@ class _Background:
         return self.result
 
 
-def model_cost(spec: Dict) -> int:
-    """Rough work of a model for the order of the work packages: triangles + a share per part (export / bake)."""
-    asset = build_spec(spec)
+def model_cost(spec: Dict, asset=None) -> int:
+    """Rough work of a model for the order of the work packages: triangles + a share per part (export / bake).
+    ``asset``: the already built asset of ``spec`` (it is built here otherwise)."""
+    asset = asset if asset is not None else build_spec(spec)
     return asset.stats()["triangles"] + 100 * len(asset.objects)
 
 
 def _run_jobs(blender: str, job: Dict, specs: List[Dict], todo: List[Dict], blend_path: Optional[str],
-              jobs: int, verbose: bool, log: Callable[[str], None]) -> Dict:
+              jobs: int, verbose: bool, log: Callable[[str], None], cost: Callable[[Dict], int] = model_cost) -> Dict:
     """Run the worker: one process, or ``jobs`` processes + one that only builds the overview .blend.
 
     Parallel: every process gets the whole list, biggest model first, and builds the ones it claims (a claim file
@@ -468,7 +469,7 @@ def _run_jobs(blender: str, job: Dict, specs: List[Dict], todo: List[Dict], blen
         runs = [dict(job, models=models, blend=blend_path)]
     else:
         workers = min(jobs, len(todo))
-        ordered = sorted(todo, key=lambda s: -model_cost(s))  # stable: equal costs keep the spec order
+        ordered = sorted(todo, key=lambda s: -cost(s))  # stable: equal costs keep the spec order
         runs = [dict(job, models=ordered, blend=None, queue_dir=queue) for _ in range(workers)]
         if blend_path:  # cheap: builds the meshes, no export / render / bake
             runs.append(dict(job, models=[dict(s, skip=True) for s in specs], blend=blend_path))
@@ -569,6 +570,12 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         clock[0] = now
 
     specs = plan_models(config, log)
+    built_assets: Dict[str, Any] = {}
+
+    def asset_of(spec: Dict):  # each model built once in Python: library sorting, work package order, manifest
+        if spec["name"] not in built_assets:
+            built_assets[spec["name"]] = build_spec(spec)
+        return built_assets[spec["name"]]
     if not specs:
         raise ValueError("nothing to generate (all counts are 0)")
 
@@ -587,7 +594,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if config.lods:
             spec["lod"] = wants_lod(spec)
         if config.library_dir:
-            asset = build_spec(spec)
+            asset = asset_of(spec)
             if not asset.behaviours:
                 category = REGISTRY[spec["type"]].category.capitalize()
                 spec["models_dir"] = os.path.join(os.path.abspath(config.library_dir), category)
@@ -676,19 +683,30 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         blender_info = {"version": version, "render_engine": None}
         lap("plan")
         jobs = config.jobs or auto_jobs(len(todo), config, engine)
+        blender_failed = False
         try:
             if todo or (blend_path and not os.path.isfile(blend_path)):
                 log(f"Blender: {blender} - {len(todo)} asset(s), formats: {', '.join(formats)}, "
                     f"{jobs} process(es){' (auto)' if not config.jobs else ''}")
-                result = _run_jobs(blender, job, specs, todo, blend_path, jobs, config.verbose, log)
+                result = _run_jobs(blender, job, specs, todo, blend_path, jobs, config.verbose, log,
+                                   cost=lambda spec: model_cost(spec, asset_of(spec)))
             else:
                 result = None
+        except BaseException:
+            blender_failed = True
+            raise
         finally:
             if texture_job is not None:  # also when Blender failed: the thread must not outlive the run
-                built = texture_job.join()
-                shutil.rmtree(os.path.dirname(texture_job.ready), ignore_errors=True)
-                if built != textures:
-                    raise RuntimeError("texture set differs from its plan (textures.texture_info)")
+                try:
+                    built = texture_job.join()
+                    if built != textures:
+                        raise RuntimeError("texture set differs from its plan (textures.texture_info)")
+                except Exception as texture_error:
+                    if not blender_failed:
+                        raise
+                    log(f"textures failed too: {texture_error}")  # the Blender error is the one that propagates
+                finally:
+                    shutil.rmtree(os.path.dirname(texture_job.ready), ignore_errors=True)
                 seconds["textures"] = texture_job.seconds  # its own duration, in parallel with Blender
                 overlap.append("textures")
         if result is None:
@@ -758,6 +776,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                           icon_todo))
         for _, icon, key in icon_todo:
             images.put(f"icon:{icon}", key, [icon])
+    images.prune("icon:", [os.path.join(dirs["icons"], f"Icon_{n}.png") for n in labels])
     sheet = None
     if previews:
         sheet = os.path.join(out, "contact_sheet.png")
@@ -777,7 +796,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     # --- manifest + rig data ----------------------------------------------------
     entries = []
     for spec in specs:
-        asset = build_spec(spec)
+        asset = asset_of(spec)
         res = results.get(spec["name"], {})
         if config.rig_data:
             rig_path = os.path.join(spec["models_dir"], f"{spec['name']}.cubegen.json")

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.0 „Overdrive“ – unveröffentlicht
+## 0.16.0 „Overdrive“ – 2026-10-12
 
 * **macOS-App** `app/` (`Cubegen.app`, SwiftUI + SceneKit, wie der Robot Viewer gebaut): erzeugt Modelle wie das
   Desktop-Fenster – Typen nach Kategorie, Familie, Rezept, Seed, Varianten, Texturen, Stil aus dem Katalog,
@@ -18,7 +18,7 @@
 * Versionsnamen ab jetzt cool und englisch (Regel in AGENTS.md). Paket, CLI und Add-on auf 0.16.0.
   Bericht: [VERSION_0.16.0.md](VERSION_0.16.0.md).
 
-## 0.15.0 „Stoppuhr“ – unveröffentlicht
+## 0.15.0 „Stoppuhr“ – 2026-10-12
 
 * **Behoben:** ImageMagick schrieb Zeitstempel in jede PNG (gleiche Pixel, andere Bytes je Lauf). Jetzt läuft jeder
   Aufruf mit `-define png:exclude-chunks=date,time`; gleiche Eingabe ergibt bytegleiche Dateien.

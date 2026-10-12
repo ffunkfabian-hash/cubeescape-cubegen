@@ -131,19 +131,24 @@ final class AppModel: ObservableObject {
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = pipe
+        // finish only when both arrived: the end of the output (empty read) and the end of the process - reading
+        // the rest in the termination handler raced with a running readability handler (lines lost or reordered)
+        let done = DispatchGroup()
+        done.enter()
+        done.enter()
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty else { return }
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                done.leave()
+                return
+            }
             let text = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async { self?.receive(text) }
         }
-        p.terminationHandler = { [weak self] proc in
-            pipe.fileHandleForReading.readabilityHandler = nil
-            let rest = pipe.fileHandleForReading.readDataToEndOfFile()
-            DispatchQueue.main.async {
-                if !rest.isEmpty { self?.receive(String(decoding: rest, as: UTF8.self)) }
-                self?.finish(code: proc.terminationStatus, validate: validate, output: out)
-            }
+        p.terminationHandler = { _ in done.leave() }
+        done.notify(queue: .main) { [weak self] in
+            self?.finish(code: p.terminationStatus, validate: validate, output: out)  // the process has exited here
         }
         do {
             try p.run()

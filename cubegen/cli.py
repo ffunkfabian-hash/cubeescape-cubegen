@@ -201,6 +201,11 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         models = {t: args.count if args.count is not None else 1 for t in model_types()}
 
     values = {k: merged[k] for k in _RECIPE_FIELDS if k in merged}
+    if isinstance(values.get("jobs"), str):  # a recipe may say "jobs": "auto" like the command line
+        try:
+            values["jobs"] = _jobs(values["jobs"])
+        except argparse.ArgumentTypeError as exc:
+            raise ValueError(f"recipe jobs: {exc}") from None
     cli = {
         "formats": args.formats, "prefix": args.prefix, "scale": args.scale, "engine": args.engine,
         "render_size": args.render_size, "samples": args.samples, "icon_size": args.icon_size,
