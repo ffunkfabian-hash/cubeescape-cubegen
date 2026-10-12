@@ -971,6 +971,12 @@
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
+ "test_wall_modules": {
+  "draw_calls": 7,
+  "triangles": 1824,
+  "z_fighting_pairs": 0,
+  "z_fighting_variants": 0
+ },
  "test_warning_beacon": {
   "draw_calls": 4,
   "triangles": 224,

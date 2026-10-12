@@ -78,6 +78,19 @@ def _up_socket(mat, nodes, links):
     return clamp.outputs[0]
 
 
+def _height_socket(z_min, z_max):
+    def socket(mat, nodes, links):
+        geometry = nodes.new("ShaderNodeNewGeometry")
+        split = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(geometry.outputs["Position"], split.inputs[0])
+        span = nodes.new("ShaderNodeMapRange")
+        span.inputs["From Min"].default_value = z_min
+        span.inputs["From Max"].default_value = z_max
+        links.new(split.outputs["Z"], span.inputs["Value"])
+        return span.outputs["Result"]
+    return socket
+
+
 def bake_masks(collection, name, out_dir, size, samples=16, device="cpu", base_of=None):
     """Bake the neutral maps of one model; returns ``{"layout", "weights", "ao", "edge", "up", "device"}`` (paths)
     or None, with tile textures (``base_of``: material name -> game material, e.g. ``MT_Metal`` -> ``M_Metal``) also
@@ -126,6 +139,10 @@ def bake_masks(collection, name, out_dir, size, samples=16, device="cpu", base_o
         image = bk._image(f"{name}_Up", size, True)
         _with_emission(bake, materials, image, _up_socket)
         paths["up"] = _save(image, os.path.join(out_dir, f"{name}_Up.png"))
+        zs = [(o.matrix_world @ v.co).z for o in objects for v in o.data.vertices]
+        image = bk._image(f"{name}_Height", size, True)
+        _with_emission(bake, materials, image, _height_socket(min(zs), max(zs)))
+        paths["height"] = _save(image, os.path.join(out_dir, f"{name}_Height.png"))
         if base_of:  # tile textures: their detail (brightness, normals) is part of the neutral bake too
             image = bk._image(f"{name}_Diffuse", size, False)
             bk._bake(bake, materials, image, "DIFFUSE", pass_filter={"COLOR"})
@@ -208,7 +225,8 @@ def compose_paint(maps, name, paint, out_dir, seed):
     noise = 0.6 * _noise(ao.shape[0], seed, 32) + 0.4 * _noise(ao.shape[0], seed + 1, 160)
     layout = [tuple(g) for g in maps["layout"]]
     detail = detail_map(weights, layout, _load(maps["diffuse"], srgb=True)) if maps.get("diffuse") else None
-    albedo, emission = compose(weights, layout, ao, edge, up, noise, paint, detail)
+    height = _load(maps["height"])[..., 0] if maps.get("height") else None
+    albedo, emission = compose(weights, layout, ao, edge, up, noise, paint, detail, height)
     return {"albedo": _write(_to_srgb(albedo), f"{name}_{paint}_Albedo", os.path.join(out_dir, f"{name}_{paint}_Albedo.png")),
             "emission": _write(_to_srgb(emission), f"{name}_{paint}_Emission",
                                os.path.join(out_dir, f"{name}_{paint}_Emission.png"))}

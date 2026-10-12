@@ -112,6 +112,7 @@ Sidecar ausgewiesen.
 | `--count` | `--count 4` | Varianten pro Typ: `_000` … `_003` |
 | `--pick` | `--pick crate:3,door:7` | genau diese Varianten (gleiche Namen und Seeds wie mit `--count`) |
 | `--unique` | `--count 12 --unique` | Varianten überspringen, die wie eine frühere aussehen |
+| `--set` | `--types wall --count 5 --set --unique` | Variantenset: gleiche Außenmaße, anderes Innenleben – Teile, die nebeneinander stehen, ohne sich zu wiederholen |
 | ohne `--types`/`--pick`/Rezept | | je 1 Variante von **allen** Typen |
 
 **Doppelte vermeiden:** Bei manchen Typen (Kamera, Laser-Spiegel, Taschenlampe …) sehen Varianten mit
@@ -473,6 +474,7 @@ schon, bevor er Dateien schreibt.
 | `--count` | 1 | Varianten pro Typ |
 | `--pick` | – | einzelne Varianten `TYP:INDEX,…` |
 | `--unique` | – | ähnlich aussehende Varianten überspringen |
+| `--set` | – | Variantenset: alle Varianten behalten die Außenmaße der ersten, innen verschieden (`set_<Typ>.png`, Manifest `sets`) |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |
 | `--size`, `--snap`, `--glow`, `--material-style`, `--warning`, `--wear`, `--detail`, `--damage`, `--generation` | Seed (Generation: 3) | Stil, siehe Abschnitt 7 |

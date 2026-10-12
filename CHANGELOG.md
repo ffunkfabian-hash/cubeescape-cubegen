@@ -6,7 +6,12 @@
   Umgebungsmodelle – einmal neutral backen (Gewichtskarten der Spielmaterialien, Umgebungsverdeckung, Kanten,
   „oben“, Detail und Normalen der Kacheltexturen), jeder Anstrich ist Daten (`cubegen/paint.py`: `industrial`,
   `crystal`) und wird in 0,2–0,3 s zusammengesetzt. Vergleich mit dem Konzeptbogen: `docs/style_test_0170.png`.
-* Normale Ausgabe, Golden-Daten und Unity-Vertrag unverändert. Paket, CLI und Add-on auf 0.17.0.
+* **Variantensets** `--set` (auch App und Desktop-Fenster): Varianten mit gleichem Umriss und anderem Innenleben,
+  Manifest `sets` mit Umrissprüfung, Reihenbild `set_<Typ>.png`; Regeln in AGENTS.md › „Variantensets“.
+* Experimenteller Typ `test_wall_modules`: Modulwand nach dem Konzept, als Set gebaut, optional mit Kristallen.
+  Golden-Daten: nur dieser Typ neu, alle 186 übrigen unverändert.
+* Stiltest: Höhenmaske (Schmutz von unten), gemaltes Kantenlicht, Reihen-Modus `--row`, Parameter je Modell.
+* Normale Ausgabe der bestehenden Typen und Unity-Vertrag unverändert. Paket, CLI und Add-on auf 0.17.0.
   Bericht: [VERSION_0.17.0.md](VERSION_0.17.0.md).
 
 ## 0.16.0 „Overdrive“ – 2026-10-12

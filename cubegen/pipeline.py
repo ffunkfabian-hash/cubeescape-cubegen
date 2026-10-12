@@ -57,6 +57,8 @@ class BatchConfig:
     lods: bool = False             # static models: + low detail level, FBX objects <part>_LOD0 / _LOD1
     force: bool = False            # rebuild everything (default: reuse unchanged models of the last run)
     jobs: int = 0                  # Blender processes in parallel (work packages, biggest first); 0 = auto_jobs
+    variant_set: bool = False      # --set: the variants of a type share variant 0's outline (OUTLINE_PARAMS) and differ
+    #                                inside - pieces that stand side by side without repeating (manifest "sets")
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -159,6 +161,25 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
     return spec
 
 
+#: parameters that define a piece's outline (with every ``Param(size=True)``): fixed for all members of a variant set
+OUTLINE_PARAMS = ("length", "width", "height", "thickness", "depth", "radius", "size", "span", "diameter")
+SET_TOLERANCE_M = 0.01  # members whose bounding box differs more are reported: the type is not set-ready
+
+
+def outline_params(model_type: str, used: Dict[str, Any]) -> Dict[str, Any]:
+    """The outline values among the resolved parameters of a model."""
+    specs = {p.name: p for p in REGISTRY[model_type].params}
+    return {k: v for k, v in sorted(used.items()) if k in specs and (specs[k].size or k in OUTLINE_PARAMS)}
+
+
+def _set_spec(config: BatchConfig, model_type: str, index: int, pinned: Dict[str, Any]) -> Dict:
+    spec = _spec(config, model_type, index)
+    own = set(config.params.get(model_type, {})) | set(config.variant_params.get(model_type, {}).get(index, {}))
+    spec["params"] = dict(spec["params"], **{k: v for k, v in pinned.items() if k not in own})
+    spec["set"] = {"name": f"{model_type}_set", "pinned": pinned}
+    return spec
+
+
 def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None) -> List[Dict]:
     """Names and seeds of every asset in the batch (deterministic).
 
@@ -168,6 +189,19 @@ def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None
     """
     specs = []
     for model_type, value in config.models.items():
+        if config.variant_set and not isinstance(value, list) and value > 1:
+            # variant set: variant 0 decides the outline, every member keeps it (rolled values are still drawn, so
+            # variant 0 itself stays the same model)
+            pinned = outline_params(model_type, build_spec(_spec(config, model_type, 0)).p.used)
+            make = (lambda t, pv: lambda i: _set_spec(config, t, i, pv))(model_type, pinned)
+            if config.unique:
+                indices, tried = pick_unique(value, lambda i: build_spec(make(i)))
+                if len(indices) < value and log:
+                    log(f"{model_type}: only {len(indices)} different set members among the first {tried}")
+            else:
+                indices = list(range(value))
+            specs.extend(make(i) for i in indices)
+            continue
         if isinstance(value, list):
             indices = sorted(set(value))
         elif config.unique and value > 1 and not config.variant_params.get(model_type):
@@ -535,6 +569,33 @@ def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: in
             "budgets": budgets, "models_built": models, "slow": slow, "load": load or {}, "workers": workers or []}
 
 
+def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> List[Dict]:
+    """Per variant set: members, the pinned outline, whether every member really has it (bounding boxes within
+    ``SET_TOLERANCE_M``) and a row of the previews side by side (``set_<type>.png``) to check the variety."""
+    sets = []
+    for name in sorted({s["set"]["name"] for s in specs if s.get("set")}):
+        members = [s for s in specs if s.get("set", {}).get("name") == name]
+        # what must match to join: left/right (x), bottom/top (z) and the back (max y); parts may stick out to the
+        # front (-y: pipes, signs, crystals) differently - that is the point of a set
+        boxes = [asset_of(s).bbox() for s in members]
+        edges = [(lo[0], hi[0], lo[2], hi[2], hi[1]) for lo, hi in boxes]
+        deviation = max(abs(e[i] - edges[0][i]) for e in edges for i in range(5))
+        previews = [results.get(s["name"], {}).get("preview") for s in members]
+        previews = [p for p in previews if p and os.path.isfile(p)]
+        row = None
+        if len(previews) > 1:
+            row = os.path.join(out, f"set_{members[0]['type']}.png")
+            key = input_key("set", [file_hash(p) for p in previews], code_fingerprint(), magick_version)
+            if not images.get("set:" + row, key):
+                im.run([arg for p in previews for arg in ("(", p, "-resize", "320x320", ")")]
+                       + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
+                images.put("set:" + row, key, [row])
+        sets.append({"name": name, "type": members[0]["type"], "members": [s["name"] for s in members],
+                     "pinned": members[0]["set"]["pinned"], "outline_ok": deviation <= SET_TOLERANCE_M,
+                     "deviation_m": round(deviation, 4), "preview": row})
+    return sets
+
+
 def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick_version: str,
                  log: Callable[[str], None]) -> Dict[str, Dict]:
     """The tile textures of a set - rebuilt only when an input or a written file changed (``--force``: always)."""
@@ -788,6 +849,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             log(f"contact sheet -> {sheet}")
         else:
             log(f"contact sheet unchanged -> {sheet}")
+    sets = _variant_sets(specs, results, asset_of, out, im, images, magick_version)
     images.save()
     if previews:
         log(f"icons: {made} new, {len(previews) - made} reused")
@@ -875,6 +937,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
           "manifest": _rel(os.path.join(textures_dir, palette_mod.palette_manifest_name(config.palette)), out)}
          if palette else None),
         "contact_sheet": _rel(sheet, out),
+        "sets": [dict(entry, preview=_rel(entry["preview"], out)) for entry in sets],
         "family": family_info,
         "timings": None,
         "models": entries,

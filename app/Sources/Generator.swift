@@ -130,6 +130,7 @@ struct GenerateSettings: Codable, Equatable {
     var palette = ""
     var style: [String: String] = [:]   // catalog option name -> value ("" = from the seed)
     var unique = true
+    var variantSet = false     // --set: the variants share variant 0's outline, differ inside
     var strict = false
     var force = false
     var noBlender = false
@@ -153,6 +154,7 @@ struct GenerateSettings: Codable, Equatable {
         palette = try c.decodeIfPresent(String.self, forKey: .palette) ?? d.palette
         style = try c.decodeIfPresent([String: String].self, forKey: .style) ?? d.style
         unique = try c.decodeIfPresent(Bool.self, forKey: .unique) ?? d.unique
+        variantSet = try c.decodeIfPresent(Bool.self, forKey: .variantSet) ?? d.variantSet
         strict = try c.decodeIfPresent(Bool.self, forKey: .strict) ?? d.strict
         force = try c.decodeIfPresent(Bool.self, forKey: .force) ?? d.force
         noBlender = try c.decodeIfPresent(Bool.self, forKey: .noBlender) ?? d.noBlender
@@ -189,6 +191,7 @@ struct GenerateSettings: Codable, Equatable {
             let flag = catalog?.options[name]?.flag ?? "--" + name.replacingOccurrences(of: "_", with: "-")
             args += [flag, value]
         }
+        if variantSet && recipe.isEmpty && family.isEmpty { args.append("--set") }
         if unique { args.append("--unique") }
         if strict { args.append("--strict") }
         if force && !validate { args.append("--force") }

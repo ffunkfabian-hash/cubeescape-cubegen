@@ -1,6 +1,7 @@
 # Cubegen 0.17.0 – Prism
 
-*ungeprüft: Richtungsentscheidung offen* – experimenteller Stiltest, die normale Ausgabe (`generate`) ist unverändert.
+*ungeprüft: Richtungsentscheidung und Unity-Abnahme offen* – experimenteller Stiltest, neue Option `--set`, neuer
+experimenteller Typ `test_wall_modules`; die Ausgabe aller bestehenden Typen ist unverändert (Golden-Daten).
 Unveröffentlicht, Branch `release/0.17.0`; vorherige Version [0.16.0](VERSION_0.16.0.md).
 
 ## Inhalt
@@ -42,6 +43,36 @@ Gemessen am 12. Oktober 2026 (Apple M5, Blender 5.2.2, Atlas 1024 px, Metal):
   der Energie-Eindruck von „04 Crystal“.
 - **Grenze:** Das Konzept lebt von deutlich mehr Geometrie (Kristalle, Rohre, Kabel, Paneele, Bewuchs). Ein Anstrich
   liefert Farbe, Abnutzung, Staub und Leuchten, aber keine neuen Formen – dafür bräuchte es Anbauteile im Generator.
+
+## Versuch Wand: Textur oder Geometrie?
+
+Frage des Nutzers: „Warum kommen wir nicht an die Konzeptkunst heran?“ Antwort am Bild
+([docs/wall_concept_0170.png](docs/wall_concept_0170.png)): links die vorhandene Wand nur mit Anstrich, Mitte die neue
+Modulwand mit Anstrich, rechts das Konzept.
+
+- **Textur allein** macht aus der flachen Wand nur eine andersfarbige flache Wand.
+- **Geometrie + Anstrich** trifft den Aufbau des Konzepts: Prototyp `test_wall_modules` (gestapelte Blöcke mit Rahmen,
+  Akzentsäule mit Leuchtschlitz, Riffelblech-Akzente, Lüftung, Bolzen, Rohr, Kabelkanal, Warnstreifen, Schild;
+  1 000–2 200 Dreiecke, kein Flackern, exakte Mesh-Kollision der Generation 3). Kristalle als Anbau
+  (`crystals = none | some | many`, Form von `rock`).
+- **Was dann noch fehlt:** der gemalte Illustrationsstil (überzeichnete Kantenlichter, Konturen, Lichtführung) und ein
+  echtes Kristallmaterial (facettiert, durchscheinend) – `M_Crystal` ist eine flache Leuchtfarbe.
+- Anstriche erweitert: Höhenmaske (Schmutz von unten, `rising_grime`), gemaltes Kantenlicht (`edge_light`), Detail
+  und Normalen der Kacheltexturen.
+
+## Variantensets
+
+Hinweis des Nutzers: Eine starke Wand fünfmal nebeneinander sieht nach Kopie aus – es braucht Sets mit Variation.
+
+- `--set` (CLI, App, Desktop-Fenster): alle Varianten eines Typs behalten die Außenmaße der ersten und unterscheiden
+  sich innen; Manifest `sets` (Mitglieder, festgehaltene Maße, `outline_ok`, `deviation_m`), Reihenbild
+  `set_<Typ>.png`. Gemessen (Seed 42, 5 Varianten): `wall`, `pillar`, `test_wall_modules` halten den Umriss (0 mm);
+  `crate` nicht (Tiefe intern gewürfelt, 35 mm), `floor_tile` nicht (Oberkante, 46 mm).
+- `test_wall_modules` als Set gebaut: feste 2 × 3 m ohne Zufallsskalierung, Sockel, Deckel und Warnstreifen laufen über
+  den Stoß; Aufteilung (Akzentsäule mittig/links/rechts/keine, drei Spalten), Blöcke, Akzente, Schild, Rohr,
+  Kabelkanal und Kristalle wechseln je Variante. Stiltest `--row` rendert eine Reihe je Anstrich
+  ([docs/wall_set_0170.png](docs/wall_set_0170.png)).
+- Regeln für set-fähige Typen in AGENTS.md › „Variantensets“; Modell-Browser in Cube Escape: ROADMAP › ToDo 25.
 
 ## Offen – Richtungsentscheidung
 

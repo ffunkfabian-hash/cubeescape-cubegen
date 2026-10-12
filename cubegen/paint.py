@@ -34,10 +34,10 @@ PAINTS: Dict[str, Dict] = {
     # orange-accented steel (insets orange like the concept's industrial wall), heavy wear: bright scratched edges, grime in the crevices, a little dust on top
     "industrial": {
         "label": "Industrial",
-        "colors": {"M_Ground": "#c8731f", "M_Wall": "#474c55", "M_Platform": "#7d828b", "M_HazardOrange": "#e8862a",
-                   "M_RobotBody": "#b8bcc3", "M_RobotDark": "#23262c", "M_Metal": "#62676f", "M_Warning": "#f0a030",
+        "colors": {"M_Ground": "#c8731f", "M_Wall": "#3a3e45", "M_Platform": "#7d828b", "M_HazardOrange": "#e8862a",
+                   "M_RobotBody": "#b8bcc3", "M_RobotDark": "#2a2d33", "M_Metal": "#8a9099", "M_Warning": "#f0a030",
                    "M_PortalPanel": "#9aa0a8"},
-        "glow": "orange", "wear": 0.65, "wear_color": "#d5d9df", "grime": 0.55, "dust": 0.25,
+        "glow": "orange", "edge_light": 0.2, "wear": 0.75, "wear_color": "#d5d9df", "grime": 0.55, "rising_grime": 0.5, "dust": 0.25,
         "dust_color": "#6f6553", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.62,
     },
     # cold slate and steel blue, little wear, edges glowing faintly in the crystal light
@@ -46,7 +46,7 @@ PAINTS: Dict[str, Dict] = {
         "colors": {"M_Ground": "#1f2530", "M_Wall": "#2b3442", "M_Platform": "#56677f", "M_HazardOrange": "#2f7fd8",
                    "M_RobotBody": "#a7b6c9", "M_RobotDark": "#181d27", "M_Metal": "#46546a", "M_Warning": "#4fc3ff",
                    "M_PortalPanel": "#8fa4bd"},
-        "glow": "cyan", "wear": 0.25, "wear_color": "#9fd8ff", "grime": 0.3, "dust": 0.0,
+        "glow": "cyan", "edge_light": 0.1, "wear": 0.25, "wear_color": "#9fd8ff", "grime": 0.3, "rising_grime": 0.15, "dust": 0.0,
         "dust_color": "#000000", "edge_glow": 0.35, "edge_glow_color": "#4fc3ff", "roughness": 0.4,
     },
 }
@@ -98,7 +98,8 @@ def detail_map(weights: Sequence, layout: Sequence[Tuple[str, ...]], diffuse):
     return np.clip(lum(diffuse) / np.maximum(flat, 1e-3), 0.35, 1.8)
 
 
-def compose(weights: Sequence, layout: Sequence[Tuple[str, ...]], ao, edge, up, noise, paint: str, detail=None):
+def compose(weights: Sequence, layout: Sequence[Tuple[str, ...]], ao, edge, up, noise, paint: str, detail=None,
+            height=None):
     """Albedo (linear RGB) and emission (linear RGB) of one paint scheme from the neutral maps (numpy arrays,
     H x W x 3 for weights, H x W for the masks, the 0..1 noise and the optional ``detail_map``). Pure arithmetic: the
     same maps and scheme give the same pixels on every machine."""
@@ -121,10 +122,17 @@ def compose(weights: Sequence, layout: Sequence[Tuple[str, ...]], ao, edge, up, 
     crevice = np.clip(1.0 - ao, 0.0, 1.0)
     grime = 1.0 - scheme["grime"] * np.clip(crevice * 1.6 + (noise - 0.5) * 0.2, 0.0, 1.0)
     albedo *= grime[..., None]
+    if height is not None:  # dirt rising from the floor (0 at the model's foot, 1 at its top)
+        rising = scheme["rising_grime"] * np.clip((0.45 - height) / 0.45, 0.0, 1.0) ** 1.5 \
+            * np.clip(0.55 + noise * 0.7, 0.0, 1.0)
+        albedo *= (1.0 - rising)[..., None]
     # dust on surfaces facing up
     dust = scheme["dust"] * np.clip(up * 1.3 - 0.3, 0.0, 1.0) * np.clip(noise * 1.4 - 0.2, 0.0, 1.0)
     dust_rgb = np.asarray([srgb_to_linear(c) for c in hex_rgb(scheme["dust_color"])], dtype=np.float32)
     albedo = albedo * (1.0 - dust[..., None]) + dust_rgb * dust[..., None]
+    # painted edge light: every edge a little lighter (the concept's drawn highlights), before the wear
+    light = scheme["edge_light"] * np.clip(edge * 2.2 - 0.1, 0.0, 1.0)
+    albedo = albedo + (1.0 - albedo) * light[..., None] * 0.6
     # worn edges: paint chipped off where the edge mask is strong and the noise allows it
     wear = scheme["wear"] * np.clip(edge * 1.8 - 0.15, 0.0, 1.0) * np.clip(noise * 1.6 - 0.25, 0.0, 1.0)
     wear_rgb = np.asarray([srgb_to_linear(c) for c in hex_rgb(scheme["wear_color"])], dtype=np.float32)

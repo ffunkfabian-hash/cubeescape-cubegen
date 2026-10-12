@@ -25,6 +25,60 @@ if ROOT not in sys.path:
 CONCEPT_CROPS = {"industrial": (14, 108, 122, 200), "crystal": (364, 108, 112, 200)}
 
 
+def row_worker(job, bw, stylebake, PAINTS, bpy):
+    """A row of set pieces side by side (``--row``): each baked once, the whole row rendered per scheme."""
+    scene = bw.clear_scene()
+    bw.create_materials(overwrite=True)
+    textures = job.get("textures") or {}
+    material_map = {plain: info["name"] for plain, info in textures.items()}
+    base_of = {info["name"]: plain for plain, info in textures.items()}
+    if textures:
+        bw.create_textured_materials(textures)
+    glow_materials = {g: bpy.data.materials.get("M_Glow" + g.capitalize()) for g in ("cyan", "orange", "red")}
+    cam = bw.setup_render(scene, "eevee", job["render_size"], job["samples"])
+    out, row = job["out"], bpy.data.collections.new("StyleRow")
+    scene.collection.children.link(row)
+    pieces = []
+    for i, spec in enumerate(job["models"]):
+        asset, _, collection = bw.build_asset(spec, material_map)
+        maps = stylebake.bake_masks(collection, asset.name, out, job["size"], samples=job["bake_samples"],
+                                    device=job["device"], base_of=base_of)
+        pieces.append((asset, collection, maps))
+        print(f"[style] row piece {asset.name}: baked", flush=True)
+    step = job["row_step"]
+    for i, (asset, collection, _) in enumerate(pieces):  # side by side, after the bakes (each baked alone)
+        for obj in collection.objects:
+            if obj.parent is None:
+                obj.location.x += (i - (len(pieces) - 1) / 2) * step
+        collection.hide_render = False
+        row.children.link(collection)
+    bpy.context.view_layer.update()  # world matrices of the moved pieces, before the camera frames the row
+    scene.render.resolution_x, scene.render.resolution_y = job["row_width"], job["row_height"]
+    originals = {o: [s.material for s in o.material_slots] for _, c, _ in pieces for o in c.all_objects
+                 if o.type == "MESH"}
+    bw.frame_camera(cam, row, 25.0, 14.0, 1.0)
+    for o, mats in originals.items():  # today: the game's flat colours
+        for slot in o.material_slots:
+            if slot.material and slot.material.name in base_of:
+                slot.material = bpy.data.materials.get(base_of[slot.material.name])
+    bw.render_preview(scene, os.path.join(out, "row_today.png"))
+    for paint in job["paints"]:
+        scheme = PAINTS[paint]
+        for asset, collection, maps in pieces:
+            for o in collection.all_objects:
+                if o in originals:
+                    for slot, mat in zip(o.material_slots, originals[o]):
+                        slot.material = mat
+            painted = stylebake.compose_paint(maps, asset.name, paint, out, int(job["models"][0]["seed"]))
+            stylebake.apply_paint(collection, maps, paint, painted, scheme["roughness"], tuple(base_of))
+            for o in collection.all_objects:
+                for slot in o.material_slots:
+                    if slot.material and slot.material.name in ("M_GlowCyan", "M_GlowOrange"):
+                        slot.material = glow_materials[scheme["glow"]]
+        bw.render_preview(scene, os.path.join(out, f"row_{paint}.png"))
+        print(f"[style] row rendered: {paint}", flush=True)
+
+
 def worker(job_path):
     import bpy  # noqa: F401 - only inside Blender
 
@@ -34,6 +88,8 @@ def worker(job_path):
 
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
+    if job.get("row_step"):
+        return row_worker(job, bw, stylebake, PAINTS, bpy)
     scene = bw.clear_scene()
     bw.create_materials(overwrite=True)
     textures = job.get("textures") or {}
@@ -100,7 +156,8 @@ def host(argv=None) -> int:
     from cubegen.pipeline import plan_models
 
     p = argparse.ArgumentParser(description="style test: neutral bake once, paint schemes composed from it")
-    p.add_argument("--models", default="wall,platform,pillar,crate", help="types (variant 0 of each)")
+    p.add_argument("--models", default="wall,platform,pillar,crate",
+                   help="types (variant 0 of each); a type may carry parameters: test_wall_modules@crystals=true")
     p.add_argument("--paints", default="industrial,crystal")
     p.add_argument("--seed", default="42")
     p.add_argument("--size", type=int, default=1024, help="atlas size in px")
@@ -110,15 +167,34 @@ def host(argv=None) -> int:
     p.add_argument("--device", default="auto", choices=["auto", "cpu", "gpu"])
     p.add_argument("--concept", help="concept sheet (1536 x 1024) for a reference column")
     p.add_argument("--no-tiles", action="store_true", help="bake without the tile textures' surface detail")
+    p.add_argument("--row", help="a row of set pieces side by side instead: TYPE[@param=value]:COUNT[:STEP_M], "
+                                 "e.g. test_wall_modules@crystals=some:5:2.0 -> row_<scheme>.png")
     p.add_argument("--out", default=os.path.join(ROOT, "output", "style_test"))
     args = p.parse_args(argv)
     paints = [check_paint(n) for n in args.paints.split(",") if n]
-    types = [t for t in args.models.split(",") if t]
+    entries = [t for t in args.models.split(",") if t]
+    types = sorted({e.split("@")[0] for e in entries})
     out = os.path.abspath(args.out)
     os.makedirs(out, exist_ok=True)
     config = build_config(make_parser().parse_args(["generate", "--seed", args.seed, "--pick",
                                                     ",".join(f"{t}:0" for t in types), "--no-blender", "--out", out]))
-    specs = plan_models(config, lambda m: None)
+    if args.row:  # variants 0..n-1 of one type, its parameters for all of them
+        kind_params, count, *rest = args.row.split(":")
+        kind, *pairs = kind_params.split("@")
+        cmd = ["generate", "--seed", args.seed, "--types", kind, "--count", count, "--no-blender", "--out", out]
+        for pair in pairs:
+            cmd += ["--param", f"{kind}.{pair}"]
+        specs = plan_models(build_config(make_parser().parse_args(cmd)), lambda m: None)
+        return _run_row(args, specs, out, paints, float(rest[0]) if rest else 2.0)
+    planned = {s["type"]: s for s in plan_models(config, lambda m: None)}
+    specs = []
+    for entry in entries:  # "type" or "type@name=value@name=value": the same variant with these parameters
+        kind, *pairs = entry.split("@")
+        spec = dict(planned[kind])
+        if pairs:
+            spec["params"] = dict(spec.get("params") or {}, **{k: v for k, v in (p.split("=", 1) for p in pairs)})
+            spec["name"] = spec["name"] + "_" + "_".join(p.split("=", 1)[0].capitalize() for p in pairs)
+        specs.append(spec)
     textures = {}
     if not args.no_tiles:  # the tile textures give the neutral bake its surface detail (grooves, rivets, scratches)
         from cubegen.textures import build_texture_set
@@ -184,6 +260,43 @@ def host(argv=None) -> int:
         json.dump({"paints": paints, "models": names, "size": args.size, "blender_seconds": round(blender_s, 1),
                    "per_model": per_model}, fh, indent=2)
     print(f"style test: {len(names)} model(s) x {len(paints)} scheme(s) in {blender_s:.0f} s -> {sheet}")
+    return 0
+
+
+def _run_row(args, specs, out, paints, step) -> int:
+    from cubegen.blender import find_blender
+    from cubegen.imagemagick import ImageMagick
+    from cubegen.paint import PAINTS
+    from cubegen.textures import build_texture_set
+
+    textures = {} if args.no_tiles else build_texture_set(ImageMagick(), os.path.join(out, "Textures"), 512,
+                                                          log=lambda m: None)
+    job = {"models": specs, "paints": paints, "out": out, "size": args.size, "render_size": args.render_size,
+           "samples": args.samples, "bake_samples": args.bake_samples, "device": args.device, "textures": textures,
+           "row_step": step, "row_width": 2400, "row_height": 900}
+    job_path = os.path.join(out, "job.json")
+    with open(job_path, "w", encoding="utf-8") as fh:
+        json.dump(job, fh, indent=2, default=str)
+    start = time.time()
+    run = subprocess.run([find_blender(), "-b", "--factory-startup", "--python-exit-code", "3", "-P",
+                          os.path.abspath(__file__), "--", "--worker", job_path], stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, text=True)
+    if run.returncode != 0:
+        print(run.stdout[-3000:])
+        return run.returncode
+    im = ImageMagick()
+    rows = [("today", "Heute: Spielfarben")] + [(n, PAINTS[n]["label"]) for n in paints]
+    parts = []
+    for key, label in rows:
+        part = os.path.join(out, f".row_{key}.png")
+        im.run([os.path.join(out, f"row_{key}.png"), "-background", "#1e1e24", "-flatten", "-resize", "1800x",
+                "-gravity", "northwest", "-fill", "#e8e8e8", "-pointsize", "28", "-annotate", "+20+16", label, part])
+        parts.append(part)
+    sheet = os.path.join(out, "row_sheet.png")
+    im.run(parts + ["-append", sheet])
+    for part in parts:
+        os.remove(part)
+    print(f"row: {len(specs)} piece(s) x {len(paints)} scheme(s) in {time.time() - start:.0f} s -> {sheet}")
     return 0
 
 

@@ -222,7 +222,8 @@ class ModelTests(unittest.TestCase):
 
     def test_ten_experimental_gameplay_assets_are_registered_and_marked(self):
         test_types = [name for name in model_types() if name.startswith("test_")]
-        self.assertEqual(len(test_types), 10)
+        # the ten gameplay prototypes + 0.17.0's style test wall (test_wall_modules) - all marked experimental
+        self.assertEqual(len(test_types), 11)
         for model_type in test_types:
             with self.subTest(model=model_type):
                 asset = generate_asset(model_type, 42)

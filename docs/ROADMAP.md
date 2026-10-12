@@ -117,6 +117,14 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
 - [x] **Stiltest Anstriche** (0.17.0, experimentell): einmal neutral backen, Anstriche als Daten
   zusammensetzen – Ergebnis und offene Richtungsfragen in [VERSION_0.17.0.md](../VERSION_0.17.0.md).
+- [x] **Variantensets** (0.17.0): `--set` – alle Varianten eines Typs behalten die Außenmaße der ersten
+  (`OUTLINE_PARAMS`, `Param(size=True)`) und unterscheiden sich innen; Manifest `sets` mit `outline_ok`/`deviation_m`
+  und Reihenbild `set_<Typ>.png`; Option auch in App und Desktop-Fenster. Regeln für set-fähige Typen: AGENTS.md ›
+  „Variantensets“. Prototyp `test_wall_modules` (Modulwand nach dem Konzept, Kristalle `none|some|many`).
+- [ ] **Weitere Typen set-fähig machen:** gemessen mit `--set` (Seed 42, 5 Varianten): `wall`, `pillar`,
+  `test_wall_modules` halten ihren Umriss; `crate` nicht (Tiefe intern gewürfelt, 3,5 cm), `floor_tile` nicht
+  (Oberkante variiert, 4,6 cm). Zuerst die Bau-Kit-Teile (Wand, Boden, Decke, Steg, Geländer), dann Requisiten;
+  je Typ Innen-Variation nach dem Muster der Modulwand (Aufteilung, Akzente, Anbauteile, Schilder, seltene Hingucker).
 - [ ] **Anstriche als Ausgabemodus** (nach Entscheidung): `--paint`, Unity-Weg (fertige Karten oder Shader mit
   Palette), weitere Anstriche des Konzepts (Clean, Ruin, Dark, Organic), Anbauteile für mehr Geometrie.
 - [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
@@ -289,6 +297,11 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 - [ ] **24 · Gameplay der ersten Welle:** Schleusenzyklus (`airlock_chamber`), Irismechanik (`door.variant=iris`),
   Maschinenvertrag für `turbine`/`compressor`, Signalsäule als Lampe, Wartungsluke (Hinge) und Zugangspanel
   (Keypad) brauchen je einen eigenen Gameplay-Vertrag in Cube Escape.
+- [ ] **25 · Variantensets im Modell-Browser** (Wunsch des Nutzers, 0.17.0): Das Manifest nennt Sets (`sets`: Name, Typ,
+  Mitglieder, festgehaltene Maße, `outline_ok`). Im Modell-Browser der Werkbank als eine Gruppe zeigen (Reihenbild
+  statt einzelner Kacheln), beim Platzieren die Mitglieder abwechseln oder zufällig wählen, damit nebeneinander
+  gestellte Teile sich nicht wiederholen; `outline_ok = false` sichtbar machen (Teile schließen nicht sauber an).
+  Mit den vorhandenen Modellsets der Werkbank abstimmen (gleiche Datenhaltung, keine zweite Sammlung).
 
 ## 5. Nächste Vorschläge
 

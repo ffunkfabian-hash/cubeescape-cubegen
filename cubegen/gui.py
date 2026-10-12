@@ -127,6 +127,7 @@ def main() -> int:
             self.output = tk.StringVar(value=os.path.abspath(os.path.join("output", "gui")))
             self.recipe = tk.StringVar()
             self.unique = tk.BooleanVar(value=True)
+            self.variant_set = tk.BooleanVar(value=False)
             self.strict = tk.BooleanVar(value=False)
             self.force = tk.BooleanVar(value=False)
             self.no_blender = tk.BooleanVar(value=False)
@@ -201,6 +202,8 @@ def main() -> int:
             options = ttk.Frame(root, padding=(12, 4))
             options.grid(row=3, column=0, sticky="ew")
             ttk.Checkbutton(options, text="Ähnliche Varianten überspringen", variable=self.unique).pack(side="left")
+            ttk.Checkbutton(options, text="Variantenset (gleiche Außenmaße)", variable=self.variant_set).pack(
+                side="left", padx=10)
             ttk.Checkbutton(options, text="Strikte Qualitätsprüfung", variable=self.strict).pack(side="left", padx=10)
             ttk.Checkbutton(options, text="Alles neu bauen", variable=self.force).pack(side="left", padx=10)
             ttk.Checkbutton(options, text="Nur OBJ (ohne Blender)", variable=self.no_blender).pack(side="left")
@@ -340,6 +343,8 @@ def main() -> int:
                 args.extend(["--seed", self.seed.get().strip()])
             args.extend(["--out", os.path.abspath(output)])
             args.extend(texture_args(self.texture_value(), self.texture_size.get(), self.palette.get()))
+            if self.variant_set.get() and not recipe:
+                args.append("--set")
             if self.unique.get():
                 args.append("--unique")
             if self.strict.get():

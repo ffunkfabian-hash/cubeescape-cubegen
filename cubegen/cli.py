@@ -22,7 +22,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs", "bake_device")
+                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -232,6 +232,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["force"] = True
     if args.jobs is not None:
         values["jobs"] = args.jobs
+    if args.variant_set:
+        values["variant_set"] = True
     if args.icon_angle:
         az, _, el = args.icon_angle.partition(",")
         values["icon_azimuth"] = float(az)
@@ -704,6 +706,10 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--lods", action="store_true",
                    help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
                         "(Unity builds the LODGroup on import)")
+    g.add_argument("--set", dest="variant_set", action="store_true",
+                   help="variant set (with --count): every variant keeps variant 0's outline (length, height, size "
+                        "parameters ...) and differs inside - pieces to stand side by side; set_<type>.png shows them "
+                        "in a row, the manifest says whether the type keeps its outline")
     g.add_argument("--jobs", type=_jobs, help="Blender processes in parallel: a number or auto (default auto: up to "
                                               "cores - 1, only as many as pay for their start)")
     g.add_argument("--force", action="store_true",
