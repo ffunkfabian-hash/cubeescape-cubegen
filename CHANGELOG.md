@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.2 „Werkstattbuch“ – 2026-10-12
+
+* Prüfung der Neural Engine (gemeinsam mit Roboter-Generator 1.9.2): Vision-Feature-Prints auf der Neural Engine sind
+  schnell (3,8 ms je Bild), taugen aber nicht als Prüfschranke – je Gerät andere Werte, Fehler nicht besser getrennt
+  als mit einem exakten Pixelvergleich. Nebenbefund: `--unique` übersieht fast gleich aussehende Varianten, weil die
+  Signatur exakt gleiche Dreieckszahlen verlangt.
+* ROADMAP: drei offene Punkte – Signatur toleranter (deterministisch, ohne Neural Engine), Doubletten-Bericht und
+  Icon-Lesbarkeit per Neural Engine als reine Hinweiswerkzeuge, beide mit Zeitregel (kosten sie zu viel Zeit, werden
+  sie nicht umgesetzt). AGENTS.md › „Blender-Batch schnell halten“ ergänzt.
+* Nur Doku; Generator, Ausgaben und Golden-Daten unverändert. Paket, CLI und Add-on auf 0.14.2.
+  Bericht: [VERSION_0.14.2.md](VERSION_0.14.2.md).
+
 ## 0.14.1 „Werkstattbuch“ – 2026-10-12
 
 * `CLAUDE.md` importiert `AGENTS.md` – Claude Code lädt die Regeln jetzt in jeder Sitzung (vorher nur Codex).
