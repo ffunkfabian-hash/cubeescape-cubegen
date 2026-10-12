@@ -62,6 +62,20 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
   halten“; vor der Umsetzung messen): `--textures baked` über eine zusammengefügte Kopie je Asset backen statt über
   alle ausgewählten Teile; `--jobs` startet Blender mit `-t <Kerne/Jobs>`; ImageMagick-Aufrufe mit
   `MAGICK_THREAD_LIMIT=1`. Ausgaben müssen bitgleich bleiben (Golden-Daten).
+- [ ] **Ähnliche Varianten: Signatur toleranter** (gefunden mit der Neural-Engine-Prüfung, 0.14.2): `variety.similar`
+  verlangt exakt gleiche Dreieckszahlen; dadurch gelten fast gleich aussehende Varianten als verschieden (Seed 42:
+  `Door_003`/`Door_010` – 12 Dreiecke und 7 % Breite Unterschied; `Console_000`/`Console_001`). Toleranz für die
+  Dreieckszahl prüfen, deterministisch und vor dem Rendern wie bisher; Golden-Daten von `--unique` gezielt nachziehen.
+- [ ] **Doubletten-Bericht (Neural Engine, nur macOS):** einmal über den ganzen Katalog die Vorschauen per Apple Vision
+  (Feature Prints) vergleichen und fast gleiche Varianten als Liste ausgeben – ein Prüfwerkzeug, um die Signatur
+  (Punkt oben) zu justieren, nie im normalen Lauf und nie als Entscheidung über ausgegebene Varianten (Werte sind
+  je Gerät verschieden, Neural Engine 0,0026 gegen CPU 0,0003 für dasselbe Paar). Gemessen: 3,8 ms je Bild,
+  36 Vorschauen in 0,1 s. **Zeitregel:** höchstens 1 min für den ganzen Katalog und höchstens eine Sitzung Aufwand;
+  kostet es mehr Zeit, wird das Feature nicht umgesetzt.
+- [ ] **Icon-Lesbarkeit prüfen (Neural Engine, nur macOS):** ein Aufmerksamkeitsmodell (Vision Saliency) meldet Icons,
+  in denen das Modell nicht im Fokus steht oder angeschnitten ist – nur als Hinweis im Kontaktbogen-/Prüfbericht,
+  keine Schranke, Linux-Läufe überspringen es. **Zeitregel:** höchstens 5 % mehr Laufzeit von `generate` mit Icons;
+  kostet es mehr Zeit, wird das Feature nicht umgesetzt.
 
 ## 3. Erweiterungen
 
