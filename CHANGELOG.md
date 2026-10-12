@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0 „Werkstattbuch“ – 2026-10-12
+
+* AGENTS.md: neuer Abschnitt „Blender-Batch schnell halten“ mit gemessenen Erfahrungen aus dem Roboter-Generator
+  (Cycles-Backen je Objekt, lineare Skins, nicht deterministisches UV-Packen, EEVEE-Wartezeit bei `BLENDED`-Materialien,
+  Worker mit `-t 1` und `nice`, ImageMagick mit `MAGICK_THREAD_LIMIT=1`, Messwerkzeuge). ROADMAP: offener Punkt
+  „Schnellere Blender-Läufe“ mit den Stellen in cubegen.
+* Nur Doku; Generator, Ausgaben und Golden-Daten unverändert. Paket, CLI und Add-on auf 0.14.0.
+  Bericht: [VERSION_0.14.0.md](VERSION_0.14.0.md).
+
 ## 0.13.0 „Patina“ – 2026-10-10
 
 * Desktop-GUI: Auswahl **Texturen** (keine / Kacheln / Kacheln + Gebrauchsspuren / Farbpalette), Texturgröße und

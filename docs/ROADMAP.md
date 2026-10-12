@@ -58,6 +58,10 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
 - [x] **Schnellere Tests:** `tools/run_tests.py` startet drei gleich lange Gruppen parallel, die CI eine pro Job.
 - [x] **Add-on:** Typen, die nicht zur gewählten (eigenen) Familie passen, stehen im Typ-Menü mit Warnsymbol und
   Grund; ist so ein Typ gewählt, nennt das Panel den Grund.
+- [ ] **Schnellere Blender-Läufe** (Erfahrungen aus dem Roboter-Generator, AGENTS.md › „Blender-Batch schnell
+  halten“; vor der Umsetzung messen): `--textures baked` über eine zusammengefügte Kopie je Asset backen statt über
+  alle ausgewählten Teile; `--jobs` startet Blender mit `-t <Kerne/Jobs>`; ImageMagick-Aufrufe mit
+  `MAGICK_THREAD_LIMIT=1`. Ausgaben müssen bitgleich bleiben (Golden-Daten).
 
 ## 3. Erweiterungen
 
