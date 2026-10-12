@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.14.0 „Werkstattbuch“ – unveröffentlicht
+## 0.14.0 „Werkstattbuch“ – 2026-10-12
 
 * AGENTS.md: neuer Abschnitt „Blender-Batch schnell halten“ mit gemessenen Erfahrungen aus dem Roboter-Generator
   (Cycles-Backen je Objekt, lineare Skins, nicht deterministisches UV-Packen, EEVEE-Wartezeit bei `BLENDED`-Materialien,

@@ -1,7 +1,7 @@
 # Cubegen 0.14.0 – Werkstattbuch
 
-*ungeprüft: Blender-/Unity-Abnahme offen* (reiner Doku-Stand; Stufe 1 reicht laut AGENTS.md, weil sich die Ausgabe
-nicht ändert). Release-Zweig `release/0.14.0`; vorherige Version [0.13.0](VERSION_0.13.0.md).
+Release vom 12. Oktober 2026 (reiner Doku-Stand, Ausgabe unverändert). Release-Zweig `release/0.14.0`; vorherige
+Version [0.13.0](VERSION_0.13.0.md).
 
 ## Inhalt
 
