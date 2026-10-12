@@ -349,6 +349,20 @@ Wandsets im selben Thema.
 python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --paint ruin
 ```
 
+Die Themen gelten für alle Typen (seit 0.18.0 geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür, Geländer,
+Decke): `M_Ground` ist je Thema ein neutraler Grundton, Staub, Moos und Schnee liegen fleckig statt flächig.
+
+**Eigenes Thema** (`--paint-file <Datei.json>`, auch Rezeptfeld `paint_file`, relativ zum Rezept): ein Anstrich als
+Datei – `name` (Buchstaben, Ziffern, `_`, kein eingebautes Thema), `base` (eingebautes Thema, Standard `industrial`)
+und nur die Werte, die abweichen; `colors` wird je Material zusammengeführt. Erlaubte Schlüssel wie in
+`cubegen/paint.py` `SCHEME_KEYS` (Mengen 0–1, Farben `#rrggbb`, `glow` cyan/red/orange). Beispiel:
+[`paints/custom_example.json`](../paints/custom_example.json). Der Blender-Worker bekommt das Thema im
+Auftrag, das Manifest hält es unter `config.paint_scheme`.
+
+```bash
+python3 -m cubegen generate --types wall,pillar --count 3 --paint-file paints/custom_example.json
+```
+
 **Backen auf CPU oder GPU** (`--bake-device auto|cpu|gpu`, Standard `auto`): Cycles backt eine zusammengefügte Kopie
 aller Teile eines Assets, eine Sitzung je Durchgang statt je Teil. `auto` nimmt ab 1024 px die GPU (Metal, CUDA …),
 darunter die CPU – gemessen in 0.15.0 auf einem Apple M5: 512 px CPU 14 s gegen GPU 19 s, 1024 px CPU 19 s gegen
@@ -500,6 +514,7 @@ schon, bevor er Dateien schreibt.
 | `--jobs` | auto | Blender-Prozesse gleichzeitig: Zahl oder `auto` (bis Kerne − 1, nur so viele, wie sich lohnen) |
 | `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
 | `--paint` | – | Anstrich (Thema): clean, crystal, dark, ice, industrial, organic, ruin, sand, space, toxic, void – gebackener Atlas aus einem neutralen Back (schaltet `--textures baked` ein) |
+| `--paint-file` | – | eigenes Thema aus einer JSON-Datei (`name`, `base`, abweichende Werte); ersetzt `--paint` |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |

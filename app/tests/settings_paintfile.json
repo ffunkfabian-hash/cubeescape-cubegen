@@ -1,0 +1,9 @@
+{
+ "types": ["wall"],
+ "seed": "3",
+ "count": 2,
+ "output": "/tmp/cubegen-app-test",
+ "paint": "organic",
+ "paintFile": "/tmp/cubegen-app-test/../rust_bucket.json",
+ "textureSize": "512"
+}

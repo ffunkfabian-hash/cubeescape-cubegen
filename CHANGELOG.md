@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.0 „Chameleon“ – 2026-10-13
+
+* **Anstriche auf allen Typen:** geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür, Geländer, Decke und
+  Modulwand in allen elf Themen ([docs/paint_types_0180.png](docs/paint_types_0180.png)). `M_Ground` ist je Thema ein
+  neutraler Grundton statt einer Akzentfarbe (Böden waren orange), die Akzente der Modulwand nutzen `M_HazardOrange`;
+  Staub, Moos und Schnee liegen fleckig statt flächig; Toxic dunkler.
+* **Eigenes Thema** `--paint-file <Datei.json>` (CLI, Rezept, App, Desktop-Fenster): Name, Grundthema, nur abweichende
+  Werte; geprüft wie die eingebauten Themen, im Auftrag an Blender, im Manifest unter `config.paint_scheme`. Beispiel
+  `paints/custom_example.json` („Rust Bucket“).
+* **Anbauten je Thema** an der Modulwand: `test_wall_modules.dressing = none | ruin | organic` (Rohre und Trümmer,
+  Ranken, Steine, Büsche); der Set-Umriss bleibt (45 Varianten geprüft).
+* Stiltest: Modelle mit gleichem Parameter, aber anderem Wert bekommen eigene Namen.
+* Unity-ToDos 28–30 (Kristallmaterial, Anstriche in der Werkbank, Anbauten im Modell-Browser) in der ROADMAP.
+* Golden-Daten: nur `test_wall_modules` geändert. Paket, CLI und Add-on auf 0.18.0.
+  Bericht: [VERSION_0.18.0.md](VERSION_0.18.0.md).
+
 ## 0.17.0 „Prism“ – 2026-10-13
 
 * **Stiltest Anstriche** (experimentell, `tools/style_test.py`): das Skin-Prinzip des Roboter-Generators für

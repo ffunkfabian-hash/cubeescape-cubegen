@@ -1,0 +1,11 @@
+{
+  "name": "rust_bucket",
+  "base": "ruin",
+  "label": "Rust Bucket",
+  "glow": "red",
+  "colors": {"M_Wall": "#6b3a22", "M_Metal": "#8a4a2a", "M_HazardOrange": "#c0552a"},
+  "wear": 0.95,
+  "grime_color": "#3a1408",
+  "edge_glow": 0.05,
+  "edge_glow_color": "#ff4a2a"
+}

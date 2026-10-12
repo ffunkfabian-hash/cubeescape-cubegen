@@ -32,10 +32,10 @@ def hex_rgb(value: str) -> RGB:
 #: paint schemes - colours as sRGB hex (as painted), amounts 0..1. The six wall concepts of the user's concept sheet
 #: "Cube Escape - Umgebungs Konzepte" (01 Industrial ... 06 Organic). Keys: see ``SCHEME_KEYS``.
 PAINTS: Dict[str, Dict] = {
-    # orange-accented steel (insets orange like the concept's industrial wall), heavy wear, grime, a little dust
+    # orange-accented steel, heavy wear, grime, a little dust
     "industrial": {
         "label": "Industrial",
-        "colors": {"M_Ground": "#c8731f", "M_Wall": "#3a3e45", "M_Platform": "#7d828b", "M_HazardOrange": "#e8862a",
+        "colors": {"M_Ground": "#3a3d42", "M_Wall": "#3a3e45", "M_Platform": "#7d828b", "M_HazardOrange": "#e8862a",
                    "M_RobotBody": "#b8bcc3", "M_RobotDark": "#2a2d33", "M_Metal": "#8a9099", "M_Warning": "#f0a030",
                    "M_PortalPanel": "#9aa0a8"},
         "glow": "orange", "edge_light": 0.2, "wear": 0.75, "wear_color": "#d5d9df", "grime": 0.55,
@@ -45,7 +45,7 @@ PAINTS: Dict[str, Dict] = {
     # white lab panels, light grey frames, blue light: clean, glossy, hardly worn
     "clean": {
         "label": "Clean",
-        "colors": {"M_Ground": "#5e9fd8", "M_Wall": "#c9ced6", "M_Platform": "#e4e8ee", "M_HazardOrange": "#3d8ee0",
+        "colors": {"M_Ground": "#d8dde4", "M_Wall": "#c9ced6", "M_Platform": "#e4e8ee", "M_HazardOrange": "#3d8ee0",
                    "M_RobotBody": "#f0f2f5", "M_RobotDark": "#8d949e", "M_Metal": "#e2e6ec", "M_Warning": "#7cc4f5",
                    "M_PortalPanel": "#eef1f5"},
         "glow": "cyan", "edge_light": 0.15, "wear": 0.08, "wear_color": "#ffffff", "grime": 0.18,
@@ -55,7 +55,7 @@ PAINTS: Dict[str, Dict] = {
     # worn brown and rust, chipped to bare metal, rust in the crevices
     "ruin": {
         "label": "Ruin",
-        "colors": {"M_Ground": "#7a5a3a", "M_Wall": "#5a4d40", "M_Platform": "#6e6255", "M_HazardOrange": "#a0612c",
+        "colors": {"M_Ground": "#5a4b3c", "M_Wall": "#5a4d40", "M_Platform": "#6e6255", "M_HazardOrange": "#a0612c",
                    "M_RobotBody": "#8a7f70", "M_RobotDark": "#2e2822", "M_Metal": "#7d6a55", "M_Warning": "#b8892f",
                    "M_PortalPanel": "#8a8070"},
         "glow": "orange", "edge_light": 0.1, "wear": 0.9, "wear_color": "#a8a39a", "grime": 0.7,
@@ -75,7 +75,7 @@ PAINTS: Dict[str, Dict] = {
     # near black, red light, a red seam glowing along the edges - secret / danger
     "dark": {
         "label": "Dark",
-        "colors": {"M_Ground": "#3a0e12", "M_Wall": "#1c1c22", "M_Platform": "#2c2c33", "M_HazardOrange": "#8e1b22",
+        "colors": {"M_Ground": "#16161b", "M_Wall": "#1c1c22", "M_Platform": "#2c2c33", "M_HazardOrange": "#8e1b22",
                    "M_RobotBody": "#3a3a42", "M_RobotDark": "#101014", "M_Metal": "#2e2e36", "M_Warning": "#c0282e",
                    "M_PortalPanel": "#33333b"},
         "glow": "red", "edge_light": 0.08, "wear": 0.2, "wear_color": "#5a5a66", "grime": 0.4,
@@ -95,7 +95,7 @@ PAINTS: Dict[str, Dict] = {
     # concept sheets II/III (07 Sand, 08 Space, Ice, Toxic, Void): sandstone, dust everywhere, sand rising from the floor
     "sand": {
         "label": "Sand",
-        "colors": {"M_Ground": "#b07a3c", "M_Wall": "#b8925e", "M_Platform": "#d2b48a", "M_HazardOrange": "#c47a2c",
+        "colors": {"M_Ground": "#c49a62", "M_Wall": "#b8925e", "M_Platform": "#d2b48a", "M_HazardOrange": "#c47a2c",
                    "M_RobotBody": "#d8c4a0", "M_RobotDark": "#6e5638", "M_Metal": "#a88a62", "M_Warning": "#d89a3a",
                    "M_PortalPanel": "#cdb48e"},
         "glow": "orange", "edge_light": 0.25, "wear": 0.7, "wear_color": "#e8d8b8", "grime": 0.35,
@@ -105,7 +105,7 @@ PAINTS: Dict[str, Dict] = {
     # dark navy-grey hull plating, orange trims, blue light: clean and glossy
     "space": {
         "label": "Space",
-        "colors": {"M_Ground": "#d9792a", "M_Wall": "#2a3140", "M_Platform": "#4a5568", "M_HazardOrange": "#e8862a",
+        "colors": {"M_Ground": "#2a3140", "M_Wall": "#2a3140", "M_Platform": "#4a5568", "M_HazardOrange": "#e8862a",
                    "M_RobotBody": "#8c97a8", "M_RobotDark": "#1a1f2a", "M_Metal": "#5a6578", "M_Warning": "#f0a030",
                    "M_PortalPanel": "#6e7a8e"},
         "glow": "cyan", "edge_light": 0.18, "wear": 0.2, "wear_color": "#c8d0dc", "grime": 0.25,
@@ -115,7 +115,7 @@ PAINTS: Dict[str, Dict] = {
     # pale ice blue and white, snow on top surfaces, faint frost at the edges
     "ice": {
         "label": "Ice",
-        "colors": {"M_Ground": "#7cc0e8", "M_Wall": "#b8d6e8", "M_Platform": "#dcecf6", "M_HazardOrange": "#4aa8e0",
+        "colors": {"M_Ground": "#c8dcea", "M_Wall": "#b8d6e8", "M_Platform": "#dcecf6", "M_HazardOrange": "#4aa8e0",
                    "M_RobotBody": "#e8f2f8", "M_RobotDark": "#5a7a92", "M_Metal": "#a8c4d8", "M_Warning": "#8fd4ff",
                    "M_PortalPanel": "#d0e4f0"},
         "glow": "cyan", "edge_light": 0.3, "wear": 0.15, "wear_color": "#ffffff", "grime": 0.2,
@@ -125,17 +125,17 @@ PAINTS: Dict[str, Dict] = {
     # dark grey, poison green slime rising from the floor, green glowing seams
     "toxic": {
         "label": "Toxic",
-        "colors": {"M_Ground": "#3f6a1a", "M_Wall": "#33382e", "M_Platform": "#4a5044", "M_HazardOrange": "#6aa82a",
+        "colors": {"M_Ground": "#2c3128", "M_Wall": "#33382e", "M_Platform": "#4a5044", "M_HazardOrange": "#6aa82a",
                    "M_RobotBody": "#6a7062", "M_RobotDark": "#1c2018", "M_Metal": "#4e5548", "M_Warning": "#b8e030",
                    "M_PortalPanel": "#5a6052"},
         "glow": "orange", "edge_light": 0.08, "wear": 0.4, "wear_color": "#8a9280", "grime": 0.6,
-        "grime_color": "#1a2a08", "rising_grime": 0.6, "dust": 0.0, "dust_color": "#000000", "moss": 0.7,
-        "moss_color": "#5cc22a", "edge_glow": 0.12, "edge_glow_color": "#5cff3a", "roughness": 0.55, "metal": 0.6,
+        "grime_color": "#1a2a08", "rising_grime": 0.6, "dust": 0.0, "dust_color": "#000000", "moss": 0.35,
+        "moss_color": "#2f6a18", "edge_glow": 0.12, "edge_glow_color": "#5cff3a", "roughness": 0.55, "metal": 0.6,
     },
     # black violet, violet light in the seams - a place outside the station
     "void": {
         "label": "Void",
-        "colors": {"M_Ground": "#4a2a7a", "M_Wall": "#1e1828", "M_Platform": "#2c2438", "M_HazardOrange": "#7a3ac8",
+        "colors": {"M_Ground": "#1a1424", "M_Wall": "#1e1828", "M_Platform": "#2c2438", "M_HazardOrange": "#7a3ac8",
                    "M_RobotBody": "#3c3448", "M_RobotDark": "#100c16", "M_Metal": "#2a2236", "M_Warning": "#a35cff",
                    "M_PortalPanel": "#342c40"},
         "glow": "cyan", "edge_light": 0.06, "wear": 0.15, "wear_color": "#5a4a70", "grime": 0.35,
@@ -148,8 +148,79 @@ SCHEME_KEYS = ("label", "colors", "glow", "edge_light", "wear", "wear_color", "g
                "dust", "dust_color", "moss", "moss_color", "edge_glow", "edge_glow_color", "roughness", "metal")
 
 
+BUILTIN_PAINTS = tuple(PAINTS)
+GLOW_COLORS = ("cyan", "red", "orange")  # the --glow colours of the glow parts
+AMOUNT_KEYS = ("edge_light", "wear", "grime", "rising_grime", "dust", "moss", "edge_glow", "roughness", "metal")
+COLOR_KEYS = ("wear_color", "grime_color", "dust_color", "moss_color", "edge_glow_color")
+
+
+def _check_hex(value, where):
+    if not (isinstance(value, str) and len(value) == 7 and value[0] == "#"
+            and all(c in "0123456789abcdefABCDEF" for c in value[1:])):
+        raise ValueError(f"{where}: colour must be '#rrggbb', got {value!r}")
+
+
+def check_scheme(scheme: Dict, where: str = "paint scheme") -> Dict:
+    """Validate a complete scheme (all ``SCHEME_KEYS``); returns it."""
+    missing = [k for k in SCHEME_KEYS if k not in scheme]
+    unknown = [k for k in scheme if k not in SCHEME_KEYS]
+    if missing or unknown:
+        raise ValueError(f"{where}: missing keys {missing}, unknown keys {unknown}")
+    if not isinstance(scheme["label"], str) or not scheme["label"].strip():
+        raise ValueError(f"{where}: label must be a text")
+    if scheme["glow"] not in GLOW_COLORS:
+        raise ValueError(f"{where}: glow must be one of {', '.join(GLOW_COLORS)}")
+    for k in AMOUNT_KEYS:
+        if not isinstance(scheme[k], (int, float)) or isinstance(scheme[k], bool) or not 0.0 <= scheme[k] <= 1.0:
+            raise ValueError(f"{where}: {k} must be a number from 0 to 1")
+    for k in COLOR_KEYS:
+        _check_hex(scheme[k], f"{where}: {k}")
+    if not isinstance(scheme["colors"], dict):
+        raise ValueError(f"{where}: colors must be an object {{material: '#rrggbb'}}")
+    if set(scheme["colors"]) - set(PAINTED):
+        raise ValueError(f"{where}: colors only for {', '.join(PAINTED)}")
+    for name, value in scheme["colors"].items():
+        _check_hex(value, f"{where}: colors.{name}")
+    return scheme
+
+
+def load_scheme(path: str):
+    """A custom paint scheme from a JSON file: ``{"name", "base", ...}`` - every key not given comes from the built-in
+    scheme ``base`` (default industrial; ``colors`` are merged per material). Returns ``(name, scheme)``."""
+    import json
+    import os
+
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: a paint scheme is a JSON object")
+    name = str(data.pop("name", os.path.splitext(os.path.basename(path))[0])).strip().lower()
+    if not name or not all(c.isalnum() or c == "_" for c in name):
+        raise ValueError(f"{path}: name: letters, digits and _ only")
+    if name in BUILTIN_PAINTS:
+        raise ValueError(f"{path}: {name!r} is a built-in scheme - give the custom one its own name")
+    base = data.pop("base", "industrial")
+    if base not in BUILTIN_PAINTS:
+        raise ValueError(f"{path}: base must be a built-in scheme ({', '.join(BUILTIN_PAINTS)})")
+    scheme = {k: (dict(v) if isinstance(v, dict) else v) for k, v in PAINTS[base].items()}
+    scheme["label"] = name.capitalize()
+    for key, value in data.items():
+        if key == "colors" and isinstance(value, dict):
+            scheme["colors"].update(value)
+        else:
+            scheme[key] = value
+    return name, check_scheme(scheme, path)
+
+
+def register_scheme(name: str, scheme: Dict) -> None:
+    """Make a custom scheme known in this process (the Blender worker gets it with the job)."""
+    if name in BUILTIN_PAINTS:
+        raise ValueError(f"{name!r} is a built-in scheme")
+    PAINTS[name] = check_scheme(scheme, name)
+
+
 def paint_names() -> List[str]:
-    return sorted(PAINTS)
+    return sorted(BUILTIN_PAINTS)
 
 
 def check_paint(name: str) -> str:
@@ -238,7 +309,8 @@ def compose(weights: Sequence, layout: Sequence[Tuple[str, ...]], ao, edge, up, 
             * np.clip(0.55 + noise * 0.7, 0.0, 1.0)
         blend(rising * 0.8, scheme["grime_color"])
     # dust on surfaces facing up
-    dust = scheme["dust"] * np.clip(up * 1.3 - 0.3, 0.0, 1.0) * np.clip(noise * 1.4 - 0.2, 0.0, 1.0)
+    # (in patches: a floor or a platform top must not vanish under one closed layer of dust, sand or snow)
+    dust = scheme["dust"] * np.clip(up * 1.3 - 0.3, 0.0, 1.0) * np.clip(noise * 2.2 - 0.9, 0.0, 1.0)
     blend(dust, scheme["dust_color"])
     # moss: on top surfaces, creeping down from the top edge and up from the floor in noisy patches
     if scheme["moss"] > 0:
@@ -246,8 +318,10 @@ def compose(weights: Sequence, layout: Sequence[Tuple[str, ...]], ao, edge, up, 
         foot = np.clip((0.25 - height) / 0.25, 0.0, 1.0) if height is not None else 0.0
         # hanging down from the top: the higher, the more; plus patches anywhere the noise is high
         hang = np.clip((height - 0.35) / 0.65, 0.0, 1.0) ** 1.5 if height is not None else 0.0
-        reach = np.clip(up * 1.4 + top * 0.9 + foot * 0.7 + crevice * 0.6 + hang * 0.55 + (noise - 0.6) * 0.8,
-                        0.0, 1.0)
+        patches = np.clip(noise * 2.0 - 0.55, 0.0, 1.0)  # top surfaces only in patches, never a closed carpet
+        broken = 0.4 + 0.6 * patches  # the top band and the foot too: a box top must not turn into one green lid
+        reach = np.clip(up * 1.4 * patches + (top * 0.9 + foot * 0.7 + hang * 0.55) * broken + crevice * 0.6
+                        + (noise - 0.6) * 0.8, 0.0, 1.0)
         moss = scheme["moss"] * np.clip((reach * (0.45 + noise) - 0.42) * 3.0, 0.0, 1.0)
         blend(moss, scheme["moss_color"])
         roughness = roughness * (1.0 - moss) + moss * 0.95

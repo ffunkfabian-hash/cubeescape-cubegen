@@ -138,6 +138,7 @@ struct GenerateSettings: Codable, Equatable {
     var unique = true
     var variantSet = false     // --set: the variants share variant 0's outline, differ inside
     var paint = ""             // paint scheme (cubegen catalog "paints"); implies a baked atlas
+    var paintFile = ""         // own scheme from a JSON file (--paint-file); wins over paint
     var strict = false
     var force = false
     var noBlender = false
@@ -163,6 +164,7 @@ struct GenerateSettings: Codable, Equatable {
         unique = try c.decodeIfPresent(Bool.self, forKey: .unique) ?? d.unique
         variantSet = try c.decodeIfPresent(Bool.self, forKey: .variantSet) ?? d.variantSet
         paint = try c.decodeIfPresent(String.self, forKey: .paint) ?? d.paint
+        paintFile = try c.decodeIfPresent(String.self, forKey: .paintFile) ?? d.paintFile
         strict = try c.decodeIfPresent(Bool.self, forKey: .strict) ?? d.strict
         force = try c.decodeIfPresent(Bool.self, forKey: .force) ?? d.force
         noBlender = try c.decodeIfPresent(Bool.self, forKey: .noBlender) ?? d.noBlender
@@ -193,10 +195,12 @@ struct GenerateSettings: Codable, Equatable {
         let seed = self.seed.trimmingCharacters(in: .whitespaces)
         if !seed.isEmpty { args += ["--seed", seed] }
         args += ["--out", (output as NSString).standardizingPath]
-        if paint.isEmpty {
+        let paintFile = self.paintFile.trimmingCharacters(in: .whitespaces)
+        if paint.isEmpty && paintFile.isEmpty {
             args += try textureArguments()
-        } else {  // --paint implies --textures baked; the size still applies
-            args += ["--paint", paint]
+        } else {  // --paint / --paint-file imply --textures baked; the size still applies
+            args += paintFile.isEmpty ? ["--paint", paint]
+                                      : ["--paint-file", (paintFile as NSString).standardizingPath]
             if let n = Int(textureSize.trimmingCharacters(in: .whitespaces)) { args += ["--texture-size", String(n)] }
         }
         for name in style.keys.sorted() {

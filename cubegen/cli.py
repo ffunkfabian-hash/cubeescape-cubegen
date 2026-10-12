@@ -23,7 +23,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint")
+                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint", "paint_file")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -237,6 +237,14 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["variant_set"] = True
     if args.paint:
         values["paint"] = args.paint
+        values.pop("paint_file", None)  # the command line wins over a recipe's own scheme
+    if args.paint_file:
+        values["paint_file"] = os.path.abspath(args.paint_file)
+        values.pop("paint", None)  # the file names its own scheme
+    elif values.get("paint_file") and args.recipe and not os.path.isabs(values["paint_file"]):
+        values["paint_file"] = os.path.join(os.path.dirname(os.path.abspath(args.recipe)), values["paint_file"])
+    if values.get("paint_file"):
+        values["paint"] = "custom"  # placeholder - BatchConfig.validate loads the file and takes its name
     if values.get("paint"):  # a paint scheme is a baked atlas
         if values.get("textures", "baked") not in ("baked", "none"):
             raise ValueError(f"--paint needs --textures baked (not {values['textures']})")
@@ -699,6 +707,9 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--paint", choices=paint_names(), metavar="SCHEME",
                     help=f"paint scheme ({', '.join(paint_names())}): one neutral bake per model, the scheme composed "
                          "into a baked atlas (implies --textures baked); decorative glow takes the scheme's colour")
+    tx.add_argument("--paint-file", metavar="FILE",
+                    help="own paint scheme from a JSON file: {\"name\", \"base\": a built-in scheme, any of its keys} "
+                         "- e.g. paints/custom_example.json")
     tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
                     help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
                          "below that the CPU is faster); CPU and GPU differ in the noise")

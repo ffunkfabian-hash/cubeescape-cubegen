@@ -20,7 +20,9 @@ from .common import ALONG_X, ALONG_Y, cube, cyl, strut
 from ..params import Param
 from .common import deg
 from .lettering import add_text
-from .nature import _crystal
+from .alien import _wiggle
+from .nature import _boulder, _crystal
+from .nature import _jitter as _nature_jitter
 from .registry import model
 
 NOTE = "Experimental visual prototype only; interaction and Unity gameplay wiring are not implemented."
@@ -203,7 +205,10 @@ def test_thermal_switch(rng, a):
        "Experimental wall set piece of stacked modules (concepts 'Industrial' / 'Crystal'): 2 x 3 x 0.5 m, plinth, cap "
        "and hazard stripes continue into the neighbour; the inside varies per variant (columns, blocks, accent plates, "
        "vents, pipe, cable duct, ID sign, optional energy crystals)",
-       params=[Param("crystals", "choice", "Kristalle", choices=("none", "some", "many"), default="none")])
+       params=[Param("crystals", "choice", "Kristalle", choices=("none", "some", "many"), default="none"),
+               Param("dressing", "choice", "Ausstattung", choices=("none", "ruin", "organic"), default="none",
+                     description="ruin: freiliegende Rohre, lose Platte, Schutt; organic: Steinplatten, Ranken, "
+                                 "Steine und Büsche am Fuß (Geometrie zu den Anstrichen Ruin / Organic)")])
 def test_wall_modules(rng, a):
     """Style test 0.17.0. A *set*: every variant has the same outline and joins its neighbours seamlessly (no random
     scale, stripe period divides the length); what changes is the inside, so a row of them never repeats."""
@@ -216,6 +221,7 @@ def test_wall_modules(rng, a):
         x = -length / 2 + 0.1 + k * 0.2
         cube(m, (0.09, 0.02, 0.16), (x, -0.29, 0.11), "M_Warning" if k % 2 else "M_RobotDark", rot=(0, 0.6, 0))
     z0, z1 = 0.26, height - 0.2
+    dressing = a.p.option("dressing")  # not rolled: the default keeps every variant exactly as before
     # column layout of this piece: an accent column in the middle, left, right - or none (plain stacks)
     layout = rng.choice(("mid", "mid", "left", "right", "none", "split"))
     gap = 0.06
@@ -255,11 +261,14 @@ def test_wall_modules(rng, a):
             depth = rng.choice((0.12, 0.18, 0.24))
             cz = (bz0 + bz1) / 2
             cube(m, (width, depth, h), (cx, front - depth / 2, cz), "M_RobotDark", bevel=0.03)        # block
-            cube(m, (width - 0.06, 0.04, h - 0.06), (cx, front - depth - 0.02, cz), "M_Metal", bevel=0.02)  # face
+            face_part = cube(m, (width - 0.06, 0.04, h - 0.06), (cx, front - depth - 0.02, cz), "M_Metal", bevel=0.02)
+            if dressing == "organic":  # weathered stone instead of a machined front: irregular, a little proud
+                _nature_jitter(m, face_part, rng, 0.018)
             face = front - depth - 0.04
             roll = rng.random()
-            if roll < accent_share:                       # orange accent plate (concept: orange inserts)
-                cube(m, (width - 0.12, 0.02, h - 0.14), (cx, face - 0.01, cz), "M_Ground", bevel=0.01)
+            if roll < accent_share:                       # accent plate (concept: orange inserts) - the accent
+                # material, so paint schemes colour it like the accent column (M_Ground is a floor/base surface)
+                cube(m, (width - 0.12, 0.02, h - 0.14), (cx, face - 0.01, cz), "M_HazardOrange", bevel=0.01)
             elif roll < accent_share + 0.25 and h > 0.5:  # vent slats
                 for j in range(5):
                     cube(m, (width - 0.16, 0.03, 0.03), (cx, face - 0.015, cz - h / 2 + 0.12 + j * (h - 0.24) / 4),
@@ -304,6 +313,73 @@ def test_wall_modules(rng, a):
                 foot = (cx + rng.uniform(-0.3, 0.3) * width, front - 0.25, rng.uniform(1.0, 2.4))
                 _crystal(crystals, foot, rng.uniform(0.3, 0.6), rng.uniform(0.05, 0.09),
                          (deg(rng.uniform(55, 80)), deg(rng.uniform(-25, 25)), 0.0), sides=6)
+    if dressing == "ruin":
+        _ruin_dressing(rng, m, length, front, z0, z1)
+    elif dressing == "organic":
+        _organic_dressing(rng, m, length, front, height)
     # no random scale (unlike the other prototypes): set pieces must keep their 2 m length to join
     a.meta.update({"experimental": True, "idea": "wall_modules set (style test 0.17.0)", "gameplay_note": NOTE,
                    "layout": layout, "set_length_m": length})
+
+
+def _on_floor(mesh, part):
+    """Flatten what a tilted piece pushes below the floor: the model's foot must stay at z = 0 (a set piece that sank
+    would be lifted as a whole and no longer join its neighbours)."""
+    for vi in part.vertex_indices():
+        x, y, z = mesh.verts[vi]
+        mesh.verts[vi] = (x, y, max(z, 0.0))
+
+
+def _ruin_dressing(rng, m, length, front, z0, z1):
+    """Concept 'Ruin': an exposed pipe run with couplings, a torn plate leaning against the wall, rubble at the foot.
+    Everything stays within the piece's 2 m (x) - only the front changes, so set pieces still join."""
+    pz = rng.uniform(z0 + 0.9, z1 - 0.4)
+    run = length - 0.3
+    cyl(m, 0.07, run, (0, front - 0.42, pz), "M_Metal", sides=10, rot=ALONG_X)            # horizontal pipe
+    for x in (-run / 2 + 0.25, rng.uniform(-0.2, 0.2), run / 2 - 0.25):                    # couplings + brackets
+        cyl(m, 0.09, 0.08, (x, front - 0.42, pz), "M_RobotDark", sides=10, rot=ALONG_X)
+        cube(m, (0.06, 0.3, 0.06), (x, front - 0.27, pz), "M_RobotDark")
+    down_x = rng.choice((-1, 1)) * (run / 2 - 0.12)                                         # elbow down to the floor
+    cyl(m, 0.07, pz - 0.05, (down_x, front - 0.42, (pz - 0.05) / 2), "M_Metal", sides=10)
+    cube(m, (0.18, 0.18, 0.18), (down_x, front - 0.42, pz), "M_RobotDark", bevel=0.02)
+    cube(m, (0.62, 0.04, 0.9), (rng.uniform(-0.45, 0.45), front - 0.55, 0.47), "M_Metal", bevel=0.01,
+         rot=(math.radians(rng.uniform(14, 24)), 0.0, math.radians(rng.uniform(-8, 8))))  # torn plate, leaning
+    _on_floor(m, m.parts[-1])
+    for _ in range(rng.randint(7, 12)):                                                    # rubble at the foot
+        s = rng.uniform(0.08, 0.2)
+        chunk = cube(m, (s * rng.uniform(0.8, 1.5), s * rng.uniform(0.7, 1.2), s * rng.uniform(0.5, 0.9)),
+                     (rng.uniform(-length / 2 + 0.15, length / 2 - 0.15), front - rng.uniform(0.35, 0.8), s * 0.3),
+                     rng.choice(("M_Wall", "M_RobotDark", "M_Metal")),
+                     rot=(math.radians(rng.uniform(-30, 30)), math.radians(rng.uniform(-30, 30)),
+                          rng.uniform(0, math.pi)))
+        _on_floor(m, chunk)
+
+
+def _organic_dressing(rng, m, length, front, height):
+    """Concept 'Organic': vines hanging from the cap with leaves, stones and bushes at the foot. The vines and leaves
+    use the ground material, so a paint scheme colours them (Organic: moss green)."""
+    for _ in range(rng.randint(3, 6)):
+        x0 = rng.uniform(-length / 2 + 0.15, length / 2 - 0.15)
+        steps = rng.randint(4, 9)
+        lim = length / 2 - 0.16  # vines and their leaves stay inside the piece: the joint stays clean
+        pts = [(max(-lim, min(lim, x)), y, z)
+               for x, y, z in _wiggle(rng, (x0, front - 0.33, height - 0.12), -0.28, steps, 0.1, floor=0.3)]
+        for k, (p1, p2) in enumerate(zip(pts, pts[1:])):
+            strut(m, p1, p2, 0.022 * (1 - k / (steps + 1)) + 0.008, "M_Ground", sides=5)
+            if rng.random() < 0.75:
+                ang = rng.uniform(-60, 60)
+                cube(m, (0.13, 0.012, 0.07), (p2[0] + 0.05 * (1 if ang > 0 else -1), p2[1] - 0.01, p2[2]), "M_Ground",
+                     rot=(0.0, math.radians(ang), 0.0))
+    first = len(m.parts)
+    for _ in range(rng.randint(4, 7)):                                                     # stones at the foot
+        s = rng.uniform(0.15, 0.32)
+        _boulder(rng, m, (rng.uniform(-length / 2 + 0.2, length / 2 - 0.2), front - rng.uniform(0.35, 0.7), 0.0),
+                 (s * 1.3, s, s * 0.7), "M_Wall")
+    for _ in range(rng.randint(2, 4)):                                                     # bushes
+        bx, by = rng.uniform(-length / 2 + 0.25, length / 2 - 0.25), front - rng.uniform(0.35, 0.6)
+        for k in range(rng.randint(5, 8)):
+            yaw = rng.uniform(0, 2 * math.pi)
+            cube(m, (0.07, 0.012, 0.28), (bx + math.cos(yaw) * 0.08, by + math.sin(yaw) * 0.08, 0.14), "M_Ground",
+                 rot=(math.radians(rng.uniform(-35, 35)), math.radians(rng.uniform(-35, 35)), yaw))
+    for part in m.parts[first:]:  # tilted stones and blades must not reach below the floor (the asset would re-pivot)
+        _on_floor(m, part)
