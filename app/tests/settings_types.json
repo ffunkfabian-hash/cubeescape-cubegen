@@ -1,3 +1,22 @@
-{"types": ["crate", "door"], "seed": "42", "count": 2, "output": "/tmp/cubegen-app-test",
- "textures": "baked", "textureSize": "1024", "style": {"damage": "damaged", "wear": ""},
- "unique": true, "strict": false, "force": true, "noBlender": false, "jobs": 0, "bakeDevice": "cpu"}
+{
+ "types": [
+  "crate",
+  "door"
+ ],
+ "seed": "42",
+ "count": 2,
+ "output": "/tmp/cubegen-app-test",
+ "textures": "baked",
+ "textureSize": "1024",
+ "style": {
+  "damage": "damaged",
+  "wear": ""
+ },
+ "unique": true,
+ "strict": false,
+ "force": true,
+ "noBlender": false,
+ "jobs": 0,
+ "bakeDevice": "cpu",
+ "variantSet": true
+}

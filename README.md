@@ -81,6 +81,25 @@ Der Generator hält sich an dieselben Konventionen wie `Blender/Scripts/generate
 python -m cubegen doctor
 ```
 
+## Variantensets
+
+`--set` (mit `--count`) macht aus den Varianten eines Typs ein Set: alle behalten die Außenmaße der ersten (Länge,
+Höhe, Maß-Parameter), unterscheiden sich aber innen – Teile, die nebeneinander stehen, ohne sich zu wiederholen.
+`set_<Typ>.png` zeigt die Reihe, das Manifest (`sets`) sagt, ob der Typ seinen Umriss wirklich hält (`outline_ok`).
+Ebenso in App und Desktop-Fenster („Variantenset“). Beispiel: [docs/wall_set_0170.png](docs/wall_set_0170.png).
+
+```bash
+python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --glow cyan
+```
+
+## Anstriche (Themen)
+
+`--paint <Thema>` gibt Modellen einen Anstrich nach den Wandkonzepten – Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void –,
+gebacken aus einem neutralen Back je Modell (das Skin-Prinzip des Roboter-Generators, `cubegen/paint.py`).
+Unity liest das Ergebnis wie `--textures baked`. Auch in App und Desktop-Fenster („Anstrich“). Vergleich aller Themen
+mit dem Konzept: [docs/wall_paints_0170.png](docs/wall_paints_0170.png); Stiltest und Reihen:
+`python3 tools/style_test.py --paints all [--row test_wall_modules@crystals=some:5] [--concept <Bild>]`.
+
 ## App (macOS)
 
 `Cubegen.app` (SwiftUI + SceneKit, ohne Xcode-Projekt gebaut wie der Robot Viewer des Roboter-Generators) erzeugt
@@ -627,6 +646,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `table` | `style` (table / desk / round / lab), `width` (0.6–3), `clutter` (ja/nein) |
 | `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
 | `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on, Standard off) |
+| `test_wall_modules` | `crystals` (none / some / many, Standard none) |
 | `tool` | `kind` (wrench / crowbar / pliers / screwdriver), `length` (0.15–0.9), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |

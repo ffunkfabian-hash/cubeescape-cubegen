@@ -38,7 +38,8 @@ Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und b
 `VERSION_0.13.0.md`) ist veröffentlicht. 0.14.0 „Werkstattbuch“ (12. Oktober 2026, `VERSION_0.14.0.md`, Leistungserfahrungen
 für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026, `VERSION_0.14.1.md`, Plugins und Hooks für
 Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. 0.15.0 „Stoppuhr“ und 0.16.0 „Overdrive“ (12. Oktober 2026, `VERSION_0.15.0.md`, `VERSION_0.16.0.md`, macOS-App)
-sind veröffentlicht; die nächste Version ist 0.17.0.
+sind veröffentlicht, ebenso 0.17.0 „Prism“ (13. Oktober 2026, `VERSION_0.17.0.md`: Anstriche, Variantensets);
+die nächste Version ist 0.18.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -189,13 +190,46 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
   Prüfung – aber nur für Flächen, die überhaupt verglichen werden (alle vorab zu rechnen war langsamer), und teure
   Vorarbeit einmal je Teil statt je Probepunkt (`quality.ray_faces`). Ergebnis bytegleich prüfen (Prüf-JSON,
   erzeugte Dateien), CPU-Zeit vergleichen statt Wanduhr, wenn fremde Last läuft.
-- **Nicht übertragbar** (geprüft 0.15.0): Paletten aus Gewichtskarten zusammensetzen – Cubegen backt keine Paletten
+- **Gewichtskarten statt Backen je Farbgebung** (seit 0.17.0 im Stiltest `cubegen/paint.py`, `stylebake.py`): die
+  Spielmaterialien als Gewichte (drei je RGB-Bild), Farbe = Summe aus Gewicht × Farbe – jede Farbgebung kostet
+  Sekundenbruchteile statt eines Back-Laufs. Bisher nicht übertragbar war es nur, weil Cubegen keine Paletten backte
   (`palette.py` ist reines Python, `baked` backt eine Palette je Lauf). EEVEE-`BLENDED` – kein Cubegen-Material ist
   transparent. `foreach_get` als `float32` – Cubegen liest keine Meshes mit `foreach_get`. Kommen solche Fälle
   dazu (z. B. Texturvarianten je Palette, transparente Materialien), gelten die Regeln oben.
 - **Die Neural Engine nutzt Blender nicht** (nur über Core ML erreichbar); Metal verteilt GPU-Arbeit selbst auf alle
   GPU-Kerne. Geprüft in 0.14.2: Vision-Merkmalsvergleiche taugen nicht als Prüfschranke (je Gerät andere Werte,
   trennen Fehler nicht besser als ein exakter Pixelvergleich); höchstens als Hinweiswerkzeug mit Zeitregel (ROADMAP).
+
+## Variantensets (Variation ohne Wiederholung)
+
+Wunsch des Nutzers (0.17.0) für **alle** Modelle: Teile, die im Level nebeneinander stehen, dürfen nicht gleich
+aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenleben** (`--set`, Manifest `sets`).
+
+- **Umriss nur über Parameter:** Alles, was den Anschluss bestimmt (Länge, Höhe, Breite, Tiefe, Radius), ist ein
+  Parameter (`Param(size=True)` oder ein Name aus `OUTLINE_PARAMS`), nie ein im Builder gewürfelter Wert und keine
+  Zufallsskalierung (`_mark` skaliert die übrigen Prototypen – Set-Teile nicht). `--set` hält diese Parameter fest
+  und prüft danach die Hüllquader (links/rechts, unten/oben, Rückseite; nach vorne darf es abweichen):
+  `outline_ok = false` heißt, der Typ ist (noch) nicht set-fähig.
+- **Anschlüsse durchlaufen lassen:** Sockel, Deckel und Kern an der vollen Länge; Muster mit einer Periode, die die
+  Länge teilt (Warnstreifen 0,2 m bei 2 m), damit sie über den Stoß weiterlaufen.
+- **Innen variieren** (`rng`, also reproduzierbar je Seed): Aufteilung (Spalten/Blöcke), Akzente, Lüftung, Anbauteile
+  (Rohr, Kabel), Schilder mit wechselnder Kennung – und **starke Hingucker nur an manchen Teilen** (Kristalle
+  `some`: etwa jedes zweite bis dritte). Vorbild: `test_wall_modules` (`cubegen/models/gameplay_tests.py`).
+- **Einheitlicher Look bleibt Sache des Stils:** Leuchtfarbe, Material, Abnutzung über `--glow`, `--theme`,
+  Anstriche – nicht über die Set-Variation.
+- **Prüfen:** `--set --unique` (keine Doppelgänger), Reihenbild `set_<Typ>.png` ansehen; im Stiltest
+  `tools/style_test.py --row <Typ>@…:5` (die Reihe gebacken und je Anstrich gerendert).
+- **Unity:** Variantensets im Modell-Browser sind ToDo 25 der ROADMAP.
+
+## Anstriche (`--paint`)
+
+- **Ein neutraler Back, Themen als Daten** (`cubegen/paint.py` `PAINTS`, Schlüssel `SCHEME_KEYS`): neue Themen sind
+  neue Einträge, nie ein eigener Back-Pfad. `compose` ist die Referenzformel – auch für den späteren Unity-Shader
+  (ROADMAP ToDo 27); Änderungen an der Formel dort mitdenken.
+- **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0), Sidecar `baked` nur mit
+  Albedo/Normal/Roughness/MetallicSmoothness; `Emission` und die neutralen Karten stehen nur im Manifest (ToDo 26/27).
+- **Prüfen:** `tools/style_test.py --paints all --concept <Konzeptbogen>` (Vergleich mit dem Konzept) und der echte
+  Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests` mit `CUBEGEN_TEST_EXPORTS`).
 
 ## macOS-App (`app/`)
 

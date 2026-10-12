@@ -1,0 +1,116 @@
+# Cubegen 0.17.0 – Prism
+
+Release vom 13. Oktober 2026, Release-Zweig `release/0.17.0`; vorherige Version [0.16.0](VERSION_0.16.0.md).
+Anstriche als Ausgabemodus (`--paint`, elf Themen), Variantensets (`--set`), experimenteller Typ `test_wall_modules`,
+Stiltest; die Ausgabe aller bestehenden Typen ist unverändert (Golden-Daten).
+
+## Inhalt
+
+Stiltest „Texturen wie der Roboter-Generator“ nach dem Konzeptbogen „Umgebungs-Konzepte“ des Nutzers: Ein Modell wird
+**einmal neutral gebacken**, jeder **Anstrich** (Paint Scheme) ist nur Daten und wird aus diesen Karten zusammengesetzt –
+das Skin-Prinzip des Roboter-Generators (1.8: Skins aus Gewichtskarten) für Umgebungsmodelle.
+
+| Teil | Inhalt |
+|---|---|
+| `cubegen/paint.py` | Anstriche als Daten (`industrial`, `crystal`): Farbe je Spielmaterial, Abnutzung, Schmutz, Staub, Kantenleuchten, Rauheit, Leuchtfarbe (die vorhandene `--glow`-Farbe); Gewichts-Layout (drei Materialien je RGB-Bild); `compose` und `detail_map` (numpy) |
+| `cubegen/stylebake.py` | in Blender: neutrale Karten auf einem Atlas einer zusammengefügten Kopie – Gewichte, Umgebungsverdeckung, Kantenmaske (Cycles-Bevel-Normale gegen echte Normale), „oben“-Maske (Staub/Bewuchs), dazu Helligkeit und Normalen der Kacheltexturen (Fugen, Nieten, Kratzer); Zusammensetzen eines Anstrichs mit numpy (`float32`), ein Material je Anstrich |
+| `tools/style_test.py` | Werkzeug: plant die Modelle, startet Blender, rendert heute (Spielfarben, Kacheln) und jeden Anstrich, baut den Vergleichsbogen mit Konzeptausschnitten (`--concept`) |
+
+Bild: [docs/style_test_0170.png](docs/style_test_0170.png) – Wand, Plattform, Säule, Kiste (Seed 42, Variante 0) heute
+und als Industrial/Crystal, rechts Ausschnitte des Konzeptbogens.
+
+```bash
+python3 tools/style_test.py --concept <Konzeptbogen.png>    # -> output/style_test/style_test.png
+```
+
+## Ergebnis
+
+Gemessen am 12. Oktober 2026 (Apple M5, Blender 5.2.2, Atlas 1024 px, Metal):
+
+| | Wand | Plattform | Säule | Kiste |
+|---|---|---|---|---|
+| neutrales Backen (einmal) | 42,3 s* | 3,3 s | 2,9 s | 3,0 s |
+| zwei Anstriche zusammensetzen | 0,6 s | 0,4 s | 0,4 s | 0,6 s |
+| Gewichtsbilder | 2 | 1 | 1 | 1 |
+
+\* einmaliges Kompilieren der Metal-Kernel im ersten Back-Lauf einer Blender-Sitzung.
+
+- **Das Prinzip trägt:** Jeder weitere Anstrich kostet 0,2–0,3 s statt eines neuen Backens (etwa 3 s je Modell bei
+  1024 px); zwei Läufe ergeben bytegleiche Karten (Test).
+- **Industrial:** orange Riffelblech-Einsätze in der Wand (Spielmaterial `M_Ground`), Stahlgrau, abgestoßene helle Kanten,
+  Schmutz in Fugen, etwas Staub oben – nahe am Konzept „01 Industrial“.
+- **Crystal:** Schiefer und Stahlblau, wenig Abnutzung, leuchtend blaue Kanten und Leuchtleisten (`--glow cyan`) –
+  der Energie-Eindruck von „04 Crystal“.
+- **Grenze:** Das Konzept lebt von deutlich mehr Geometrie (Kristalle, Rohre, Kabel, Paneele, Bewuchs). Ein Anstrich
+  liefert Farbe, Abnutzung, Staub und Leuchten, aber keine neuen Formen – dafür bräuchte es Anbauteile im Generator.
+
+## Versuch Wand: Textur oder Geometrie?
+
+Frage des Nutzers: „Warum kommen wir nicht an die Konzeptkunst heran?“ Antwort am Bild
+([docs/wall_concept_0170.png](docs/wall_concept_0170.png)): links die vorhandene Wand nur mit Anstrich, Mitte die neue
+Modulwand mit Anstrich, rechts das Konzept.
+
+- **Textur allein** macht aus der flachen Wand nur eine andersfarbige flache Wand.
+- **Geometrie + Anstrich** trifft den Aufbau des Konzepts: Prototyp `test_wall_modules` (gestapelte Blöcke mit Rahmen,
+  Akzentsäule mit Leuchtschlitz, Riffelblech-Akzente, Lüftung, Bolzen, Rohr, Kabelkanal, Warnstreifen, Schild;
+  1 000–2 200 Dreiecke, kein Flackern, exakte Mesh-Kollision der Generation 3). Kristalle als Anbau
+  (`crystals = none | some | many`, Form von `rock`).
+- **Was dann noch fehlt:** der gemalte Illustrationsstil (überzeichnete Kantenlichter, Konturen, Lichtführung) und ein
+  echtes Kristallmaterial (facettiert, durchscheinend) – `M_Crystal` ist eine flache Leuchtfarbe.
+- Anstriche erweitert: Höhenmaske (Schmutz von unten, `rising_grime`), gemaltes Kantenlicht (`edge_light`), Detail
+  und Normalen der Kacheltexturen.
+
+## Variantensets
+
+Hinweis des Nutzers: Eine starke Wand fünfmal nebeneinander sieht nach Kopie aus – es braucht Sets mit Variation.
+
+- `--set` (CLI, App, Desktop-Fenster): alle Varianten eines Typs behalten die Außenmaße der ersten und unterscheiden
+  sich innen; Manifest `sets` (Mitglieder, festgehaltene Maße, `outline_ok`, `deviation_m`), Reihenbild
+  `set_<Typ>.png`. Gemessen (Seed 42, 5 Varianten): `wall`, `pillar`, `test_wall_modules` halten den Umriss (0 mm);
+  `crate` nicht (Tiefe intern gewürfelt, 35 mm), `floor_tile` nicht (Oberkante, 46 mm).
+- `test_wall_modules` als Set gebaut: feste 2 × 3 m ohne Zufallsskalierung, Sockel, Deckel und Warnstreifen laufen über
+  den Stoß; Aufteilung (Akzentsäule mittig/links/rechts/keine, drei Spalten), Blöcke, Akzente, Schild, Rohr,
+  Kabelkanal und Kristalle wechseln je Variante. Stiltest `--row` rendert eine Reihe je Anstrich
+  ([docs/wall_set_0170.png](docs/wall_set_0170.png)).
+- Regeln für set-fähige Typen in AGENTS.md › „Variantensets“; Modell-Browser in Cube Escape: ROADMAP › ToDo 25.
+
+## Entscheidungen des Nutzers und Umsetzung
+
+1. **Anstriche werden ein Ausgabemodus:** `--paint <Thema>` (CLI, App, Desktop-Fenster, Rezeptfeld `paint`). Je Modell
+   ein neutraler Back (8 Durchgänge: zwei Gewichtsbilder, Umgebungsverdeckung, Kante, oben, Höhe, Detail, Normalen;
+   `Textures/Neutral`), das Thema daraus zusammengesetzt zu Albedo, Normal, Roughness, MetallicSmoothness und
+   Emission (`Textures/MTP_<Modell>_<Thema>_*.png`). Leuchtfarbe folgt dem Thema (außer `--glow`). Budget der
+   Back-Stufe für Anstriche × 2,5.
+2. **Unity – Empfehlung „erst fertige Karten, dann Shader“, vom Nutzer beschlossen:** Die fertigen Karten nutzen den
+   vorhandenen Import für gebackene Karten – im echten Import der Testkopie zuerst abgelehnt („Texturmaterial fehlt im
+   Manifest: MTP_…“: der Import erwartet `MTA_<Modell>`), Material umbenannt, danach **Industrial-Set 3 Wände und
+   Organic 2 Wände: 0 Fehler, stabiler Wiederimport**. Die Leuchtkarte liest Unity noch nicht (ROADMAP ToDo 26).
+   Die Shader-Variante mit Umfärbung ist als ToDo 27 festgehalten – mit Begründung (Speicher, Laufzeitwechsel),
+   den bereitliegenden neutralen Karten und `paint.compose` als Referenz.
+3. **Weitere Themen, zunächst für Wände:** Clean, Ruin, Dark, Organic (Moos von oben und vom Boden, Flecken) zu
+   Industrial und Crystal; nach den Konzeptbögen II und III zusätzlich Sand (Staub, Verwehungen), Space (dunkles
+   Hüllblech, orange Einsätze), Ice (Schnee oben, Frostkanten), Toxic (grüner Schleim, grüne Fugen) und Void
+   (Schwarzviolett, violette Fugen) – elf Themen. Leuchtobjekte kennen nur Cyan/Rot/Orange (`--glow`), Grün und
+   Violett kommen über das Kantenleuchten. „Custom“ (eigenes Thema aus einer Datei) steht in der ROADMAP. Die Bögen
+   II/III lagen nur als Bild im Chat vor – für diese Themen hat der Vergleichsbogen keine Konzeptausschnitte.
+   Vergleich aller elf Themen (die ersten sechs neben ihren Wandkonzepten): [docs/wall_paints_0170.png](docs/wall_paints_0170.png).
+   Dark zunächst mit Neon-Kanten überall (zurückgenommen), Organic mit zu wenig Moos (verstärkt). Was fehlt, ist
+   Geometrie: Ruin (Rohre, Trümmer), Organic (Steinblöcke, Bewuchs), Crystal (Kristallmaterial).
+
+## Prüfung
+
+- `tools/run_tests.py` (volle Stufe, mit Blender und ImageMagick): **294 Tests grün** (441 s, 13. Oktober 2026);
+  `app/test_app.sh` **18 von 18 grün**. `tests/test_release_0170.py` (10 Tests):
+  Anstrich-Daten, Gewichts-Layout, `--paint` (setzt `baked`, Leuchtfarbe, Fehlerfälle), Katalog, Variantensets, ein
+  echter Stiltest-Lauf zweimal bytegleich, ein echter `--paint`-Export gegen den Unity-Vertrag (Material `MTA_`).
+- Unity-Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests`): siehe Entscheidung 2.
+- Sichtprüfung: Vergleichsbögen aller Themen mit den Konzept-Ausschnitten angesehen.
+
+- Code-Review vor dem Merge: sieben Funde behoben (u. a. gleiches Rauschmuster auf allen Teilen einer Reihe,
+  `--paint` ohne Blender stillschweigend ignoriert, `--theme` von der Themen-Leuchtfarbe überschrieben).
+
+## Grenzen
+
+- Leuchtkanten (Crystal, Dark) erscheinen in Unity erst mit ToDo 26.
+- Themen von Hand abgestimmt an zwei Wandtypen; andere Typen folgen (ROADMAP).
+- Nicht set-fähig gemessen: `crate`, `floor_tile`.

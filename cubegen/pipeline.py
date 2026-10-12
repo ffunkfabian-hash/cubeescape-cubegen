@@ -24,6 +24,7 @@ from .objwriter import write_mtl, write_obj
 from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
+from .paint import PAINTS, check_paint
 from .variety import pick_unique
 from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
@@ -34,6 +35,8 @@ from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
 BAKE_DEVICES = ("auto", "cpu", "gpu")  # = bake.DEVICES
+#: baked maps the Unity import accepts in a sidecar (CubegenMaterials: Albedo, Normal, MetallicSmoothness required)
+BAKED_MAP_KEYS = ("Albedo", "Normal", "MetallicSmoothness", "Roughness", "AO", "Height")
 
 # Time budget per stage (seconds), measured 0.15.0 on an Apple M5 with headroom of about 3x; a slower stage only
 # warns (log + manifest "timings"), it never fails a run. "per_model" counts the models built in this run.
@@ -57,6 +60,8 @@ class BatchConfig:
     lods: bool = False             # static models: + low detail level, FBX objects <part>_LOD0 / _LOD1
     force: bool = False            # rebuild everything (default: reuse unchanged models of the last run)
     jobs: int = 0                  # Blender processes in parallel (work packages, biggest first); 0 = auto_jobs
+    variant_set: bool = False      # --set: the variants of a type share variant 0's outline (OUTLINE_PARAMS) and differ
+    #                                inside - pieces that stand side by side without repeating (manifest "sets")
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -88,12 +93,23 @@ class BatchConfig:
     #                                "" / "standard" = the game's colours (MP_Palette); ignored in other modes
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
     bake_device: str = "auto"      # --textures baked: auto (GPU from 1024 px) | cpu | gpu (bake.use_device)
+    paint: str = ""                # paint scheme (paint.PAINTS): baked atlas composed from one neutral bake; needs
+    #                                textures "baked"; decorative glow follows the scheme unless --glow says otherwise
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
     repair_safe: bool = False
 
     def validate(self) -> None:
+        if self.paint:
+            check_paint(self.paint)
+            if self.textures != "baked":
+                raise ValueError("--paint needs --textures baked (the scheme is composed into a baked atlas)")
+            if not self.use_blender:
+                raise ValueError("--paint needs Blender (the neutral maps are baked) - not with --no-blender")
+            if self.style.glow is None and not self.style.theme:  # the scheme's light (Industrial orange, Dark red);
+                # an explicit --glow or a --theme (which rolls the glow) wins
+                self.style = Style.from_dict(dict(self.style.to_dict(), glow=PAINTS[self.paint]["glow"]))
         unknown = [t for t in self.models if t not in model_types()]
         if unknown:
             raise ValueError(f"unknown model type(s): {', '.join(unknown)}. Available: {', '.join(model_types())}")
@@ -159,6 +175,25 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
     return spec
 
 
+#: parameters that define a piece's outline (with every ``Param(size=True)``): fixed for all members of a variant set
+OUTLINE_PARAMS = ("length", "width", "height", "thickness", "depth", "radius", "size", "span", "diameter")
+SET_TOLERANCE_M = 0.01  # members whose bounding box differs more are reported: the type is not set-ready
+
+
+def outline_params(model_type: str, used: Dict[str, Any]) -> Dict[str, Any]:
+    """The outline values among the resolved parameters of a model."""
+    specs = {p.name: p for p in REGISTRY[model_type].params}
+    return {k: v for k, v in sorted(used.items()) if k in specs and (specs[k].size or k in OUTLINE_PARAMS)}
+
+
+def _set_spec(config: BatchConfig, model_type: str, index: int, pinned: Dict[str, Any]) -> Dict:
+    spec = _spec(config, model_type, index)
+    own = set(config.params.get(model_type, {})) | set(config.variant_params.get(model_type, {}).get(index, {}))
+    spec["params"] = dict(spec["params"], **{k: v for k, v in pinned.items() if k not in own})
+    spec["set"] = {"name": f"{model_type}_set", "pinned": pinned}
+    return spec
+
+
 def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None) -> List[Dict]:
     """Names and seeds of every asset in the batch (deterministic).
 
@@ -168,6 +203,19 @@ def plan_models(config: BatchConfig, log: Optional[Callable[[str], None]] = None
     """
     specs = []
     for model_type, value in config.models.items():
+        if config.variant_set and not isinstance(value, list) and value > 1:
+            # variant set: variant 0 decides the outline, every member keeps it (rolled values are still drawn, so
+            # variant 0 itself stays the same model)
+            pinned = outline_params(model_type, build_spec(_spec(config, model_type, 0)).p.used)
+            make = (lambda t, pv: lambda i: _set_spec(config, t, i, pv))(model_type, pinned)
+            if config.unique:
+                indices, tried = pick_unique(value, lambda i: build_spec(make(i)))
+                if len(indices) < value and log:
+                    log(f"{model_type}: only {len(indices)} different set members among the first {tried}")
+            else:
+                indices = list(range(value))
+            specs.extend(make(i) for i in indices)
+            continue
         if isinstance(value, list):
             indices = sorted(set(value))
         elif config.unique and value > 1 and not config.variant_params.get(model_type):
@@ -375,7 +423,13 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
         if entry.get("baked"):
             res.update({"baked": {k: _abs(v, out) for k, v in entry["baked"].items()},
                         "baked_material": entry.get("baked_material"), "bake_device": entry.get("bake_device")})
+            if entry.get("neutral"):
+                res.update({"paint": entry.get("paint"), "weight_layout": entry.get("weight_layout"),
+                            "neutral": {k: (_abs(v, out) if isinstance(v, str) else [_abs(x, out) for x in v])
+                                        for k, v in entry["neutral"].items()}})
         paths = list(res["files"].values()) + list(res.get("baked", {}).values())
+        for value in (res.get("neutral") or {}).values():  # the neutral maps of a paint scheme (later shader)
+            paths += value if isinstance(value, list) else [value]
         if render:
             paths.append(res["preview"])
         if res["files"] and all(p and os.path.isfile(p) for p in paths):
@@ -410,7 +464,7 @@ def auto_jobs(models: int, config: "BatchConfig", engine: Optional[str]) -> int:
             limit = min(limit, 3)
     if config.textures == "baked":
         gpu = config.bake_device == "gpu" or (config.bake_device == "auto" and config.texture_size >= 1024)
-        per_model += SECONDS_PER_MODEL["bake"] * (config.texture_size / 512) ** 2
+        per_model += SECONDS_PER_MODEL["bake"] * (config.texture_size / 512) ** 2 * (2.5 if config.paint else 1.0)
         limit = min(limit, 3 if gpu else 2)
     worth = int(models * per_model / MIN_WORKER_SECONDS)
     return max(1, min(limit, models, worth))
@@ -511,6 +565,8 @@ def _budget(stage: str, models: int, config: "BatchConfig") -> float:
     factor = {"texture": (config.texture_size / 512) ** 2, "render": (config.render_size / 384) ** 2}.get(
         rule.get("scale"), 1.0)
     base = rule["total"] if "total" in rule else rule["per_model"] * max(1, models)
+    if stage == "bake" and config.paint:  # the neutral bake has 8 passes (weights, AO, edge, up, height, detail, normal)
+        base *= 2.5
     return base * max(1.0, factor)
 
 
@@ -533,6 +589,33 @@ def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: in
     return {"seconds": {k: round(v, 2) for k, v in seconds.items()},
             "worker_seconds": {k: round(v, 2) for k, v in worker.items()},
             "budgets": budgets, "models_built": models, "slow": slow, "load": load or {}, "workers": workers or []}
+
+
+def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> List[Dict]:
+    """Per variant set: members, the pinned outline, whether every member really has it (bounding boxes within
+    ``SET_TOLERANCE_M``) and a row of the previews side by side (``set_<type>.png``) to check the variety."""
+    sets = []
+    for name in sorted({s["set"]["name"] for s in specs if s.get("set")}):
+        members = [s for s in specs if s.get("set", {}).get("name") == name]
+        # what must match to join: left/right (x), bottom/top (z) and the back (max y); parts may stick out to the
+        # front (-y: pipes, signs, crystals) differently - that is the point of a set
+        boxes = [asset_of(s).bbox() for s in members]
+        edges = [(lo[0], hi[0], lo[2], hi[2], hi[1]) for lo, hi in boxes]
+        deviation = max(abs(e[i] - edges[0][i]) for e in edges for i in range(5))
+        previews = [results.get(s["name"], {}).get("preview") for s in members]
+        previews = [p for p in previews if p and os.path.isfile(p)]
+        row = None
+        if len(previews) > 1:
+            row = os.path.join(out, f"set_{members[0]['type']}.png")
+            key = input_key("set", [file_hash(p) for p in previews], code_fingerprint(), magick_version)
+            if not images.get("set:" + row, key):
+                im.run([arg for p in previews for arg in ("(", p, "-resize", "320x320", ")")]
+                       + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
+                images.put("set:" + row, key, [row])
+        sets.append({"name": name, "type": members[0]["type"], "members": [s["name"] for s in members],
+                     "pinned": members[0]["set"]["pinned"], "outline_ok": deviation <= SET_TOLERANCE_M,
+                     "deviation_m": round(deviation, 4), "preview": row})
+    return sets
 
 
 def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick_version: str,
@@ -652,7 +735,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         settings = {"formats": formats, "blender": version, "textures": [config.textures, config.texture_size,
                                                                          config.texture_set, textures_dir]
                     + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else [])
-                    + ([config.bake_device] if config.textures == "baked" else []),
+                    + ([config.bake_device, config.paint] if config.textures == "baked" else []),
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
@@ -674,6 +757,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "textures_dir": textures_dir,
             "magick": im.convert,
             "bake_device": config.bake_device,
+            "paint": config.paint,
             "textures_ready": texture_job.ready if texture_job else None,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
@@ -788,6 +872,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             log(f"contact sheet -> {sheet}")
         else:
             log(f"contact sheet unchanged -> {sheet}")
+    sets = _variant_sets(specs, results, asset_of, out, im, images, magick_version)
     images.save()
     if previews:
         log(f"icons: {made} new, {len(previews) - made} reused")
@@ -811,7 +896,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
                                                         spec["models_dir"])}
                     if res.get("baked"):
-                        rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()}
+                        # only the maps Unity's baked import reads; a paint scheme's Emission stays in the
+                        # manifest until the import reads it (ROADMAP ToDo 26)
+                        rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()
+                                                    if k in BAKED_MAP_KEYS}
                 elif palette:
                     rig["textures"] = {"mode": "palette",
                                        "manifest": _rel(os.path.join(textures_dir,
@@ -848,6 +936,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
                 "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device")}
                if res.get("baked") else {}),
+            **({"paint": res["paint"], "weight_layout": res.get("weight_layout"),
+                "neutral": {k: (_rel(v, out) if isinstance(v, str) else [_rel(x, out) for x in v])
+                            for k, v in res["neutral"].items()}} if res.get("neutral") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()
@@ -875,6 +966,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
           "manifest": _rel(os.path.join(textures_dir, palette_mod.palette_manifest_name(config.palette)), out)}
          if palette else None),
         "contact_sheet": _rel(sheet, out),
+        "sets": [dict(entry, preview=_rel(entry["preview"], out)) for entry in sets],
         "family": family_info,
         "timings": None,
         "models": entries,

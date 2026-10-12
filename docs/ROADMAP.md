@@ -1,8 +1,8 @@
 # Roadmap
 
-Stand: 12. Oktober 2026, cubegen **0.16.0 „Overdrive“** veröffentlicht (Tag `v0.16.0`, Release-Zweig
-`release/0.16.0`, [VERSION_0.16.0.md](../VERSION_0.16.0.md)), zusammen mit 0.15.0 „Stoppuhr“
-([VERSION_0.15.0.md](../VERSION_0.15.0.md)). 186 registrierte Typen, macOS-App unter `app/`.
+Stand: 13. Oktober 2026, cubegen **0.17.0 „Prism“** veröffentlicht (Tag `v0.17.0`, Release-Zweig `release/0.17.0`,
+[VERSION_0.17.0.md](../VERSION_0.17.0.md): Anstriche, Variantensets); davor 0.16.0 „Overdrive“ (macOS-App) und
+0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -114,6 +114,26 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Ergebnis bytegleich; numpy bewusst nicht (Golden-Daten).
 - [x] **macOS-App** `app/` (0.16.0): erzeugt Modelle wie das Desktop-Fenster, nach dem Vorbild des Robot Viewers;
   Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
+- [x] **Stiltest Anstriche** (0.17.0, experimentell): einmal neutral backen, Anstriche als Daten
+  zusammensetzen – Ergebnis und offene Richtungsfragen in [VERSION_0.17.0.md](../VERSION_0.17.0.md).
+- [x] **Variantensets** (0.17.0): `--set` – alle Varianten eines Typs behalten die Außenmaße der ersten
+  (`OUTLINE_PARAMS`, `Param(size=True)`) und unterscheiden sich innen; Manifest `sets` mit `outline_ok`/`deviation_m`
+  und Reihenbild `set_<Typ>.png`; Option auch in App und Desktop-Fenster. Regeln für set-fähige Typen: AGENTS.md ›
+  „Variantensets“. Prototyp `test_wall_modules` (Modulwand nach dem Konzept, Kristalle `none|some|many`).
+- [ ] **Weitere Typen set-fähig machen:** gemessen mit `--set` (Seed 42, 5 Varianten): `wall`, `pillar`,
+  `test_wall_modules` halten ihren Umriss; `crate` nicht (Tiefe intern gewürfelt, 3,5 cm), `floor_tile` nicht
+  (Oberkante variiert, 4,6 cm). Zuerst die Bau-Kit-Teile (Wand, Boden, Decke, Steg, Geländer), dann Requisiten;
+  je Typ Innen-Variation nach dem Muster der Modulwand (Aufteilung, Akzente, Anbauteile, Schilder, seltene Hingucker).
+- [x] **Anstriche als Ausgabemodus** (0.17.0, Entscheidung des Nutzers): `--paint <Thema>` (CLI, App, Desktop-Fenster)
+  backt jedes Modell einmal neutral und setzt das Thema zu einem gebackenen Atlas zusammen – Unity liest ihn heute
+  über den Import für `--textures baked` (Material `MTA_<Modell>`). Elf Themen nach den Wandkonzepten der drei
+  Konzeptbögen: Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void – zunächst für Wände gedacht. Neutrale Karten liegen für den Shader
+  (ToDo 27) unter `Textures/Neutral` bereit.
+- [ ] **Eigenes Thema („Custom“, Konzeptbogen III):** ein Anstrich aus einer JSON-Datei (`SCHEME_KEYS`), z. B.
+  `--paint-file mein_thema.json`; der Blender-Worker bekommt die Daten im Auftrag statt nur den Namen. In App und
+  Werkbank später mit Farbwählern.
+- [ ] **Anstriche auf weitere Typen:** Böden, Decken, Stege, Säulen, dann Requisiten; je Thema prüfen, ob Geometrie
+  fehlt (Ruin: Rohre/Trümmer, Organic: Steinblöcke und herabhängender Bewuchs, Crystal: echtes Kristallmaterial).
 - [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
   Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
@@ -284,6 +304,25 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 - [ ] **24 · Gameplay der ersten Welle:** Schleusenzyklus (`airlock_chamber`), Irismechanik (`door.variant=iris`),
   Maschinenvertrag für `turbine`/`compressor`, Signalsäule als Lampe, Wartungsluke (Hinge) und Zugangspanel
   (Keypad) brauchen je einen eigenen Gameplay-Vertrag in Cube Escape.
+- [ ] **25 · Variantensets im Modell-Browser** (Wunsch des Nutzers, 0.17.0): Das Manifest nennt Sets (`sets`: Name, Typ,
+  Mitglieder, festgehaltene Maße, `outline_ok`). Im Modell-Browser der Werkbank als eine Gruppe zeigen (Reihenbild
+  statt einzelner Kacheln), beim Platzieren die Mitglieder abwechseln oder zufällig wählen, damit nebeneinander
+  gestellte Teile sich nicht wiederholen; `outline_ok = false` sichtbar machen (Teile schließen nicht sauber an).
+  Mit den vorhandenen Modellsets der Werkbank abstimmen (gleiche Datenhaltung, keine zweite Sammlung).
+- [ ] **26 · Leuchtkarte für gebackene Anstriche** (0.17.0): `--paint` schreibt eine `Emission`-Karte (Crystal: blaue,
+  Dark: rote Leuchtkanten), der Unity-Vertrag kennt sie bei `baked` noch nicht – sie steht nur im Manifest
+  (`models[].baked.Emission`). Import: `Emission` als erlaubte baked-Map, `_EmissionMap` setzen; Vertrag
+  (`contract.json`) und `CubegenMaterials.cs` gemeinsam ändern.
+- [ ] **27 · Shader mit Umfärbung (Cube-Escape-Variante, später)** – Empfehlung aus 0.17.0, vom Nutzer so beschlossen:
+  erst fertige Karten (umgesetzt), dann ein URP-Shader, der dieselben neutralen Karten zur Laufzeit umfärbt.
+  Warum: Speicher wächst nicht mit der Zahl der Themen (1024 px: fertige Karten ≈ 5 MB je Modell **und** Thema –
+  20 Wandteile × 6 Themen ≈ 640 MB; neutral ≈ 6 MB je Modell für alle Themen ≈ 120 MB), Themenwechsel zur Laufzeit
+  (Level-Thema, Story-Verfall, Spielerwahl in der Werkbank), passt zum geplanten Masken-Shader der Roboter-Skins.
+  Vorbereitet: `Textures/Neutral/<Modell>_W<n>.png` (Gewichte, drei Spielmaterialien je RGB, Reihenfolge im Manifest
+  `models[].weight_layout`), `_AO`, `_Edge`, `_Up`, `_Height`, `_Diffuse` (Detail der Kacheln), `_Normal`; die Formel
+  in `cubegen/paint.py` (`compose`, `detail_map`) ist die Referenz – Shader und Generator müssen gleich aussehen
+  (Vergleichsbild). Offen: Rauschen im Shader (Textur oder prozedural), Packen der Masken (AO/Kante/oben/Höhe in
+  einem RGBA), Rückfall für niedrige Grafikstufen (fertige Karten), Laufzeitpfad GLB.
 
 ## 5. Nächste Vorschläge
 

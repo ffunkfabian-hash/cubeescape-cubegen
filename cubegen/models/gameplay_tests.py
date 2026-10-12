@@ -17,6 +17,10 @@ from ..geometry import (
     wedge,
 )
 from .common import ALONG_X, ALONG_Y, cube, cyl, strut
+from ..params import Param
+from .common import deg
+from .lettering import add_text
+from .nature import _crystal
 from .registry import model
 
 NOTE = "Experimental visual prototype only; interaction and Unity gameplay wiring are not implemented."
@@ -193,3 +197,113 @@ def test_thermal_switch(rng, a):
         body.add(pipe_section(0.07, 0.55, 0.018, 8, "M_Metal"), loc=(x, 0.24, 0.86))
         cyl(body, 0.09, 0.045, (x, -0.23, 0.78), "M_GlowOrange", rot=ALONG_Y)
     _mark(a, rng, "thermal_switch / coolant control")
+
+
+@model("test_wall_modules", "TestWallModules", "environment",
+       "Experimental wall set piece of stacked modules (concepts 'Industrial' / 'Crystal'): 2 x 3 x 0.5 m, plinth, cap "
+       "and hazard stripes continue into the neighbour; the inside varies per variant (columns, blocks, accent plates, "
+       "vents, pipe, cable duct, ID sign, optional energy crystals)",
+       params=[Param("crystals", "choice", "Kristalle", choices=("none", "some", "many"), default="none")])
+def test_wall_modules(rng, a):
+    """Style test 0.17.0. A *set*: every variant has the same outline and joins its neighbours seamlessly (no random
+    scale, stripe period divides the length); what changes is the inside, so a row of them never repeats."""
+    m, lights = a.part("Wall"), a.part("Glow")
+    length, height, front = 2.0, 3.0, -0.15          # module faces start at y = front (the core's front face)
+    cube(m, (length, 0.40, height), (0, 0.05, height / 2), "M_Wall")                         # core slab (joins)
+    cube(m, (length, 0.56, 0.22), (0, 0, 0.11), "M_RobotDark")                              # plinth (joins)
+    cube(m, (length, 0.58, 0.16), (0, 0, height - 0.08), "M_RobotDark")                     # cap (joins)
+    for k in range(10):                                   # stripes: period 0.2 m divides 2 m -> continuous in a row
+        x = -length / 2 + 0.1 + k * 0.2
+        cube(m, (0.09, 0.02, 0.16), (x, -0.29, 0.11), "M_Warning" if k % 2 else "M_RobotDark", rot=(0, 0.6, 0))
+    z0, z1 = 0.26, height - 0.2
+    # column layout of this piece: an accent column in the middle, left, right - or none (plain stacks)
+    layout = rng.choice(("mid", "mid", "left", "right", "none", "split"))
+    gap = 0.06
+    if layout == "none":
+        columns = [("stack", 0.94), ("stack", 0.94)]
+    elif layout == "split":
+        columns = [("stack", 0.6), ("stack", 0.6), ("stack", 0.62)]
+    else:
+        accent = rng.choice((0.3, 0.36, 0.42))
+        side = (length - accent - 2 * gap) / 2
+        columns = {"mid": [("stack", side), ("accent", accent), ("stack", side)],
+                   "left": [("accent", accent), ("stack", 2 * side + gap)],
+                   "right": [("stack", 2 * side + gap), ("accent", accent)]}[layout]
+    total = sum(w for _, w in columns) + gap * (len(columns) - 1)
+    x = -total / 2
+    centers = []
+    for kind, width in columns:
+        centers.append((kind, x + width / 2, width))
+        x += width + gap
+    accent_share = rng.uniform(0.15, 0.4)                 # how many blocks get an orange (accent) plate
+    for kind, cx, width in centers:
+        if kind == "accent":                              # accent column with a glowing slot
+            cube(m, (width, 0.2, z1 - z0), (cx, front - 0.1, (z0 + z1) / 2), "M_HazardOrange", bevel=0.03)
+            slot = rng.uniform(0.45, 0.75) * (z1 - z0)
+            cz = rng.uniform(z0 + slot / 2 + 0.15, z1 - slot / 2 - 0.15)
+            cube(m, (0.08, 0.04, slot + 0.1), (cx, front - 0.21, cz), "M_RobotDark", bevel=0.01)
+            cube(lights, (0.04, 0.02, slot), (cx, front - 0.235, cz), "M_GlowOrange")
+            continue
+        blocks = rng.choice((2, 3, 3, 4))
+        cuts = sorted(rng.uniform(0.2, 0.8) for _ in range(blocks - 1))
+        edges = [z0] + [z0 + c * (z1 - z0) for c in cuts] + [z1]
+        for k in range(blocks):
+            bz0, bz1 = edges[k] + (0.025 if k else 0), edges[k + 1] - (0.025 if k < blocks - 1 else 0)
+            h = bz1 - bz0
+            if h < 0.25:
+                continue
+            depth = rng.choice((0.12, 0.18, 0.24))
+            cz = (bz0 + bz1) / 2
+            cube(m, (width, depth, h), (cx, front - depth / 2, cz), "M_RobotDark", bevel=0.03)        # block
+            cube(m, (width - 0.06, 0.04, h - 0.06), (cx, front - depth - 0.02, cz), "M_Metal", bevel=0.02)  # face
+            face = front - depth - 0.04
+            roll = rng.random()
+            if roll < accent_share:                       # orange accent plate (concept: orange inserts)
+                cube(m, (width - 0.12, 0.02, h - 0.14), (cx, face - 0.01, cz), "M_Ground", bevel=0.01)
+            elif roll < accent_share + 0.25 and h > 0.5:  # vent slats
+                for j in range(5):
+                    cube(m, (width - 0.16, 0.03, 0.03), (cx, face - 0.015, cz - h / 2 + 0.12 + j * (h - 0.24) / 4),
+                         "M_RobotDark")
+            for bx in (-1, 1):                            # bolts in the corners
+                for bz in (-1, 1):
+                    cyl(m, 0.022, 0.03, (cx + bx * (width / 2 - 0.05), face - 0.015, cz + bz * (h / 2 - 0.05)),
+                        "M_RobotDark", sides=6, rot=ALONG_Y)
+    stacks = [c for c in centers if c[0] == "stack"]
+    if rng.random() < 0.45:                               # ID sign
+        _, cx, width = rng.choice(stacks)
+        sign_z = rng.uniform(z0 + 0.3, 1.6)
+        text = f"{rng.choice('ABCDKR')}-{rng.randint(1, 29):02d}"
+        cube(m, (0.34, 0.02, 0.16), (cx, front - 0.3, sign_z), "M_Warning", bevel=0.005)
+        add_text(m, text, (cx, front - 0.31, sign_z), 0.09, 0.008, "M_RobotDark")
+    if rng.random() < 0.5:                                # vertical pipe with brackets
+        _, cx, width = rng.choice(stacks)
+        px = cx + rng.choice((-1, 1)) * (width / 2 - 0.1)
+        cyl(m, 0.05, z1 - z0 - 0.1, (px, front - 0.34, (z0 + z1) / 2), "M_Metal", sides=10)
+        for bz in (z0 + 0.4, (z0 + z1) / 2, z1 - 0.4):
+            cube(m, (0.14, 0.12, 0.05), (px, front - 0.3, bz), "M_RobotDark", bevel=0.01)
+    if rng.random() < 0.5:                                # cable duct along the bottom (ends at the joints)
+        cyl(m, 0.035, length - 0.04, (0, front - 0.32, z0 + 0.06), "M_HazardOrange", sides=8, rot=ALONG_X)
+    crystals_option = a.p.option("crystals")
+    count = {"none": 0, "some": rng.choice((0, 0, 1)), "many": rng.choice((1, 1, 2))}[crystals_option]
+    if count:
+        crystals = a.part("Crystals")
+        for c in range(count):
+            _, cx, width = stacks[c % len(stacks)] if c == 0 else rng.choice(stacks)
+            sx = cx + rng.uniform(-0.2, 0.2) * width
+            cube(m, (0.6, 0.45, 0.3), (sx, front - 0.42, 0.15), "M_RobotDark", bevel=0.04)          # socket
+            cube(m, (0.5, 0.35, 0.06), (sx, front - 0.42, 0.33), "M_Metal", bevel=0.02)
+            _crystal(crystals, (sx, front - 0.42, 0.33), rng.uniform(1.0, 2.0), rng.uniform(0.12, 0.17),
+                     (0.0, deg(rng.uniform(-8, 8)), 0.0))
+            for k in range(rng.randint(2, 5)):
+                foot = (sx + rng.uniform(-0.2, 0.2), front - 0.42 + rng.uniform(-0.1, 0.1), 0.33)
+                tilt = (deg(rng.uniform(-30, 10)), deg(rng.uniform(-35, 35)), 0.0)
+                _crystal(crystals, foot, rng.uniform(0.3, 0.8), rng.uniform(0.05, 0.09), tilt, sides=rng.choice((5, 6)))
+        if crystals_option == "many":                     # crystals breaking out of a stack
+            _, cx, width = rng.choice(stacks)
+            for k in range(rng.randint(1, 3)):
+                foot = (cx + rng.uniform(-0.3, 0.3) * width, front - 0.25, rng.uniform(1.0, 2.4))
+                _crystal(crystals, foot, rng.uniform(0.3, 0.6), rng.uniform(0.05, 0.09),
+                         (deg(rng.uniform(55, 80)), deg(rng.uniform(-25, 25)), 0.0), sides=6)
+    # no random scale (unlike the other prototypes): set pieces must keep their 2 m length to join
+    a.meta.update({"experimental": True, "idea": "wall_modules set (style test 0.17.0)", "gameplay_note": NOTE,
+                   "layout": layout, "set_length_m": length})

@@ -1,0 +1,19 @@
+[
+ "generate",
+ "--types",
+ "test_wall_modules",
+ "--count",
+ "5",
+ "--seed",
+ "7",
+ "--out",
+ "/tmp/cubegen-app-test",
+ "--paint",
+ "organic",
+ "--texture-size",
+ "1024",
+ "--set",
+ "--unique",
+ "--formats",
+ "fbx,obj"
+]
