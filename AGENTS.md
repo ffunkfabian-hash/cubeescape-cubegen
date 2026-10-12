@@ -36,7 +36,8 @@ Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und b
 `VERSION_0.11.0.md`. 0.12.0 (10. Oktober 2026) veröffentlicht die Arbeitsstände 0.11.1–0.11.4
 (`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`). 0.13.0 „Patina“ (10. Oktober 2026,
 `VERSION_0.13.0.md`) ist veröffentlicht. 0.14.0 „Werkstattbuch“ (12. Oktober 2026, `VERSION_0.14.0.md`, Leistungserfahrungen
-für Blender-Batch-Läufe) ist veröffentlicht; die nächste Version ist 0.15.0.
+für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026, `VERSION_0.14.1.md`, Plugins und Hooks für
+Claude Code); die nächste Version ist 0.15.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -104,6 +105,27 @@ Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, 
   (Maße, Pivot, Vorderseite, Teil-/Materialnamen, Öffnungen für die Kollision), Texturen am Modell ansehen, Ansichten
   rendern. Immer in einer eigenen Szene, nichts speichern – die Quelle bleibt der Generator. Ohne laufendes Blender
   (Cloud, Batch) fehlt das Plugin; dann gilt nur der Batch-Export.
+
+## Plugins und Hooks (Claude Code)
+
+`CLAUDE.md` importiert diese Datei. Nur Claude Code hat die Plugins; andere Agenten befolgen dieselben Regeln aus dem
+Text. Gemeinsam mit Cube Escape und dem Roboter-Generator (dort je eine eigene Tabelle in `AGENTS.md`).
+
+| Plugin | Einsatz in Cubegen |
+|---|---|
+| `quick-gate-python` | Ruff, Pyright, pytest als schnelle Prüfung; verbindlich bleibt `python3 -m unittest discover -s tests` |
+| `code-review` | Slash-Befehl `code-review` vor jedem Release-Merge in `main` |
+| `github` | Pull Requests, Issues, Release-Branches und Tags auf GitHub (oder `gh`); Release-Ablauf oben |
+| `engineering` | `debug`, `testing-strategy`, `documentation` |
+| `design` | `ux-copy`, `accessibility-review` für Desktop-Fenster und Blender-Add-on |
+| `unity` | `physics-3d-collision` beim Prüfen der Kollision in der Cube-Escape-Testkopie (`ce-cubegen` dort) |
+| `hookify` | Regeln als `.claude/hookify.<name>.local.md` (eingecheckt mit `git add -f`, da `.claude/` lokal ausgeschlossen ist) |
+| Blender-MCP | siehe „Werkzeuge: ImageMagick und Blender-Plugin“ |
+
+**Hooks** (hookify) **blockieren** Unity auf einem Checkout, nacktes `git stash` (geteilter Stash-Stapel), Force-Push
+und Änderungen von Hand an `output/`; sie **halten das Sitzungsende an**, bis nach einer Python-Änderung die Suite lief,
+und **warnen** bei Commit/Merge/Tag/Push (nur auf Wunsch), Golden-Daten und Versionsdateien. Ändert sich eine dieser
+Regeln, ändert sich ihre Hook-Datei mit.
 
 ## Blender-Batch schnell halten (Erfahrungen aus dem Roboter-Generator)
 

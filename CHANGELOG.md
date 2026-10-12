@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.1 „Werkstattbuch“ – 2026-10-12
+
+* `CLAUDE.md` importiert `AGENTS.md` – Claude Code lädt die Regeln jetzt in jeder Sitzung (vorher nur Codex).
+* AGENTS.md: Abschnitt „Plugins und Hooks (Claude Code)“ – welches Plugin wofür (quick-gate-python, code-review, github,
+  engineering, design, unity, hookify, Blender-MCP), abgestimmt mit Cube Escape 0.45.1 und Roboter-Generator 1.9.1.
+* Acht hookify-Regeln in `.claude/`: blockieren Unity auf einem Checkout, nacktes `git stash`, Force-Push und Änderungen
+  an `output/`; verlangen die Python-Suite vor dem Sitzungsende; warnen bei Git-Veröffentlichung, Golden-Daten und
+  Versionsdateien.
+* Nur Doku und Agenten-Werkzeuge; Generator, Ausgaben und Golden-Daten unverändert. Paket, CLI und Add-on auf 0.14.1.
+  Bericht: [VERSION_0.14.1.md](VERSION_0.14.1.md).
+
 ## 0.14.0 „Werkstattbuch“ – 2026-10-12
 
 * AGENTS.md: neuer Abschnitt „Blender-Batch schnell halten“ mit gemessenen Erfahrungen aus dem Roboter-Generator
