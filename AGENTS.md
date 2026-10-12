@@ -37,7 +37,7 @@ Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und b
 (`VERSION_0.11.2.md` bis `VERSION_0.11.4.md`, Release-Bericht `VERSION_0.12.0.md`). 0.13.0 „Patina“ (10. Oktober 2026,
 `VERSION_0.13.0.md`) ist veröffentlicht. 0.14.0 „Werkstattbuch“ (12. Oktober 2026, `VERSION_0.14.0.md`, Leistungserfahrungen
 für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026, `VERSION_0.14.1.md`, Plugins und Hooks für
-Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht; die nächste Version ist 0.15.0.
+Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. Laufende Arbeitsversion: 0.15.0 „Stoppuhr“ (`VERSION_0.15.0.md`).
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -138,7 +138,9 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
 
 - **Cycles backt jedes ausgewählte Objekt in einer eigenen Sitzung.** Auf Metal kostet jede eine
   Geräte-Synchronisation (35 Teile: 9–20 s je Durchgang statt 0,2–1 s). Eine zusammengefügte Kopie aller Teile
-  backen und die Bilder weiterverwenden. Trifft `cubegen/bake.py` (`_select(objects)` vor `bpy.ops.object.bake`).
+  backen und die Bilder weiterverwenden – `cubegen/bake.py` macht das seit 0.15.0 (auch auf der CPU schneller:
+  `sliding_puzzle` 3,7 → 1,1 s). Die GPU lohnt sich bei Cubegens kleinen Atlanten erst ab 1024 px
+  (`--bake-device auto`). Cycles-Vorschauen (nur Rückfall ohne OpenGL) bleiben ungemessen auf der CPU.
 - **Lineares nicht mehrfach backen.** Farben, die nur durch Mischen und Multiplizieren mit festen Faktoren
   entstehen, sind linear in der Palette: eine Konstante plus eine Gewichtskarte je Palettenfarbe backen, jede
   weitere Palette per numpy zusammensetzen (exakt; einmal direkt gegenbacken und vergleichen).
@@ -153,13 +155,27 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
   startet jeder Prozess einen Thread-Pool je Kern (gemessen: 734 statt 419 Prozess-Sekunden). Worker mit `nice`
   starten, wenn der Hauptprozess den kritischen Pfad hat. Arbeitspakete dynamisch verteilen (Anspruch per exklusiv
   angelegter Datei), größte zuerst; Ergebnisse in fester Reihenfolge zusammenführen. EEVEE: mehr als 3–4
-  Render-Prozesse lohnen nicht, die GPU ist dann ausgelastet. `--jobs` (`cubegen/pipeline.py`) startet Blender
-  bisher ohne Thread-Grenze.
+  Render-Prozesse lohnen nicht, die GPU ist dann ausgelastet. `--jobs` (`cubegen/pipeline.py`) verteilt seit 0.15.0
+  Arbeitspakete; `nice` entfällt, weil kein Prozess den kritischen Pfad hat. **`-t` nicht für Cycles-Backen:** Die
+  Grenze gilt für Python-lastige Worker; Cubegens Worker backen echt parallel, mit `-t Kerne/Jobs` war das Station-Kit
+  langsamer (50–54 s statt 47–49 s, `--jobs 3`, gemessen 0.15.0).
 - **ImageMagick parallel nur mit `MAGICK_THREAD_LIMIT=1`.** Die OpenMP-Threads paralleler Prozesse warten aktiv
   aufeinander (eine Montage aus 28 Kacheln: 1,6 s statt 3,8 s, parallel noch deutlich mehr). Die Ausgabe bleibt
-  bitgleich. Betrifft `cubegen/imagemagick.py` und `bake.py` (`_magick`).
+  bitgleich. Cubegen setzt es für die Blender-Worker von `--jobs` (`bake._magick`); Texturen, Icons und
+  Kontaktbogen laufen nacheinander im Hauptprozess.
+- **Bytegleiche Bilder sind die Voraussetzung für jeden Cache.** Jeder ImageMagick-Aufruf läuft mit
+  `imagemagick.REPRODUCIBLE` (`-define png:exclude-chunks=date,time`); `cubegen/cache.py` übernimmt Texturen, Icons,
+  Kontaktbogen und Material-Übersicht nur, wenn Eingabeschlüssel und Datei-Hashes stimmen. Neue Bildschritte nutzen
+  denselben Cache; ein Test erzeugt zweimal und vergleicht die Bytes.
+- **Zeiten messen statt schätzen:** Das Manifest trägt `timings` mit Budget je Stufe (`STAGE_BUDGETS`); eine neue
+  Stufe bekommt ein Budget aus einer Messung. Nach Code-Änderungen `python3 tools/run_tests.py --tier quick`
+  (rund 30 s), vor dem Release die volle Suite.
 - **numpy-Kleinkram:** `foreach_get("co", …)` in ein `float32`-Array lesen (das native Format; `float64` erzwingt eine
   langsame Umwandlung, 3× langsamer), Hüllquader-Tests für alle Paare auf einmal statt einzeln je Paar.
+- **Nicht übertragbar** (geprüft 0.15.0): Paletten aus Gewichtskarten zusammensetzen – Cubegen backt keine Paletten
+  (`palette.py` ist reines Python, `baked` backt eine Palette je Lauf). EEVEE-`BLENDED` – kein Cubegen-Material ist
+  transparent. `foreach_get` als `float32` – Cubegen liest keine Meshes mit `foreach_get`. Kommen solche Fälle
+  dazu (z. B. Texturvarianten je Palette, transparente Materialien), gelten die Regeln oben.
 - **Die Neural Engine nutzt Blender nicht** (nur über Core ML erreichbar); Metal verteilt GPU-Arbeit selbst auf alle
   GPU-Kerne. Geprüft in 0.14.2: Vision-Merkmalsvergleiche taugen nicht als Prüfschranke (je Gerät andere Werte,
   trennen Fehler nicht besser als ein exakter Pixelvergleich); höchstens als Hinweiswerkzeug mit Zeitregel (ROADMAP).

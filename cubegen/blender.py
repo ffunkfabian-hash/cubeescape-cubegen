@@ -23,8 +23,11 @@ def find_blender(explicit: Optional[str] = None) -> Optional[str]:
     """Locate the Blender executable.
 
     Order: ``--blender`` argument, ``$BLENDER`` / ``$CUBEGEN_BLENDER``, ``PATH``,
-    then the usual install locations on macOS and Windows.
+    then the usual install locations on macOS and Windows. ``$CUBEGEN_SKIP_BLENDER=1`` (quick test tier) hides an
+    installed Blender unless it is passed explicitly.
     """
+    if not explicit and os.environ.get("CUBEGEN_SKIP_BLENDER") == "1":
+        return None
     candidates: List[str] = []
     if explicit:
         candidates.append(explicit)
@@ -89,8 +92,10 @@ def resolve_engine(blender: str, requested: str, log: Callable[[str], None] = pr
 
 
 def run_job(blender: str, job: Dict, workdir: str, verbose: bool = False,
-            log: Callable[[str], None] = print) -> Dict:
-    """Run the Blender worker for a job and return its result dictionary."""
+            log: Callable[[str], None] = print, env: Optional[Dict[str, str]] = None) -> Dict:
+    """Run the Blender worker for a job and return its result dictionary.
+
+    ``env``: extra environment variables for Blender and the ImageMagick calls it makes."""
     job_path = os.path.join(workdir, "job.json")
     result_path = os.path.join(workdir, "job_result.json")
     job = dict(job, result_path=result_path)
@@ -98,7 +103,9 @@ def run_job(blender: str, job: Dict, workdir: str, verbose: bool = False,
         json.dump(job, fh, indent=2)
     cmd = _base_cmd(blender) + ["--job", job_path]
     tail: List[str] = []
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+    environ = dict(os.environ, **env) if env else None
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                          env=environ) as proc:
         assert proc.stdout is not None
         for line in proc.stdout:
             line = line.rstrip("\n")

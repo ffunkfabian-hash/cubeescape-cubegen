@@ -18,6 +18,11 @@ class ImageMagickError(RuntimeError):
     pass
 
 
+# Without this every PNG carries its creation time (tIME chunk, date:create / date:modify text): same pixels,
+# different bytes on every run - Unity re-imports unchanged files and file hashes can't be cache keys.
+REPRODUCIBLE = ("-define", "png:exclude-chunks=date,time")
+
+
 # Apps started from the macOS Finder (e.g. Blender running the add-on) don't see the
 # shell's PATH, so Homebrew / MacPorts installs are looked up explicitly.
 _EXTRA_DIRS = ("/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin")
@@ -60,7 +65,9 @@ class ImageMagick:
 
     # ------------------------------------------------------------------
     def run(self, args: Sequence[str], montage: bool = False) -> str:
-        cmd = list(self.montage if montage else self.convert) + list(args)
+        args = list(args)
+        settings = [] if args[:1] == ["-version"] else list(REPRODUCIBLE)
+        cmd = list(self.montage if montage else self.convert) + settings + args
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if proc.returncode != 0:
             raise ImageMagickError(f"ImageMagick failed ({' '.join(cmd[:3])} ...):\n{proc.stderr.strip()}")

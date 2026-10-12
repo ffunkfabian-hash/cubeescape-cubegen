@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
@@ -15,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from . import __version__
 from .blender import BlenderError, blender_version, find_blender, resolve_engine, run_job
 from .imagemagick import ImageMagick, ImageMagickError
+from .cache import OutputCache, file_hash, input_key
 from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
@@ -30,6 +32,19 @@ BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"} 
 from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
+BAKE_DEVICES = ("auto", "cpu", "gpu")  # = bake.DEVICES
+
+# Time budget per stage (seconds), measured 0.15.0 on an Apple M5 with headroom of about 3x; a slower stage only
+# warns (log + manifest "timings"), it never fails a run. "per_model" counts the models built in this run.
+# textures / images: wall clock of this process; bake / export / render: the Blender workers' own clocks, summed
+# over parallel processes (so the budget does not depend on --jobs).
+STAGE_BUDGETS = {
+    "textures": {"total": 15.0, "scale": "texture"},     # 33 maps, 512 px: 4.8 s
+    "bake": {"per_model": 4.0, "scale": "texture"},      # 512 px, joined copy: 1.0-1.7 s
+    "export": {"per_model": 1.5},                        # FBX + contract check: 0.2-0.4 s
+    "render": {"per_model": 3.0, "scale": "render"},     # Workbench, 384 px
+    "images": {"per_model": 0.5},                        # icon (+ share of the contact sheet)
+}
 
 
 @dataclass
@@ -40,7 +55,7 @@ class BatchConfig:
     unique: bool = False           # counts: skip variants that look like an earlier one (see variety.py)
     lods: bool = False             # static models: + low detail level, FBX objects <part>_LOD0 / _LOD1
     force: bool = False            # rebuild everything (default: reuse unchanged models of the last run)
-    jobs: int = 1                  # Blender processes working in parallel
+    jobs: int = 1                  # Blender processes working in parallel (work packages, biggest model first)
     formats: List[str] = field(default_factory=lambda: ["fbx"])
     prefix: str = ""
     scale: float = 1.0
@@ -71,6 +86,7 @@ class BatchConfig:
     palette: str = ""              # colour palette of palette mode (palette.COLOR_PALETTES) -> MP_Palette_<Name>;
     #                                "" / "standard" = the game's colours (MP_Palette); ignored in other modes
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
+    bake_device: str = "auto"      # --textures baked: auto (GPU from 1024 px) | cpu | gpu (bake.use_device)
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
@@ -112,6 +128,8 @@ class BatchConfig:
             raise ValueError("icon zoom must be > 0")
         if self.jobs < 1:
             raise ValueError("jobs must be >= 1")
+        if self.bake_device not in BAKE_DEVICES:
+            raise ValueError(f"bake device must be one of {', '.join(BAKE_DEVICES)}")
         if self.lods and self.textures == "baked":
             raise ValueError("--lods can't be combined with --textures baked (the atlas is baked per object)")
 
@@ -355,7 +373,7 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
                "preview": _abs(entry.get("preview"), out), "icon": _abs(entry.get("icon"), out), "reused": True}
         if entry.get("baked"):
             res.update({"baked": {k: _abs(v, out) for k, v in entry["baked"].items()},
-                        "baked_material": entry.get("baked_material")})
+                        "baked_material": entry.get("baked_material"), "bake_device": entry.get("bake_device")})
         paths = list(res["files"].values()) + list(res.get("baked", {}).values())
         if render:
             paths.append(res["preview"])
@@ -372,42 +390,113 @@ def _previous_engine(out: str) -> Optional[str]:
         return None
 
 
+def model_cost(spec: Dict) -> int:
+    """Rough work of a model for the order of the work packages: triangles + a share per part (export / bake)."""
+    asset = build_spec(spec)
+    return asset.stats()["triangles"] + 100 * len(asset.objects)
+
+
 def _run_jobs(blender: str, job: Dict, specs: List[Dict], todo: List[Dict], blend_path: Optional[str],
               jobs: int, verbose: bool, log: Callable[[str], None]) -> Dict:
-    """Run the worker: one process, or ``jobs`` processes + one that only builds the overview .blend."""
+    """Run the worker: one process, or ``jobs`` processes + one that only builds the overview .blend.
+
+    Parallel: every process gets the whole list, biggest model first, and builds the ones it claims (a claim file
+    per model, created exclusively) - a process that finishes early takes the next model instead of idling while
+    another works through a fixed share. ImageMagick runs with one thread in them (parallel OpenMP pools wait for
+    each other). Blender keeps its thread pool: measured 0.15.0, ``-t cores/jobs`` made Cycles CPU baking slower
+    (station kit, --jobs 3: 50-54 s instead of 47-49 s). The results are merged in the order of ``specs``."""
     todo_names = {s["name"] for s in todo}
-    if jobs <= 1 or len(todo) <= 1:
+    parallel = jobs > 1 and len(todo) > 1
+    queue = tempfile.mkdtemp(prefix="cubegen_queue_") if parallel else None
+    env = None
+    if not parallel:
         models = [dict(s, skip=s["name"] not in todo_names) for s in specs] if blend_path else todo
         runs = [dict(job, models=models, blend=blend_path)]
     else:
-        chunks = [todo[i::jobs] for i in range(min(jobs, len(todo)))]
-        runs = [dict(job, models=chunk, blend=None) for chunk in chunks]
+        workers = min(jobs, len(todo))
+        ordered = sorted(todo, key=lambda s: -model_cost(s))  # stable: equal costs keep the spec order
+        runs = [dict(job, models=ordered, blend=None, queue_dir=queue) for _ in range(workers)]
         if blend_path:  # cheap: builds the meshes, no export / render / bake
             runs.append(dict(job, models=[dict(s, skip=True) for s in specs], blend=blend_path))
+        env = {"MAGICK_THREAD_LIMIT": "1"}
 
     def run(index_job):
         index, run_spec = index_job
         prefix = f"[{index + 1}/{len(runs)}] " if len(runs) > 1 else ""
         with tempfile.TemporaryDirectory(prefix="cubegen_job_") as work:
-            return run_job(blender, run_spec, work, verbose, lambda m: log(prefix + m))
+            return run_job(blender, run_spec, work, verbose, lambda m: log(prefix + m), env=env)
 
-    if len(runs) == 1:
-        outputs = [run((0, runs[0]))]
-    else:
-        log(f"{len(runs)} Blender processes in parallel")
-        with ThreadPoolExecutor(max_workers=len(runs)) as pool:
-            futures = [pool.submit(run, item) for item in enumerate(runs)]
-            errors = [f.exception() for f in futures if f.exception() is not None]
-            if errors:
-                raise errors[0]
-            outputs = [f.result() for f in futures]
-    merged = {"models": [m for o in outputs for m in o["models"]], "blender": outputs[0].get("blender"),
+    try:
+        if len(runs) == 1:
+            outputs = [run((0, runs[0]))]
+        else:
+            log(f"{len(runs)} Blender processes in parallel")
+            with ThreadPoolExecutor(max_workers=len(runs)) as pool:
+                futures = [pool.submit(run, item) for item in enumerate(runs)]
+                errors = [f.exception() for f in futures if f.exception() is not None]
+                if errors:
+                    raise errors[0]
+                outputs = [f.result() for f in futures]
+    finally:
+        if queue:
+            shutil.rmtree(queue, ignore_errors=True)
+    by_name = {m["name"]: m for o in outputs for m in o["models"]}
+    missing = sorted(todo_names - set(by_name))
+    if missing:
+        raise BlenderError("no Blender process built: " + ", ".join(missing))
+    merged = {"models": [by_name[s["name"]] for s in specs if s["name"] in by_name],
+              "blender": outputs[0].get("blender"),
               "engine": next((o.get("engine") for o in outputs if o["models"]), outputs[0].get("engine"))}
     return merged
 
 
+def _budget(stage: str, models: int, config: "BatchConfig") -> float:
+    rule = STAGE_BUDGETS[stage]
+    factor = {"texture": (config.texture_size / 512) ** 2, "render": (config.render_size / 384) ** 2}.get(
+        rule.get("scale"), 1.0)
+    base = rule["total"] if "total" in rule else rule["per_model"] * max(1, models)
+    return base * max(1.0, factor)
+
+
+def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: int, config: "BatchConfig") -> Dict:
+    """For the manifest: ``seconds`` (wall clock per stage of this run), ``worker_seconds`` (summed in Blender),
+    ``budgets`` and ``slow`` (stages over their budget)."""
+    measured = dict(seconds, **worker)
+    budgets = {stage: round(_budget(stage, models, config), 1) for stage in measured if stage in STAGE_BUDGETS}
+    slow = [stage for stage, limit in budgets.items() if measured[stage] > limit]
+    return {"seconds": {k: round(v, 2) for k, v in seconds.items()},
+            "worker_seconds": {k: round(v, 2) for k, v in worker.items()},
+            "budgets": budgets, "models_built": models, "slow": slow}
+
+
+def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick_version: str,
+                 log: Callable[[str], None]) -> Dict[str, Dict]:
+    """The tile textures of a set - rebuilt only when an input or a written file changed (``--force``: always)."""
+    cache = OutputCache(textures_dir, enabled=not config.force)
+    key = input_key("textures", config.texture_size, config.texture_set, textures_dir, code_fingerprint(),
+                    magick_version)
+    hit = cache.get("texture_set", key)
+    if hit:
+        log(f"textures unchanged ({len(hit['data'])} materials) -> {textures_dir}")
+        return hit["data"]
+    textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
+    files = [p for info in textures.values() for p in info["paths"].values()]
+    cache.put("texture_set", key, files + [os.path.join(textures_dir, "CubeEscape_Textures.json")], textures)
+    cache.save()
+    return textures
+
+
 def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> Dict:
     config.validate()
+    seconds: Dict[str, float] = {}
+    worker: Dict[str, float] = {}
+    clock = [time.perf_counter()]
+
+    def lap(stage: str) -> None:  # time since the last lap -> stage
+        now = time.perf_counter()
+        seconds[stage] = seconds.get(stage, 0.0) + now - clock[0]
+        clock[0] = now
+
     specs = plan_models(config, log)
     if not specs:
         raise ValueError("nothing to generate (all counts are 0)")
@@ -437,7 +526,14 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         check_contract(specs, config.seed, log)
 
     im = ImageMagick(config.magick)
-    swatch = im.material_swatch(os.path.join(out, "materials.png"))
+    magick_version = im.version()
+    images = OutputCache(out, enabled=not config.force)  # swatch, icons, contact sheet
+    swatch = os.path.join(out, "materials.png")
+    swatch_key = input_key("swatch", code_fingerprint(), magick_version)
+    if not images.get("swatch", swatch_key):
+        im.material_swatch(swatch)
+        images.put("swatch", swatch_key, [swatch])
+    lap("plan")
 
     textures: Dict[str, Dict] = {}
     textures_dir = None
@@ -448,8 +544,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     if config.textures == "palette":  # one material per model: written in pure Python
         palette = palette_mod.write_palette(textures_dir, log=log, name=config.palette)
     elif config.textures != "none":
-        textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
+        textures = _texture_set(im, textures_dir, config, magick_version, log)
     material_map = {plain: info["name"] for plain, info in textures.items()}
+    if config.textures != "none":
+        lap("textures")
 
     def asset_materials(asset):
         return palette_mod.material_map(asset, config.palette) if palette else material_map
@@ -467,7 +565,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         version = blender_version(blender).replace("Blender ", "", 1)
         settings = {"formats": formats, "blender": version, "textures": [config.textures, config.texture_size,
                                                                          config.texture_set, textures_dir]
-                    + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else []),
+                    + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else [])
+                    + ([config.bake_device] if config.textures == "baked" else []),
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
@@ -488,16 +587,22 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "texture_size": config.texture_size,
             "textures_dir": textures_dir,
             "magick": im.convert,
+            "bake_device": config.bake_device,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
                        "elevation": config.icon_elevation, "zoom": config.icon_zoom},
         }
         results = dict(reused)
         blender_info = {"version": version, "render_engine": None}
+        lap("plan")
         if todo or (blend_path and not os.path.isfile(blend_path)):
             log(f"Blender: {blender} - {len(todo)} asset(s), formats: {', '.join(formats)}")
             result = _run_jobs(blender, job, specs, todo, blend_path, config.jobs, config.verbose, log)
             results.update({r["name"]: r for r in result["models"]})
+            lap("blender")
+            for r in result["models"]:  # the worker's own clock per model (summed over parallel processes)
+                for stage, value in (r.get("timings") or {}).items():
+                    worker[stage] = worker.get(stage, 0.0) + value
             blender_info = {"version": result.get("blender"),
                             "render_engine": result.get("engine") if config.render and todo else None}
         if config.render and not blender_info["render_engine"]:
@@ -523,6 +628,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if reused:
             log(f"unchanged since the last run: {len(reused)} asset(s) (--force rebuilds them)")
         results.update(reused)
+        lap("plan")
         for spec in todo:
             asset = build_spec(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
@@ -530,23 +636,41 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                       lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
+        lap("export")
 
-    # --- ImageMagick post processing --------------------------------------
-    previews, labels = [], []
+    # --- ImageMagick post processing (skipped where the inputs did not change) ------
+    previews, labels, sources = [], [], []
+    made = 0
     for spec in specs:
         res = results.get(spec["name"], {})
         if res.get("preview") and os.path.isfile(res["preview"]):
             icon = os.path.join(dirs["icons"], f"Icon_{spec['name']}.png")
-            im.make_icon(res["preview"], icon, config.icon_size, config.icon_background)
+            preview_hash = file_hash(res["preview"])
+            key = input_key("icon", preview_hash, config.icon_size, config.icon_background, code_fingerprint(),
+                            magick_version)
+            if not images.get(f"icon:{icon}", key):
+                im.make_icon(res["preview"], icon, config.icon_size, config.icon_background)
+                images.put(f"icon:{icon}", key, [icon])
+                made += 1
             res["icon"] = icon
             previews.append(res["preview"])
             labels.append(spec["name"])
+            sources.append(preview_hash)
     sheet = None
     if previews:
-        sheet = im.contact_sheet(previews, labels, os.path.join(out, "contact_sheet.png"),
-                                 title=f"Cube Escape - {config.family['name'] + ' - ' if config.family else ''}"
-                                       f"seed {config.seed}")
-        log(f"contact sheet -> {sheet}")
+        sheet = os.path.join(out, "contact_sheet.png")
+        title = f"Cube Escape - {config.family['name'] + ' - ' if config.family else ''}seed {config.seed}"
+        key = input_key("sheet", labels, sources, title, code_fingerprint(), magick_version)
+        if not images.get("contact_sheet", key):
+            im.contact_sheet(previews, labels, sheet, title=title)
+            images.put("contact_sheet", key, [sheet])
+            log(f"contact sheet -> {sheet}")
+        else:
+            log(f"contact sheet unchanged -> {sheet}")
+    images.save()
+    if previews:
+        log(f"icons: {made} new, {len(previews) - made} reused")
+    lap("images")
 
     # --- manifest + rig data ----------------------------------------------------
     entries = []
@@ -601,7 +725,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "connectors": unity_connectors(asset, spec["type"]),
             **({"build_key": spec["build_key"]} if spec.get("build_key") else {}),
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
-                "baked_material": res.get("baked_material")} if res.get("baked") else {}),
+                "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device")}
+               if res.get("baked") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()
@@ -620,7 +745,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         "seed": config.seed,
         "config": cfg,
         "blender": blender_info or None,
-        "imagemagick": im.version(),
+        "imagemagick": magick_version,
         "overview_blend": _rel(blend_path, out) if blend_path and os.path.isfile(blend_path) else None,
         "material_swatch": _rel(swatch, out),
         "textures": {"mode": config.textures, "dir": _rel(textures_dir, out),
@@ -630,8 +755,20 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
          if palette else None),
         "contact_sheet": _rel(sheet, out),
         "family": family_info,
+        "timings": None,
         "models": entries,
     }
+    lap("manifest")
+    built = sum(1 for spec in specs if results.get(spec["name"]) and not results[spec["name"]].get("reused"))
+    report = stage_report(seconds, worker, built, config)
+    manifest["timings"] = report
+    log("timings: " + ", ".join(f"{k} {v:.1f} s" for k, v in report["seconds"].items())
+        + ("; in Blender (sum over processes): " + ", ".join(f"{k} {v:.1f} s" for k, v in worker.items())
+           if worker else ""))
+    measured = dict(report["seconds"], **report["worker_seconds"])
+    for stage in report["slow"]:
+        log(f"warning: {stage} took {measured[stage]:.1f} s, budget {report['budgets'][stage]:.1f} s "
+            f"({built} model(s) built)")
     with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2)
     for key in ("previews", "icons"):  # empty folders are just noise

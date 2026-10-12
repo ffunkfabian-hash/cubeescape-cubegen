@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.15.0 „Stoppuhr“ – unveröffentlicht
+
+* **Behoben:** ImageMagick schrieb Zeitstempel in jede PNG (gleiche Pixel, andere Bytes je Lauf). Jetzt läuft jeder
+  Aufruf mit `-define png:exclude-chunks=date,time`; gleiche Eingabe ergibt bytegleiche Dateien.
+* **Cache für Bilder:** Kacheltexturen, Icons, Kontaktbogen und Material-Übersicht entstehen nur neu, wenn sich ihre
+  Eingaben oder die Dateien geändert haben (`.cubegen_cache.json`, `--force` baut neu). Unveränderter Lauf des
+  Station-Kits mit gebackenen Texturen: 8,1 → 1,4 s.
+* **Backen:** eine zusammengefügte Kopie je Asset statt einer Cycles-Sitzung je Teil (vielteilige Modelle bis zu
+  dreimal schneller); neu `--bake-device auto|cpu|gpu`, `auto` = GPU ab 1024 px (dort 1,8- bis 2,7-mal schneller,
+  darunter ist die CPU schneller). Das Rauschen der gebackenen Umgebungsverdeckung ändert sich minimal (RMSE im
+  Mittel 0,14 %); Geometrie und Golden-Daten unverändert.
+* **`--jobs`:** Modelle als Arbeitspakete, größtes zuerst, statt fester Aufteilung; ImageMagick in den Workern mit
+  einem Thread. Eine Blender-Thread-Grenze (`-t`) wurde gemessen und verworfen (langsamer).
+* **Zeiten:** `manifest.json` › `timings` mit Dauer und Budget je Stufe, Warnung bei zu langsamen Stufen.
+* **Teststufen:** `tools/run_tests.py --tier quick|standard|full` (quick rund 30 s ohne Blender),
+  `$CUBEGEN_SKIP_BLENDER=1`; vierte Testgruppe `params`, auch in der CI.
+* ROADMAP-Kopf auf aktuellen Stand; AGENTS.md › „Blender-Batch schnell halten“ nachgezogen. Paket, CLI und Add-on auf
+  0.15.0. Bericht: [VERSION_0.15.0.md](VERSION_0.15.0.md).
+
 ## 0.14.2 „Werkstattbuch“ – 2026-10-12
 
 * Prüfung der Neural Engine (gemeinsam mit Roboter-Generator 1.9.2): Vision-Feature-Prints auf der Neural Engine sind

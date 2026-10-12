@@ -896,8 +896,9 @@ Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils besti
 Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
 zeigende Normalen, Pivot-Konvention, Collider und Determinismus. Schneller: `python3 tools/run_tests.py` startet
-die Tests in drei etwa gleich langen Gruppen parallel (rund 2 statt 6½ Minuten; `--list` zeigt die Gruppen); die
-CI läuft genauso, eine Gruppe pro Job.
+die Tests in vier Gruppen parallel (`--list` zeigt sie); die CI läuft genauso, eine Gruppe pro Job. Teststufen wie
+im Roboter-Generator: `--tier quick` (ohne Blender und ohne die Durchläufe über alle Typen, rund 30 s) nach jeder
+Änderung, `--tier standard` (alle Module ohne Blender), `full` (Standard, alles) vor dem Release.
 
 ## Projektstruktur
 
@@ -931,7 +932,7 @@ cubegen/
 └── objwriter.py      OBJ/MTL-Fallback ohne Blender
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
-tools/run_tests.py    Tests in drei Gruppen parallel (wie die CI)
+tools/run_tests.py    Tests in vier Gruppen parallel (wie die CI), Stufen quick / standard / full
 recipes/              Beispiel-Batches
 tests/                unittest (Blender-/ImageMagick-Tests werden ohne die Tools übersprungen)
 ```

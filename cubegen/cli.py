@@ -22,7 +22,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs")
+                  "palette", "unique", "lods", "jobs", "bake_device")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -194,6 +194,7 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         "icon_background": args.icon_bg, "models_dir": args.models_dir, "icons_dir": args.icons_dir,
         "library_dir": args.library_dir, "textures": args.textures, "texture_size": args.texture_size,
         "texture_set": args.texture_set, "textures_dir": args.textures_dir, "palette": args.palette,
+        "bake_device": args.bake_device,
     }
     values.update({k: v for k, v in cli.items() if v is not None})
     if args.palette:  # a colour palette means palette mode
@@ -667,6 +668,9 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
+    tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
+                    help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
+                         "below that the CPU is faster); CPU and GPU differ in the noise")
     tx.add_argument("--palette", metavar="NAME", help="colour palette for palette mode (implies --textures palette): "
                                                      f"{', '.join(palette_names())} -> material MP_Palette_<Name>")
     g.add_argument("--icon-angle", help="preview/icon camera 'AZIMUTH,ELEVATION' in degrees (default 33,31)")
