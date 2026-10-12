@@ -286,6 +286,12 @@ def run_job(job_path):
         if job.get("texture_mode") == "baked" and textures and job.get("paint"):
             from cubegen.stylebake import paint_asset  # paint scheme: neutral bake once, scheme composed (numpy)
 
+            if job.get("paint_scheme"):  # a custom scheme from a file: known only through the job
+                from cubegen.paint import BUILTIN_PAINTS, register_scheme
+
+                if job["paint"] not in BUILTIN_PAINTS:
+                    register_scheme(job["paint"], job["paint_scheme"])
+
             t = time.time()
             base_of = {info["name"]: plain for plain, info in textures.items()}
             baked = paint_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),

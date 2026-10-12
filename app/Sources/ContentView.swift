@@ -276,6 +276,13 @@ struct Sidebar: View {
                 }
             }
             .help("Ein Thema (Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void): einmal neutral gebacken, als fertige Karten")
+            .disabled(!model.settings.paintFile.isEmpty)
+            HStack {
+                TextField("Eigenes Thema (JSON, ersetzt den Anstrich)", text: $model.settings.paintFile)
+                    .textFieldStyle(.roundedBorder)
+                Button("Datei …") { model.choosePaintFile() }
+            }
+            .help("Ein eigenes Thema als JSON: Name, Grundthema und nur die geänderten Werte (Beispiel: paints/custom_example.json)")
             Picker("Texturen", selection: $model.settings.textures) {
                 ForEach(textureChoices, id: \.value) { Text($0.label).tag($0.value) }
             }

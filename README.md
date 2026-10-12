@@ -99,6 +99,9 @@ gebacken aus einem neutralen Back je Modell (das Skin-Prinzip des Roboter-Genera
 Unity liest das Ergebnis wie `--textures baked`. Auch in App und Desktop-Fenster („Anstrich“). Vergleich aller Themen
 mit dem Konzept: [docs/wall_paints_0170.png](docs/wall_paints_0170.png); Stiltest und Reihen:
 `python3 tools/style_test.py --paints all [--row test_wall_modules@crystals=some:5] [--concept <Bild>]`.
+Seit 0.18.0 auf allen Typen ([docs/paint_types_0180.png](docs/paint_types_0180.png)); eigenes Thema aus einer Datei mit
+`--paint-file` (Beispiel `paints/custom_example.json`, App und Desktop-Fenster: „Eigenes Thema“). Die Modulwand
+bekommt Anbauten je Thema: `--param test_wall_modules.dressing=ruin|organic` (Rohre und Trümmer, Steine und Bewuchs).
 
 ## App (macOS)
 
@@ -646,7 +649,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `table` | `style` (table / desk / round / lab), `width` (0.6–3), `clutter` (ja/nein) |
 | `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
 | `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on, Standard off) |
-| `test_wall_modules` | `crystals` (none / some / many, Standard none) |
+| `test_wall_modules` | `crystals` (none / some / many, Standard none), `dressing` (none / ruin / organic, Standard none) |
 | `tool` | `kind` (wrench / crowbar / pliers / screwdriver), `length` (0.15–0.9), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |

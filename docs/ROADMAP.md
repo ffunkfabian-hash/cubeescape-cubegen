@@ -1,8 +1,8 @@
 # Roadmap
 
-Stand: 13. Oktober 2026, cubegen **0.17.0 „Prism“** veröffentlicht (Tag `v0.17.0`, Release-Zweig `release/0.17.0`,
-[VERSION_0.17.0.md](../VERSION_0.17.0.md): Anstriche, Variantensets); davor 0.16.0 „Overdrive“ (macOS-App) und
-0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
+Stand: 13. Oktober 2026, cubegen **0.18.0 „Chameleon“** veröffentlicht (Tag `v0.18.0`, Release-Zweig `release/0.18.0`,
+[VERSION_0.18.0.md](../VERSION_0.18.0.md): Anstriche auf allen Typen, eigenes Thema, Anbauten je Thema); davor 0.17.0
+„Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -129,11 +129,22 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   über den Import für `--textures baked` (Material `MTA_<Modell>`). Elf Themen nach den Wandkonzepten der drei
   Konzeptbögen: Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void – zunächst für Wände gedacht. Neutrale Karten liegen für den Shader
   (ToDo 27) unter `Textures/Neutral` bereit.
-- [ ] **Eigenes Thema („Custom“, Konzeptbogen III):** ein Anstrich aus einer JSON-Datei (`SCHEME_KEYS`), z. B.
-  `--paint-file mein_thema.json`; der Blender-Worker bekommt die Daten im Auftrag statt nur den Namen. In App und
-  Werkbank später mit Farbwählern.
-- [ ] **Anstriche auf weitere Typen:** Böden, Decken, Stege, Säulen, dann Requisiten; je Thema prüfen, ob Geometrie
-  fehlt (Ruin: Rohre/Trümmer, Organic: Steinblöcke und herabhängender Bewuchs, Crystal: echtes Kristallmaterial).
+- [x] **Eigenes Thema („Custom“, Konzeptbogen III)** (0.18.0): `--paint-file <Datei.json>` (auch Rezept, App, Desktop-
+  Fenster) – Name, Grundthema, nur abweichende Werte; der Blender-Worker bekommt die Daten im Auftrag. Beispiel
+  `paints/custom_example.json`.
+- [ ] **Farbwähler für das eigene Thema in der App:** Farben je Spielmaterial und Mengen (Abnutzung, Schmutz, Staub,
+  Moos, Kantenleuchten) mit Vorschau eines Anstrichs auf einem neutral gebackenen Modell; speichert die JSON-Datei für
+  `--paint-file`. Gegenstück in der Werkbank: Unity-ToDo 29.
+- [x] **Anstriche auf weitere Typen** (0.18.0): geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür,
+  Geländer, Decke in allen elf Themen ([docs/paint_types_0180.png](paint_types_0180.png)); `M_Ground` ist je Thema ein
+  neutraler Grundton, Staub/Moos/Schnee fleckig.
+- [x] **Fehlende Geometrie je Thema, Modulwand** (0.18.0): `test_wall_modules.dressing` – `ruin` (Rohrstrang mit
+  Muffen und Knie, abgerissene Platte, Trümmer), `organic` (Ranken mit Blättern vom Deckel, Steinblöcke, Büsche);
+  Umriss bleibt (45 Varianten geprüft). Kristalle gibt es schon (`crystals`).
+- [ ] **Anbauten auf weitere Typen:** dasselbe Muster für Boden (Trümmer, Moosflecken als Geometrie), Säule (Ranken),
+  Steg (herabhängende Kabel/Ranken); als Parameter `dressing`, nie gewürfelt (Set-Umriss).
+- [ ] **Kristallmaterial (Generator-Seite):** `M_Crystal` facettiert und mit eigener Leuchtfarbe je Thema im Manifest;
+  das durchscheinende Material selbst entsteht in Unity (ToDo 28).
 - [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
   Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
@@ -322,7 +333,19 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   `models[].weight_layout`), `_AO`, `_Edge`, `_Up`, `_Height`, `_Diffuse` (Detail der Kacheln), `_Normal`; die Formel
   in `cubegen/paint.py` (`compose`, `detail_map`) ist die Referenz – Shader und Generator müssen gleich aussehen
   (Vergleichsbild). Offen: Rauschen im Shader (Textur oder prozedural), Packen der Masken (AO/Kante/oben/Höhe in
-  einem RGBA), Rückfall für niedrige Grafikstufen (fertige Karten), Laufzeitpfad GLB.
+  einem RGBA), Rückfall für niedrige Grafikstufen (fertige Karten), Laufzeitpfad GLB. Eigene Themen (0.18.0) stehen
+  als vollständige Daten im Manifest (`config.paint_scheme`) – der Shader braucht dieselben Schlüssel als Parameter.
+- [ ] **28 · Echtes Kristallmaterial** (0.18.0, Konzept „04 Crystal“): `M_Crystal` ist heute eine flache Leuchtfarbe.
+  In Unity ein URP-Material für Kristall-Teile (durchscheinend/Fresnel, facettierte Normalen, innerer Schimmer, Farbe
+  aus dem Thema bzw. `--glow`), zugeordnet über den Materialnamen wie Glas; Kollision unverändert. Mit ToDo 26
+  (Leuchtkarte) abstimmen, damit Kristall und Leuchtkanten dieselbe Farbe tragen.
+- [ ] **29 · Anstriche in der Werkbank** (0.18.0): Die Laufzeit-Generation (`CubegenJobRunner`) bietet heute keinen
+  Anstrich. Auswahl „Anstrich“ aus `cubegen catalog --json` (`paints`), eigenes Thema mit Farbwählern (Farben je
+  Spielmaterial, Mengen 0–1, Leuchtfarbe cyan/rot/orange) als JSON in den Benutzerdaten, Übergabe per
+  `--paint`/`--paint-file`. Vorher prüfen, ob der GLB-Laufzeitpfad gebackene Karten (`MTA_`) lesen kann; sonst zuerst
+  dort ergänzen. Einstellungen nur über die Werkbank-Regeln (Hilfethema pflegen).
+- [ ] **30 · Anbauten je Thema im Modell-Browser** (0.18.0): `test_wall_modules` mit `dressing=ruin|organic` und
+  `crystals` als Varianten eines Sets anzeigen (ToDo 25); experimenteller Typ – erst nach Freigabe als Standardset.
 
 ## 5. Nächste Vorschläge
 

@@ -1,0 +1,18 @@
+[
+ "generate",
+ "--types",
+ "wall",
+ "--count",
+ "2",
+ "--seed",
+ "3",
+ "--out",
+ "/tmp/cubegen-app-test",
+ "--paint-file",
+ "/tmp/rust_bucket.json",
+ "--texture-size",
+ "512",
+ "--unique",
+ "--formats",
+ "fbx,obj"
+]

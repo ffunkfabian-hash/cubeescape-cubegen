@@ -197,7 +197,9 @@ def host(argv=None) -> int:
         spec = dict(planned[kind])
         if pairs:
             spec["params"] = dict(spec.get("params") or {}, **{k: v for k, v in (p.split("=", 1) for p in pairs)})
-            spec["name"] = spec["name"] + "_" + "_".join(p.split("=", 1)[0].capitalize() for p in pairs)
+            # name and value: test_wall_modules@dressing=ruin and @dressing=organic are two models
+            spec["name"] = spec["name"] + "_" + "_".join(
+                "".join(part.capitalize() for part in p.split("=", 1)) for p in pairs)
         specs.append(spec)
     textures = {}
     if not args.no_tiles:  # the tile textures give the neutral bake its surface detail (grooves, rivets, scratches)

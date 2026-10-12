@@ -273,6 +273,12 @@ final class AppModel: ObservableObject {
         if p.runModal() == .OK, let url = p.url { settings.recipe = url.path }
     }
 
+    func choosePaintFile() {
+        let p = NSOpenPanel()
+        p.allowedContentTypes = [.json]
+        if p.runModal() == .OK, let url = p.url { settings.paintFile = url.path }
+    }
+
     func revealOutput() {
         let url = outputFolder ?? URL(fileURLWithPath: (settings.output as NSString).expandingTildeInPath)
         NSWorkspace.shared.activateFileViewerSelecting([url])

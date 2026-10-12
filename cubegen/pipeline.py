@@ -24,7 +24,7 @@ from .objwriter import write_mtl, write_obj
 from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
-from .paint import PAINTS, check_paint
+from .paint import PAINTS, check_paint, load_scheme, register_scheme
 from .variety import pick_unique
 from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
@@ -93,6 +93,8 @@ class BatchConfig:
     #                                "" / "standard" = the game's colours (MP_Palette); ignored in other modes
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
     bake_device: str = "auto"      # --textures baked: auto (GPU from 1024 px) | cpu | gpu (bake.use_device)
+    paint_file: str = ""           # custom paint scheme (JSON, paint.load_scheme): sets paint to its name
+    paint_scheme: Optional[Dict[str, Any]] = None  # the loaded custom scheme (passed to the Blender worker)
     paint: str = ""                # paint scheme (paint.PAINTS): baked atlas composed from one neutral bake; needs
     #                                textures "baked"; decorative glow follows the scheme unless --glow says otherwise
     blender: Optional[str] = None
@@ -101,6 +103,12 @@ class BatchConfig:
     repair_safe: bool = False
 
     def validate(self) -> None:
+        if self.paint_file:
+            name, self.paint_scheme = load_scheme(self.paint_file)
+            register_scheme(name, self.paint_scheme)
+            self.paint = name
+            if self.textures == "none":
+                self.textures = "baked"
         if self.paint:
             check_paint(self.paint)
             if self.textures != "baked":
@@ -735,7 +743,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         settings = {"formats": formats, "blender": version, "textures": [config.textures, config.texture_size,
                                                                          config.texture_set, textures_dir]
                     + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else [])
-                    + ([config.bake_device, config.paint] if config.textures == "baked" else []),
+                    + ([config.bake_device, config.paint] if config.textures == "baked" else [])
+                    + ([config.paint_scheme] if config.paint_scheme else []),
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
@@ -758,6 +767,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "magick": im.convert,
             "bake_device": config.bake_device,
             "paint": config.paint,
+            "paint_scheme": config.paint_scheme,
             "textures_ready": texture_job.ready if texture_job else None,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
@@ -947,7 +957,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         family_info = dict(config.family, fit=family_fit(specs, log, config.family.get("dims"),
                                                          config.family.get("reference")))
         cfg.pop("family", None)
-    for key in ("out_dir", "models_dir", "library_dir", "icons_dir", "blender", "magick", "verbose", "force", "jobs"):
+    for key in ("out_dir", "models_dir", "library_dir", "icons_dir", "blender", "magick", "verbose", "force", "jobs",
+                "paint_file"):  # local paths stay out; the custom scheme itself is kept (paint_scheme)
         cfg.pop(key, None)
     manifest = {
         "generator": "cubegen",

@@ -136,6 +136,7 @@ def main() -> int:
             self.texture_size = tk.StringVar(value="512")
             self.palette = tk.StringVar(value="")
             self.paint = tk.StringVar(value="")
+            self.paint_file = tk.StringVar(value="")
 
             root.columnconfigure(0, weight=1)
             root.rowconfigure(1, weight=1)
@@ -199,8 +200,13 @@ def main() -> int:
             ttk.Label(settings, text="Anstrich:").grid(row=4, column=2, sticky="w", padx=4, pady=3)
             ttk.Combobox(settings, textvariable=self.paint, state="readonly", width=14,
                          values=[""] + paint_names()).grid(row=4, column=3, sticky="w", padx=4, pady=3)
+            ttk.Label(settings, text="Eigenes Thema:").grid(row=5, column=0, sticky="w", padx=4, pady=3)
+            paint_file_row = ttk.Frame(settings)
+            paint_file_row.grid(row=5, column=1, sticky="w", padx=4, pady=3)
+            ttk.Entry(paint_file_row, textvariable=self.paint_file, width=28).pack(side="left")
+            ttk.Button(paint_file_row, text="…", width=2, command=self.choose_paint_file).pack(side="left", padx=2)
             ttk.Label(settings, text="Texturen brauchen ImageMagick; ohne Textur bleiben die Spielmaterialien M_….",
-                      foreground="#667").grid(row=4, column=2, columnspan=2, sticky="w", padx=4, pady=3)
+                      foreground="#667").grid(row=5, column=2, columnspan=2, sticky="w", padx=4, pady=3)
             self.textures.trace_add("write", lambda *_: self.update_texture_fields())
             self.update_texture_fields()
 
@@ -316,6 +322,12 @@ def main() -> int:
             if selected:
                 self.recipe.set(selected)
 
+        def choose_paint_file(self):
+            selected = filedialog.askopenfilename(
+                filetypes=[("Anstrich (JSON)", "*.json"), ("Alle Dateien", "*")])
+            if selected:
+                self.paint_file.set(selected)
+
         def texture_value(self) -> str:
             return dict(TEXTURE_CHOICES).get(self.textures.get(), "none")
 
@@ -347,7 +359,11 @@ def main() -> int:
             if self.seed.get().strip():
                 args.extend(["--seed", self.seed.get().strip()])
             args.extend(["--out", os.path.abspath(output)])
-            if self.paint.get():  # a paint scheme is a baked atlas: --paint implies --textures baked
+            if self.paint_file.get().strip():  # an own scheme from a file wins over the list
+                size = self.texture_size.get().strip()
+                args.extend(["--paint-file", os.path.abspath(self.paint_file.get().strip())]
+                            + (["--texture-size", size] if size else []))
+            elif self.paint.get():  # a paint scheme is a baked atlas: --paint implies --textures baked
                 size = self.texture_size.get().strip()
                 args.extend(["--paint", self.paint.get()] + (["--texture-size", size] if size else []))
             else:
