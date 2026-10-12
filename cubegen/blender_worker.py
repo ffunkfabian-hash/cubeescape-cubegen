@@ -283,7 +283,15 @@ def run_job(job_path):
             biggest = max(biggest, *asset.stats()["dimensions_m"])
             continue
         baked = None
-        if job.get("texture_mode") == "baked" and textures:
+        if job.get("texture_mode") == "baked" and textures and job.get("paint"):
+            from cubegen.stylebake import paint_asset  # paint scheme: neutral bake once, scheme composed (numpy)
+
+            t = time.time()
+            base_of = {info["name"]: plain for plain, info in textures.items()}
+            baked = paint_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
+                                job["paint"], spec["seed"], base_of, device=job.get("bake_device", "cpu"))
+            timings["bake"] = time.time() - t
+        elif job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
 
             t = time.time()
@@ -319,6 +327,8 @@ def run_job(job_path):
                  "timings": {k: round(v, 3) for k, v in timings.items()}}
         if baked:
             entry.update({"baked": baked["maps"], "baked_material": baked["material"], "bake_device": baked["device"]})
+            if baked.get("neutral"):
+                entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"]})
         results.append(entry)
         counter = "" if queue else f"({i}/{total}) "
         log(f"{counter}{asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")

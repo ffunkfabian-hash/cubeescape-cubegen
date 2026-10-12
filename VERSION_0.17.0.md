@@ -1,8 +1,8 @@
 # Cubegen 0.17.0 – Prism
 
-*ungeprüft: Richtungsentscheidung und Unity-Abnahme offen* – experimenteller Stiltest, neue Option `--set`, neuer
-experimenteller Typ `test_wall_modules`; die Ausgabe aller bestehenden Typen ist unverändert (Golden-Daten).
-Unveröffentlicht, Branch `release/0.17.0`; vorherige Version [0.16.0](VERSION_0.16.0.md).
+Release vom 13. Oktober 2026, Release-Zweig `release/0.17.0`; vorherige Version [0.16.0](VERSION_0.16.0.md).
+Anstriche als Ausgabemodus (`--paint`, elf Themen), Variantensets (`--set`), experimenteller Typ `test_wall_modules`,
+Stiltest; die Ausgabe aller bestehenden Typen ist unverändert (Golden-Daten).
 
 ## Inhalt
 
@@ -74,22 +74,43 @@ Hinweis des Nutzers: Eine starke Wand fünfmal nebeneinander sieht nach Kopie au
   ([docs/wall_set_0170.png](docs/wall_set_0170.png)).
 - Regeln für set-fähige Typen in AGENTS.md › „Variantensets“; Modell-Browser in Cube Escape: ROADMAP › ToDo 25.
 
-## Offen – Richtungsentscheidung
+## Entscheidungen des Nutzers und Umsetzung
 
-1. Anstriche als Ausgabemodus übernehmen (`--paint industrial` o. ä., Karten wie `--textures baked`)?
-2. Wie in Unity: Karten je Anstrich fertig zusammengesetzt (einfach, ein Material je Modell und Anstrich) oder neutrale
-   Karten + Palette in einem URP-Shader (ein Satz Karten für alle Anstriche, Umfärben zur Laufzeit – wie die Robot-Skins
-   in Cube Escape geplant)?
-3. Weitere Anstriche aus dem Konzept (Clean, Ruin, Dark, Organic mit Bewuchs über die „oben“-Maske) und Anbauteile
-   (Kristalle, Rohre) für mehr Geometrie?
+1. **Anstriche werden ein Ausgabemodus:** `--paint <Thema>` (CLI, App, Desktop-Fenster, Rezeptfeld `paint`). Je Modell
+   ein neutraler Back (8 Durchgänge: zwei Gewichtsbilder, Umgebungsverdeckung, Kante, oben, Höhe, Detail, Normalen;
+   `Textures/Neutral`), das Thema daraus zusammengesetzt zu Albedo, Normal, Roughness, MetallicSmoothness und
+   Emission (`Textures/MTP_<Modell>_<Thema>_*.png`). Leuchtfarbe folgt dem Thema (außer `--glow`). Budget der
+   Back-Stufe für Anstriche × 2,5.
+2. **Unity – Empfehlung „erst fertige Karten, dann Shader“, vom Nutzer beschlossen:** Die fertigen Karten nutzen den
+   vorhandenen Import für gebackene Karten – im echten Import der Testkopie zuerst abgelehnt („Texturmaterial fehlt im
+   Manifest: MTP_…“: der Import erwartet `MTA_<Modell>`), Material umbenannt, danach **Industrial-Set 3 Wände und
+   Organic 2 Wände: 0 Fehler, stabiler Wiederimport**. Die Leuchtkarte liest Unity noch nicht (ROADMAP ToDo 26).
+   Die Shader-Variante mit Umfärbung ist als ToDo 27 festgehalten – mit Begründung (Speicher, Laufzeitwechsel),
+   den bereitliegenden neutralen Karten und `paint.compose` als Referenz.
+3. **Weitere Themen, zunächst für Wände:** Clean, Ruin, Dark, Organic (Moos von oben und vom Boden, Flecken) zu
+   Industrial und Crystal; nach den Konzeptbögen II und III zusätzlich Sand (Staub, Verwehungen), Space (dunkles
+   Hüllblech, orange Einsätze), Ice (Schnee oben, Frostkanten), Toxic (grüner Schleim, grüne Fugen) und Void
+   (Schwarzviolett, violette Fugen) – elf Themen. Leuchtobjekte kennen nur Cyan/Rot/Orange (`--glow`), Grün und
+   Violett kommen über das Kantenleuchten. „Custom“ (eigenes Thema aus einer Datei) steht in der ROADMAP. Die Bögen
+   II/III lagen nur als Bild im Chat vor – für diese Themen hat der Vergleichsbogen keine Konzeptausschnitte.
+   Vergleich aller elf Themen (die ersten sechs neben ihren Wandkonzepten): [docs/wall_paints_0170.png](docs/wall_paints_0170.png).
+   Dark zunächst mit Neon-Kanten überall (zurückgenommen), Organic mit zu wenig Moos (verstärkt). Was fehlt, ist
+   Geometrie: Ruin (Rohre, Trümmer), Organic (Steinblöcke, Bewuchs), Crystal (Kristallmaterial).
 
 ## Prüfung
 
-- `tests/test_release_0170.py` (3 Tests): Anstrich-Daten vollständig und gültig, Gewichts-Layout, ein echter Lauf in
-  Blender zweimal mit bytegleichen Karten.
-- Vergleichsbogen angesehen (Ausschnitte des Konzepts korrekt, Anstriche wie beschrieben).
+- `tools/run_tests.py` (volle Stufe, mit Blender und ImageMagick): **294 Tests grün** (441 s, 13. Oktober 2026);
+  `app/test_app.sh` **18 von 18 grün**. `tests/test_release_0170.py` (10 Tests):
+  Anstrich-Daten, Gewichts-Layout, `--paint` (setzt `baked`, Leuchtfarbe, Fehlerfälle), Katalog, Variantensets, ein
+  echter Stiltest-Lauf zweimal bytegleich, ein echter `--paint`-Export gegen den Unity-Vertrag (Material `MTA_`).
+- Unity-Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests`): siehe Entscheidung 2.
+- Sichtprüfung: Vergleichsbögen aller Themen mit den Konzept-Ausschnitten angesehen.
+
+- Code-Review vor dem Merge: sieben Funde behoben (u. a. gleiches Rauschmuster auf allen Teilen einer Reihe,
+  `--paint` ohne Blender stillschweigend ignoriert, `--theme` von der Themen-Leuchtfarbe überschrieben).
 
 ## Grenzen
 
-- Experimentell: kein Unity-Import, keine Freigabe im Vertrag; Emissionskarten sind dort noch nicht vorgesehen.
-- Nur zwei Anstriche und vier Modelle; Rauschen und Abnutzung sind von Hand abgestimmt, nicht an vielen Typen geprüft.
+- Leuchtkanten (Crystal, Dark) erscheinen in Unity erst mit ToDo 26.
+- Themen von Hand abgestimmt an zwei Wandtypen; andere Typen folgen (ROADMAP).
+- Nicht set-fähig gemessen: `crate`, `floor_tile`.

@@ -14,6 +14,7 @@ from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
 from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
+from .paint import PAINTS, paint_names
 from .palette import palette_names
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
@@ -22,7 +23,7 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set")
+                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -234,6 +235,12 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["jobs"] = args.jobs
     if args.variant_set:
         values["variant_set"] = True
+    if args.paint:
+        values["paint"] = args.paint
+    if values.get("paint"):  # a paint scheme is a baked atlas
+        if values.get("textures", "baked") not in ("baked", "none"):
+            raise ValueError(f"--paint needs --textures baked (not {values['textures']})")
+        values["textures"] = "baked"
     if args.icon_angle:
         az, _, el = args.icon_angle.partition(",")
         values["icon_azimuth"] = float(az)
@@ -450,7 +457,8 @@ def catalog_data() -> Dict[str, object]:
                 for name in palette_names()}
     return {"catalog": 1, "generator": f"cubegen {__version__}", "version": __version__,
             "generations": list(GENERATIONS), "latestGeneration": LATEST_GENERATION, "formats": list(FORMATS),
-            "options": options, "palettes": palettes, "families": families, "types": types}
+            "options": options, "palettes": palettes, "families": families, "types": types,
+            "paints": {name: {"label": PAINTS[name]["label"], "glow": PAINTS[name]["glow"]} for name in paint_names()}}
 
 
 def cmd_catalog(args) -> int:
@@ -688,6 +696,9 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--texture-size", type=int, help="texture resolution in px (default 512)")
     tx.add_argument("--texture-set", help="name of a texture variant (own seed and MT_<set>_ material names)")
     tx.add_argument("--textures-dir", help="where the textures go (default <models dir>/Textures)")
+    tx.add_argument("--paint", choices=paint_names(), metavar="SCHEME",
+                    help=f"paint scheme ({', '.join(paint_names())}): one neutral bake per model, the scheme composed "
+                         "into a baked atlas (implies --textures baked); decorative glow takes the scheme's colour")
     tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
                     help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
                          "below that the CPU is faster); CPU and GPU differ in the noise")

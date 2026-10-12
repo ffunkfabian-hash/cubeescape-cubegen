@@ -269,6 +269,13 @@ struct Sidebar: View {
 
     private var textures: some View {
         section("Texturen") {
+            Picker("Anstrich", selection: $model.settings.paint) {
+                Text("– keiner –").tag("")
+                ForEach((model.catalog?.paints ?? [:]).keys.sorted(), id: \.self) { name in
+                    Text(model.catalog?.paints?[name]?.label ?? name).tag(name)
+                }
+            }
+            .help("Ein Thema (Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void): einmal neutral gebacken, als fertige Karten")
             Picker("Texturen", selection: $model.settings.textures) {
                 ForEach(textureChoices, id: \.value) { Text($0.label).tag($0.value) }
             }

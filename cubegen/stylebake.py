@@ -188,6 +188,9 @@ def _load(path, srgb=False):
     return rgb
 
 
+_LOADED = {}  # neutral maps of the model being composed (one model at a time: memory stays bounded)
+
+
 def _noise(size, seed, cells=48):
     """Deterministic noise 0..1 (bilinear upscaled random grid)."""
     import numpy as np
@@ -206,30 +209,89 @@ def _to_srgb(linear):
     return np.where(linear <= 0.0031308, linear * 12.92, 1.055 * np.power(linear, 1 / 2.4) - 0.055)
 
 
-def _write(rgb, name, path):
+def _write(rgb, name, path, alpha=None):
     import numpy as np
 
     h, w = rgb.shape[:2]
-    img = bpy.data.images.new(name, w, h, alpha=False)
-    rgba = np.concatenate([rgb, np.ones((h, w, 1), dtype=np.float32)], axis=2).astype(np.float32)
+    img = bpy.data.images.new(name, w, h, alpha=alpha is not None)
+    a = np.ones((h, w, 1), dtype=np.float32) if alpha is None else alpha[..., None].astype(np.float32)
+    rgba = np.concatenate([rgb, a], axis=2).astype(np.float32)
     img.pixels.foreach_set(rgba.ravel())
     bk._save(img, path)
     bpy.data.images.remove(img)
     return path
 
 
-def compose_paint(maps, name, paint, out_dir, seed):
-    """Albedo and emission PNGs (sRGB) of ``paint`` from ``bake_masks``' maps - no Blender bake involved."""
-    weights = [_load(p) for p in maps["weights"]]
-    ao, edge, up = (_load(maps[k])[..., 0] for k in ("ao", "edge", "up"))
+def compose_paint(maps, name, paint, out_dir, seed, prefix=""):
+    """The maps of ``paint`` from ``bake_masks``' maps - no Blender bake involved: Albedo and Emission (sRGB),
+    Roughness (grey) and MetallicSmoothness (R metallic, A smoothness - Unity's layout) as PNG."""
+    import numpy as np
+
+    if _LOADED.get("maps") is not maps:  # the same model's maps for every scheme: read the PNGs once
+        _LOADED.clear()
+        _LOADED["maps"] = maps
+
+    def load(key, path, srgb=False):
+        if key not in _LOADED:
+            _LOADED[key] = _load(path, srgb)
+        return _LOADED[key]
+
+    weights = [load(f"w{i}", p) for i, p in enumerate(maps["weights"])]
+    ao, edge, up = (load(k, maps[k])[..., 0] for k in ("ao", "edge", "up"))
     noise = 0.6 * _noise(ao.shape[0], seed, 32) + 0.4 * _noise(ao.shape[0], seed + 1, 160)
     layout = [tuple(g) for g in maps["layout"]]
-    detail = detail_map(weights, layout, _load(maps["diffuse"], srgb=True)) if maps.get("diffuse") else None
-    height = _load(maps["height"])[..., 0] if maps.get("height") else None
-    albedo, emission = compose(weights, layout, ao, edge, up, noise, paint, detail, height)
-    return {"albedo": _write(_to_srgb(albedo), f"{name}_{paint}_Albedo", os.path.join(out_dir, f"{name}_{paint}_Albedo.png")),
-            "emission": _write(_to_srgb(emission), f"{name}_{paint}_Emission",
-                               os.path.join(out_dir, f"{name}_{paint}_Emission.png"))}
+    detail = detail_map(weights, layout, load("diffuse", maps["diffuse"], True)) if maps.get("diffuse") else None
+    height = load("height", maps["height"])[..., 0] if maps.get("height") else None
+    result = compose(weights, layout, ao, edge, up, noise, paint, detail, height)
+    base = os.path.join(out_dir, f"{prefix}{name}_{paint}_")
+    rough = result["roughness"]
+    return {
+        "albedo": _write(_to_srgb(result["albedo"]), f"{name}_{paint}_Albedo", base + "Albedo.png"),
+        "emission": _write(_to_srgb(result["emission"]), f"{name}_{paint}_Emission", base + "Emission.png"),
+        "roughness": _write(np.repeat(rough[..., None], 3, axis=2), f"{name}_{paint}_Roughness", base + "Roughness.png"),
+        "metallic_smoothness": _write(np.repeat(result["metallic"][..., None], 3, axis=2),
+                                      f"{name}_{paint}_MetallicSmoothness", base + "MetallicSmoothness.png",
+                                      alpha=1.0 - rough),
+    }
+
+
+def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=16, device="cpu"):
+    """``--paint``: bake the neutral maps once, compose ``paint`` and give the model one material on the atlas (the
+    atlas becomes UV0, like ``--textures baked``). Returns ``bake.bake_asset``'s shape - ``{"material", "maps",
+    "device"}`` with Albedo, Normal, Roughness, MetallicSmoothness (what Unity's baked import reads) and Emission -
+    plus ``"neutral"``: the neutral maps for a recolouring shader. None without paintable parts."""
+    import shutil
+
+    neutral_dir = os.path.join(out_dir, "Neutral")
+    os.makedirs(neutral_dir, exist_ok=True)
+    maps = bake_masks(collection, name, neutral_dir, size, samples=samples, device=device, base_of=base_of)
+    if maps is None:
+        return None
+    painted = compose_paint(maps, name, paint, out_dir, seed, prefix="MTP_")
+    final = {"Albedo": painted["albedo"], "Roughness": painted["roughness"],
+             "MetallicSmoothness": painted["metallic_smoothness"], "Emission": painted["emission"],
+             "Normal": os.path.join(out_dir, f"MTP_{name}_{paint}_Normal.png")}
+    shutil.copyfile(maps["normal"], final["Normal"])
+    # the material is named like --textures baked (MTA_<Asset>): Unity's baked import reads exactly that name; the
+    # scheme is recorded in the manifest ("paint") and in the map file names (MTP_<Asset>_<scheme>_*.png)
+    material = bk._baked_material(f"MTA_{name}", {k: v for k, v in final.items() if k != "Emission"})
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    emission = nodes.new("ShaderNodeTexImage")
+    emission.image = bpy.data.images.load(final["Emission"], check_existing=True)
+    bsdf = nodes.get("Principled BSDF")
+    links.new(emission.outputs["Color"], bsdf.inputs["Emission Color"])
+    bsdf.inputs["Emission Strength"].default_value = 3.0
+    for o in bk._mesh_objects(collection):
+        for slot in o.material_slots:
+            if slot.material and slot.material.name not in bk.KEEP:
+                slot.material = material
+        tiled = o.data.uv_layers.get("UVMap")  # the atlas becomes the only UV map -> UV0 in Unity
+        if tiled is not None:
+            o.data.uv_layers.remove(tiled)
+        o.data.uv_layers[bk.BAKE_UV].name = "UVMap"
+    neutral = {k: v for k, v in maps.items() if k not in ("layout", "device")}
+    return {"material": material.name, "maps": final, "device": maps["device"], "neutral": neutral,
+            "layout": maps["layout"]}
 
 
 def apply_paint(collection, maps, paint, textures, roughness, base_names=()):

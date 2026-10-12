@@ -1,0 +1,12 @@
+{
+ "types": [
+  "test_wall_modules"
+ ],
+ "seed": "7",
+ "count": 5,
+ "output": "/tmp/cubegen-app-test",
+ "paint": "organic",
+ "textureSize": "1024",
+ "variantSet": true,
+ "unique": true
+}

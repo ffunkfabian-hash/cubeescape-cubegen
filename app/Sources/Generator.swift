@@ -100,11 +100,17 @@ struct Catalog: Decodable {
         let material: String
     }
 
+    struct Paint: Decodable {
+        let label: String
+        let glow: String
+    }
+
     let version: String
     let types: [String: TypeInfo]
     let options: [String: Option]
     let palettes: [String: Palette]
     let families: [String: Family]
+    let paints: [String: Paint]?
 
     var paletteNames: [String] { palettes.keys.sorted() }
 }
@@ -131,6 +137,7 @@ struct GenerateSettings: Codable, Equatable {
     var style: [String: String] = [:]   // catalog option name -> value ("" = from the seed)
     var unique = true
     var variantSet = false     // --set: the variants share variant 0's outline, differ inside
+    var paint = ""             // paint scheme (cubegen catalog "paints"); implies a baked atlas
     var strict = false
     var force = false
     var noBlender = false
@@ -155,6 +162,7 @@ struct GenerateSettings: Codable, Equatable {
         style = try c.decodeIfPresent([String: String].self, forKey: .style) ?? d.style
         unique = try c.decodeIfPresent(Bool.self, forKey: .unique) ?? d.unique
         variantSet = try c.decodeIfPresent(Bool.self, forKey: .variantSet) ?? d.variantSet
+        paint = try c.decodeIfPresent(String.self, forKey: .paint) ?? d.paint
         strict = try c.decodeIfPresent(Bool.self, forKey: .strict) ?? d.strict
         force = try c.decodeIfPresent(Bool.self, forKey: .force) ?? d.force
         noBlender = try c.decodeIfPresent(Bool.self, forKey: .noBlender) ?? d.noBlender
@@ -185,7 +193,12 @@ struct GenerateSettings: Codable, Equatable {
         let seed = self.seed.trimmingCharacters(in: .whitespaces)
         if !seed.isEmpty { args += ["--seed", seed] }
         args += ["--out", (output as NSString).standardizingPath]
-        args += try textureArguments()
+        if paint.isEmpty {
+            args += try textureArguments()
+        } else {  // --paint implies --textures baked; the size still applies
+            args += ["--paint", paint]
+            if let n = Int(textureSize.trimmingCharacters(in: .whitespaces)) { args += ["--texture-size", String(n)] }
+        }
         for name in style.keys.sorted() {
             guard let value = style[name], !value.isEmpty else { continue }
             let flag = catalog?.options[name]?.flag ?? "--" + name.replacingOccurrences(of: "_", with: "-")

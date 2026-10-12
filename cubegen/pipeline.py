@@ -24,6 +24,7 @@ from .objwriter import write_mtl, write_obj
 from .params import Style
 from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
+from .paint import PAINTS, check_paint
 from .variety import pick_unique
 from .contract import check_fbx, check_sidecar
 from .families import unity_connectors
@@ -34,6 +35,8 @@ from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
 BAKE_DEVICES = ("auto", "cpu", "gpu")  # = bake.DEVICES
+#: baked maps the Unity import accepts in a sidecar (CubegenMaterials: Albedo, Normal, MetallicSmoothness required)
+BAKED_MAP_KEYS = ("Albedo", "Normal", "MetallicSmoothness", "Roughness", "AO", "Height")
 
 # Time budget per stage (seconds), measured 0.15.0 on an Apple M5 with headroom of about 3x; a slower stage only
 # warns (log + manifest "timings"), it never fails a run. "per_model" counts the models built in this run.
@@ -90,12 +93,23 @@ class BatchConfig:
     #                                "" / "standard" = the game's colours (MP_Palette); ignored in other modes
     textures_dir: Optional[str] = None  # default: <models dir>/Textures
     bake_device: str = "auto"      # --textures baked: auto (GPU from 1024 px) | cpu | gpu (bake.use_device)
+    paint: str = ""                # paint scheme (paint.PAINTS): baked atlas composed from one neutral bake; needs
+    #                                textures "baked"; decorative glow follows the scheme unless --glow says otherwise
     blender: Optional[str] = None
     magick: Optional[str] = None
     verbose: bool = False
     repair_safe: bool = False
 
     def validate(self) -> None:
+        if self.paint:
+            check_paint(self.paint)
+            if self.textures != "baked":
+                raise ValueError("--paint needs --textures baked (the scheme is composed into a baked atlas)")
+            if not self.use_blender:
+                raise ValueError("--paint needs Blender (the neutral maps are baked) - not with --no-blender")
+            if self.style.glow is None and not self.style.theme:  # the scheme's light (Industrial orange, Dark red);
+                # an explicit --glow or a --theme (which rolls the glow) wins
+                self.style = Style.from_dict(dict(self.style.to_dict(), glow=PAINTS[self.paint]["glow"]))
         unknown = [t for t in self.models if t not in model_types()]
         if unknown:
             raise ValueError(f"unknown model type(s): {', '.join(unknown)}. Available: {', '.join(model_types())}")
@@ -409,7 +423,13 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
         if entry.get("baked"):
             res.update({"baked": {k: _abs(v, out) for k, v in entry["baked"].items()},
                         "baked_material": entry.get("baked_material"), "bake_device": entry.get("bake_device")})
+            if entry.get("neutral"):
+                res.update({"paint": entry.get("paint"), "weight_layout": entry.get("weight_layout"),
+                            "neutral": {k: (_abs(v, out) if isinstance(v, str) else [_abs(x, out) for x in v])
+                                        for k, v in entry["neutral"].items()}})
         paths = list(res["files"].values()) + list(res.get("baked", {}).values())
+        for value in (res.get("neutral") or {}).values():  # the neutral maps of a paint scheme (later shader)
+            paths += value if isinstance(value, list) else [value]
         if render:
             paths.append(res["preview"])
         if res["files"] and all(p and os.path.isfile(p) for p in paths):
@@ -444,7 +464,7 @@ def auto_jobs(models: int, config: "BatchConfig", engine: Optional[str]) -> int:
             limit = min(limit, 3)
     if config.textures == "baked":
         gpu = config.bake_device == "gpu" or (config.bake_device == "auto" and config.texture_size >= 1024)
-        per_model += SECONDS_PER_MODEL["bake"] * (config.texture_size / 512) ** 2
+        per_model += SECONDS_PER_MODEL["bake"] * (config.texture_size / 512) ** 2 * (2.5 if config.paint else 1.0)
         limit = min(limit, 3 if gpu else 2)
     worth = int(models * per_model / MIN_WORKER_SECONDS)
     return max(1, min(limit, models, worth))
@@ -545,6 +565,8 @@ def _budget(stage: str, models: int, config: "BatchConfig") -> float:
     factor = {"texture": (config.texture_size / 512) ** 2, "render": (config.render_size / 384) ** 2}.get(
         rule.get("scale"), 1.0)
     base = rule["total"] if "total" in rule else rule["per_model"] * max(1, models)
+    if stage == "bake" and config.paint:  # the neutral bake has 8 passes (weights, AO, edge, up, height, detail, normal)
+        base *= 2.5
     return base * max(1.0, factor)
 
 
@@ -713,7 +735,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         settings = {"formats": formats, "blender": version, "textures": [config.textures, config.texture_size,
                                                                          config.texture_set, textures_dir]
                     + ([config.palette] if palette and config.palette != palette_mod.DEFAULT_PALETTE else [])
-                    + ([config.bake_device] if config.textures == "baked" else []),
+                    + ([config.bake_device, config.paint] if config.textures == "baked" else []),
                     "render": [config.render, config.engine, config.render_size, config.samples,
                                config.icon_azimuth, config.icon_elevation, config.icon_zoom]}
         for spec in specs:
@@ -735,6 +757,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "textures_dir": textures_dir,
             "magick": im.convert,
             "bake_device": config.bake_device,
+            "paint": config.paint,
             "textures_ready": texture_job.ready if texture_job else None,
             "render": {"enabled": config.render, "engine": engine, "size": config.render_size,
                        "samples": config.samples, "azimuth": config.icon_azimuth,
@@ -873,7 +896,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
                                                         spec["models_dir"])}
                     if res.get("baked"):
-                        rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()}
+                        # only the maps Unity's baked import reads; a paint scheme's Emission stays in the
+                        # manifest until the import reads it (ROADMAP ToDo 26)
+                        rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()
+                                                    if k in BAKED_MAP_KEYS}
                 elif palette:
                     rig["textures"] = {"mode": "palette",
                                        "manifest": _rel(os.path.join(textures_dir,
@@ -910,6 +936,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
                 "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device")}
                if res.get("baked") else {}),
+            **({"paint": res["paint"], "weight_layout": res.get("weight_layout"),
+                "neutral": {k: (_rel(v, out) if isinstance(v, str) else [_rel(x, out) for x in v])
+                            for k, v in res["neutral"].items()}} if res.get("neutral") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()

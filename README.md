@@ -92,11 +92,13 @@ Ebenso in App und Desktop-Fenster („Variantenset“). Beispiel: [docs/wall_set
 python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --glow cyan
 ```
 
-## Stiltest Anstriche (experimentell)
+## Anstriche (Themen)
 
-`python3 tools/style_test.py [--concept <Bild>]` backt Wand, Plattform, Säule und Kiste einmal neutral und setzt daraus
-die Anstriche `industrial` und `crystal` zusammen (`cubegen/paint.py`) – das Skin-Prinzip des Roboter-Generators.
-Ergebnis und offene Fragen: [VERSION_0.17.0.md](VERSION_0.17.0.md), Bild [docs/style_test_0170.png](docs/style_test_0170.png).
+`--paint <Thema>` gibt Modellen einen Anstrich nach den Wandkonzepten – Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void –,
+gebacken aus einem neutralen Back je Modell (das Skin-Prinzip des Roboter-Generators, `cubegen/paint.py`).
+Unity liest das Ergebnis wie `--textures baked`. Auch in App und Desktop-Fenster („Anstrich“). Vergleich aller Themen
+mit dem Konzept: [docs/wall_paints_0170.png](docs/wall_paints_0170.png); Stiltest und Reihen:
+`python3 tools/style_test.py --paints all [--row test_wall_modules@crystals=some:5] [--concept <Bild>]`.
 
 ## App (macOS)
 

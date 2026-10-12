@@ -13,6 +13,7 @@ import threading
 from typing import Optional
 
 from . import __version__
+from .paint import paint_names
 from .palette import palette_names
 
 #: the texture modes the GUI offers (label, value of --textures); "none" keeps the game's one-colour M_ materials
@@ -134,6 +135,7 @@ def main() -> int:
             self.textures = tk.StringVar(value=TEXTURE_CHOICES[0][0])
             self.texture_size = tk.StringVar(value="512")
             self.palette = tk.StringVar(value="")
+            self.paint = tk.StringVar(value="")
 
             root.columnconfigure(0, weight=1)
             root.rowconfigure(1, weight=1)
@@ -194,6 +196,9 @@ def main() -> int:
             self.palette_box = ttk.Combobox(settings, textvariable=self.palette, state="readonly", width=24,
                                             values=[""] + palette_names())
             self.palette_box.grid(row=4, column=1, sticky="w", padx=4, pady=3)
+            ttk.Label(settings, text="Anstrich:").grid(row=4, column=2, sticky="w", padx=4, pady=3)
+            ttk.Combobox(settings, textvariable=self.paint, state="readonly", width=14,
+                         values=[""] + paint_names()).grid(row=4, column=3, sticky="w", padx=4, pady=3)
             ttk.Label(settings, text="Texturen brauchen ImageMagick; ohne Textur bleiben die Spielmaterialien M_….",
                       foreground="#667").grid(row=4, column=2, columnspan=2, sticky="w", padx=4, pady=3)
             self.textures.trace_add("write", lambda *_: self.update_texture_fields())
@@ -342,7 +347,11 @@ def main() -> int:
             if self.seed.get().strip():
                 args.extend(["--seed", self.seed.get().strip()])
             args.extend(["--out", os.path.abspath(output)])
-            args.extend(texture_args(self.texture_value(), self.texture_size.get(), self.palette.get()))
+            if self.paint.get():  # a paint scheme is a baked atlas: --paint implies --textures baked
+                size = self.texture_size.get().strip()
+                args.extend(["--paint", self.paint.get()] + (["--texture-size", size] if size else []))
+            else:
+                args.extend(texture_args(self.texture_value(), self.texture_size.get(), self.palette.get()))
             if self.variant_set.get() and not recipe:
                 args.append("--set")
             if self.unique.get():

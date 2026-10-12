@@ -22,7 +22,8 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 # crops of the user's concept sheet (1536 x 1024, "Cube Escape - Umgebungs Konzepte"): x, y, w, h per scheme
-CONCEPT_CROPS = {"industrial": (14, 108, 122, 200), "crystal": (364, 108, 112, 200)}
+CONCEPT_CROPS = {"industrial": (14, 108, 122, 200), "clean": (136, 108, 114, 200), "ruin": (250, 108, 114, 200),
+                 "crystal": (364, 108, 112, 200), "dark": (484, 108, 118, 200), "organic": (604, 108, 120, 200)}
 
 
 def row_worker(job, bw, stylebake, PAINTS, bpy):
@@ -43,10 +44,10 @@ def row_worker(job, bw, stylebake, PAINTS, bpy):
         asset, _, collection = bw.build_asset(spec, material_map)
         maps = stylebake.bake_masks(collection, asset.name, out, job["size"], samples=job["bake_samples"],
                                     device=job["device"], base_of=base_of)
-        pieces.append((asset, collection, maps))
+        pieces.append((asset, collection, maps, int(spec["seed"])))
         print(f"[style] row piece {asset.name}: baked", flush=True)
     step = job["row_step"]
-    for i, (asset, collection, _) in enumerate(pieces):  # side by side, after the bakes (each baked alone)
+    for i, (asset, collection, _, _) in enumerate(pieces):  # side by side, after the bakes (each baked alone)
         for obj in collection.objects:
             if obj.parent is None:
                 obj.location.x += (i - (len(pieces) - 1) / 2) * step
@@ -54,7 +55,7 @@ def row_worker(job, bw, stylebake, PAINTS, bpy):
         row.children.link(collection)
     bpy.context.view_layer.update()  # world matrices of the moved pieces, before the camera frames the row
     scene.render.resolution_x, scene.render.resolution_y = job["row_width"], job["row_height"]
-    originals = {o: [s.material for s in o.material_slots] for _, c, _ in pieces for o in c.all_objects
+    originals = {o: [s.material for s in o.material_slots] for _, c, _, _ in pieces for o in c.all_objects
                  if o.type == "MESH"}
     bw.frame_camera(cam, row, 25.0, 14.0, 1.0)
     for o, mats in originals.items():  # today: the game's flat colours
@@ -64,12 +65,12 @@ def row_worker(job, bw, stylebake, PAINTS, bpy):
     bw.render_preview(scene, os.path.join(out, "row_today.png"))
     for paint in job["paints"]:
         scheme = PAINTS[paint]
-        for asset, collection, maps in pieces:
+        for asset, collection, maps, seed in pieces:
             for o in collection.all_objects:
                 if o in originals:
                     for slot, mat in zip(o.material_slots, originals[o]):
                         slot.material = mat
-            painted = stylebake.compose_paint(maps, asset.name, paint, out, int(job["models"][0]["seed"]))
+            painted = stylebake.compose_paint(maps, asset.name, paint, out, seed)  # own noise per piece
             stylebake.apply_paint(collection, maps, paint, painted, scheme["roughness"], tuple(base_of))
             for o in collection.all_objects:
                 for slot in o.material_slots:
@@ -84,7 +85,7 @@ def worker(job_path):
 
     from cubegen import blender_worker as bw
     from cubegen import stylebake
-    from cubegen.paint import PAINTS
+    from cubegen.paint import PAINTS  # noqa: F811
 
     with open(job_path, "r", encoding="utf-8") as fh:
         job = json.load(fh)
@@ -155,10 +156,13 @@ def host(argv=None) -> int:
     from cubegen.paint import PAINTS, check_paint
     from cubegen.pipeline import plan_models
 
+    def paint_names_in_order():  # the order of the concept sheet
+        return list(PAINTS)
+
     p = argparse.ArgumentParser(description="style test: neutral bake once, paint schemes composed from it")
     p.add_argument("--models", default="wall,platform,pillar,crate",
                    help="types (variant 0 of each); a type may carry parameters: test_wall_modules@crystals=true")
-    p.add_argument("--paints", default="industrial,crystal")
+    p.add_argument("--paints", default="industrial,crystal", help="paint schemes, or 'all'")
     p.add_argument("--seed", default="42")
     p.add_argument("--size", type=int, default=1024, help="atlas size in px")
     p.add_argument("--render-size", type=int, default=512)
@@ -171,7 +175,7 @@ def host(argv=None) -> int:
                                  "e.g. test_wall_modules@crystals=some:5:2.0 -> row_<scheme>.png")
     p.add_argument("--out", default=os.path.join(ROOT, "output", "style_test"))
     args = p.parse_args(argv)
-    paints = [check_paint(n) for n in args.paints.split(",") if n]
+    paints = paint_names_in_order() if args.paints == "all" else [check_paint(n) for n in args.paints.split(",") if n]
     entries = [t for t in args.models.split(",") if t]
     types = sorted({e.split("@")[0] for e in entries})
     out = os.path.abspath(args.out)

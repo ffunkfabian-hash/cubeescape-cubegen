@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0 „Prism“ – unveröffentlicht
+## 0.17.0 „Prism“ – 2026-10-13
 
 * **Stiltest Anstriche** (experimentell, `tools/style_test.py`): das Skin-Prinzip des Roboter-Generators für
   Umgebungsmodelle – einmal neutral backen (Gewichtskarten der Spielmaterialien, Umgebungsverdeckung, Kanten,
@@ -11,6 +11,9 @@
 * Experimenteller Typ `test_wall_modules`: Modulwand nach dem Konzept, als Set gebaut, optional mit Kristallen.
   Golden-Daten: nur dieser Typ neu, alle 186 übrigen unverändert.
 * Stiltest: Höhenmaske (Schmutz von unten), gemaltes Kantenlicht, Reihen-Modus `--row`, Parameter je Modell.
+* **Anstriche als Ausgabemodus** `--paint` (CLI, App, Desktop-Fenster): elf Themen nach den Wandkonzepten der drei
+  Konzeptbögen (Industrial, Clean, Ruin, Crystal, Dark, Organic, Sand, Space, Ice, Toxic, Void), ein neutraler Back je Modell, Unity liest das Ergebnis wie
+  `--textures baked` (im echten Import geprüft); Leuchtkarte und neutrale Karten im Manifest für später (ToDo 26/27).
 * Normale Ausgabe der bestehenden Typen und Unity-Vertrag unverändert. Paket, CLI und Add-on auf 0.17.0.
   Bericht: [VERSION_0.17.0.md](VERSION_0.17.0.md).
 

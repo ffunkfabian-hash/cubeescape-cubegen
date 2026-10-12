@@ -338,6 +338,17 @@ python3 -m cubegen palettes --swatches palettes.png   # alle Paletten, eine Zeil
 Ohne `--textures` tragen die Modelle die einfarbigen `M_…`-Materialien des Spiels. Im Paletten-Modus behalten Glas
 und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Material. Details in der README.
 
+**Anstriche** (`--paint industrial|clean|ruin|crystal|dark|organic|sand|space|ice|toxic|void`): das Skin-Prinzip des Roboter-Generators.
+Jedes Modell wird einmal neutral gebacken (Gewichte der Spielmaterialien, Umgebungsverdeckung, Kanten, oben, Höhe,
+Detail und Normalen der Kacheln, in `Textures/Neutral`), das Thema daraus zusammengesetzt: Albedo, Normal, Roughness,
+MetallicSmoothness (Unity liest sie wie `--textures baked`, Material `MTA_<Modell>`) und Emission (Leuchtkanten,
+in Unity noch nicht gelesen). Die Leuchtfarbe folgt dem Thema, außer `--glow` sagt anderes. Mit `--set` entstehen
+Wandsets im selben Thema.
+
+```bash
+python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --paint ruin
+```
+
 **Backen auf CPU oder GPU** (`--bake-device auto|cpu|gpu`, Standard `auto`): Cycles backt eine zusammengefügte Kopie
 aller Teile eines Assets, eine Sitzung je Durchgang statt je Teil. `auto` nimmt ab 1024 px die GPU (Metal, CUDA …),
 darunter die CPU – gemessen in 0.15.0 auf einem Apple M5: 512 px CPU 14 s gegen GPU 19 s, 1024 px CPU 19 s gegen
@@ -488,6 +499,7 @@ schon, bevor er Dateien schreibt.
 | `--lods` | – | Sparstufe für statische Modelle (`_LOD0` / `_LOD1`), siehe Abschnitt 8 |
 | `--jobs` | auto | Blender-Prozesse gleichzeitig: Zahl oder `auto` (bis Kerne − 1, nur so viele, wie sich lohnen) |
 | `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
+| `--paint` | – | Anstrich (Thema): clean, crystal, dark, ice, industrial, organic, ruin, sand, space, toxic, void – gebackener Atlas aus einem neutralen Back (schaltet `--textures baked` ein) |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |
