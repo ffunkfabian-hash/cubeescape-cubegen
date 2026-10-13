@@ -48,6 +48,15 @@ Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
 
+## Ganze Leistung des Geräts (gemeinsame Regel mit Cube Escape und dem Roboter-Generator)
+
+Braucht eine Sitzung den Rechner für sich (Messungen, Benchmarks, Zeitbudgets, Abnahmen), darf sie andere
+Sitzungen pausieren. Werkzeug: `pause_sessions.py` aus Cube Escape
+(`/Users/ffunk/Claude/Cube Escape/.agents/skills/ce-testing/scripts/pause_sessions.py run -- <Befehl>`): hält nur die
+Befehle anderer Claude-/Codex-Sitzungen an (SIGSTOP), setzt sie danach immer fort (SIGCONT), lässt die Sitzungen selbst,
+den Unity-Editor und Blender des Nutzers unberührt. Nur so lange wie nötig pausieren und es im Bericht nennen. Ein
+pausierter Befehl kann in die Zeitgrenze seines Werkzeugs laufen – dann führt die andere Sitzung ihn erneut aus.
+
 ## Versionen, Branches und Worktrees
 
 Jeder neue Branch, Worktree oder Arbeitsauftrag ist eine **neue Version**: Minor +1 (0.12.0 → 0.13.0 → 0.14.0 …)
