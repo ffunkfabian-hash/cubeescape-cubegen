@@ -141,6 +141,7 @@ struct GenerateSettings: Codable, Equatable {
     var variantSet = false     // --set: the variants share variant 0's outline, differ inside
     var paint = ""             // paint scheme (cubegen catalog "paints"); implies a baked atlas
     var paintFile = ""         // own scheme from a JSON file (--paint-file); wins over paint
+    var singleRenderer = false // --single-renderer: static models as one mesh object (Cube Escape flat copies)
     var strict = false
     var force = false
     var noBlender = false
@@ -167,6 +168,7 @@ struct GenerateSettings: Codable, Equatable {
         variantSet = try c.decodeIfPresent(Bool.self, forKey: .variantSet) ?? d.variantSet
         paint = try c.decodeIfPresent(String.self, forKey: .paint) ?? d.paint
         paintFile = try c.decodeIfPresent(String.self, forKey: .paintFile) ?? d.paintFile
+        singleRenderer = try c.decodeIfPresent(Bool.self, forKey: .singleRenderer) ?? d.singleRenderer
         strict = try c.decodeIfPresent(Bool.self, forKey: .strict) ?? d.strict
         force = try c.decodeIfPresent(Bool.self, forKey: .force) ?? d.force
         noBlender = try c.decodeIfPresent(Bool.self, forKey: .noBlender) ?? d.noBlender
@@ -211,6 +213,7 @@ struct GenerateSettings: Codable, Equatable {
             args += [flag, value]
         }
         if variantSet && recipe.isEmpty && family.isEmpty { args.append("--set") }
+        if singleRenderer { args.append("--single-renderer") }
         if unique { args.append("--unique") }
         if strict { args.append("--strict") }
         if force && !validate { args.append("--force") }

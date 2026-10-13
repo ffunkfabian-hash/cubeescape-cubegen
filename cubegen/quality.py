@@ -151,10 +151,11 @@ def _fighting_faces(asset, min_overlap: float = MIN_OVERLAP, pivot: str = "") ->
     seen = set()
     for key, members in buckets.items():
         near = members + buckets.get(key[:3] + (key[3] + 1,), [])
+        own = len(members)  # near[:own] is this bucket: a position test instead of a search through the list
         for i in members:
             oa, pa, ma, na, da, pts_a, fa = faces[i]
-            for j in near:
-                if j <= i and j in members or (min(i, j), max(i, j)) in seen:
+            for pos, j in enumerate(near):
+                if j <= i and pos < own or (min(i, j), max(i, j)) in seen:
                     continue
                 ob, pb, mb, nb, db, pts_b, fb = faces[j]
                 if (oa is ob and pa == pb) or (ma == mb and (oa is ob or

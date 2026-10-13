@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from . import __version__
 from .blender import BlenderError, blender_version, find_blender, resolve_engine, run_job
 from .imagemagick import ImageMagick, ImageMagickError
-from .cache import OutputCache, file_hash, input_key
+from .cache import OutputCache, input_key
 from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
@@ -26,7 +26,7 @@ from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
 from .paint import PAINTS, check_paint, load_scheme, register_scheme
 from .variety import pick_unique
-from .contract import check_fbx, check_sidecar
+from .contract import check_fbx, check_runtime_budget, check_sidecar
 from .families import unity_connectors
 from . import palette as palette_mod
 
@@ -101,6 +101,7 @@ class BatchConfig:
     magick: Optional[str] = None
     verbose: bool = False
     repair_safe: bool = False
+    single_renderer: bool = False  # static models with decorative parts only: one mesh object (Asset.merge_static)
 
     def validate(self) -> None:
         if self.paint_file:
@@ -180,6 +181,8 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
         spec["family"] = config.family["name"]
     if config.repair_safe:
         spec["repair_safe"] = True
+    if config.single_renderer:
+        spec["single_renderer"] = True
     return spec
 
 
@@ -304,15 +307,18 @@ def rig_data(asset, spec: Dict, master_seed: int, material_map: Optional[Dict[st
     }
 
 
-def check_contract(specs: List[Dict], master_seed: int, log: Callable[[str], None] = print) -> List[str]:
+def check_contract(specs: List[Dict], master_seed: int, log: Callable[[str], None] = print,
+                   build: Optional[Callable[[Dict], Any]] = None, build_lod: Optional[Callable[[Dict], Any]] = None
+                   ) -> List[str]:
     """Every sidecar of the batch against the Unity importer's contract (``cubegen/contract.py``).
 
     Raises ``ValueError`` listing all violations; returns (and logs) the open item assignments
     (``ItemPickup`` without ``item_id`` - Unity skips those models until an id is set)."""
     errors, open_items = [], []
     for spec in specs:
-        asset = build_spec(spec)
-        rig = rig_data(asset, spec, master_seed, lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
+        asset = (build or build_spec)(spec)
+        lod = (build_lod or (lambda s: build_spec(lod_spec(s))))(spec) if spec.get("lod") else None
+        rig = rig_data(asset, spec, master_seed, lod=lod)
         problems, missing = check_sidecar(rig, f"{spec['name']}.cubegen.json")
         errors += [f"{spec['name']}: {p}" for p in problems]
         open_items += missing
@@ -337,6 +343,8 @@ def build_spec(spec: Dict):
                            style=Style.from_dict(spec.get("style")))
     if spec.get("repair_safe"):
         asset.repair_safe()
+    if spec.get("single_renderer"):
+        asset.merge_static()
     return asset
 
 
@@ -589,7 +597,8 @@ def system_load() -> Optional[float]:
 
 
 def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: int, config: "BatchConfig",
-                 load: Optional[Dict] = None, workers: Optional[List[Dict]] = None) -> Dict:
+                 load: Optional[Dict] = None, workers: Optional[List[Dict]] = None,
+                 steps: Optional[Dict[str, float]] = None) -> Dict:
     """For the manifest: ``seconds`` (wall clock per stage of this run), ``worker_seconds`` (summed in Blender),
     ``budgets`` and ``slow`` (stages over their budget), ``load`` (system load at start / end, cores) and ``workers``
     (per Blender process: models built, seconds) - times are only comparable on an idle machine."""
@@ -598,15 +607,22 @@ def stage_report(seconds: Dict[str, float], worker: Dict[str, float], models: in
     slow = [stage for stage, limit in budgets.items() if measured[stage] > limit]
     return {"seconds": {k: round(v, 2) for k, v in seconds.items()},
             "worker_seconds": {k: round(v, 2) for k, v in worker.items()},
-            "budgets": budgets, "models_built": models, "slow": slow, "load": load or {}, "workers": workers or []}
+            "budgets": budgets, "models_built": models, "slow": slow, "load": load or {}, "workers": workers or [],
+            # named steps inside the stages (0.21.0: measure the steps first, then optimise): Python model builds,
+            # the contract check without its builds, planning (incl. --unique picks)
+            "steps": {k: round(v, 2) for k, v in (steps or {}).items()}}
 
 
 def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> List[Dict]:
     """Per variant set: members, the pinned outline, whether every member really has it (bounding boxes within
     ``SET_TOLERANCE_M``) and a row of the previews side by side (``set_<type>.png``) to check the variety."""
     sets = []
-    for name in sorted({s["set"]["name"] for s in specs if s.get("set")}):
-        members = [s for s in specs if s.get("set", {}).get("name") == name]
+    groups: Dict[str, List[Dict]] = {}  # one pass over the specs instead of a search per set
+    for s in specs:
+        if s.get("set"):
+            groups.setdefault(s["set"]["name"], []).append(s)
+    for name in sorted(groups):
+        members = groups[name]
         # what must match to join: the type's set_faces - a wall its left/right, bottom/top and back (parts may stick
         # out to the front: pipes, signs, crystals), a floor tile its four sides and bottom (details on top), ...
         faces = REGISTRY[members[0]["type"]].set_faces
@@ -618,7 +634,7 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
         row = None
         if len(previews) > 1:
             row = os.path.join(out, f"set_{members[0]['type']}.png")
-            key = input_key("set", [file_hash(p) for p in previews], code_fingerprint(), magick_version)
+            key = input_key("set", [images.digest(p) for p in previews], code_fingerprint(), magick_version)
             if not images.get("set:" + row, key):
                 im.run([arg for p in previews for arg in ("(", p, "-resize", "320x320", ")")]
                        + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
@@ -664,13 +680,27 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         seconds[stage] = seconds.get(stage, 0.0) + now - clock[0]
         clock[0] = now
 
+    steps: Dict[str, float] = {"plan_models": 0.0, "build": 0.0, "contract": 0.0}
+    started = time.perf_counter()
     specs = plan_models(config, log)
+    steps["plan_models"] = time.perf_counter() - started
     built_assets: Dict[str, Any] = {}
 
-    def asset_of(spec: Dict):  # each model built once in Python: library sorting, work package order, manifest
+    built_lods: Dict[str, Any] = {}
+
+    def asset_of(spec: Dict):  # each model built once in Python: contract, export, library, work packages, manifest
         if spec["name"] not in built_assets:
+            t = time.perf_counter()
             built_assets[spec["name"]] = build_spec(spec)
+            steps["build"] += time.perf_counter() - t
         return built_assets[spec["name"]]
+
+    def lod_of(spec: Dict):  # the same for the LOD1 build (--lods)
+        if spec["name"] not in built_lods:
+            t = time.perf_counter()
+            built_lods[spec["name"]] = build_spec(lod_spec(spec))
+            steps["build"] += time.perf_counter() - t
+        return built_lods[spec["name"]]
     if not specs:
         raise ValueError("nothing to generate (all counts are 0)")
 
@@ -696,7 +726,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         os.makedirs(spec["models_dir"], exist_ok=True)
 
     if config.rig_data:  # the Unity import skips a model whose sidecar breaks its contract - stop before Blender
-        check_contract(specs, config.seed, log)
+        t, before = time.perf_counter(), steps["build"]
+        check_contract(specs, config.seed, log, build=asset_of, build_lod=lod_of)
+        steps["contract"] = time.perf_counter() - t - (steps["build"] - before)  # without the builds it caused
 
     im = ImageMagick(config.magick)
     magick_version = im.version()
@@ -843,10 +875,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         results.update(reused)
         lap("plan")
         for spec in todo:
-            asset = build_spec(spec)
+            asset = asset_of(spec)
             path = os.path.join(spec["models_dir"], f"{spec['name']}.obj")
             write_obj(asset, path, "CubeEscape_Materials.mtl", asset_materials(asset),
-                      lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
+                      lod=lod_of(spec) if spec.get("lod") else None)
             results[spec["name"]] = {"files": {"obj": path}, "preview": None}
             log(f"{spec['name']}: {asset.stats()['triangles']} tris")
         lap("export")
@@ -857,7 +889,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         res = results.get(spec["name"], {})
         if res.get("preview") and os.path.isfile(res["preview"]):
             icon = os.path.join(dirs["icons"], f"Icon_{spec['name']}.png")
-            preview_hash = file_hash(res["preview"])
+            preview_hash = images.digest(res["preview"])  # read only if the preview changed (cache index)
             key = input_key("icon", preview_hash, config.icon_size, config.icon_background, code_fingerprint(),
                             magick_version)
             if not images.get(f"icon:{icon}", key):
@@ -903,8 +935,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 asset_map = asset_materials(asset)
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
-                rig = rig_data(asset, spec, config.seed, asset_map,
-                               lod=build_spec(lod_spec(spec)) if spec.get("lod") else None)
+                rig = rig_data(asset, spec, config.seed, asset_map, lod=lod_of(spec) if spec.get("lod") else None)
                 if textures:
                     rig["textures"] = {"mode": config.textures,
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
@@ -929,6 +960,12 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 fbx_errors = check_fbx(rig, fbx)
                 if fbx_errors:
                     raise RuntimeError(f"{fbx} breaks the Unity import contract:\n  " + "\n  ".join(fbx_errors))
+            glb = res.get("files", {}).get("glb")
+            if glb and os.path.isfile(glb):  # Cube Escape's workbench budget (bytes, triangles, textures ...)
+                over = check_runtime_budget(glb)
+                if over:
+                    res["runtime_budget"] = over
+                    log(f"warning: {spec['name']}.glb exceeds the workbench budget: {'; '.join(over)}")
         entries.append({
             "name": spec["name"],
             "type": spec["type"],
@@ -940,8 +977,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "pivots": {o.name: [round(c, 4) for c in o.pivot] for o in asset.objects if any(o.pivot)},
             "behaviours": asset.behaviours,
             "stats": asset.stats(),
+            "renderers": sum(1 for o in asset.objects if o.mesh is not None),  # Cube Escape: 1 = flat copy possible
+            **({"runtime_budget": res["runtime_budget"]} if res.get("runtime_budget") else {}),
             "asset_hash": asset.digest(),
-            **({"lods": lod_data(asset, build_spec(lod_spec(spec)))} if spec.get("lod") else {}),
+            **({"lods": lod_data(asset, lod_of(spec))} if spec.get("lod") else {}),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
             **({"family": spec["family"]} if spec.get("family") else {}),
             **({"param_sources": spec["param_sources"]} if spec.get("param_sources") else {}),
@@ -994,7 +1033,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     lap("manifest")
     built = sum(1 for spec in specs if results.get(spec["name"]) and not results[spec["name"]].get("reused"))
     load["end"] = system_load()
-    report = stage_report(seconds, worker, built, config, load, workers)
+    report = stage_report(seconds, worker, built, config, load, workers, steps)
     report["overlap"] = overlap
     manifest["timings"] = report
     log("timings: " + ", ".join(f"{k} {v:.1f} s" for k, v in report["seconds"].items())

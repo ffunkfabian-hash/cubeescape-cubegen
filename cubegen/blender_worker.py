@@ -62,6 +62,8 @@ def _generate(spec):
                            params=spec.get("params"), style=Style.from_dict(spec.get("style")))
     if spec.get("repair_safe"):
         asset.repair_safe()
+    if spec.get("single_renderer"):  # the same as pipeline.build_spec: one renderer for static models
+        asset.merge_static()
     return asset
 
 

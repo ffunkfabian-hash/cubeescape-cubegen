@@ -23,7 +23,8 @@ from .seeds import parse_seed
 _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "engine", "render_size", "samples",
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
-                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint", "paint_file")
+                  "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint", "paint_file",
+                  "single_renderer")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -235,6 +236,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["jobs"] = args.jobs
     if args.variant_set:
         values["variant_set"] = True
+    if args.single_renderer:
+        values["single_renderer"] = True
     if args.paint:
         values["paint"] = args.paint
         values.pop("paint_file", None)  # the command line wins over a recipe's own scheme
@@ -566,9 +569,13 @@ def cmd_export_check(args) -> int:
                 print(f"{model}: {e}")
             for o in r["open"]:
                 print(f"{model}: open - {o.split(': ', 1)[-1]}")
+            for b in r.get("runtime", []):
+                print(f"{model}: workbench budget - {b}")
         bad = sum(1 for r in result.values() if r["errors"])
+        over = sum(1 for r in result.values() if r.get("runtime"))
         print(f"\n{len(result)} model(s): {bad} rejected by the Unity import, "
-              f"{sum(1 for r in result.values() if r['open'])} with an open item assignment")
+              f"{sum(1 for r in result.values() if r['open'])} with an open item assignment"
+              + (f", {over} over the workbench budget (GLB)" if over else ""))
     return 1 if any(r["errors"] for r in result.values()) or not result else 0
 
 
@@ -733,6 +740,9 @@ def make_parser() -> argparse.ArgumentParser:
     g.add_argument("--lods", action="store_true",
                    help="static models: add a low detail level, FBX objects <part>_LOD0 / <part>_LOD1 "
                         "(Unity builds the LODGroup on import)")
+    g.add_argument("--single-renderer", action="store_true",
+                   help="static models whose parts only carry looks (Body, Glow, Lights, Glass ...) become one mesh "
+                        "object: one renderer, materials as sub-meshes - Cube Escape builds them as flat copies")
     g.add_argument("--set", dest="variant_set", action="store_true",
                    help="variant set (with --count): every variant keeps variant 0's outline (length, height, size "
                         "parameters ...) and differs inside - pieces to stand side by side; set_<type>.png shows them "

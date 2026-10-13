@@ -338,6 +338,9 @@ struct Sidebar: View {
             Toggle("Variantenset (gleiche Außenmaße)", isOn: $model.settings.variantSet)
                 .help("Alle Varianten eines Typs behalten die Außenmaße der ersten und unterscheiden sich innen – "
                       + "Teile, die nebeneinander stehen, ohne sich zu wiederholen")
+            Toggle("Ein Renderer (statische Modelle)", isOn: $model.settings.singleRenderer)
+                .help("Statische Modelle mit reinen Schmuckteilen werden ein Objekt mit Untermaterialien – "
+                      + "Cube Escape baut sie in großen Leveln als flache Kopien")
             Toggle("Strikte Qualitätsprüfung", isOn: $model.settings.strict)
             Toggle("Alles neu bauen", isOn: $model.settings.force)
             Toggle("Nur OBJ (ohne Blender)", isOn: $model.settings.noBlender)

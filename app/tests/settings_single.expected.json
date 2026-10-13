@@ -1,0 +1,1 @@
+["generate", "--types", "crate,pillar", "--count", "2", "--seed", "4", "--out", "/tmp/cubegen-app-test", "--single-renderer", "--formats", "fbx,obj"]

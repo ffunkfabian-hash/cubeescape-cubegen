@@ -129,6 +129,7 @@ def main() -> int:
             self.recipe = tk.StringVar()
             self.unique = tk.BooleanVar(value=True)
             self.variant_set = tk.BooleanVar(value=False)
+            self.single_renderer = tk.BooleanVar(value=False)
             self.strict = tk.BooleanVar(value=False)
             self.force = tk.BooleanVar(value=False)
             self.no_blender = tk.BooleanVar(value=False)
@@ -214,6 +215,8 @@ def main() -> int:
             options.grid(row=3, column=0, sticky="ew")
             ttk.Checkbutton(options, text="Ähnliche Varianten überspringen", variable=self.unique).pack(side="left")
             ttk.Checkbutton(options, text="Variantenset (gleiche Außenmaße)", variable=self.variant_set).pack(
+                side="left", padx=10)
+            ttk.Checkbutton(options, text="Ein Renderer (statisch)", variable=self.single_renderer).pack(
                 side="left", padx=10)
             ttk.Checkbutton(options, text="Strikte Qualitätsprüfung", variable=self.strict).pack(side="left", padx=10)
             ttk.Checkbutton(options, text="Alles neu bauen", variable=self.force).pack(side="left", padx=10)
@@ -370,6 +373,8 @@ def main() -> int:
                 args.extend(texture_args(self.texture_value(), self.texture_size.get(), self.palette.get()))
             if self.variant_set.get() and not recipe:
                 args.append("--set")
+            if self.single_renderer.get():
+                args.append("--single-renderer")
             if self.unique.get():
                 args.append("--unique")
             if self.strict.get():
