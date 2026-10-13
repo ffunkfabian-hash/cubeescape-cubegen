@@ -1,7 +1,8 @@
 # Roadmap
 
-Stand: 13. Oktober 2026, cubegen **0.18.0 „Chameleon“** veröffentlicht (Tag `v0.18.0`, Release-Zweig `release/0.18.0`,
-[VERSION_0.18.0.md](../VERSION_0.18.0.md): Anstriche auf allen Typen, eigenes Thema, Anbauten je Thema); davor 0.17.0
+Stand: 13. Oktober 2026, cubegen **0.18.1 „Chameleon“** veröffentlicht (Tag `v0.18.1`, Release-Zweig `release/0.18.1`;
+[VERSION_0.18.0.md](../VERSION_0.18.0.md): Anstriche auf allen Typen, eigenes Thema, Anbauten je Thema;
+[VERSION_0.18.1.md](../VERSION_0.18.1.md): Leuchtschlitz folgt dem Thema); davor 0.17.0
 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus

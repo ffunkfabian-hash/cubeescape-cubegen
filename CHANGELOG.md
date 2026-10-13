@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.1 „Chameleon“ – 2026-10-13
+
+* **Leuchtschlitz der Modulwand folgt dem Thema:** `test_wall_modules` setzte den Schlitz der Akzentsäule fest auf
+  `M_GlowOrange` – ein echter `--paint organic`-Lauf zeigte Orange statt Cyan (der Stiltest färbt Leuchtteile selbst
+  um und verdeckte den Fehler). Jetzt nimmt er die Leuchtfarbe des Stils (`--glow`, Thema), ohne Würfelwurf
+  (`ParamReader.glow_or`); ohne Vorgabe bleibt er orange. Golden-Daten: nur die Modulwand-Fälle mit Leuchtvorgabe.
+  Bericht: [VERSION_0.18.1.md](VERSION_0.18.1.md).
+
 ## 0.18.0 „Chameleon“ – 2026-10-13
 
 * **Anstriche auf allen Typen:** geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür, Geländer, Decke und
