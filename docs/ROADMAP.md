@@ -1,10 +1,9 @@
 # Roadmap
 
-Stand: 13. Oktober 2026, cubegen **0.19.1 „Kaleidoscope“** veröffentlicht (Tag `v0.19.1`, Release-Zweig
-`release/0.19.1`, [VERSION_0.19.0.md](../VERSION_0.19.0.md): set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler in
-der App, mehr Abwechslung, Neural-Engine-Bericht, Blender in der CI; [VERSION_0.19.1.md](../VERSION_0.19.1.md):
-reproduzierbare PNGs mit ImageMagick 6, GitHub Actions grün); davor 0.18.1 „Chameleon“ (Anstriche auf allen
-Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
+Stand: 13. Oktober 2026, cubegen **0.20.0 „Gatekeeper“** veröffentlicht (Tag `v0.20.0`, Release-Zweig
+`release/0.20.0`, [VERSION_0.20.0.md](../VERSION_0.20.0.md): Unity-Check `tools/unity_check.py`); davor 0.19.1
+„Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
+(Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -154,6 +153,12 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
 - [x] **Kristallmaterial (Generator-Seite)** (0.19.0): `crystal_cut = faceted` (unregelmäßiger Querschnitt, Schulter,
   schiefe mehrflächige Spitze) für Fels, Schwebeinsel, Hängekristalle, Modulwand; `crystal_color` je Thema (Vorschau,
   Manifest `paint`). Das durchscheinende Material selbst entsteht in Unity (ToDo 28).
+- [x] **Unity-Check** (0.20.0): `tools/unity_check.py` – acht feste Prüfsätze durch den echten Import von Cube Escape
+  (Editor-Import und Werkbank-Laufzeit), fester Schritt jedes Releases. Erster Lauf: 254 Modelle, 0 Fehler.
+- [ ] **Unity-Check: Sichtprüfung:** ein Screenshot der importierten Prüfsätze in Unity (Anstrich, Kristallfarbe,
+  Sets so, wie das Spiel sie zeigt). Die vorhandene Probe (`CubegenShotProbeTests`) nutzt Werkbank-Fixtures; nötig ist
+  eine Probe, die die Prefabs des Editor-Imports aufstellt – gemeinsam mit Cube Escape.
+- [ ] **Unity-Check: Anstrich im Laufzeitpfad,** sobald die Werkbank gebackene Karten im GLB liest (ToDo 29).
 - [ ] **App weiter:** Notarisierung ist vorbereitet (`app/notarize.sh`), braucht aber ein Zertifikat „Developer ID
   Application“ (Apple Developer Program) – auf dem Mac liegt nur „Apple Development“. Dazu Parameter je Typ
   (`--param`) und Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.

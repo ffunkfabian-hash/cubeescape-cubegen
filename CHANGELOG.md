@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.0 „Gatekeeper“ – 2026-10-13
+
+* **Unity-Check** `tools/unity_check.py`: acht feste Prüfsätze (Bau-Kit-Sets, Zusatzdetails, Gameplay, Anstrich mit
+  Anbauten und Kristallen, eigenes Thema, Kacheln, Schäden, alle Typen als GLB) durch die Tests, die Cube Escape für
+  echte Exporte hat – Editor-Import (`CubegenCliIntegrationTests`) und Werkbank-Laufzeit
+  (`CubegenRealGenerationTests`), über `verify.sh` in der Testkopie. Bericht `output/unity_check/report.json`.
+  Erster Lauf: 254 Modelle, 0 Fehler, knapp 3 min. Fester Schritt jedes Releases (AGENTS.md › Stufe 2).
+* Ausgabe der Modelle unverändert (Golden-Daten). Paket, CLI und Add-on auf 0.20.0.
+  Bericht: [VERSION_0.20.0.md](VERSION_0.20.0.md).
+
 ## 0.19.1 „Kaleidoscope“ – 2026-10-13
 
 * **GitHub Actions wieder grün:** Der Ubuntu-Runner hat ImageMagick 6 – es schrieb Zeitstempel in die PNGs trotz

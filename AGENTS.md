@@ -42,8 +42,9 @@ sind veröffentlicht, ebenso 0.17.0 „Prism“ (13. Oktober 2026, `VERSION_0.17
 0.18.0 „Chameleon“ (13. Oktober 2026, `VERSION_0.18.0.md`: Anstriche auf allen Typen, eigenes Thema, Anbauten) samt
 Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema) und 0.19.0 „Kaleidoscope“ (13. Oktober 2026,
 `VERSION_0.19.0.md`: set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge) samt
-Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick 6, GitHub Actions grün);
-die nächste Version ist 0.20.0.
+Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick 6, GitHub Actions grün) und
+0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`);
+die nächste Version ist 0.21.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -87,8 +88,10 @@ keine Tags, kein `main`, keine Release-Branches – und können keine echten Exp
   Geometrie, Kollision, Materialien/Texturen, Sidecar/Vertrag oder Add-on ist sie ein Vorab-Stand: Der Bericht endet
   **immer** mit dem ausgefüllten Prompt für den lokalen Test (Vorlage unten) als kopierbarem Codeblock.
 - **Stufe 2 „abgenommen“** (lokal): volle Python-Suite **mit** Blender und ImageMagick (keine übersprungenen Tests),
-  echte Exporte der geänderten Typen, Sichtprüfung (Kontaktbogen, Blender-Plugin), Import und Physik in der
-  Cube-Escape-Testkopie (Skill `ce-cubegen` dort), Vermerk „ungeprüft“ entfernen; danach Release wie oben.
+  echte Exporte der geänderten Typen, Sichtprüfung (Kontaktbogen, Blender-Plugin), **`python3 tools/unity_check.py
+  --require`** (feste Prüfsätze durch den echten Import von Cube Escape, Ergebniszeile in den Versionsbericht), bei
+  neuen Typen oder Gameplay zusätzlich die geänderten Typen und die Physik in der Cube-Escape-Testkopie (Skill
+  `ce-cubegen` dort), Vermerk „ungeprüft“ entfernen; danach Release wie oben.
   Bleibt etwas rot oder ist eine Richtungsfrage offen: anhalten und fragen, nicht releasen.
 
 Vorlage – wörtlich übernehmen, `<…>` durch echte Werte ersetzen („Umfang: nur Abnahme“ für eine Prüfung ohne Release):
@@ -136,6 +139,13 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   einmal kompiliert nach `output/tools`) meldet fast gleiche Varianten (Feature Prints) und Icons, die angeschnitten
   (Pixel am Rand), klein oder außermittig (Saliency) sind. Nur Hinweis: die Werte sind je Gerät verschieden und
   entscheiden nie über ausgegebene Varianten; nie im normalen Lauf.
+- **Unity-Check** (`tools/unity_check.py`, nur lokal mit Cube Escape und Unity): feste Prüfsätze (Bau-Kit-Sets,
+  Zusatzdetails, Gameplay, Anstrich mit Anbauten und Kristallen, eigenes Thema, Kacheln, Schäden, alle Typen als GLB)
+  laufen durch die Tests, die Cube Escape für echte Exporte hat – über dessen `verify.sh` in der Testkopie, nie auf
+  einem Checkout: Editor-Import (`CubegenCliIntegrationTests`) und Laufzeitpfad der Werkbank
+  (`CubegenRealGenerationTests`). Etwa 3 min; `--quick` nur Bau-Kit und Anstrich. Prüfsätze nur bewusst ändern
+  (Ergebnisse bleiben vergleichbar); ein neues Merkmal bekommt seinen Prüfsatz. Ohne Cube-Escape-Checkout meldet es
+  „übersprungen“ (`--require`: Fehler).
 - **GitHub Actions:** Job `blender` installiert die neueste Blender-LTS der Reihe (Matrix `series`) und führt die
   Testmodule aus, die Blender brauchen; die übrigen Jobs überspringen sie.
 

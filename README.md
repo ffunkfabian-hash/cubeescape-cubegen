@@ -110,6 +110,18 @@ seit 0.19.0 auch Boden, Säule und Steg (`floor_tile.dressing`, `pillar.dressing
 tragen die Kristallfarbe des Themas; `crystal_cut=faceted` gibt Fels, Schwebeinsel, Hängekristallen und Modulwand
 facettierte Kristalle.
 
+## Unity-Check
+
+`python3 tools/unity_check.py` schickt feste Prüfsätze durch den echten Import von Cube Escape – Editor-Import (FBX)
+und Laufzeitpfad der Werkbank (GLB aller Typen) – in dessen Testkopie. Etwa 3 Minuten, Bericht unter
+`output/unity_check/report.json`; nur lokal, wo Cube Escape und Unity liegen (`--ce <Pfad>`, sonst
+`~/Claude/Cube Escape`). Teil jedes Releases.
+
+```bash
+python3 tools/unity_check.py --list     # die Prüfsätze
+python3 tools/unity_check.py --quick    # nur Bau-Kit und Anstrich
+```
+
 ## App (macOS)
 
 `Cubegen.app` (SwiftUI + SceneKit, ohne Xcode-Projekt gebaut wie der Robot Viewer des Roboter-Generators) erzeugt

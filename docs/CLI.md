@@ -460,6 +460,9 @@ python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger E
 | `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
 | `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
 
+**Unity-Check:** `python3 tools/unity_check.py` (Cube Escape und Unity nötig) prüft feste Exporte mit dem echten
+Import des Spiels – Editor (FBX) und Werkbank-Laufzeit (GLB); siehe README › „Unity-Check“.
+
 **Neural Engine (macOS):** `python3 tools/vision_report.py <Ausgabeordner>` vergleicht die Vorschauen je Typ per
 Apple Vision und listet fast gleiche Varianten; dazu Icons, in denen das Modell angeschnitten, klein oder außermittig
 ist. Nur ein Hinweis (die Werte unterscheiden sich je Gerät), ganzer Katalog in etwa 10 s.
