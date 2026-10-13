@@ -39,7 +39,8 @@ Branches und Worktrees“). 0.11.0 übernimmt das frühere 0.10.6-Vorhaben und b
 für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026, `VERSION_0.14.1.md`, Plugins und Hooks für
 Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. 0.15.0 „Stoppuhr“ und 0.16.0 „Overdrive“ (12. Oktober 2026, `VERSION_0.15.0.md`, `VERSION_0.16.0.md`, macOS-App)
 sind veröffentlicht, ebenso 0.17.0 „Prism“ (13. Oktober 2026, `VERSION_0.17.0.md`: Anstriche, Variantensets) und
-0.18.0 „Chameleon“ (13. Oktober 2026, `VERSION_0.18.0.md`: Anstriche auf allen Typen, eigenes Thema, Anbauten);
+0.18.0 „Chameleon“ (13. Oktober 2026, `VERSION_0.18.0.md`: Anstriche auf allen Typen, eigenes Thema, Anbauten) samt
+Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema);
 die nächste Version ist 0.19.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
@@ -231,7 +232,9 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
   Albedo/Normal/Roughness/MetallicSmoothness; `Emission` und die neutralen Karten stehen nur im Manifest (ToDo 26/27).
 - **Für alle Typen:** `M_Ground` ist je Thema ein neutraler Grundton (Böden!), Akzente der Modulwand nutzen
   `M_HazardOrange`; Staub, Moos, Schnee mit Rauschflecken, nie flächig. Ein Thema nie nur an Wänden abstimmen –
-  Vergleich über mehrere Typen (`style_test.py --models floor_tile,platform,pillar,…`).
+  Vergleich über mehrere Typen (`style_test.py --models floor_tile,platform,pillar,…`). Der Stiltest färbt
+  Leuchtteile selbst um – Leuchtfarben deshalb immer auch in einem echten `--paint`-Lauf prüfen; Leuchtteile nie fest
+  auf eine Farbe setzen, sondern `a.p.glow()`/`glow_or()` (folgt `--glow` und dem Thema).
 - **Eigenes Thema** (`--paint-file`, `paint.load_scheme`): fehlende Werte kommen vom Grundthema, `check_scheme` prüft
   alles; der Name darf kein eingebautes Thema sein. Im Prozess per `register_scheme`, im Blender-Worker aus dem Auftrag
   (`job["paint_scheme"]`) – nie über eine globale Datei. `paint_names()` liefert nur die eingebauten.

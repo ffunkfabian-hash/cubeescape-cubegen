@@ -283,6 +283,11 @@ class ParamReader:
         rolled = self.rng.choice(list(options))
         return GLOW.get(self.style.glow or "", rolled)
 
+    def glow_or(self, default: str) -> str:
+        """The style's glow (``--glow``, a paint scheme's light colour) without a roll, else ``default``: keeps the
+        random stream - and so every existing variant - unchanged."""
+        return GLOW.get(self.style.glow or "", default)
+
     def styled(self, default: str, options: Sequence[str]) -> str:
         """Material style without a roll: the style's preference if it is one of ``options``, else ``default``."""
         for preferred in MATERIAL_STYLES.get(self.style.material or "", ()):

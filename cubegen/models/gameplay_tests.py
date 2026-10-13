@@ -248,7 +248,7 @@ def test_wall_modules(rng, a):
             slot = rng.uniform(0.45, 0.75) * (z1 - z0)
             cz = rng.uniform(z0 + slot / 2 + 0.15, z1 - slot / 2 - 0.15)
             cube(m, (0.08, 0.04, slot + 0.1), (cx, front - 0.21, cz), "M_RobotDark", bevel=0.01)
-            cube(lights, (0.04, 0.02, slot), (cx, front - 0.235, cz), "M_GlowOrange")
+            cube(lights, (0.04, 0.02, slot), (cx, front - 0.235, cz), a.p.glow_or("M_GlowOrange"))  # paint: theme
             continue
         blocks = rng.choice((2, 3, 3, 4))
         cuts = sorted(rng.uniform(0.2, 0.8) for _ in range(blocks - 1))
