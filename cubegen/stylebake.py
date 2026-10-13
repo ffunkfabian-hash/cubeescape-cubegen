@@ -255,6 +255,28 @@ def compose_paint(maps, name, paint, out_dir, seed, prefix=""):
     }
 
 
+def _crystal_material(paint):
+    """The game's ``M_Crystal`` in the scheme's ``crystal_color`` (previews, icons, the .blend; ``None``: the game's
+    colour again). Exported under the same name - Unity resolves crystal parts by material name and reads the colour
+    from the manifest."""
+    from cubegen.materials import MATERIALS
+    from cubegen.paint import PAINTS, hex_rgb, srgb_to_linear
+
+    base = bpy.data.materials.get("M_Crystal")
+    if base is None:
+        return None
+    srgb = hex_rgb(PAINTS[paint]["crystal_color"]) if paint else MATERIALS["M_Crystal"][0]  # sRGB like bpy_builder
+    rgb = tuple(srgb_to_linear(c) for c in srgb) + (1.0,)
+    if base.use_nodes:
+        for node in base.node_tree.nodes:
+            if node.type == "BSDF_PRINCIPLED":
+                node.inputs["Base Color"].default_value = rgb
+                if "Emission Color" in node.inputs:
+                    node.inputs["Emission Color"].default_value = rgb
+    base.diffuse_color = rgb
+    return base
+
+
 def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=16, device="cpu"):
     """``--paint``: bake the neutral maps once, compose ``paint`` and give the model one material on the atlas (the
     atlas becomes UV0, like ``--textures baked``). Returns ``bake.bake_asset``'s shape - ``{"material", "maps",
@@ -281,9 +303,12 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
     bsdf = nodes.get("Principled BSDF")
     links.new(emission.outputs["Color"], bsdf.inputs["Emission Color"])
     bsdf.inputs["Emission Strength"].default_value = 3.0
+    crystal = _crystal_material(paint)
     for o in bk._mesh_objects(collection):
         for slot in o.material_slots:
-            if slot.material and slot.material.name not in bk.KEEP:
+            if slot.material and slot.material.name == "M_Crystal" and crystal is not None:
+                slot.material = crystal  # the scheme's crystal colour (Unity maps the name, manifest crystal_color)
+            elif slot.material and slot.material.name not in bk.KEEP:
                 slot.material = material
         tiled = o.data.uv_layers.get("UVMap")  # the atlas becomes the only UV map -> UV0 in Unity
         if tiled is not None:

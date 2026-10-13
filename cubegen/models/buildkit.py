@@ -12,6 +12,7 @@ import math
 from ..geometry import prism
 from ..params import Param
 from .common import cube, cyl, frustum, stripes
+from .details import passage, slab_underside
 from .kit import YZ_TO_X, slope_colliders
 from .registry import model
 
@@ -38,7 +39,7 @@ def _module(p, rng, name="length"):
            Param("rails", "choice", "Geländer", choices=("none", "left", "both")),
            Param("glow_edges", "bool", "Glow-Kanten"),
            Param("stripes", "bool", "Warnstreifen unten"),
-       ])
+       ], set_faces=("x-", "x+", "y-", "y+", "z-", "z+"), set_pins=("curbs", "rails"))
 def ramp(rng, a):
     p = a.p
     w = p.float("width", 1.0, 2.0)
@@ -109,7 +110,7 @@ def ramp(rng, a):
            Param("style", "choice", "Art", choices=("beams", "coffered", "skylight", "vent", "roof")),
            Param("mount_height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0),
            Param("thickness", "float", "Stärke (m)", lo=0.1, hi=0.5),
-       ])
+       ], set_faces=("x-", "x+", "y-", "y+"))  # slabs join on four sides; beams below, roof above vary
 def ceiling_module(rng, a):
     p = a.p
     size = _module(p, rng, "size")
@@ -149,8 +150,8 @@ def ceiling_module(rng, a):
                 x, y = -size / 2 + cell * (i + 0.5), -size / 2 + cell * (j + 0.5)
                 cube(body, (cell * 0.8, cell * 0.8, 0.05), (x, y, h - 0.025), "M_RobotDark")
                 cube(lights, (cell * 0.5, cell * 0.5, 0.02), (x, y, h - 0.06), glow)
-        for k in range(n + 1):  # ribs between the coffers
-            c = -size / 2 + cell * k
+        for k in range(n + 1):  # ribs between the coffers; the outer ones flush with the edge (no overlap with the
+            c = min(max(-size / 2 + cell * k, -size / 2 + 0.04), size / 2 - 0.04)  # neighbour slab's rib)
             cube(body, (0.08, size, 0.12), (c, 0, h - 0.06), mat)
             cube(body, (size, 0.08, 0.12), (0, c, h - 0.06), mat)
     if style == "vent":
@@ -167,10 +168,15 @@ def ceiling_module(rng, a):
         body.add(prism([(-size / 2, 0.0), (size / 2, 0.0), (0.0, ridge)], size, p.material(["M_Wall", "M_RobotDark",
                                                                                               "M_Metal"])),
                  loc=(0, 0, h + t), basis=YZ_TO_X)
-        cube(body, (size + 0.1, 0.12, 0.1), (0, 0, h + t + ridge + 0.02), "M_RobotDark")
+        # ridge cap 5 mm short of each gable: neighbouring roofs join without overlap or a shared plane
+        cube(body, (size - 0.01, 0.12, 0.1), (0, 0, h + t + ridge + 0.02), "M_RobotDark")
         a.meta["ridge_m"] = round(ridge, 3)
         for d in (1, -1):  # both roof halves climb towards the ridge
             slope_colliders(a, size, size / 2, ridge, center_y=-d * size / 4, base_z=h + t, direction=d, layer=0.2)
+    if style != "vent":  # variety details (own stream) under the slab - the vent's box already hangs there
+        lit = a.get("Glow")  # the lamps take the coffers' light colour: a Glow part has one material
+        slab_underside(a, body, size, h, lambda: a.part("Glow"),
+                       lit.mesh.roles[0] if lit is not None and lit.mesh.roles else p.glow_or("M_GlowCyan"))
     a.collider((size, size, t), (0, 0, zc))
 
 
@@ -273,6 +279,7 @@ def archway(rng, a):
         zs = curve[0][1]
         for s in (-1, 1):
             cube(lights, (0.03, t * 0.6, zs - 0.6), (s * (w / 2 + 0.015), 0, 0.3 + (zs - 0.6) / 2), glow)
+    passage(a, m, t, w, oh, h, post, length, "A")  # variety details (own stream): sign, lamps, conduit, stripes
 
 
 # --------------------------------------------------------------------------
@@ -285,15 +292,17 @@ def archway(rng, a):
            Param("thickness", "float", "Wandstärke (m)", lo=0.2, hi=1.0, default=0.5),
            Param("height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0),
            Param("style", "choice", "Art", choices=("flat", "bevel", "rail", "glow")),
-       ])
+           Param("overhang", "float", "Überstand (m)", lo=0.0, hi=0.2),
+           Param("cap_height", "float", "Abdeckung Höhe (m)", lo=0.04, hi=0.3),
+       ], set_faces=("x-", "x+", "y-", "y+", "z-", "z+"), set_pins=("style", "overhang", "cap_height"))
 def wall_cap(rng, a):
     p = a.p
     length = _module(p, rng)
     t = p.value("thickness", 0.5)
     h = p.value("height", 3.0)
     style = p.choice("style", ["flat", "bevel", "rail", "glow"])
-    over = rng.uniform(0.03, 0.08)
-    ct = rng.uniform(0.08, 0.15)
+    over = p.value("overhang", rng.uniform(0.03, 0.08))
+    ct = p.value("cap_height", rng.uniform(0.08, 0.15))
     m = a.part("Body")
     mat = p.material(["M_RobotDark", "M_Metal", "M_Wall"])
     a.meta.update({"length_m": length, "style": style})

@@ -14,6 +14,7 @@ import math
 from ..geometry import prism, torus
 from ..params import Param
 from .common import ALONG_X, ALONG_Y, cube, cyl, deg, gear, item_pickup, pickup_params, rotated, strut, valve_wheel
+from .details import tool_grip
 from .registry import model
 
 
@@ -78,6 +79,7 @@ def tool(rng, a):
         cyl(body, r * 0.25, length - hl, (-length / 2 + hl + (length - hl) / 2, 0, 0), "M_Metal", sides=6,
             rot=ALONG_X)
         cube(body, (length * 0.05, r * 0.2, r * 0.6), (length / 2 - length * 0.02, 0, 0), "M_Metal")
+    tool_grip(a, body, kind, length)  # variety details (own stream): grip bands, a pliers spring
     _pickup(a)
 
 

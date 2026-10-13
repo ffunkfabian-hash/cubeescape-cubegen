@@ -20,6 +20,7 @@ import math
 from ..geometry import pipe_section, sphere
 from ..params import Param
 from .common import ALONG_X, ALONG_Y, cube, cyl, deg, stripes, strut, valve_wheel
+from .details import pole_tower
 from .lettering import add_text, text_width
 from .registry import model
 
@@ -671,6 +672,7 @@ def warning_beacon(rng, a):
         cyl(body, r * 1.08, 0.015, (0, 0, z + 0.0075), "M_RobotDark", sides=10)
         z += 0.015
     cyl(body, r * 0.9, 0.04, (0, 0, z + 0.02), "M_RobotDark", sides=10, radius_top=r * 0.5)
+    pole_tower(a, body, r, z0 + 0.05, z, 0.035 if mount == "pole" else 0.06, mount)  # variety details (own stream)
     if horn:
         cyl(body, 0.045, 0.12, (r + 0.04, 0, z0 + 0.1), "M_RobotDark", sides=8, radius_top=0.09,
             rot=(0, math.pi / 2, 0))

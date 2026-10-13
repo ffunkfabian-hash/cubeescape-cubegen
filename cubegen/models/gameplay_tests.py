@@ -21,7 +21,8 @@ from ..params import Param
 from .common import deg
 from .lettering import add_text
 from .alien import _wiggle
-from .nature import _boulder, _crystal
+from .dressing import on_floor
+from .nature import _boulder, _crystal, crystal_cut_param, crystal_cutter
 from .nature import _jitter as _nature_jitter
 from .registry import model
 
@@ -208,7 +209,8 @@ def test_thermal_switch(rng, a):
        params=[Param("crystals", "choice", "Kristalle", choices=("none", "some", "many"), default="none"),
                Param("dressing", "choice", "Ausstattung", choices=("none", "ruin", "organic"), default="none",
                      description="ruin: freiliegende Rohre, lose Platte, Schutt; organic: Steinplatten, Ranken, "
-                                 "Steine und Büsche am Fuß (Geometrie zu den Anstrichen Ruin / Organic)")])
+                                 "Steine und Büsche am Fuß (Geometrie zu den Anstrichen Ruin / Organic)"),
+               crystal_cut_param("faceted")])
 def test_wall_modules(rng, a):
     """Style test 0.17.0. A *set*: every variant has the same outline and joins its neighbours seamlessly (no random
     scale, stripe period divides the length); what changes is the inside, so a row of them never repeats."""
@@ -295,24 +297,25 @@ def test_wall_modules(rng, a):
     crystals_option = a.p.option("crystals")
     count = {"none": 0, "some": rng.choice((0, 0, 1)), "many": rng.choice((1, 1, 2))}[crystals_option]
     if count:
-        crystals = a.part("Crystals")
+        crystals, cut = a.part("Crystals"), crystal_cutter(a)
         for c in range(count):
             _, cx, width = stacks[c % len(stacks)] if c == 0 else rng.choice(stacks)
             sx = cx + rng.uniform(-0.2, 0.2) * width
             cube(m, (0.6, 0.45, 0.3), (sx, front - 0.42, 0.15), "M_RobotDark", bevel=0.04)          # socket
             cube(m, (0.5, 0.35, 0.06), (sx, front - 0.42, 0.33), "M_Metal", bevel=0.02)
             _crystal(crystals, (sx, front - 0.42, 0.33), rng.uniform(1.0, 2.0), rng.uniform(0.12, 0.17),
-                     (0.0, deg(rng.uniform(-8, 8)), 0.0))
+                     (0.0, deg(rng.uniform(-8, 8)), 0.0), cut=cut)
             for k in range(rng.randint(2, 5)):
                 foot = (sx + rng.uniform(-0.2, 0.2), front - 0.42 + rng.uniform(-0.1, 0.1), 0.33)
                 tilt = (deg(rng.uniform(-30, 10)), deg(rng.uniform(-35, 35)), 0.0)
-                _crystal(crystals, foot, rng.uniform(0.3, 0.8), rng.uniform(0.05, 0.09), tilt, sides=rng.choice((5, 6)))
+                _crystal(crystals, foot, rng.uniform(0.3, 0.8), rng.uniform(0.05, 0.09), tilt, sides=rng.choice((5, 6)),
+                         cut=cut)
         if crystals_option == "many":                     # crystals breaking out of a stack
             _, cx, width = rng.choice(stacks)
             for k in range(rng.randint(1, 3)):
                 foot = (cx + rng.uniform(-0.3, 0.3) * width, front - 0.25, rng.uniform(1.0, 2.4))
                 _crystal(crystals, foot, rng.uniform(0.3, 0.6), rng.uniform(0.05, 0.09),
-                         (deg(rng.uniform(55, 80)), deg(rng.uniform(-25, 25)), 0.0), sides=6)
+                         (deg(rng.uniform(55, 80)), deg(rng.uniform(-25, 25)), 0.0), sides=6, cut=cut)
     if dressing == "ruin":
         _ruin_dressing(rng, m, length, front, z0, z1)
     elif dressing == "organic":
@@ -322,12 +325,7 @@ def test_wall_modules(rng, a):
                    "layout": layout, "set_length_m": length})
 
 
-def _on_floor(mesh, part):
-    """Flatten what a tilted piece pushes below the floor: the model's foot must stay at z = 0 (a set piece that sank
-    would be lifted as a whole and no longer join its neighbours)."""
-    for vi in part.vertex_indices():
-        x, y, z = mesh.verts[vi]
-        mesh.verts[vi] = (x, y, max(z, 0.0))
+_on_floor = on_floor  # the shared dressing helper (models/dressing.py); the wall's dressing keeps its own rolls
 
 
 def _ruin_dressing(rng, m, length, front, z0, z1):

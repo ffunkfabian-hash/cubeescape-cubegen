@@ -40,8 +40,9 @@ für Blender-Batch-Läufe) ist veröffentlicht, ebenso 0.14.1 (12. Oktober 2026,
 Claude Code). 0.14.2 (12. Oktober 2026, `VERSION_0.14.2.md`, Neural Engine geprüft) ist veröffentlicht. 0.15.0 „Stoppuhr“ und 0.16.0 „Overdrive“ (12. Oktober 2026, `VERSION_0.15.0.md`, `VERSION_0.16.0.md`, macOS-App)
 sind veröffentlicht, ebenso 0.17.0 „Prism“ (13. Oktober 2026, `VERSION_0.17.0.md`: Anstriche, Variantensets) und
 0.18.0 „Chameleon“ (13. Oktober 2026, `VERSION_0.18.0.md`: Anstriche auf allen Typen, eigenes Thema, Anbauten) samt
-Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema);
-die nächste Version ist 0.19.0.
+Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema) und 0.19.0 „Kaleidoscope“ (13. Oktober 2026,
+`VERSION_0.19.0.md`: set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge);
+die nächste Version ist 0.20.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -96,6 +97,15 @@ Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Pu
 Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, Ergebnis), Merge-, Tag- und PR-Stand mit Links, was offen ist.
 ```
 
+## Abwechslung: Details aus eigenem Zufallsstrom
+
+`cubegen check` zeigt je Typ, wie viele von 10 Varianten unterscheidbar sind (`variety.signature`: Objekte,
+Materialien, Dreiecke, Hüllquader – Änderungen innen sieht es nicht). Zu wenig Abwechslung → kleine Details aus
+`cubegen/models/details.py` (Schraubenkranz, Kennschild mit Code, Kabelkanal, Warnwinkel, Stromkasten, Käfig,
+Kabeltrasse …), je Variante ein bis zwei aus `a.sub("variety")` – nie aus dem `rng` des Builders. Details bleiben
+klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse) und innerhalb von `set_faces`; ein
+`Glow`-Teil behält ein Material. Die Signatur selbst nicht ändern: `--unique` würde andere Varianten wählen.
+
 ## Werkzeuge: ImageMagick und Blender-Plugin
 
 - **ImageMagick** (`magick`, Version 7; `python3 -m cubegen doctor` zeigt, ob es gefunden wird) erzeugt die Texturen
@@ -110,6 +120,12 @@ Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, 
   (Maße, Pivot, Vorderseite, Teil-/Materialnamen, Öffnungen für die Kollision), Texturen am Modell ansehen, Ansichten
   rendern. Immer in einer eigenen Szene, nichts speichern – die Quelle bleibt der Generator. Ohne laufendes Blender
   (Cloud, Batch) fehlt das Plugin; dann gilt nur der Batch-Export.
+- **Neural Engine (nur macOS):** `tools/vision_report.py <Ausgabeordner>` – Apple Vision (`tools/vision_check.swift`,
+  einmal kompiliert nach `output/tools`) meldet fast gleiche Varianten (Feature Prints) und Icons, die angeschnitten
+  (Pixel am Rand), klein oder außermittig (Saliency) sind. Nur Hinweis: die Werte sind je Gerät verschieden und
+  entscheiden nie über ausgegebene Varianten; nie im normalen Lauf.
+- **GitHub Actions:** Job `blender` installiert die neueste Blender-LTS der Reihe (Matrix `series`) und führt die
+  Testmodule aus, die Blender brauchen; die übrigen Jobs überspringen sie.
 
 ## Plugins und Hooks (Claude Code)
 
@@ -209,9 +225,14 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 
 - **Umriss nur über Parameter:** Alles, was den Anschluss bestimmt (Länge, Höhe, Breite, Tiefe, Radius), ist ein
   Parameter (`Param(size=True)` oder ein Name aus `OUTLINE_PARAMS`), nie ein im Builder gewürfelter Wert und keine
-  Zufallsskalierung (`_mark` skaliert die übrigen Prototypen – Set-Teile nicht). `--set` hält diese Parameter fest
-  und prüft danach die Hüllquader (links/rechts, unten/oben, Rückseite; nach vorne darf es abweichen):
-  `outline_ok = false` heißt, der Typ ist (noch) nicht set-fähig.
+  Zufallsskalierung (`_mark` skaliert die übrigen Prototypen – Set-Teile nicht). Ein schon gewürfeltes Maß wird
+  Parameter mit `p.value("name", <derselbe Wurf>)` – der Zufallsstrom bleibt, jede bestehende Variante auch.
+  `--set` hält diese Parameter fest und prüft danach die Hüllquader-Seiten, an denen Nachbarn anschließen:
+  `set_faces` am Typ (`@model(..., set_faces=...)`; Standard Wand: links/rechts, unten/oben, Rückseite – Boden: vier
+  Seiten und unten, Details dürfen oben stehen; Decke: vier Seiten und oben; Ecke: rechts, hinten, unten, oben).
+  Formwahlen, die ein anderes Teil ergeben (Art einer Ecke, Treppe oder Rampe, Geländer), hält `set_pins` fest.
+  `outline_ok = false` heißt, der Typ ist (noch) nicht set-fähig. Set-fähig seit 0.19.0: das ganze Bau-Kit (Wand,
+  Boden, Decke, Deckenplatte, Steg, Geländer, Säule, Kiste, Treppe, Plattform, Rampe, Wandabschluss, Ecke).
 - **Anschlüsse durchlaufen lassen:** Sockel, Deckel und Kern an der vollen Länge; Muster mit einer Periode, die die
   Länge teilt (Warnstreifen 0,2 m bei 2 m), damit sie über den Stoß weiterlaufen.
 - **Innen variieren** (`rng`, also reproduzierbar je Seed): Aufteilung (Spalten/Blöcke), Akzente, Lüftung, Anbauteile
@@ -238,8 +259,13 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Eigenes Thema** (`--paint-file`, `paint.load_scheme`): fehlende Werte kommen vom Grundthema, `check_scheme` prüft
   alles; der Name darf kein eingebautes Thema sein. Im Prozess per `register_scheme`, im Blender-Worker aus dem Auftrag
   (`job["paint_scheme"]`) – nie über eine globale Datei. `paint_names()` liefert nur die eingebauten.
-- **Anbauten je Thema** (`test_wall_modules.dressing`): Geometrie, die ein Anstrich nicht liefern kann. Nichts darf
-  unter den Boden reichen (`_on_floor`), sonst verschiebt der Pivot das ganze Teil und der Set-Stoß bricht.
+- **Anbauten je Thema** (Parameter `dressing = none | ruin | organic`, `cubegen/models/dressing.py`; Modulwand,
+  Boden, Säule, Steg): Geometrie, die ein Anstrich nicht liefern kann. Eigener Zufallsstrom (`a.sub("dressing")`),
+  `quiet` (bei `none` nicht im Sidecar), nie gewürfelt, keine Kollision (klein, versperrt keinen Weg). Nichts darf
+  unter den Boden reichen (`on_floor`), sonst verschiebt der Pivot das ganze Teil und der Set-Stoß bricht; Teile
+  werden mit ihrer Reichweite eingegrenzt (`_inside`), nicht nur ihr Mittelpunkt.
+- **Kristalle:** `crystal_color` je Thema (Manifest `paint`, Vorschau/Icon in der Farbe; Unity: ToDo 28);
+  `crystal_cut = faceted` (Fels, Schwebeinsel, Hängekristalle, Modulwand) aus eigenem Zufallsstrom.
 - **Prüfen:** `tools/style_test.py --paints all --concept <Konzeptbogen>` (Vergleich mit dem Konzept) und der echte
   Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests` mit `CUBEGEN_TEST_EXPORTS`).
 
@@ -259,6 +285,11 @@ ad-hoc signiert; Kommandozeilen-Modi statt UI-Automation für die Tests.
   linearen Farben – beides ergab ein weißes Modell. Farben sind linear (wie Unity), die App rechnet nach sRGB um.
 - **Gespeicherte Einstellungen** (`GenerateSettings`) lesen fehlende Schlüssel mit Standardwerten; Testmodi
   (`--run`, `--ui-snapshot`) lesen und schreiben sie nie.
+- **Eigenes Thema mit Farbwählern** (`PaintEditor.swift`): Vorlagen und Schlüssel aus dem Katalog
+  (`paint_schemes`, `paint_fields`), gespeichert als Datei für `--paint-file`; „Vorschau“ ist ein echter kleiner Lauf
+  (vier Teile, 256 px). Testmodi `--paint-roundtrip`, `--paint-preview`, `--ui-snapshot --paint-editor`.
+- **Weitergabe:** `app/notarize.sh` signiert mit einer Developer ID und notarisiert – nur der Nutzer führt es aus
+  (Zertifikat „Developer ID Application“ und `notarytool`-Profil im Schlüsselbund; nie Zugangsdaten im Skript).
 - **Prüfen:** `app/build.sh` und `app/test_app.sh` nach jeder Änderung an `app/` oder an CLI-Optionen, die die App
   anbietet; Sichtprüfung über `--ui-snapshot` (Fenster offscreen; die SceneKit-Fläche bleibt dort leer) und
   `--snapshot` (3D-Ansicht).

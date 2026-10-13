@@ -42,6 +42,9 @@ icon action_folder -draw "polyline 64,128 208,128 248,176 448,176 448,400 64,400
 icon action_generate -fill "$W" -draw "polygon 168,104 416,256 168,408"
 icon action_validate -draw "polyline 96,272 208,384 416,136"
 icon action_stop -fill "$W" -draw "roundrectangle 136,136 376,376 24,24"
+# own paint scheme: a brush with a drop of paint
+icon action_paint -draw "line 392,96 232,256" -draw "polygon 232,256 280,304 200,400 136,400 136,336" \
+  -fill "$W" -draw "circle 376,392 376,352"
 icon action_random -draw "roundrectangle 96,96 416,416 56,56" -fill "$W" -draw "circle 184,184 184,160" \
   -draw "circle 256,256 256,232" -draw "circle 328,328 328,304"
 # model categories of the catalog

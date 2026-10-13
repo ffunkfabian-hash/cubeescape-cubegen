@@ -41,6 +41,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "orange", "edge_light": 0.2, "wear": 0.75, "wear_color": "#d5d9df", "grime": 0.55,
         "grime_color": "#1a1712", "rising_grime": 0.5, "dust": 0.25, "dust_color": "#6f6553", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.62, "metal": 1.0,
+        "crystal_color": "#ffb347",
     },
     # white lab panels, light grey frames, blue light: clean, glossy, hardly worn
     "clean": {
@@ -51,6 +52,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.15, "wear": 0.08, "wear_color": "#ffffff", "grime": 0.18,
         "grime_color": "#4a5260", "rising_grime": 0.1, "dust": 0.0, "dust_color": "#000000", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.32, "metal": 0.3,
+        "crystal_color": "#7fdcff",
     },
     # worn brown and rust, chipped to bare metal, rust in the crevices
     "ruin": {
@@ -61,6 +63,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "orange", "edge_light": 0.1, "wear": 0.9, "wear_color": "#a8a39a", "grime": 0.7,
         "grime_color": "#5a2e14", "rising_grime": 0.65, "dust": 0.35, "dust_color": "#7a6a52", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.85, "metal": 0.6,
+        "crystal_color": "#e0a040",
     },
     # cold slate and steel blue, little wear, edges glowing faintly in the crystal light
     "crystal": {
@@ -71,6 +74,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.1, "wear": 0.25, "wear_color": "#9fd8ff", "grime": 0.3,
         "grime_color": "#0b1018", "rising_grime": 0.15, "dust": 0.0, "dust_color": "#000000", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.35, "edge_glow_color": "#4fc3ff", "roughness": 0.4, "metal": 1.0,
+        "crystal_color": "#5ad2ff",
     },
     # near black, red light, a red seam glowing along the edges - secret / danger
     "dark": {
@@ -81,6 +85,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "red", "edge_light": 0.08, "wear": 0.2, "wear_color": "#5a5a66", "grime": 0.4,
         "grime_color": "#050507", "rising_grime": 0.3, "dust": 0.0, "dust_color": "#000000", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.06, "edge_glow_color": "#ff2a35", "roughness": 0.5, "metal": 0.8,
+        "crystal_color": "#ff3040",
     },
     # mossy stone grey, overgrown from the top and from the floor, damp and dirty
     "organic": {
@@ -91,6 +96,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.1, "wear": 0.35, "wear_color": "#8c9088", "grime": 0.6,
         "grime_color": "#1d2414", "rising_grime": 0.5, "dust": 0.0, "dust_color": "#000000", "moss": 1.0,
         "moss_color": "#4f7a25", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.8, "metal": 0.3,
+        "crystal_color": "#7dffb0",
     },
     # concept sheets II/III (07 Sand, 08 Space, Ice, Toxic, Void): sandstone, dust everywhere, sand rising from the floor
     "sand": {
@@ -101,6 +107,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "orange", "edge_light": 0.25, "wear": 0.7, "wear_color": "#e8d8b8", "grime": 0.35,
         "grime_color": "#6a4a28", "rising_grime": 0.0, "dust": 0.7, "dust_color": "#e0c48e", "moss": 0.6,
         "moss_color": "#d8b880", "edge_glow": 0.0, "edge_glow_color": "#000000", "roughness": 0.9, "metal": 0.2,
+        "crystal_color": "#ffcf6a",
     },
     # dark navy-grey hull plating, orange trims, blue light: clean and glossy
     "space": {
@@ -111,6 +118,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.18, "wear": 0.2, "wear_color": "#c8d0dc", "grime": 0.25,
         "grime_color": "#0a0d14", "rising_grime": 0.1, "dust": 0.0, "dust_color": "#000000", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.04, "edge_glow_color": "#4fc3ff", "roughness": 0.35, "metal": 1.0,
+        "crystal_color": "#6ae0ff",
     },
     # pale ice blue and white, snow on top surfaces, faint frost at the edges
     "ice": {
@@ -121,6 +129,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.3, "wear": 0.15, "wear_color": "#ffffff", "grime": 0.2,
         "grime_color": "#3a5a72", "rising_grime": 0.0, "dust": 0.8, "dust_color": "#f4f8fc", "moss": 0.5,
         "moss_color": "#eef6fc", "edge_glow": 0.1, "edge_glow_color": "#bfe8ff", "roughness": 0.25, "metal": 0.3,
+        "crystal_color": "#c8f4ff",
     },
     # dark grey, poison green slime rising from the floor, green glowing seams
     "toxic": {
@@ -131,6 +140,7 @@ PAINTS: Dict[str, Dict] = {
         "glow": "orange", "edge_light": 0.08, "wear": 0.4, "wear_color": "#8a9280", "grime": 0.6,
         "grime_color": "#1a2a08", "rising_grime": 0.6, "dust": 0.0, "dust_color": "#000000", "moss": 0.35,
         "moss_color": "#2f6a18", "edge_glow": 0.12, "edge_glow_color": "#5cff3a", "roughness": 0.55, "metal": 0.6,
+        "crystal_color": "#8cff3a",
     },
     # black violet, violet light in the seams - a place outside the station
     "void": {
@@ -141,17 +151,19 @@ PAINTS: Dict[str, Dict] = {
         "glow": "cyan", "edge_light": 0.06, "wear": 0.15, "wear_color": "#5a4a70", "grime": 0.35,
         "grime_color": "#050308", "rising_grime": 0.3, "dust": 0.0, "dust_color": "#000000", "moss": 0.0,
         "moss_color": "#000000", "edge_glow": 0.1, "edge_glow_color": "#a35cff", "roughness": 0.45, "metal": 0.8,
+        "crystal_color": "#b070ff",
     },
 }
 
 SCHEME_KEYS = ("label", "colors", "glow", "edge_light", "wear", "wear_color", "grime", "grime_color", "rising_grime",
-               "dust", "dust_color", "moss", "moss_color", "edge_glow", "edge_glow_color", "roughness", "metal")
+               "dust", "dust_color", "moss", "moss_color", "edge_glow", "edge_glow_color", "roughness", "metal",
+               "crystal_color")  # crystal_color (0.19.0): colour of M_Crystal parts (manifest, Unity ToDo 28)
 
 
 BUILTIN_PAINTS = tuple(PAINTS)
 GLOW_COLORS = ("cyan", "red", "orange")  # the --glow colours of the glow parts
 AMOUNT_KEYS = ("edge_light", "wear", "grime", "rising_grime", "dust", "moss", "edge_glow", "roughness", "metal")
-COLOR_KEYS = ("wear_color", "grime_color", "dust_color", "moss_color", "edge_glow_color")
+COLOR_KEYS = ("wear_color", "grime_color", "dust_color", "moss_color", "edge_glow_color", "crystal_color")
 
 
 def _check_hex(value, where):

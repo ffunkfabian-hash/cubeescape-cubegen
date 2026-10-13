@@ -24,6 +24,12 @@ final class AppModel: ObservableObject {
     @Published var showFloor = true { didSet { scene.showFloor = showFloor } }
     @Published var showLog = true
     @Published var exitCode: Int32?   // of the last run
+    // own paint scheme (PaintEditor): the values, the preview of a quick run and its state
+    @Published var ownPaint = OwnPaint()
+    @Published var editingPaint = false
+    @Published var paintPreview: NSImage?
+    @Published var paintPreviewRunning = false
+    @Published var paintStatus = ""
 
     private var process: Process?
     private var reportPath: String?
@@ -277,6 +283,78 @@ final class AppModel: ObservableObject {
         let p = NSOpenPanel()
         p.allowedContentTypes = [.json]
         if p.runModal() == .OK, let url = p.url { settings.paintFile = url.path }
+    }
+
+    // MARK: - own paint scheme
+
+    /// The editor starts from the chosen scheme file, else from the chosen built-in scheme (else Industrial).
+    func openPaintEditor() {
+        let file = (settings.paintFile as NSString).expandingTildeInPath
+        if !file.isEmpty, let loaded = try? OwnPaint.load(URL(fileURLWithPath: file), catalog: catalog) {
+            ownPaint = loaded
+        } else {
+            ownPaint = OwnPaint()
+            ownPaint.reset(to: settings.paint.isEmpty ? "industrial" : settings.paint, catalog: catalog)
+        }
+        paintPreview = nil
+        paintStatus = ""
+        editingPaint = true
+    }
+
+    /// A quick real run in the scheme (four set pieces, 256 px atlas): the contact sheet is the preview.
+    func previewPaint() {
+        guard !paintPreviewRunning else { return }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cubegen-paint-preview")
+        try? FileManager.default.removeItem(at: dir)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("\(ownPaint.name).json")
+        do {
+            try ownPaint.json().write(to: file)
+        } catch {
+            paintStatus = error.localizedDescription
+            return
+        }
+        let out = dir.appendingPathComponent("out")
+        let args = ["generate", "--seed", "3", "--types", "test_wall_modules,floor_tile,pillar,crate", "--count", "1",
+                    "--paint-file", file.path, "--texture-size", "256", "--no-blend", "--out", out.path]
+        paintPreviewRunning = true
+        paintStatus = "Backe und setze zusammen …"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result { try Generator.runToEnd(args) }
+            DispatchQueue.main.async {
+                self.paintPreviewRunning = false
+                switch result {
+                case .success(let r) where r.code == 0:
+                    let sheet = out.appendingPathComponent("contact_sheet.png")
+                    self.paintPreview = NSImage(contentsOf: sheet)
+                    self.paintStatus = self.paintPreview == nil ? "Keine Vorschau entstanden (Blender?)" : ""
+                case .success(let r):
+                    self.paintStatus = r.err.split(separator: "\n").last.map(String.init) ?? "Fehler \(r.code)"
+                case .failure(let e):
+                    self.paintStatus = e.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Saves the scheme as JSON and uses it (``settings.paintFile``).
+    func savePaint() {
+        let p = NSSavePanel()
+        p.allowedContentTypes = [.json]
+        p.nameFieldStringValue = "\(ownPaint.name).json"
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        if let folder = docs?.appendingPathComponent("Cubegen/paints") {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            p.directoryURL = folder
+        }
+        guard p.runModal() == .OK, let url = p.url else { return }
+        do {
+            try ownPaint.json().write(to: url)
+            settings.paintFile = url.path
+            editingPaint = false
+        } catch {
+            paintStatus = error.localizedDescription
+        }
     }
 
     func revealOutput() {

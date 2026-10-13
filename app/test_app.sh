@@ -72,10 +72,32 @@ from cubegen.cli import catalog_data
 res = sys.argv[1]
 categories = {t["category"] for t in catalog_data()["types"].values()}
 names = [f"category_{c}" for c in categories] + ["view_iso", "view_front", "view_side", "view_top", "action_generate",
-                                                 "action_validate", "action_stop", "action_folder", "cube"]
+                                                 "action_validate", "action_stop", "action_folder", "action_paint",
+                                                 "cube"]
 missing = [n for n in names if not os.path.isfile(os.path.join(res, n + ".png"))]
 assert not missing, missing
 PY
+
+# own paint scheme (0.19.0, PaintEditor): what the editor reads and saves is the scheme cubegen loads - every built-in
+# scheme and the example file unchanged after a round trip
+# amounts of exactly 0 and 1 (JSON numbers that Swift also bridges to Bool) must survive against a base that differs
+printf '{"name":"zero_one","base":"crystal","edge_glow":0,"metal":0,"wear":1}' > "$TMP/zero_one.json"
+for source in industrial crystal void "$ROOT/paints/custom_example.json" "$TMP/zero_one.json"; do
+  "$BIN" --paint-roundtrip "$source" "$TMP/rt.json" > /dev/null 2>&1 &&
+    PYTHONPATH="$RES/python" python3 - "$TMP/rt.json" "$source" <<'PY' || { bad "paint editor round trip: $source"; continue; }
+import sys
+from cubegen.paint import PAINTS, load_scheme
+_, got = load_scheme(sys.argv[1])
+src = sys.argv[2]
+want = load_scheme(src)[1] if src.endswith(".json") else PAINTS[src]
+diff = [k for k in want if k != "label" and got[k] != want[k]]
+assert not diff, diff
+PY
+  ok "paint editor round trip: $(basename "$source")"
+done
+"$BIN" --ui-snapshot "$TMP/paint_editor.png" --paint-editor "$ROOT/paints/custom_example.json" > /dev/null 2>&1 &&
+  [ "$(magick identify -format '%wx%h' "$TMP/paint_editor.png")" = "1920x1320" ] \
+  && ok "paint editor drawn offscreen (scheme file loaded)" || bad "paint editor drawn offscreen"
 
 # a whole run through the app's process runner: with Blender (FBX + OBJ, preview, icon) when it is installed
 printf '{"types":["crate","door"],"seed":"5","count":1,"output":"%s","unique":false}' "$TMP/run" > "$TMP/run.json"
@@ -90,6 +112,9 @@ if [ -x /Applications/Blender.app/Contents/MacOS/Blender ] || command -v blender
     python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) > 0.35 else 1)" \
       "$(magick "$TMP/door.png" -colorspace HSL -channel G -separate +channel -format '%[fx:maxima]' info:)" &&
     ok "3D view shows material colours of a Blender OBJ" || bad "3D view shows material colours of a Blender OBJ"
+  "$BIN" --paint-preview "$ROOT/paints/custom_example.json" "$TMP/paint_preview.png" > /dev/null 2>&1 &&
+    [ -s "$TMP/paint_preview.png" ] && ok "paint editor preview: a real run in the own scheme (contact sheet)" ||
+    bad "paint editor preview"
 else
   echo "SKIP run through the app with Blender (not installed)"
 fi

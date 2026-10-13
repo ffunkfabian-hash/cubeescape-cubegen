@@ -18,8 +18,8 @@
   "z_fighting_variants": 0
  },
  "archway": {
-  "draw_calls": 4,
-  "triangles": 464,
+  "draw_calls": 6,
+  "triangles": 616,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -126,8 +126,8 @@
   "z_fighting_variants": 0
  },
  "camera": {
-  "draw_calls": 7,
-  "triangles": 196,
+  "draw_calls": 8,
+  "triangles": 348,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -156,8 +156,8 @@
   "z_fighting_variants": 0
  },
  "ceiling_module": {
-  "draw_calls": 3,
-  "triangles": 188,
+  "draw_calls": 5,
+  "triangles": 264,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -522,20 +522,20 @@
   "z_fighting_variants": 0
  },
  "laser_mirror": {
-  "draw_calls": 5,
-  "triangles": 208,
+  "draw_calls": 7,
+  "triangles": 456,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
  "laser_receiver": {
-  "draw_calls": 5,
-  "triangles": 236,
+  "draw_calls": 6,
+  "triangles": 536,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
  "laser_splitter": {
-  "draw_calls": 6,
-  "triangles": 196,
+  "draw_calls": 8,
+  "triangles": 460,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -985,7 +985,7 @@
  },
  "tool": {
   "draw_calls": 4,
-  "triangles": 184,
+  "triangles": 208,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },
@@ -1092,8 +1092,8 @@
   "z_fighting_variants": 0
  },
  "warning_beacon": {
-  "draw_calls": 6,
-  "triangles": 400,
+  "draw_calls": 7,
+  "triangles": 684,
   "z_fighting_pairs": 0,
   "z_fighting_variants": 0
  },

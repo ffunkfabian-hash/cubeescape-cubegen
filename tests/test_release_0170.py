@@ -115,16 +115,18 @@ class VariantSetTest(unittest.TestCase):
         from cubegen.pipeline import generate_batch
 
         with tempfile.TemporaryDirectory() as out:
-            args = make_parser().parse_args(["generate", "--seed", "42", "--types", "test_wall_modules,crate",
+            args = make_parser().parse_args(["generate", "--seed", "42", "--types", "test_wall_modules,door",
                                              "--count", "4", "--set", "--no-blender", "--out", out])
             manifest = generate_batch(build_config(args), log=lambda m: None)
             sets = {s["type"]: s for s in manifest["sets"]}
             self.assertTrue(sets["test_wall_modules"]["outline_ok"])
             self.assertEqual(sets["test_wall_modules"]["deviation_m"], 0.0)
             self.assertEqual(len(sets["test_wall_modules"]["members"]), 4)
-            self.assertFalse(sets["crate"]["outline_ok"])  # depth is rolled inside the builder, not a parameter
-            self.assertGreater(sets["crate"]["deviation_m"], 0.01)
-            self.assertIsNone(sets["crate"]["preview"])  # no Blender, no previews, no row
+            # 0.19.0 made the crate set-ready (its depth is a parameter now): the door is the example of a type
+            # that is not - its width and style change the outline
+            self.assertFalse(sets["door"]["outline_ok"])
+            self.assertGreater(sets["door"]["deviation_m"], 0.01)
+            self.assertIsNone(sets["door"]["preview"])  # no Blender, no previews, no row
 
     def test_set_pieces_join_without_a_random_scale(self):
         from cubegen.models import generate_asset

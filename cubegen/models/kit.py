@@ -13,6 +13,7 @@ import math
 from ..geometry import prism
 from ..params import Param
 from .common import ALONG_X, ALONG_Y, cube, cyl, deg, fan, rail, stripes
+from .dressing import dress_catwalk, dress_floor, dressing_param
 from .registry import model
 
 # turns a (y, z) polygon into a prism extruded along X (local x -> world y, local y -> world z, local z -> world x)
@@ -175,7 +176,7 @@ def _wall_trims(m, length, along_x=True, dh=0.0, dt=0.0):
            Param("layout", "choice", "Lauf", choices=STAIR_LAYOUTS, default="straight", quiet=True,
                  description="gerade, mit Zwischenpodest (landing), mit Vierteldrehung (quarter) oder "
                              "gegenläufig mit Wendepodest (switchback); Podeste immer Treppenbreite tief"),
-       ])
+       ], set_faces=("x-", "x+", "y+", "z-", "z+"), set_pins=("style", "rails", "layout"))  # front: stripes vary
 def stairs(rng, a):
     p = a.p
     style = p.choice("style", ["stairs", "stairs", "ramp"])
@@ -293,7 +294,9 @@ CATWALK_ARMS = {"straight": ((-1, 0), (1, 0)), "corner": ((-1, 0), (0, 1)), "tee
                  description="L-Stück (corner), T-Stück, Kreuz, Podest (landing) oder Endstück mit "
                              "Abschlussgeländer; Anschlüsse immer bei +-Länge/2"),
            Param("rail_height", "float", "Geländerhöhe (m)", lo=0.8, hi=1.4, default=1.0, quiet=True),
-       ])
+           dressing_param("ruin: durchhängende und abgerissene Kabel unter dem Steg; organic: Ranken über die "
+                          "Kanten, Moos"),
+       ], set_faces=("x-", "x+", "z+"), set_pins=("rails", "shape"))  # joins at the ends; supports below vary
 def catwalk(rng, a):
     p = a.p
     length = p.choice("length", [2.0, 4.0, 4.0])
@@ -304,6 +307,8 @@ def catwalk(rng, a):
     shape, rail_h = p.option("shape"), p.option("rail_height")
     if shape != "straight" or rail_h != 1.0:
         _catwalk_shape(rng, a, p, shape, length, width, frame, rail_h)
+        if shape in ("straight", "end"):
+            dress_catwalk(a, deck, length, width, p.option("dressing"))
         return
     for s in (-1, 1):  # side beams
         cube(deck, (length, 0.08, 0.2), (0, s * (width / 2 - 0.04), -0.1), frame, bevel=0.01)
@@ -335,6 +340,7 @@ def catwalk(rng, a):
                 a.collider((0.1, 0.1, sup), (x, s * (width / 2 - 0.1), -0.2 - sup / 2), part="Deck")
             cube(deck, (0.08, width - 0.2, 0.08), (x, 0, -0.2 - sup * 0.6), "M_RobotDark")
         a.meta["supports_m"] = round(sup, 3)
+    dress_catwalk(a, deck, length, width, p.option("dressing"))
 
 
 def _catwalk_segments(shape, length, width):
@@ -456,7 +462,9 @@ def _catwalk_shape(rng, a, p, shape, length, width, frame, rail_h):
            Param("style", "choice", "Art", choices=("grate", "plate", "hatch", "vent")),
            Param("glow", "bool", "Glow-Linien"),
            Param("stripes", "bool", "Warnstreifen"),
-       ])
+           Param("depth", "float", "Stärke (m)", lo=0.05, hi=0.4),
+           dressing_param("ruin: Schutt und eine lose Platte; organic: Moospolster, Steine, Büsche"),
+       ], set_faces=("x-", "x+", "y-", "y+", "z-"))  # joins on four sides; details may stand on top
 def floor_tile(rng, a):
     p = a.p
     size = p.choice("size", [1.0, 2.0, 2.0, 4.0])
@@ -464,7 +472,7 @@ def floor_tile(rng, a):
     m = a.part("Deck")
     mat = p.material(["M_Platform", "M_Metal", "M_Ground"])
     a.meta.update({"size_m": size, "style": style})
-    depth = 0.1 + rng.uniform(0.0, 0.1)
+    depth = p.value("depth", 0.1 + rng.uniform(0.0, 0.1))
     a.collider((size, size, depth), (0, 0, -depth / 2), part="Deck")
     if style == "hatch" and p.style.generation >= 3:
         cube(m, (size, size, depth), (0, 0, -depth / 2), mat, bevel=.02)
@@ -509,6 +517,7 @@ def floor_tile(rng, a):
             cube(lights, (size * 0.9, 0.03, 0.02), (0, s * (size / 2 - 0.02), 0.0), glow)
     if p.bool("stripes", 0.25, warning=True):
         stripes(m, size * 0.9, (0, -size / 2 + 0.1, 0.006), count=int(size * 3), width=0.1)
+    dress_floor(a, m, size, p.option("dressing"))
 
 
 @model("ceiling_panel", "CeilingPanel", "environment", "Ceiling panel (hangs at mount height): light panel, "
@@ -518,13 +527,14 @@ def floor_tile(rng, a):
            Param("mount_height", "float", "Deckenhöhe (m)", lo=2.0, hi=6.0, default=3.0),
            Param("fan_speed", "float", "Lüfter-Tempo (°/s)", lo=0, hi=2000, unity=True, default=200,
                  description="Nur mit Lüfter"),
-       ])
+           Param("thickness", "float", "Stärke (m)", lo=0.04, hi=0.3),
+       ], set_faces=("x-", "x+", "y-", "y+", "z+"))  # joins on four sides at the ceiling; lights hang below
 def ceiling_panel(rng, a):
     p = a.p
     size = p.choice("size", [1.0, 2.0, 2.0, 4.0])
     style = p.choice("style", ["light", "light", "fan", "plain"])
     z = p.value("mount_height", 3.0)
-    t = rng.uniform(0.08, 0.14)
+    t = p.value("thickness", rng.uniform(0.08, 0.14))
     body = a.part("Body")
     a.meta.update({"size_m": size, "style": style})
     cube(body, (size, size, t), (0, 0, z - t / 2), p.styled("M_Wall", ["M_Wall", "M_Metal", "M_Platform"]), bevel=0.02)
@@ -559,7 +569,7 @@ def ceiling_panel(rng, a):
            Param("glow", "bool", "Glow-Linie"),
            Param("height", "float", "Wandhöhe (m)", lo=2.0, hi=6.0, default=3.0, quiet=True),
            Param("thickness", "float", "Wandstärke (m)", lo=0.2, hi=1.0, default=0.5, quiet=True),
-       ])
+       ], set_faces=("x+", "y+", "z-", "z+"), set_pins=("style",))  # walls join right/back; pipe, guard outside
 def wall_corner(rng, a):
     p = a.p
     style = p.choice("style", ["corner", "end", "tee"])

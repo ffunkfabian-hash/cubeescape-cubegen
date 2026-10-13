@@ -19,6 +19,7 @@ import math
 from ..geometry import prism
 from ..params import Param
 from .common import ALONG_Y, add_vec, cube, cyl, deg, gear, rotated, stripes, strut
+from .details import round_base
 from .registry import model
 
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
@@ -195,6 +196,7 @@ def laser_splitter(rng, a):
     light = p.glow()
     cyl(body, 0.3, 0.1, (0, 0, 0.05), "M_RobotDark", sides=8, bevel=0.02)
     cyl(glow, 0.31, 0.02, (0, 0, 0.09), light, sides=8)
+    round_base(a, body, 0.3, 0.1, "P")  # variety details (own stream)
     center = (0.0, 0.0, 0.1)
     turn = a.part("Prism", pivot=center)
     cyl(turn, 0.22, 0.06, (0, 0, 0.13), "M_Metal", sides=8)

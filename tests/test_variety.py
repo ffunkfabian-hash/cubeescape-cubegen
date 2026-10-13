@@ -22,16 +22,18 @@ class VarietyTests(unittest.TestCase):
         self.assertFalse(similar(a, signature(generate_asset("door", 5))))
 
     def test_unique_plan(self):
-        config = BatchConfig(seed=42, models={"laser_mirror": 8}, out_dir="unused", unique=True)
+        # 0.19.0: the laser mirror's first eight differ since its variety details - the pressure plate still has
+        # look-alikes among them
+        config = BatchConfig(seed=42, models={"pressure_plate": 8}, out_dir="unused", unique=True)
         specs = plan_models(config)
         self.assertEqual(len(specs), 8)
         indices = [s["index"] for s in specs]
         self.assertEqual(indices[0], 0)
         self.assertGreater(indices[-1], 7)  # some of the first 8 looked alike and were skipped
         for spec in specs:
-            self.assertEqual(spec["seed"], model_seed(42, "laser_mirror", spec["index"]))
-            self.assertEqual(spec["name"], f"LaserMirror_{spec['index']:03d}")
-        sigs = [signature(generate_asset("laser_mirror", s["seed"])) for s in specs]
+            self.assertEqual(spec["seed"], model_seed(42, "pressure_plate", spec["index"]))
+            self.assertEqual(spec["name"], f"PressurePlate_{spec['index']:03d}")
+        sigs = [signature(generate_asset("pressure_plate", s["seed"])) for s in specs]
         for i, a in enumerate(sigs):
             for b in sigs[i + 1:]:
                 self.assertFalse(similar(a, b))
