@@ -64,6 +64,9 @@ PROBES: Dict[str, Dict] = {
                           "--texture-size", "128"]},
     "damage": {"seed": "11", "test": "cli", "about": "beschädigte Varianten",
                "args": ["--types", "crate,wall,pillar,console", "--count", "1", "--damage", "damaged"]},
+    "single": {"seed": "21", "test": "cli", "about": "ein Renderer je statischem Modell (--single-renderer, mit LODs)",
+               "args": ["--types", "crate,pillar,wall,console,rock,catwalk,window_wall,shelf", "--count", "1",
+                        "--single-renderer", "--lods"]},
     "runtime": {"seed": "42", "test": "runtime", "about": "alle Typen als GLB (Laufzeitpfad der Werkbank)",
                 "args": ["--count", "1", "--formats", "glb"]},
 }

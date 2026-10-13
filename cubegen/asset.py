@@ -98,6 +98,16 @@ class Collider:
 UNITY_AXES = {"right": (1, 0, 0), "up": (0, 1, 0), "forward": (0, 0, 1)}
 
 
+#: mesh objects of a static model that only carry looks (no gameplay part name a Unity profile could bind to):
+#: ``Asset.merge_static`` joins them into one object - one renderer (Cube Escape builds such models as flat copies).
+#: A part outside this set (Panel, Tile_<n>, Fluid, Rotor, Cover, Planet ...) keeps the model as it is.
+DECORATIVE_PARTS = frozenset({
+    "Body", "Glow", "Lights", "Glass", "Screen", "Wall", "Rubble", "Crystals", "Rock", "Wreck", "Deck", "Frame", "Tools",
+    "Load", "Pipe", "Pipes", "Base", "Pillar", "Bottles", "Girder", "Girders", "Plants", "Mushroom", "Cables",
+    "Island", "Fungus", "Roots", "Rail", "Shaft", "Vines", "Wear",
+})
+
+
 class Asset:
     def __init__(self, name: str):
         self.name = name
@@ -120,22 +130,23 @@ class Asset:
         broken behaviour wiring, and empty mesh objects.
         """
         seen = set()
+        names = {obj.name for obj in self.objects}  # one directory instead of a search per reference
         for obj in self.objects:
             if obj.name in seen:
                 raise ValueError(f"asset {self.name!r}: duplicate object {obj.name!r}")
             seen.add(obj.name)
-            if obj.parent is not None and self.get(obj.parent) is None:
+            if obj.parent is not None and obj.parent not in names:
                 raise ValueError(f"asset {self.name!r}: object {obj.name!r} parent {obj.parent!r} does not exist")
             if obj.mesh is not None and len(obj.mesh.faces) == 0:
                 raise ValueError(f"asset {self.name!r}: object {obj.name!r} has no mesh faces")
         for behaviour in self.behaviours:
             for role, value in behaviour["parts"].items():
                 for name in value if isinstance(value, list) else [value]:
-                    if self.get(name) is None:
+                    if name not in names:
                         raise ValueError(f"asset {self.name!r}: behaviour {behaviour['script']!r} references {name!r} "
                                          f"via {role!r}, but it does not exist")
         for collider in self.colliders:
-            if collider.part is not None and self.get(collider.part) is None:
+            if collider.part is not None and collider.part not in names:
                 raise ValueError(f"asset {self.name!r}: collider on missing part {collider.part!r}")
         if model_type and not self.meta.get("type"):
             self.meta["type"] = model_type
@@ -164,6 +175,39 @@ class Asset:
                 {"action": "remove_empty_mesh", "object": name} for name in removed
             )
         return removed
+
+    def merge_static(self) -> List[str]:
+        """One renderer for a static model: join its mesh objects into the first one (``--single-renderer``).
+
+        Only for models without behaviours whose mesh objects all carry looks only (``DECORATIVE_PARTS``); materials
+        stay sub-meshes, so draw calls and looks are unchanged. Colliders and children of a joined object move to the
+        kept one. Returns the joined names (empty: nothing to do or not allowed)."""
+        meshes = [o for o in self.objects if o.mesh is not None]
+        if self.behaviours or len(meshes) < 2 or any(o.name not in DECORATIVE_PARTS for o in meshes):
+            return []
+        keep, joined = meshes[0], meshes[1:]
+        target = keep.mesh
+        for obj in joined:
+            mesh = obj.mesh
+            v0, f0 = len(target.verts), len(target.faces)
+            target.verts.extend(mesh.verts)  # vertices are in model space: no transform needed
+            target.faces.extend(tuple(i + v0 for i in face) for face in mesh.faces)
+            target.roles.extend(mesh.roles)
+            for part in mesh.parts:
+                part.mesh = target
+                part.v0, part.v1, part.f0, part.f1 = part.v0 + v0, part.v1 + v0, part.f0 + f0, part.f1 + f0
+                target.parts.append(part)
+        names = {o.name for o in joined}
+        self.objects = [o for o in self.objects if o.name not in names]
+        for obj in self.objects:
+            if obj.parent in names:
+                obj.parent = keep.name
+        for collider in self.colliders:
+            if collider.part in names:
+                collider.part = keep.name
+        merged = sorted(names)
+        self.meta["single_renderer"] = {"object": keep.name, "joined": merged}
+        return merged
 
     def sub(self, key: str) -> StableRandom:
         """An own random stream for one aspect of the model, e.g. ``a.sub("antenna")``.

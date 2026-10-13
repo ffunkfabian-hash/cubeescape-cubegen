@@ -110,6 +110,16 @@ seit 0.19.0 auch Boden, Säule und Steg (`floor_tile.dressing`, `pillar.dressing
 tragen die Kristallfarbe des Themas; `crystal_cut=faceted` gibt Fels, Schwebeinsel, Hängekristallen und Modulwand
 facettierte Kristalle.
 
+## Ein Renderer und Werkbank-Budget
+
+`--single-renderer` macht statische Modelle zu einem Mesh-Objekt mit Untermaterialien – gleiche Optik und Draw Calls,
+aber ein Renderer: Cube Escape baut solche Modelle in großen Leveln als flache Kopien (schneller laden). Teile mit
+Bedeutung für das Spiel (Klappen, Kacheln, Flüssigkeit, Rotoren) bleiben getrennt. Ohne `--lods` exportieren, sonst
+sind es zwei Renderer. GLB-Exporte prüft Cubegen gegen das Budget der Werkbank (Bytes, Dreiecke, Teile, Materialien,
+Texturspeicher) und warnt; `cubegen check --export <Ordner>` zeigt es ebenso. Leistung messen:
+`python3 tools/perf_band.py --save vorher` und nach einer Änderung `--compare vorher` (Bänder über mehrere Läufe,
+Lasterkennung, CPU-Zeit).
+
 ## Unity-Check
 
 `python3 tools/unity_check.py` schickt feste Prüfsätze durch den echten Import von Cube Escape – Editor-Import (FBX)

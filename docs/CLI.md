@@ -460,6 +460,11 @@ python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger E
 | `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
 | `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
 
+**Ein Renderer:** `--single-renderer` (auch Rezeptfeld `single_renderer`, App und Desktop-Fenster) – statische
+Modelle mit reinen Schmuckteilen werden ein Mesh-Objekt; das Manifest nennt je Modell `renderers`. **Werkbank-Budget:**
+GLB-Exporte über dem Budget von Cube Escapes Werkbank (32 MB Datei, 60 000 Dreiecke, 512 Teile, 32 Materialien,
+16 Texturen bis 2048 px, 64 MB Texturspeicher) ergeben eine Warnung und `runtime_budget` im Manifest.
+
 **Unity-Check:** `python3 tools/unity_check.py` (Cube Escape und Unity nötig) prüft feste Exporte mit dem echten
 Import des Spiels – Editor (FBX) und Werkbank-Laufzeit (GLB); siehe README › „Unity-Check“.
 
@@ -511,6 +516,7 @@ schon, bevor er Dateien schreibt.
 | `--count` | 1 | Varianten pro Typ |
 | `--pick` | – | einzelne Varianten `TYP:INDEX,…` |
 | `--unique` | – | ähnlich aussehende Varianten überspringen |
+| `--single-renderer` | – | statische Modelle mit reinen Schmuckteilen als ein Mesh-Objekt (ein Renderer, Untermaterialien) |
 | `--set` | – | Variantenset: alle Varianten behalten die Außenmaße der ersten, innen verschieden (`set_<Typ>.png`, Manifest `sets`) |
 | `--param` | – | `TYP.NAME=WERT`, mehrfach |
 | `--theme` | – | Raum-Thema, siehe Abschnitt 7 |

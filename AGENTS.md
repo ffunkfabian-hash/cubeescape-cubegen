@@ -43,8 +43,9 @@ sind veröffentlicht, ebenso 0.17.0 „Prism“ (13. Oktober 2026, `VERSION_0.17
 Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema) und 0.19.0 „Kaleidoscope“ (13. Oktober 2026,
 `VERSION_0.19.0.md`: set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge) samt
 Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick 6, GitHub Actions grün) und
-0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`);
-die nächste Version ist 0.21.0.
+0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`) und 0.21.0
+„Monolith“ (13. Oktober 2026, `VERSION_0.21.0.md`: ein Renderer, Werkbank-Budget, Index, Messbänder);
+die nächste Version ist 0.22.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -109,6 +110,28 @@ Stopp: Bleibt etwas rot oder ist eine Richtungsfrage offen – anhalten und frag
 Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Push von main, Release-Branch und Tag ohne --force.
 Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, Ergebnis), Merge-, Tag- und PR-Stand mit Links, was offen ist.
 ```
+
+## Leistung und Grenzen (Erkenntnisse aus Cube Escape 0.49, seit 0.21.0)
+
+- **Ein Renderer, wo es geht:** Cube Escape baut statische Modelle mit höchstens einem MeshRenderer und Kollision auf
+  dem Modell in großen Leveln als flache Kopien; in Unity kostet jedes Teil pro Objekt, nicht pro Dreieck.
+  `--single-renderer` (`Asset.merge_static`) fasst die Mesh-Objekte statischer Modelle zusammen, deren Teile nur Optik
+  tragen (`asset.DECORATIVE_PARTS`); Teile mit Bedeutung (Panel, Tile_<n>, Fluid, Rotor …) lassen das Modell, wie es
+  ist. Neue Typen: Schmuckteile mit Namen aus der Liste benennen, Teile mit Bedeutung nicht. `--lods` ergibt zwei
+  Renderer (LOD0/LOD1).
+- **Grenzen in Bytes, wo Dateien oder Speicher gemeint sind:** ein UTF-8-Zeichen hat bis zu drei Bytes – nie die
+  Länge eines Strings mit einer Byte-Grenze vergleichen. Zeichen nur, wo Zeichen gemeint sind (Glyphen der
+  Schrift, `check_text`). Budget der Werkbank: `contract.RUNTIME_BUDGET` (aus Cube Escape abgeschrieben, beim Ändern
+  dort nachsehen); `check_runtime_budget` prüft jedes GLB beim Erzeugen und in `check --export`.
+- **Index statt jede Datei lesen:** Größe und Änderungszeit entscheiden, ob eine Datei neu gelesen werden muss
+  (`OutputCache` `stats`/`index`, `digest`); erst bei Abweichung wird gehasht.
+- **Erst Schritte benennen, dann optimieren:** neue Arbeit bekommt einen Schritt in `timings.steps` (Manifest);
+  Vergleiche als Band über mehrere Läufe mit Lasterkennung: `tools/perf_band.py --save <vorher>` / `--compare`
+  (ruhig / leicht = Toleranz ×2 / stark = Laufzeit nicht gewertet, CPU-Zeit zählt immer). Einzelläufe auf einem
+  belebten Rechner sind keine Messung (0.21.0: 5–14 s für denselben Lauf).
+- **Verzeichnisse statt Suchen:** in Schleifen nie linear suchen (`x in liste`, `next(o for o in … if o.name == …)`,
+  `asset.get` je Element) – vorher ein Dictionary oder Set bauen. Gebaute Modelle eines Laufs liegen in
+  `asset_of`/`lod_of`: jedes Modell wird je Lauf genau einmal gebaut (Test).
 
 ## Abwechslung: Details aus eigenem Zufallsstrom
 

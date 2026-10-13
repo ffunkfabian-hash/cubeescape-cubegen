@@ -24,7 +24,7 @@ version="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$ROOT/cubegen/__init__.py")"
 catalog="$("$BIN" --catalog)" && [[ "$catalog" =~ ([0-9]+)\ types ]] && [ "${BASH_REMATCH[1]}" -gt 100 ] \
   && ok "catalog through the bundled package: $catalog" || bad "catalog ($catalog)"
 
-for name in types family paint paintfile; do
+for name in types family paint paintfile single; do
   "$BIN" --print-args "$HERE/tests/settings_$name.json" > "$TMP/$name.json" &&
     python3 -c "import json,sys; a=json.load(open(sys.argv[1])); b=json.load(open(sys.argv[2])); assert a==b, (a, b)" \
       "$TMP/$name.json" "$HERE/tests/settings_$name.expected.json" && ok "command line: $name" || bad "command line: $name"

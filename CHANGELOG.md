@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.21.0 „Monolith“ – 2026-10-13
+
+Erkenntnisse aus Cube Escape 0.49 „Megastructure“ umgesetzt:
+
+* **Ein Renderer:** `--single-renderer` (CLI, Rezept, App, Desktop-Fenster) macht statische Modelle mit reinen
+  Schmuckteilen zu einem Mesh-Objekt mit Untermaterialien – Cube Escape baut sie dann als flache Kopien. Betrifft 53
+  von 63 mehrteiligen statischen Typen; zehn behalten Teile mit Bedeutung. Manifest: `renderers` je Modell.
+* **Budget der Werkbank in Bytes:** `contract.check_runtime_budget` liest jedes GLB (Bytes, Teile, Materialien,
+  Dreiecke, eingebettete Bildgrößen) gegen das Budget von Cube Escape; Warnung beim Erzeugen, `runtime_budget` im
+  Manifest, Ausgabe in `check --export`. Fund: Kacheln in 2048 px sprengen den Texturspeicher schon bei einer Kiste.
+* **Index statt jede Datei lesen:** Der Cache prüft Größe und Änderungszeit, bevor er eine Datei hasht (Vorschauen,
+  geschriebene Bilder).
+* **Schritte benennen, Bänder messen:** `timings.steps` im Manifest (Planen, Bauen, Vertrag); `tools/perf_band.py`
+  misst feste Arbeitslasten mehrfach mit Lasterkennung und CPU-Zeit.
+* **Verzeichnisse statt Suchen:** jedes Modell einmal je Lauf gebaut (vorher dreimal), Set-Mitglieder gruppiert, die
+  Flackerprüfung ohne Listensuche, `validate_contract` mit Namensverzeichnis. CPU-Zeit Katalog ohne Blender 4,65 →
+  2,57 s, Katalog aus dem Cache 5,91 → 5,02 s.
+* Unity-Check: neuer Prüfsatz `single`. Unity-ToDos 32–34. Ausgabe der Modelle ohne die Option unverändert
+  (Golden-Daten). Paket, CLI und Add-on auf 0.21.0. Bericht: [VERSION_0.21.0.md](VERSION_0.21.0.md).
+
 ## 0.20.0 „Gatekeeper“ – 2026-10-13
 
 * **Unity-Check** `tools/unity_check.py`: acht feste Prüfsätze (Bau-Kit-Sets, Zusatzdetails, Gameplay, Anstrich mit

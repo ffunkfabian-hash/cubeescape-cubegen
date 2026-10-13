@@ -451,9 +451,90 @@ def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
             fbx = path[: -len(".cubegen.json")] + ".fbx"
             if not errors and os.path.isfile(fbx):
                 errors += check_fbx(data, fbx)
-            result[name[: -len(".cubegen.json")]] = {"errors": errors, "open": open_items}
+            entry = {"errors": errors, "open": open_items}
+            glb = path[: -len(".cubegen.json")] + ".glb"
+            if os.path.isfile(glb):  # the workbench's path: its budget (a note, the editor import has none)
+                entry["runtime"] = check_runtime_budget(glb)
+            result[name[: -len(".cubegen.json")]] = entry
     return result
 
 
 __all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_contract", "CONTRACT", "CONTRACT_FILE",
-           "BEHAVIOURS", "ROOT_KEYS"]
+           "BEHAVIOURS", "ROOT_KEYS", "RUNTIME_BUDGET", "check_runtime_budget", "glb_summary", "texture_bytes"]
+
+
+# --------------------------------------------------------------------------
+# runtime budget of Cube Escape's workbench (GLB path)
+# --------------------------------------------------------------------------
+
+#: what the workbench imports at most per player model - Cube Escape ``CubegenImportBudget`` and
+#: ``CubegenGlb.Limits.MaxBytes`` (checked 0.21.0). Limits on files and memory are BYTES: a UTF-8 character takes up
+#: to three bytes, so a string's length is never compared with them (Cube Escape 0.49 found that mix-up in a reader).
+RUNTIME_BUDGET = {"glb_bytes": 32 * 1024 * 1024, "triangles": 60_000, "parts": 512, "materials": 32,
+                  "textures": 16, "texture_size": 2048, "texture_bytes": 64 * 1024 * 1024}
+
+
+def texture_bytes(width: int, height: int) -> int:
+    """GPU memory of an RGBA32 texture with its mip chain - counted like Cube Escape's budget (w * h * 4 * 4 / 3)."""
+    return width * height * 4 * 4 // 3
+
+
+def glb_summary(path: str) -> Dict:
+    """What the workbench's GLB reader sees: bytes, nodes, materials, triangles and the embedded images' sizes."""
+    import struct
+
+    with open(path, "rb") as fh:
+        data = fh.read()
+    magic, _version, length = struct.unpack_from("<III", data, 0)
+    if magic != 0x46546C67:
+        raise ValueError(f"{path}: not a GLB file")
+    chunk_len, chunk_type = struct.unpack_from("<II", data, 12)
+    gltf = json.loads(data[20:20 + chunk_len].decode("utf-8"))
+    binary = b""
+    offset = 20 + chunk_len
+    if offset + 8 <= len(data):
+        bin_len, _ = struct.unpack_from("<II", data, offset)
+        binary = data[offset + 8:offset + 8 + bin_len]
+    accessors, views = gltf.get("accessors", []), gltf.get("bufferViews", [])
+    triangles = 0
+    for mesh in gltf.get("meshes", []):
+        for prim in mesh.get("primitives", []):
+            if prim.get("mode", 4) != 4:
+                continue
+            if "indices" in prim:
+                triangles += accessors[prim["indices"]]["count"] // 3
+            elif "POSITION" in prim.get("attributes", {}):
+                triangles += accessors[prim["attributes"]["POSITION"]]["count"] // 3
+    images = []
+    for image in gltf.get("images", []):
+        view = views[image["bufferView"]] if "bufferView" in image else None
+        blob = binary[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]] if view else b""
+        if blob[:8] == b"\x89PNG\r\n\x1a\n":
+            images.append(struct.unpack_from(">II", blob, 16))
+        else:
+            images.append(None)  # external or not a PNG: size unknown here
+    return {"bytes": len(data), "length": length, "nodes": len(gltf.get("nodes", [])),
+            "materials": len(gltf.get("materials", [])), "triangles": triangles, "images": images}
+
+
+def check_runtime_budget(path: str, budget: Optional[Dict] = None) -> List[str]:
+    """Where a GLB exceeds the workbench's budget (empty: it fits)."""
+    rules = dict(RUNTIME_BUDGET, **(budget or {}))
+    info = glb_summary(path)
+    found = []
+    if info["bytes"] > rules["glb_bytes"]:
+        found.append(f"GLB {info['bytes']} bytes > {rules['glb_bytes']}")
+    for key, label in (("triangles", "triangles"), ("nodes", "parts"), ("materials", "materials")):
+        limit = rules[label]
+        if info[key] > limit:
+            found.append(f"{info[key]} {label} > {limit}")
+    known = [size for size in info["images"] if size]
+    if len(info["images"]) > rules["textures"]:
+        found.append(f"{len(info['images'])} textures > {rules['textures']}")
+    too_big = [f"{w}x{h}" for w, h in known if max(w, h) > rules["texture_size"]]
+    if too_big:
+        found.append(f"textures larger than {rules['texture_size']} px: {', '.join(too_big)}")
+    memory = sum(texture_bytes(w, h) for w, h in known)
+    if memory > rules["texture_bytes"]:
+        found.append(f"texture memory {memory} bytes > {rules['texture_bytes']}")
+    return found

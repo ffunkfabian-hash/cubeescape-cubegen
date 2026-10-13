@@ -1,8 +1,8 @@
 # Roadmap
 
-Stand: 13. Oktober 2026, cubegen **0.20.0 „Gatekeeper“** veröffentlicht (Tag `v0.20.0`, Release-Zweig
-`release/0.20.0`, [VERSION_0.20.0.md](../VERSION_0.20.0.md): Unity-Check `tools/unity_check.py`); davor 0.19.1
-„Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
+Stand: 13. Oktober 2026, cubegen **0.21.0 „Monolith“** veröffentlicht (Tag `v0.21.0`, Release-Zweig
+`release/0.21.0`, [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer, Werkbank-Budget, Index, Messbänder); davor
+0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
 (Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
@@ -155,6 +155,14 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Manifest `paint`). Das durchscheinende Material selbst entsteht in Unity (ToDo 28).
 - [x] **Unity-Check** (0.20.0): `tools/unity_check.py` – acht feste Prüfsätze durch den echten Import von Cube Escape
   (Editor-Import und Werkbank-Laufzeit), fester Schritt jedes Releases. Erster Lauf: 254 Modelle, 0 Fehler.
+- [x] **Erkenntnisse aus Cube Escape 0.49** (0.21.0): ein Renderer (`--single-renderer`), Budget der Werkbank in
+  Bytes, Index statt jede Datei lesen, benannte Schritte und Messbänder (`tools/perf_band.py`), Verzeichnisse statt
+  Suchen (jedes Modell einmal je Lauf gebaut; CPU-Zeit Katalog ohne Blender 4,65 → 2,57 s).
+- [ ] **Unveränderte Modelle nicht neu bauen:** Ein Lauf ganz aus dem Cache baut alle Modelle trotzdem (Vertrag,
+  Manifest; Katalog 561 Modelle: 2,2 s Bauen, 2,8 s Manifest). Manifest-Einträge und Vertragsprüfung unveränderter
+  Modelle über ihren `build_key` aus dem letzten Manifest übernehmen (Index).
+- [ ] **`--single-renderer` als Standard** für statische Modelle, sobald Cube Escape die Standardsets damit neu
+  exportiert hat (ToDo 32) – bis dahin Option, damit bestehende Exporte ihre Hierarchie behalten.
 - [ ] **Unity-Check: Sichtprüfung:** ein Screenshot der importierten Prüfsätze in Unity (Anstrich, Kristallfarbe,
   Sets so, wie das Spiel sie zeigt). Die vorhandene Probe (`CubegenShotProbeTests`) nutzt Werkbank-Fixtures; nötig ist
   eine Probe, die die Prefabs des Editor-Imports aufstellt – gemeinsam mit Cube Escape.
@@ -368,6 +376,19 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 - [ ] **31 · Set-Anschlussseiten im Modell-Browser** (0.19.0): Das Manifest nennt je Set die geprüften Seiten
   (`sets[].faces`, z. B. Boden `x-, x+, y-, y+, z-`). Beim Platzieren nur an diesen Seiten einrasten und Mitglieder
   abwechseln; mit ToDo 25 umsetzen.
+
+- [ ] **32 · Flache Kopien für Cubegen-Modelle** (0.21.0, Erkenntnis aus Cube Escape 0.49): Standardsets und
+  Benutzermodelle mit `--single-renderer` (Rezeptfeld `single_renderer`) neu exportieren und mit erhaltenen GUIDs
+  reimportieren – dann fallen die mehrteiligen statischen Modelle nicht mehr aus `FlatModels`. Ohne `--lods`.
+- [ ] **33 · Byte- statt Zeichengrenze im Sidecar-Leser** (0.21.0): `CubegenContract.cs` (Zeile mit
+  `json.Length > max_bytes`) und `CubegenJson.cs` (`json.Length > 4 MB`) vergleichen die Zeichenzahl eines Strings mit
+  einer Byte-Grenze; die Dateiprüfung daneben (`FileInfo.Length`) ist richtig. Mit `Encoding.UTF8.GetByteCount`
+  vergleichen.
+- [ ] **34 · Texturbudget der Werkbank ehrlich zählen** (0.21.0): `CubegenModelImport.Budget` rechnet jede Textur
+  unkomprimiert (RGBA32 + Mips) und je Modell – geteilte Kacheltexturen zählen bei jedem Modell voll. Gemessen:
+  `--textures tiled --texture-size 2048` sprengt die 64 MB schon bei einer Kiste (128 MB). Geteilte Texturen einmal
+  zählen und zur Laufzeit komprimieren (`Texture2D.Compress`), dann die Grenze am echten Speicher messen; Cubegen
+  übernimmt den neuen Wert in `contract.RUNTIME_BUDGET`.
 
 ## 5. Nächste Vorschläge
 
