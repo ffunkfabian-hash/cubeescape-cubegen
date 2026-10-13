@@ -1,9 +1,9 @@
 # Roadmap
 
-Stand: 13. Oktober 2026, cubegen **0.18.1 „Chameleon“** veröffentlicht (Tag `v0.18.1`, Release-Zweig `release/0.18.1`;
-[VERSION_0.18.0.md](../VERSION_0.18.0.md): Anstriche auf allen Typen, eigenes Thema, Anbauten je Thema;
-[VERSION_0.18.1.md](../VERSION_0.18.1.md): Leuchtschlitz folgt dem Thema); davor 0.17.0
-„Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
+Stand: 13. Oktober 2026, cubegen **0.19.0 „Kaleidoscope“** veröffentlicht (Tag `v0.19.0`, Release-Zweig
+`release/0.19.0`, [VERSION_0.19.0.md](../VERSION_0.19.0.md): set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler in
+der App, mehr Abwechslung, Neural-Engine-Bericht, Blender in der CI); davor 0.18.1 „Chameleon“ (Anstriche auf allen
+Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
 in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
@@ -63,13 +63,16 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
   verlangt exakt gleiche Dreieckszahlen; dadurch gelten fast gleich aussehende Varianten als verschieden (Seed 42:
   `Door_003`/`Door_010` – 12 Dreiecke und 7 % Breite Unterschied; `Console_000`/`Console_001`). Toleranz für die
   Dreieckszahl prüfen, deterministisch und vor dem Rendern wie bisher; Golden-Daten von `--unique` gezielt nachziehen.
-- [ ] **Doubletten-Bericht (Neural Engine, nur macOS):** einmal über den ganzen Katalog die Vorschauen per Apple Vision
+- [x] **Doubletten-Bericht (Neural Engine, nur macOS)** (0.19.0, `tools/vision_report.py`; ganzer Katalog, 561
+  Vorschauen, in 4,5 s): einmal über den ganzen Katalog die Vorschauen per Apple Vision
   (Feature Prints) vergleichen und fast gleiche Varianten als Liste ausgeben – ein Prüfwerkzeug, um die Signatur
   (Punkt oben) zu justieren, nie im normalen Lauf und nie als Entscheidung über ausgegebene Varianten (Werte sind
   je Gerät verschieden, Neural Engine 0,0026 gegen CPU 0,0003 für dasselbe Paar). Gemessen: 3,8 ms je Bild,
   36 Vorschauen in 0,1 s. **Zeitregel:** höchstens 1 min für den ganzen Katalog und höchstens eine Sitzung Aufwand;
   kostet es mehr Zeit, wird das Feature nicht umgesetzt.
-- [ ] **Icon-Lesbarkeit prüfen (Neural Engine, nur macOS):** ein Aufmerksamkeitsmodell (Vision Saliency) meldet Icons,
+- [x] **Icon-Lesbarkeit prüfen (Neural Engine, nur macOS)** (0.19.0, im selben Werkzeug, nicht in `generate`: kostet
+  dort also nichts; 561 Icons in 4,1 s; „angeschnitten“ über die Pixel am Rand, weil die Saliency-Boxen zu grob sind;
+  auf dem Katalog zwei Hinweise, beide unbedenklich): ein Aufmerksamkeitsmodell (Vision Saliency) meldet Icons,
   in denen das Modell nicht im Fokus steht oder angeschnitten ist – nur als Hinweis im Kontaktbogen-/Prüfbericht,
   keine Schranke, Linux-Läufe überspringen es. **Zeitregel:** höchstens 5 % mehr Laufzeit von `generate` mit Icons;
   kostet es mehr Zeit, wird das Feature nicht umgesetzt.
@@ -121,10 +124,11 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   (`OUTLINE_PARAMS`, `Param(size=True)`) und unterscheiden sich innen; Manifest `sets` mit `outline_ok`/`deviation_m`
   und Reihenbild `set_<Typ>.png`; Option auch in App und Desktop-Fenster. Regeln für set-fähige Typen: AGENTS.md ›
   „Variantensets“. Prototyp `test_wall_modules` (Modulwand nach dem Konzept, Kristalle `none|some|many`).
-- [ ] **Weitere Typen set-fähig machen:** gemessen mit `--set` (Seed 42, 5 Varianten): `wall`, `pillar`,
-  `test_wall_modules` halten ihren Umriss; `crate` nicht (Tiefe intern gewürfelt, 3,5 cm), `floor_tile` nicht
-  (Oberkante variiert, 4,6 cm). Zuerst die Bau-Kit-Teile (Wand, Boden, Decke, Steg, Geländer), dann Requisiten;
-  je Typ Innen-Variation nach dem Muster der Modulwand (Aufteilung, Akzente, Anbauteile, Schilder, seltene Hingucker).
+- [x] **Bau-Kit set-fähig** (0.19.0): Anschlussseiten je Typ (`set_faces`) und festgehaltene Formwahlen
+  (`set_pins`); gewürfelte Maße als Parameter (`p.value`, Zufallsstrom unverändert). Alle 13 Bau-Kit-Typen halten
+  den Umriss (Seeds 42, 7, 1234); Deckenmodul: Kassettenrippen und Dachfirst ragten 4–5 cm in den Nachbarn.
+- [ ] **Requisiten set-fähig machen:** gemessen (Seed 42, 4 Varianten): `door` 35 cm, `locker` 27 cm, `console`
+  11 cm, `machine` 11 cm, `shelf` 2,8 cm. Je Typ prüfen, ob ein Set sinnvoll ist (Spinde, Regale in Reihen: ja).
 - [x] **Anstriche als Ausgabemodus** (0.17.0, Entscheidung des Nutzers): `--paint <Thema>` (CLI, App, Desktop-Fenster)
   backt jedes Modell einmal neutral und setzt das Thema zu einem gebackenen Atlas zusammen – Unity liest ihn heute
   über den Import für `--textures baked` (Material `MTA_<Modell>`). Elf Themen nach den Wandkonzepten der drei
@@ -133,21 +137,25 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
 - [x] **Eigenes Thema („Custom“, Konzeptbogen III)** (0.18.0): `--paint-file <Datei.json>` (auch Rezept, App, Desktop-
   Fenster) – Name, Grundthema, nur abweichende Werte; der Blender-Worker bekommt die Daten im Auftrag. Beispiel
   `paints/custom_example.json`.
-- [ ] **Farbwähler für das eigene Thema in der App:** Farben je Spielmaterial und Mengen (Abnutzung, Schmutz, Staub,
-  Moos, Kantenleuchten) mit Vorschau eines Anstrichs auf einem neutral gebackenen Modell; speichert die JSON-Datei für
-  `--paint-file`. Gegenstück in der Werkbank: Unity-ToDo 29.
+- [x] **Farbwähler für das eigene Thema in der App** (0.19.0, `PaintEditor.swift`): Grundthema, Farben je
+  Spielmaterial und Spurfarben (Farbwähler), Mengen (Regler), Leuchtfarbe; Vorschau als echter kleiner Lauf (vier
+  Teile, rund 5 s); speichert die JSON-Datei für `--paint-file`. Gegenstück in der Werkbank: Unity-ToDo 29.
 - [x] **Anstriche auf weitere Typen** (0.18.0): geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür,
   Geländer, Decke in allen elf Themen ([docs/paint_types_0180.png](paint_types_0180.png)); `M_Ground` ist je Thema ein
   neutraler Grundton, Staub/Moos/Schnee fleckig.
 - [x] **Fehlende Geometrie je Thema, Modulwand** (0.18.0): `test_wall_modules.dressing` – `ruin` (Rohrstrang mit
   Muffen und Knie, abgerissene Platte, Trümmer), `organic` (Ranken mit Blättern vom Deckel, Steinblöcke, Büsche);
   Umriss bleibt (45 Varianten geprüft). Kristalle gibt es schon (`crystals`).
-- [ ] **Anbauten auf weitere Typen:** dasselbe Muster für Boden (Trümmer, Moosflecken als Geometrie), Säule (Ranken),
-  Steg (herabhängende Kabel/Ranken); als Parameter `dressing`, nie gewürfelt (Set-Umriss).
-- [ ] **Kristallmaterial (Generator-Seite):** `M_Crystal` facettiert und mit eigener Leuchtfarbe je Thema im Manifest;
-  das durchscheinende Material selbst entsteht in Unity (ToDo 28).
-- [ ] **App weiter:** Notarisierung für die Weitergabe (bisher ad-hoc signiert), Parameter je Typ (`--param`) und
-  Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
+- [x] **Anbauten auf weitere Typen** (0.19.0, `cubegen/models/dressing.py`): Boden (Schutt, lose Platte / Moospolster,
+  Steine, Gras), Säule (Schutt, Bewehrung, Kabel / Ranken, Steine, Büsche), Steg (durchhängende und abgerissene Kabel
+  / Ranken über die Kanten); Umriss je 30 Seeds gehalten, im Dreiecksbudget, kein Flackern.
+- [ ] **Anbauten für Decke, Treppe, Rampe, Geländer** nach demselben Muster.
+- [x] **Kristallmaterial (Generator-Seite)** (0.19.0): `crystal_cut = faceted` (unregelmäßiger Querschnitt, Schulter,
+  schiefe mehrflächige Spitze) für Fels, Schwebeinsel, Hängekristalle, Modulwand; `crystal_color` je Thema (Vorschau,
+  Manifest `paint`). Das durchscheinende Material selbst entsteht in Unity (ToDo 28).
+- [ ] **App weiter:** Notarisierung ist vorbereitet (`app/notarize.sh`), braucht aber ein Zertifikat „Developer ID
+  Application“ (Apple Developer Program) – auf dem Mac liegt nur „Apple Development“. Dazu Parameter je Typ
+  (`--param`) und Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
 ## 3. Erweiterungen
 
@@ -339,22 +347,31 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 - [ ] **28 · Echtes Kristallmaterial** (0.18.0, Konzept „04 Crystal“): `M_Crystal` ist heute eine flache Leuchtfarbe.
   In Unity ein URP-Material für Kristall-Teile (durchscheinend/Fresnel, facettierte Normalen, innerer Schimmer, Farbe
   aus dem Thema bzw. `--glow`), zugeordnet über den Materialnamen wie Glas; Kollision unverändert. Mit ToDo 26
-  (Leuchtkarte) abstimmen, damit Kristall und Leuchtkanten dieselbe Farbe tragen.
+  (Leuchtkarte) abstimmen, damit Kristall und Leuchtkanten dieselbe Farbe tragen. Vorbereitet (0.19.0): Farbe je Thema
+  im Manifest (`paint.crystal_color`), facettierte Kristalle (`crystal_cut = faceted`) mit flachen Flächen.
 - [ ] **29 · Anstriche in der Werkbank** (0.18.0): Die Laufzeit-Generation (`CubegenJobRunner`) bietet heute keinen
   Anstrich. Auswahl „Anstrich“ aus `cubegen catalog --json` (`paints`), eigenes Thema mit Farbwählern (Farben je
   Spielmaterial, Mengen 0–1, Leuchtfarbe cyan/rot/orange) als JSON in den Benutzerdaten, Übergabe per
   `--paint`/`--paint-file`. Vorher prüfen, ob der GLB-Laufzeitpfad gebackene Karten (`MTA_`) lesen kann; sonst zuerst
-  dort ergänzen. Einstellungen nur über die Werkbank-Regeln (Hilfethema pflegen).
+  dort ergänzen. Einstellungen nur über die Werkbank-Regeln (Hilfethema pflegen). Vorbereitet (0.19.0): der Katalog
+  liefert alle Themen vollständig (`paint_schemes`) und die erlaubten Schlüssel (`paint_fields`) – Vorbild ist der
+  Editor der macOS-App (`app/Sources/PaintEditor.swift`).
 - [ ] **30 · Anbauten je Thema im Modell-Browser** (0.18.0): `test_wall_modules` mit `dressing=ruin|organic` und
   `crystals` als Varianten eines Sets anzeigen (ToDo 25); experimenteller Typ – erst nach Freigabe als Standardset.
+  Seit 0.19.0 auch Boden, Säule und Steg (`dressing`) – als Bau-Kit-Teile für Standardsets geeignet.
+- [ ] **31 · Set-Anschlussseiten im Modell-Browser** (0.19.0): Das Manifest nennt je Set die geprüften Seiten
+  (`sets[].faces`, z. B. Boden `x-, x+, y-, y+, z-`). Beim Platzieren nur an diesen Seiten einrasten und Mitglieder
+  abwechseln; mit ToDo 25 umsetzen.
 
 ## 5. Nächste Vorschläge
 
 1. **Raum- und Level-Generator** (Erweiterung 1, siehe oben).
-2. **Mehr Abwechslung:** Bei 39 Typen sind von 10 Varianten nicht alle unterscheidbar (`cubegen check`, Spalte
-   `distinct`), am wenigsten bei `ceiling_module` (6/10) sowie `archway`, `camera`, `laser_mirror`,
-   `laser_receiver`, `laser_splitter` und `tool` (je 7/10).
+2. **Mehr Abwechslung, nächste Runde:** 0.19.0 hat die acht schwächsten Typen auf 9–10 von 10 gebracht
+   (`cubegen/models/details.py`); offen sind Typen mit 8/10 (`bed`, `cargo_container`, `ceiling_panel`,
+   `emergency_light`, `item`, `keycard`, `laser_emitter`, `light`, `pressure_plate`, `toolbox`, `wall_cap`). Die
+   Signatur sieht Änderungen im Inneren nicht (Torbogen mit 1,6 und 2,4 m Durchgang galten als gleich) – das gehört
+   zum Punkt „Signatur toleranter“ oben.
 3. **Draw Calls:** `sliding_puzzle` (33) und `conveyor` (21) liegen im Budget pro beweglichem Teil, sind aber
    teuer; Teile zusammenlegen oder für sie den Paletten-Modus empfehlen.
-4. **Blender in der CI:** Die 7 Blender-Tests (Add-on-Rauchtest, FBX-Export) laufen auf GitHub nicht; ein eigener
-   Job mit Blender würde das Add-on bei jedem Push prüfen.
+4. **Blender in der CI:** erledigt in 0.19.0 (Job `blender` in `.github/workflows/tests.yml`, neueste Blender 4.5
+   LTS, führt die Testmodule mit Blender aus).

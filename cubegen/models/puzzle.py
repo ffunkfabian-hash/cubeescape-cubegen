@@ -18,6 +18,7 @@ from ..geometry import lathe
 from ..params import Param
 from .common import ALONG_X, ALONG_Y, add_vec, cube, cyl, deg, item_pickup, pickup_params, prerotate, rotated, \
     stripes, sweep_param, sweep_rotator, valve_wheel
+from .details import pillar_front, round_base, wall_mount
 from .registry import model
 
 STATUS = {"off": "M_GlowRed", "on": "M_GlowCyan"}
@@ -430,6 +431,7 @@ def laser_mirror(rng, a):
     glow = p.glow()
     cyl(body, 0.3, 0.1, (0, 0, 0.05), "M_RobotDark", sides=8, bevel=0.02)
     cyl(lights, 0.31, 0.02, (0, 0, 0.09), glow, sides=8)
+    round_base(a, body, 0.3, 0.1, "M")  # variety details (own stream)
     mw, mh = rng.uniform(0.35, 0.5), rng.uniform(0.35, 0.55)
     center = (0.0, 0.0, 0.1)
     mirror = a.part("Mirror", pivot=center)
@@ -464,6 +466,10 @@ def laser_receiver(rng, a):
     else:
         cube(body, (0.35, 0.35, h - 0.15), (0, 0.05, (h - 0.15) / 2), p.material(["M_Wall", "M_Metal"]), bevel=0.03)
     r = rng.uniform(0.18, 0.26)
+    if mount == "stand":  # variety details (own stream), below the housing
+        round_base(a, body, 0.25, 0.08, "R")
+    else:
+        pillar_front(a, body, -0.125, 0.0, h - 0.15 - r - 0.05, 0.35, "R")
     cyl(body, r, 0.18, (0, 0.03, h), "M_RobotDark", sides=8, bevel=0.02, rot=ALONG_Y)
     cyl(body, r * 0.75, 0.06, (0, -0.08, h), "M_Metal", sides=8, rot=ALONG_Y)
     cyl(a.part("Lens"), r * 0.5, 0.08, (0, -0.1, h), "M_Crystal", sides=6, rot=ALONG_Y)
@@ -603,6 +609,7 @@ def camera(rng, a):
         cyl(head, 0.13, 0.12, (cx, cy, cz - 0.16), "M_Glass", sides=10, radius_top=0.13 * 0.98)
         cyl(head, 0.13 * 0.98, 0.05, (cx, cy, cz - 0.245), "M_Glass", sides=10, radius_top=0.06)
         cube(lights, (0.03, 0.03, 0.02), (cx, cy - 0.1, cz - 0.05), "M_GlowRed")
+    wall_mount(a, body, z, 0.1, "C")  # variety details (own stream): conduit, plate or junction box on the wall
     sweep = p.option("sweep")
     if sweep:  # the LED sits on the head: it turns with it
         prerotate(a, "Rotor", 0.0, adopt=("Glow",))

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 
-from ..geometry import lathe, sphere
+from ..geometry import Prim, lathe, sphere
 from ..params import Param
 from .common import ALONG_X, add_vec, cube, cyl, deg, rotated, strut
 from .registry import model
@@ -40,8 +40,53 @@ def _boulder(rng, mesh, center, size, material, flat_bottom=True):
     return part
 
 
-def _crystal(mesh, foot, length, radius, tilt, sides=6):
-    """Crystal: prism + pointed tip along the tilted axis, starting at ``foot``."""
+CRYSTAL_CUTS = ("prism", "faceted")
+
+
+def crystal_cut_param(default: str = "prism") -> Param:
+    return Param("crystal_cut", "choice", "Kristallschliff", choices=CRYSTAL_CUTS, default=default, quiet=True,
+                 description="prism: gleichmäßiges Prisma mit Spitze; faceted: unregelmäßiger Querschnitt, Schulter "
+                             "und schiefe, mehrflächige Spitze (für ein durchscheinendes Kristallmaterial)")
+
+
+def crystal_cutter(a):
+    """The random stream of faceted crystals (``crystal_cut = faceted``) or None: an own stream, so choosing the cut
+    never moves anything else of the model."""
+    return a.sub("crystal_cut") if a.p.option("crystal_cut") == "faceted" else None
+
+
+def faceted_crystal_prim(rng, radius, length, sides=6) -> Prim:
+    """A natural crystal along +Z from the origin: irregular cross-section, a slightly narrower foot, the widest ring
+    at the shoulder, a second ring of facets and an off-centre point - flat faces that catch the light."""
+    sides = max(5, sides)
+    angles = [2 * math.pi * (i + rng.uniform(-0.18, 0.18)) / sides for i in range(sides)]
+    radii = [radius * rng.uniform(0.78, 1.12) for _ in range(sides)]
+    shoulder = length * rng.uniform(0.62, 0.72)
+    facet_z = shoulder + (length - shoulder) * rng.uniform(0.35, 0.55)
+    tip = (radius * rng.uniform(-0.25, 0.25), radius * rng.uniform(-0.25, 0.25), length)
+    rings = []
+    for z, scale, twist in ((0.0, 0.86, 0.0), (shoulder, 1.0, 0.0), (facet_z, rng.uniform(0.4, 0.55), 0.5)):
+        rings.append([(math.cos(angles[i] + twist * 2 * math.pi / sides) * radii[i] * scale + tip[0] * z / length,
+                       math.sin(angles[i] + twist * 2 * math.pi / sides) * radii[i] * scale + tip[1] * z / length, z)
+                      for i in range(sides)])
+    verts = [v for ring in rings for v in ring] + [tip]
+    apex = len(verts) - 1
+    faces = [tuple(reversed(range(sides)))]  # foot cap
+    for r in range(2):
+        a0, b0 = r * sides, (r + 1) * sides
+        for i in range(sides):
+            j = (i + 1) % sides
+            faces += [(a0 + i, a0 + j, b0 + j), (a0 + i, b0 + j, b0 + i)]  # triangles: the facets stay flat
+    for i in range(sides):
+        faces.append((2 * sides + i, 2 * sides + (i + 1) % sides, apex))
+    return Prim(verts, faces, ["M_Crystal"] * len(faces))
+
+
+def _crystal(mesh, foot, length, radius, tilt, sides=6, cut=None):
+    """Crystal: prism + pointed tip along the tilted axis, starting at ``foot``; with ``cut`` (a random stream from
+    ``crystal_cutter``) a faceted natural crystal of the same size instead."""
+    if cut is not None:
+        return mesh.add(faceted_crystal_prim(cut, radius, length, sides), loc=foot, rot=tilt)
     cyl(mesh, radius, length * 0.7, add_vec(foot, rotated(tilt, (0, 0, length * 0.35))), "M_Crystal", sides=sides,
         radius_top=radius * 0.9, rot=tilt)
     cyl(mesh, radius * 0.9, length * 0.3, add_vec(foot, rotated(tilt, (0, 0, length * 0.85))), "M_Crystal",
@@ -54,6 +99,7 @@ def _crystal(mesh, foot, length, radius, tilt, sides=6):
            Param("boulders", "int", "Brocken", lo=1, hi=8),
            Param("spire", "bool", "Felsnadel"),
            Param("crystals", "int", "Kristalle", lo=0, hi=8),
+           crystal_cut_param(),
        ])
 def rock(rng, a):
     p = a.p
@@ -75,13 +121,13 @@ def rock(rng, a):
         _jitter(m, part, rng, s * 0.04, keep=lambda v: v[2] < 1e-6)
     n_cr = p.int("crystals", 0, 3)
     if n_cr:
-        cr = a.part("Crystals")
+        cr, cut = a.part("Crystals"), crystal_cutter(a)
         for _ in range(n_cr):
             ang = rng.uniform(0, 2 * math.pi)
             dist = s * rng.uniform(0.2, 0.45)
             tilt = (deg(-math.sin(ang) * rng.uniform(15, 40)), deg(math.cos(ang) * rng.uniform(15, 40)), 0.0)
             _crystal(cr, (math.cos(ang) * dist, math.sin(ang) * dist, s * 0.2), s * rng.uniform(0.3, 0.6),
-                     s * rng.uniform(0.04, 0.08), tilt)
+                     s * rng.uniform(0.04, 0.08), tilt, cut=cut)
     a.meta["boulders"] = n
 
 
@@ -91,6 +137,7 @@ def rock(rng, a):
            Param("depth", "float", "Tiefe (m)", lo=0.6, hi=4.0, size=True),
            Param("crystals", "int", "Kristalle", lo=0, hi=10),
            Param("glow", "bool", "Glow-Kante"),
+           crystal_cut_param(),
        ])
 def floating_island(rng, a):
     p = a.p
@@ -113,7 +160,7 @@ def floating_island(rng, a):
         _boulder(rng, m, (math.cos(ang) * dist, math.sin(ang) * dist, z), (k, k, k * 1.2), "M_Ground", flat_bottom=False)
     n = p.int("crystals", 0, 4)
     if n:
-        cr = a.part("Crystals")
+        cr, cut = a.part("Crystals"), crystal_cutter(a)
         for i in range(n):
             ang = rng.uniform(0, 2 * math.pi)
             if i % 2 == 0:  # on the top, near the edge
@@ -127,7 +174,7 @@ def floating_island(rng, a):
                 tilt = (math.pi + deg(rng.uniform(-15, 15)), deg(rng.uniform(-15, 15)), 0.0)
                 length = depth * rng.uniform(0.4, 0.7)
             v0 = len(cr.verts)
-            _crystal(cr, foot, length, r * rng.uniform(0.05, 0.09), tilt)
+            _crystal(cr, foot, length, r * rng.uniform(0.05, 0.09), tilt, cut=cut)
             if i % 2 == 0 and p.style.generation >= 3:  # crystals on the top: a box around each
                 lo = [min(v[k] for v in cr.verts[v0:]) for k in range(3)]
                 hi = [max(v[k] for v in cr.verts[v0:]) for k in range(3)]
@@ -142,6 +189,7 @@ def floating_island(rng, a):
            Param("mount_height", "float", "Deckenhöhe (m)", lo=2.0, hi=6.0, default=3.0),
            Param("crystals", "int", "Kristalle", lo=1, hi=12),
            Param("length", "float", "Länge (m)", lo=0.3, hi=1.8, size=True),
+           crystal_cut_param(),
        ])
 def hanging_crystals(rng, a):
     p = a.p
@@ -151,6 +199,7 @@ def hanging_crystals(rng, a):
     n = p.int("crystals", 3, 7)
     base_r = length * rng.uniform(0.35, 0.5)
     m, cr = a.part("Rock"), a.part("Crystals")
+    cut = crystal_cutter(a)
     part = m.add(sphere(1.0, rng.choice([6, 7]), 3, "M_Ground"), loc=(0, 0, z - base_r * 0.3),
                  scale=(base_r, base_r * 0.8, base_r * 0.35))
     _jitter(m, part, rng, base_r * 0.1)
@@ -166,7 +215,7 @@ def hanging_crystals(rng, a):
             foot = (math.cos(ang) * dist, math.sin(ang) * dist, z - base_r * 0.35)
             ln = length * rng.uniform(0.35, 0.75)
             tilt = (math.pi + deg(math.sin(ang) * rng.uniform(10, 30)), deg(math.cos(ang) * rng.uniform(10, 30)), 0.0)
-        _crystal(cr, foot, ln, base_r * rng.uniform(0.12, 0.22), tilt, sides=rng.choice([5, 6]))
+        _crystal(cr, foot, ln, base_r * rng.uniform(0.12, 0.22), tilt, sides=rng.choice([5, 6]), cut=cut)
     a.meta["crystals"] = n
 
 

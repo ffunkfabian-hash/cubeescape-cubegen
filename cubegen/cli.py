@@ -14,7 +14,7 @@ from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
 from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
-from .paint import PAINTS, paint_names
+from .paint import AMOUNT_KEYS, COLOR_KEYS, GLOW_COLORS, PAINTED, PAINTS, paint_names
 from .palette import palette_names
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
@@ -466,7 +466,12 @@ def catalog_data() -> Dict[str, object]:
     return {"catalog": 1, "generator": f"cubegen {__version__}", "version": __version__,
             "generations": list(GENERATIONS), "latestGeneration": LATEST_GENERATION, "formats": list(FORMATS),
             "options": options, "palettes": palettes, "families": families, "types": types,
-            "paints": {name: {"label": PAINTS[name]["label"], "glow": PAINTS[name]["glow"]} for name in paint_names()}}
+            "paints": {name: {"label": PAINTS[name]["label"], "glow": PAINTS[name]["glow"]} for name in paint_names()},
+            # 0.19.0: the full schemes as templates for an own scheme (app colour pickers, later the workbench) and the
+            # keys a scheme file may set (--paint-file)
+            "paint_schemes": {name: PAINTS[name] for name in paint_names()},
+            "paint_fields": {"painted": list(PAINTED), "amounts": list(AMOUNT_KEYS), "colors": list(COLOR_KEYS),
+                             "glow": list(GLOW_COLORS)}}
 
 
 def cmd_catalog(args) -> int:

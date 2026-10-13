@@ -189,9 +189,11 @@ SET_TOLERANCE_M = 0.01  # members whose bounding box differs more are reported: 
 
 
 def outline_params(model_type: str, used: Dict[str, Any]) -> Dict[str, Any]:
-    """The outline values among the resolved parameters of a model."""
-    specs = {p.name: p for p in REGISTRY[model_type].params}
-    return {k: v for k, v in sorted(used.items()) if k in specs and (specs[k].size or k in OUTLINE_PARAMS)}
+    """The outline values among the resolved parameters of a model (plus the type's own ``set_pins``)."""
+    entry = REGISTRY[model_type]
+    specs = {p.name: p for p in entry.params}
+    return {k: v for k, v in sorted(used.items())
+            if k in specs and (specs[k].size or k in OUTLINE_PARAMS or k in entry.set_pins)}
 
 
 def _set_spec(config: BatchConfig, model_type: str, index: int, pinned: Dict[str, Any]) -> Dict:
@@ -605,11 +607,12 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
     sets = []
     for name in sorted({s["set"]["name"] for s in specs if s.get("set")}):
         members = [s for s in specs if s.get("set", {}).get("name") == name]
-        # what must match to join: left/right (x), bottom/top (z) and the back (max y); parts may stick out to the
-        # front (-y: pipes, signs, crystals) differently - that is the point of a set
+        # what must match to join: the type's set_faces - a wall its left/right, bottom/top and back (parts may stick
+        # out to the front: pipes, signs, crystals), a floor tile its four sides and bottom (details on top), ...
+        faces = REGISTRY[members[0]["type"]].set_faces
         boxes = [asset_of(s).bbox() for s in members]
-        edges = [(lo[0], hi[0], lo[2], hi[2], hi[1]) for lo, hi in boxes]
-        deviation = max(abs(e[i] - edges[0][i]) for e in edges for i in range(5))
+        edges = [[(hi if f[1] == "+" else lo)["xyz".index(f[0])] for f in faces] for lo, hi in boxes]
+        deviation = max(abs(e[i] - edges[0][i]) for e in edges for i in range(len(faces)))
         previews = [results.get(s["name"], {}).get("preview") for s in members]
         previews = [p for p in previews if p and os.path.isfile(p)]
         row = None
@@ -621,7 +624,8 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
                        + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
                 images.put("set:" + row, key, [row])
         sets.append({"name": name, "type": members[0]["type"], "members": [s["name"] for s in members],
-                     "pinned": members[0]["set"]["pinned"], "outline_ok": deviation <= SET_TOLERANCE_M,
+                     "pinned": members[0]["set"]["pinned"], "faces": list(faces),
+                     "outline_ok": deviation <= SET_TOLERANCE_M,
                      "deviation_m": round(deviation, 4), "preview": row})
     return sets
 
@@ -978,6 +982,11 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
          if palette else None),
         "contact_sheet": _rel(sheet, out),
         "sets": [dict(entry, preview=_rel(entry["preview"], out)) for entry in sets],
+        # the light colours of the paint scheme for Unity (ToDo 26/28): glow parts keep M_Glow<colour>, crystal parts
+        # M_Crystal - a crystal material there takes crystal_color (sRGB hex)
+        "paint": ({"name": config.paint, "glow": PAINTS[config.paint]["glow"],
+                   "crystal_color": PAINTS[config.paint]["crystal_color"],
+                   "edge_glow_color": PAINTS[config.paint]["edge_glow_color"]} if config.paint else None),
         "family": family_info,
         "timings": None,
         "models": entries,

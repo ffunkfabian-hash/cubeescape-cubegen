@@ -27,10 +27,17 @@ from .wear import apply_wear
 
 BuildFn = Callable[[random.Random, Asset], None]
 
+#: faces of the bounding box (axis and side) a variant set compares - the faces where neighbours join
+SET_FACES = ("x-", "x+", "y-", "y+", "z-", "z+")
+#: default: a wall-like piece joins left/right, stands on the floor, reaches the same top and keeps its back; parts
+#: may stick out to the front (-y) differently - that is the point of a set
+WALL_FACES = ("x-", "x+", "z-", "z+", "y+")
+
 
 class ModelType:
     def __init__(self, name: str, title: str, category: str, pivot: str, description: str, build: BuildFn,
-                 params: Sequence[Param], view: str = "above"):
+                 params: Sequence[Param], view: str = "above", set_faces: Sequence[str] = WALL_FACES,
+                 set_pins: Sequence[str] = ()):
         self.name = name          # CLI name, e.g. "server_rack"
         self.title = title        # asset name prefix in Unity, e.g. "ServerRack"
         self.category = category
@@ -39,6 +46,8 @@ class ModelType:
         self.build = build
         self.params = list(params)
         self.view = view          # above | below: preview / icon camera (below for ceiling pieces)
+        self.set_faces = tuple(set_faces)  # --set: the bounding-box faces every member must share (SET_FACES)
+        self.set_pins = tuple(set_pins)    # --set: parameters pinned besides the outline ones (e.g. a corner's style)
 
     def param(self, name: str) -> Param:
         for p in self.params:
@@ -51,7 +60,8 @@ REGISTRY: Dict[str, ModelType] = {}
 
 
 def model(name: str, title: str, category: str, description: str, pivot: str = "floor",
-          params: Sequence[Param] = (), view: str = "above"):
+          params: Sequence[Param] = (), view: str = "above", set_faces: Sequence[str] = WALL_FACES,
+          set_pins: Sequence[str] = ()):
     """Decorator that registers a builder function as model type ``name``."""
 
     def deco(fn: BuildFn) -> BuildFn:
@@ -59,7 +69,13 @@ def model(name: str, title: str, category: str, description: str, pivot: str = "
             raise ValueError(f"model type {name!r} registered twice")
         if view not in ("above", "below"):
             raise ValueError(f"model type {name!r}: view must be 'above' or 'below'")
-        REGISTRY[name] = ModelType(name, title, category, pivot, description, fn, params, view)
+        unknown = [f for f in set_faces if f not in SET_FACES]
+        if unknown or not set_faces:
+            raise ValueError(f"model type {name!r}: set_faces from {', '.join(SET_FACES)}, got {list(set_faces)}")
+        missing = [k for k in set_pins if k not in {p.name for p in params}]
+        if missing:
+            raise ValueError(f"model type {name!r}: set_pins {missing} are no parameters")
+        REGISTRY[name] = ModelType(name, title, category, pivot, description, fn, params, view, set_faces, set_pins)
         return fn
 
     return deco

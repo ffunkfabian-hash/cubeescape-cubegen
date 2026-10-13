@@ -87,6 +87,10 @@ python -m cubegen doctor
 Höhe, Maß-Parameter), unterscheiden sich aber innen – Teile, die nebeneinander stehen, ohne sich zu wiederholen.
 `set_<Typ>.png` zeigt die Reihe, das Manifest (`sets`) sagt, ob der Typ seinen Umriss wirklich hält (`outline_ok`).
 Ebenso in App und Desktop-Fenster („Variantenset“). Beispiel: [docs/wall_set_0170.png](docs/wall_set_0170.png).
+Seit 0.19.0 ist das ganze Bau-Kit set-fähig (Wand, Boden, Decke, Deckenplatte, Steg, Geländer, Säule, Kiste, Treppe,
+Plattform, Rampe, Wandabschluss, Ecke); geprüft werden die Seiten, an denen Nachbarn anschließen (`sets[].faces`:
+Boden vier Seiten und unten, Decke vier Seiten und oben, Wand links/rechts, unten/oben, hinten).
+Bild: [docs/kaleidoscope_0190.png](docs/kaleidoscope_0190.png).
 
 ```bash
 python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --glow cyan
@@ -101,7 +105,10 @@ mit dem Konzept: [docs/wall_paints_0170.png](docs/wall_paints_0170.png); Stiltes
 `python3 tools/style_test.py --paints all [--row test_wall_modules@crystals=some:5] [--concept <Bild>]`.
 Seit 0.18.0 auf allen Typen ([docs/paint_types_0180.png](docs/paint_types_0180.png)); eigenes Thema aus einer Datei mit
 `--paint-file` (Beispiel `paints/custom_example.json`, App und Desktop-Fenster: „Eigenes Thema“). Die Modulwand
-bekommt Anbauten je Thema: `--param test_wall_modules.dressing=ruin|organic` (Rohre und Trümmer, Steine und Bewuchs).
+bekommt Anbauten je Thema: `--param test_wall_modules.dressing=ruin|organic` (Rohre und Trümmer, Steine und Bewuchs),
+seit 0.19.0 auch Boden, Säule und Steg (`floor_tile.dressing`, `pillar.dressing`, `catwalk.dressing`). Kristalle
+tragen die Kristallfarbe des Themas; `crystal_cut=faceted` gibt Fels, Schwebeinsel, Hängekristallen und Modulwand
+facettierte Kristalle.
 
 ## App (macOS)
 
@@ -111,11 +118,14 @@ Ausgabeordner, Texturen (Art, Größe, Palette, Backgerät), Stil (alle Auswahlo
 ähnliche Varianten überspringen, strikte Prüfung, alles neu bauen, nur OBJ, Blender-Prozesse. „Vorab prüfen“ zeigt
 das Qualitätsranking, „Assets erzeugen“ (⌘R) den Fortschritt und das Protokoll, danach die Modelle als Galerie und
 eins davon in 3D (Ansichten Iso/Vorne/Seite/Oben, Drehteller, Boden, Screenshot). Die Einstellungen bleiben zwischen
-zwei Starts erhalten; der letzte Lauf erscheint beim Öffnen wieder.
+zwei Starts erhalten; der letzte Lauf erscheint beim Öffnen wieder. Seit 0.19.0 bearbeitet der Pinsel neben „Eigenes
+Thema“ ein eigenes Thema mit Farbwählern und Reglern, mit echter Vorschau auf vier Teilen
+([docs/paint_editor_0190.png](docs/paint_editor_0190.png)); gespeichert wird die Datei für `--paint-file`.
 
 ```bash
 app/build.sh            # -> output/app/Cubegen.app (universal, macOS 13+)
-app/test_app.sh         # 17 Prüfungen ohne Fenster: Version, Katalog, Kommandozeile, 3D, Fenster, echte Läufe
+app/test_app.sh         # 25 Prüfungen ohne Fenster: Version, Katalog, Kommandozeile, 3D, Fenster, Themen-Editor, Läufe
+app/notarize.sh         # Weitergabe: Developer-ID-Signatur und Notarisierung (eigenes Apple-Konto nötig)
 open output/app/Cubegen.app
 ```
 
@@ -521,10 +531,10 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `camera` | `mount_height` (1–4), `style` (box / dome), `speed` (-180–180, Standard 0) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `sweep` (0–300, Standard 0) 🔗 |
 | `canister` | `radius` (0.1–1), `height` (0.3–3), `sides` (8 / 10 / 12), `warning_band` (ja/nein), `handle` (ja/nein), `glow_style` (window / ring) |
 | `cargo_container` | `length` (4.0 / 6.0), `width` (2–3.2), `height` (2.4–3.4), `ribs` (ja/nein), `speed` (10–720, Standard 90) 🔗, `interactive` (ja/nein) 🔗 |
-| `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1) |
+| `catwalk` | `length` (2.0 / 4.0), `width` (1.0 / 2.0), `rails` (both / one / none), `supports` (0–4), `glow` (ja/nein), `shape` (straight / corner / tee / cross / landing / end, Standard straight), `rail_height` (0.8–1.4, Standard 1), `dressing` (none / ruin / organic, Standard none) |
 | `ceiling_beam` | `length` (2.0 / 4.0 / 6.0), `profile` (i_beam / truss / box), `depth` (0.2–0.8), `tray` (ja/nein), `lamps` (ja/nein), `mount_height` (2.2–8, Standard 3) |
 | `ceiling_module` | `size` (1–8), `style` (beams / coffered / skylight / vent / roof), `mount_height` (2–6, Standard 3), `thickness` (0.1–0.5) |
-| `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6, Standard 3), `fan_speed` (0–2000, Standard 200) 🔗 |
+| `ceiling_panel` | `size` (1.0 / 2.0 / 4.0), `style` (light / fan / plain), `mount_height` (2–6, Standard 3), `fan_speed` (0–2000, Standard 200) 🔗, `thickness` (0.04–0.3) |
 | `chair` | `armrests` (ja/nein), `back` (high / low), `turn` (-180–180) |
 | `chip_reader` | `mount_height` (0.5–2.5), `screen` (ja/nein), `keys` (ja/nein), `status` (off / on, Standard off) |
 | `clue` | `kind` (tablet / note / datapad / audio_log), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
@@ -539,7 +549,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `countdown` | `minutes` (0–99), `seconds` (0–59), `digit_height` (0.08–0.6), `mount_height` (1–3.5), `mode` (Steady / Blink / Pulse, Standard Blink) 🔗, `stripes` (ja/nein), `text` (Text) |
 | `crane` | `style` (jib / gantry), `height` (2–5), `reach` (1–3.5), `speed` (5–360, Standard 45) 🔗 |
 | `crashed_pod` | `length` (1.8–4.5), `embers` (ja/nein) |
-| `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line) |
+| `crate` | `width` (0.3–3), `height` (0.2–3), `style` (panels / rims / posts), `stripes` (ja/nein), `hatch` (ja/nein), `glow_pattern` (strips / line), `depth` (0.2–3) |
 | `crate_pile` | `count` (1–12), `broken` (ja/nein) |
 | `crusher` | `width` (0.8–3), `height` (1.4–3.5), `teeth` (ja/nein), `speed` (0.2–20, Standard 6) 🔗 |
 | `cryo_pod` | `pose` (standing / lying), `length` (1.6–3), `occupied` (ja/nein), `frost` (ja/nein) |
@@ -555,11 +565,11 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `fallen_pillar` | `width` (0.2–2), `segments` (1–5), `stump` (ja/nein) |
 | `fan` | `style` (stand / box), `radius` (0.2–1.5), `guard` (ja/nein), `speed` (0–2000, Standard 360) 🔗 |
 | `flashlight` | `kind` (torch / lantern), `length` (0.12–0.45), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
-| `floating_island` | `radius` (0.8–3.5), `depth` (0.6–4), `crystals` (0–10), `glow` (ja/nein) |
+| `floating_island` | `radius` (0.8–3.5), `depth` (0.6–4), `crystals` (0–10), `glow` (ja/nein), `crystal_cut` (prism / faceted, Standard prism) |
 | `floodlight` | `mount` (tripod / mast / base), `height` (0.5–5), `heads` (1 / 2 / 4), `tilt` (0–60), `range` (2–60, Standard 15) 🔗, `intensity` (0.1–20, Standard 3) 🔗 |
 | `floor_grate` | `size` (1.0 / 2.0), `depth` (0.2–1.5), `content` (pipes / cables / both), `lights` (ja/nein) |
 | `floor_plan` | `width` (0.5–2.5), `rooms` (3–12), `mount_height` (1–2.5), `title` (Text) |
-| `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein) |
+| `floor_tile` | `size` (1.0 / 2.0 / 4.0), `style` (grate / plate / hatch / vent), `glow` (ja/nein), `stripes` (ja/nein), `depth` (0.05–0.4), `dressing` (none / ruin / organic, Standard none) |
 | `fluid_basin` | `width` (1–8), `depth` (1–8), `rim_height` (0.3–1.5), `fill` (0.1–0.95), `fluid` (water / mud / toxic), `inlet` (ja/nein), `outlet` (ja/nein), `pipe_radius` (0.09 / 0.18 / 0.35, Standard 0.09), `outlet_height` (0.1–2.5) |
 | `force_field` | `style` (field / lasers), `width` (0.8–5), `height` (1.2–4), `speed` (0.1–20, Standard 6) 🔗 |
 | `freq_dial` | `knobs` (1–3), `step` (15 / 30 / 45, Standard 30) 🔗, `mount_height` (0.6–2.2), `status` (off / on, Standard off) |
@@ -570,7 +580,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `gear_puzzle` | `gears` (2–5), `missing` (ja/nein), `crank` (ja/nein), `mount_height` (0.6–2.5), `speed` (0–720, Standard 60) 🔗, `status` (off / on, Standard off) |
 | `generator` | `radius` (0.3–3), `height` (0.5–5), `rings` (1–6), `floor_pipes` (ja/nein), `status` (off / on, Standard off), `rotor_speed` (0–2000) 🔗 |
 | `girders` | `count` (1–8), `length` (0.5–8) |
-| `hanging_crystals` | `mount_height` (2–6, Standard 3), `crystals` (1–12), `length` (0.3–1.8) |
+| `hanging_crystals` | `mount_height` (2–6, Standard 3), `crystals` (1–12), `length` (0.3–1.8), `crystal_cut` (prism / faceted, Standard prism) |
 | `hatch` | `shape` (square / round), `size` (0.6–2), `ladder` (ja/nein), `lid_angle` (30–180, Standard 110) 🔗, `status` (off / on, Standard off), `variant` (standard / maintenance, Standard standard) |
 | `hologram` | `style` (table / pedestal), `kind` (globe / station / cube), `radius` (0.3–1.5), `speed` (0–360, Standard 20) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `hydroponic_bed` | `length` (0.8–4), `tiers` (1–3), `lamp` (ja/nein) |
@@ -600,7 +610,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `pallet` | `size` (euro / square), `load` (none / crates / sacks / canisters), `straps` (ja/nein) |
 | `patrol_drone` | `size` (0.4–1.6), `rotor_speed` (0–3000, Standard 1440) 🔗, `scan_speed` (0–360, Standard 40) 🔗, `mode` (Steady / Pulse / Blink, Standard Pulse) 🔗 |
 | `phase_platform` | `size` (1.0 / 2.0 / 3.0 / 4.0), `anchors` (pylons / pedestal / brackets), `pattern` (grid / rings / plain), `mode` (Steady / Blink / Pulse, Standard Pulse) 🔗 |
-| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein) |
+| `pillar` | `width` (0.2–3), `height` (3.0 / 4.0), `warning_band` (ja/nein), `dressing` (none / ruin / organic, Standard none) |
 | `pipe` | `length` (2.0 / 4.0), `radius` (0.09 / 0.18 / 0.35), `axis_height` (0.2–3), `valve` (ja/nein), `valve_speed` (10–1000, Standard 180) 🔗 |
 | `pipe_bend` | `kind` (elbow / elbow_up / tee / cross), `radius` (0.09 / 0.18 / 0.35), `arm` (0.5 / 1.0), `axis_height` (0.2–3), `support` (ja/nein) |
 | `pipe_fitting` | `kind` (straight / elbow / tee / cross / end), `tile` (0.5–3), `radius` (0.05–0.3), `base` (ja/nein), `target` (0–3, Standard 0) 🔗, `speed` (10–1000, Standard 240) 🔗 |
@@ -621,7 +631,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `retractable_bridge` | `length` (2.0 / 4.0), `width` (0.8–3), `rails` (ja/nein), `speed` (0.1–5, Standard 0.8) 🔗, `starts_open` (ja/nein) 🔗 |
 | `robot_arm` | `reach` (0.8–3), `pose` (rest / reach / up), `gripper` (claw / suction / welder), `turret_speed` (0–180, Standard 0) 🔗 |
 | `robot_dog` | `size` (0.5–1.6), `module` (none / sensor / cargo / turret), `mode` (Steady / Pulse / Blink, Standard Steady) 🔗 |
-| `rock` | `size` (0.3–4), `boulders` (1–8), `spire` (ja/nein), `crystals` (0–8) |
+| `rock` | `size` (0.3–4), `boulders` (1–8), `spire` (ja/nein), `crystals` (0–8), `crystal_cut` (prism / faceted, Standard prism) |
 | `rubble_pile` | `radius` (0.3–5), `height` (0.2–3), `chunks` (3–60), `plates` (ja/nein), `rebar` (ja/nein), `cable` (ja/nein) |
 | `safe` | `lock` (dial / keypad), `height` (0.4–1.8), `door_angle` (30–180, Standard 100) 🔗, `code` (0–9, Standard 7) 🔗, `status` (off / on, Standard off) |
 | `saw_blade` | `radius` (0.2–1), `length` (0.6–4), `teeth` (6–24), `speed` (0–2000, Standard 720) 🔗, `mode` (Steady / Blink / Pulse, Standard Blink) 🔗 |
@@ -649,7 +659,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `table` | `style` (table / desk / round / lab), `width` (0.6–3), `clutter` (ja/nein) |
 | `tank` | `radius` (0.2–3), `height` (0.5–6), `legs` (ja/nein), `rings` (0–6), `warning_band` (ja/nein), `ladder` (ja/nein), `top_pipe` (ja/nein), `glow_style` (gauge / ring) |
 | `terminal` | `height` (0.4–2.5), `tilt` (0–60), `extra` (keypad / slot / none), `antenna` (ja/nein), `status` (off / on, Standard off) |
-| `test_wall_modules` | `crystals` (none / some / many, Standard none), `dressing` (none / ruin / organic, Standard none) |
+| `test_wall_modules` | `crystals` (none / some / many, Standard none), `dressing` (none / ruin / organic, Standard none), `crystal_cut` (prism / faceted, Standard faceted) |
 | `tool` | `kind` (wrench / crowbar / pliers / screwdriver), `length` (0.15–0.9), `spin` (0–360, Standard 45) 🔗, `item_id` (Text) 🔗 |
 | `tool_cart` | `drawers` (1–6), `width` (0.4–1.2), `top` (tools / tray / box) |
 | `toolbox` | `style` (case / chest / open), `width` (0.3–1.2) |
@@ -664,7 +674,7 @@ python -m cubegen generate --seed 7 --size L --snap 0.5 --glow cyan --material-s
 | `vent_shaft` | `kind` (straight / corner / tee / cross / end), `inner` (0.6–2), `length` (1.0 / 2.0), `glow` (ja/nein), `grille` (ja/nein) |
 | `vines` | `width` (0.5–4), `length` (0.5–3), `tendrils` (2–10), `bulbs` (ja/nein) |
 | `wall` | `length` (2.0 / 4.0), `layout` (tall / split / grid / vent), `lines` (top / both / vertical), `pipe` (ja/nein), `pipe_height` (0.2–2.8), `stripes` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5), `opening` (none / door / window / pipe, Standard none), `opening_x` (-4–4, Standard 0), `door_style` (airlock / blast / elevator / heavy / security / sliding, Standard sliding), `door_width` (0.6–8, Standard 2), `door_height` (1.2–8, Standard 2.6), `window_width` (0.4–3.6, Standard 1.6), `window_height` (0.4–2.5, Standard 1.2), `window_sill` (0.2–2, Standard 1), `duct_radius` (0.05–0.5, Standard 0.18), `duct_height` (0.2–2.6, Standard 0.6) |
-| `wall_cap` | `length` (1–8), `thickness` (0.2–1, Standard 0.5), `height` (2–6, Standard 3), `style` (flat / bevel / rail / glow) |
+| `wall_cap` | `length` (1–8), `thickness` (0.2–1, Standard 0.5), `height` (2–6, Standard 3), `style` (flat / bevel / rail / glow), `overhang` (0–0.2), `cap_height` (0.04–0.3) |
 | `wall_corner` | `style` (corner / end / tee), `pipe` (ja/nein), `guard` (ja/nein), `glow` (ja/nein), `height` (2–6, Standard 3), `thickness` (0.2–1, Standard 0.5) |
 | `wall_panel` | `length` (2.0 / 4.0), `style` (consoles / pipes / cabinets / panels), `stripes` (ja/nein) |
 | `wall_roots` | `size` (0.8–3), `roots` (2–8), `glow` (ja/nein) |

@@ -69,6 +69,7 @@ struct ContentView: View {
             Sidebar(model: model)
                 .frame(minWidth: 340, idealWidth: 380, maxWidth: 460)
         }
+        .sheet(isPresented: $model.editingPaint) { PaintEditor(model: model) }
     }
 
     private var overlay: some View {
@@ -281,6 +282,9 @@ struct Sidebar: View {
                 TextField("Eigenes Thema (JSON, ersetzt den Anstrich)", text: $model.settings.paintFile)
                     .textFieldStyle(.roundedBorder)
                 Button("Datei …") { model.choosePaintFile() }
+                Button { model.openPaintEditor() } label: { UIIcon(name: "action_paint") }
+                    .help("Eigenes Thema mit Farbwählern bearbeiten …")
+                    .disabled(model.catalog?.paint_schemes == nil)
             }
             .help("Ein eigenes Thema als JSON: Name, Grundthema und nur die geänderten Werte (Beispiel: paints/custom_example.json)")
             Picker("Texturen", selection: $model.settings.textures) {

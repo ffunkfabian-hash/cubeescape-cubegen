@@ -1,0 +1,140 @@
+# Cubegen 0.19.0 – Kaleidoscope
+
+Release vom 13. Oktober 2026, Release-Zweig `release/0.19.0`; vorherige Version [0.18.1](VERSION_0.18.1.md).
+
+## Auftrag
+
+Die Punkte 1–6 der Liste „Was steht als nächstes an?“ nach 0.18.1 umsetzen, danach committen, mergen, pushen.
+
+| Punkt | Stand |
+|---|---|
+| 1 · Weitere Typen set-fähig machen | umgesetzt: das ganze Bau-Kit (13 Typen) |
+| 2 · Anbauten auf weitere Typen | umgesetzt: Boden, Säule, Steg |
+| 3 · Kristalle aufwerten | umgesetzt: facettierter Schliff, Kristallfarbe je Thema (das Material selbst: Unity-ToDo 28) |
+| 4 · Farbwähler in der App | umgesetzt: Themen-Editor mit echter Vorschau |
+| 5 · Mehr Abwechslung | umgesetzt für die acht schwächsten Typen |
+| 6 · Neural-Engine-Prüfungen, Blender in der CI, Notarisierung | Prüfwerkzeug und CI-Job umgesetzt; Notarisierung vorbereitet, braucht ein Developer-ID-Zertifikat |
+
+Bild aller Neuerungen: [docs/kaleidoscope_0190.png](docs/kaleidoscope_0190.png); Editor:
+[docs/paint_editor_0190.png](docs/paint_editor_0190.png).
+
+## 1 · Bau-Kit set-fähig
+
+Messung vorher (`--set`, 5 Varianten, Seeds 42/7/1234): von 18 Bau-Kit-Typen hielten 8 ihren Umriss; Abweichungen
+Boden 4,6–9 cm, Kiste 3,5–17 cm, Plattform 9,5 cm, Rampe bis 93 cm, Treppe bis 100 cm, Steg bis 225 cm,
+Wandabschluss bis 104 cm, Deckenmodul bis 127 cm.
+
+- **Ursache 1 – die Prüfung war für Wände gemacht** (links/rechts, unten/oben, Rückseite). Ein Boden schließt an vier
+  Seiten an und darf oben Details tragen, eine Deckenplatte hängt von oben, eine Ecke schließt nur rechts und hinten
+  an. **Korrektur:** `set_faces` am Typ (`@model(..., set_faces=...)`, Daten statt Sonderfall), Manifest `sets[].faces`.
+- **Ursache 2 – Formwahlen sind andere Teile** (Treppe gegen Rampe, Geländer ja/nein, Art einer Ecke). **Korrektur:**
+  `set_pins` hält sie im Set fest.
+- **Ursache 3 – gewürfelte Maße im Builder** (Bodenstärke, Plattendicke, Kistentiefe, Überstand und Höhe des
+  Wandabschlusses). **Korrektur:** `p.value("depth", <derselbe Wurf>)` – das Maß ist Parameter, der Zufallsstrom
+  bleibt, die Geometrie jeder bestehenden Variante auch (geprüft über alle Golden-Fälle ohne die Metadaten).
+- **Fund am Deckenmodul:** Kassettenrippen am Rand und der Dachfirst ragten 4 bzw. 5 cm über die Platte – zwei
+  Nachbarplatten überlappten (Flackern am Stoß). Rippen jetzt bündig, First 5 mm vor jedem Giebel.
+- Ergebnis: alle 13 Typen des Bau-Kits (Wand, Boden, Decke, Deckenplatte, Steg, Geländer, Säule, Kiste, Treppe,
+  Plattform, Rampe, Wandabschluss, Ecke) mit `outline_ok` bei sechs Seeds. Gegenbeispiele für die ROADMAP: Tür
+  35 cm, Spind 27 cm, Konsole und Maschine 11 cm, Regal 2,8 cm.
+
+## 2 · Anbauten auf Boden, Säule und Steg
+
+`cubegen/models/dressing.py`: gemeinsame Bausteine (Schutt, lose Platte, Steine, Büsche, Moospolster, hängende
+Ranken, durchhängende und abgerissene Kabel, `on_floor`) und je Typ eine Anordnung; Parameter `dressing`, `quiet`
+(bei `none` nicht im Sidecar), eigener Zufallsstrom.
+
+- Boden: `ruin` Schutt und eine lose Platte, `organic` Moospolster, Steine, niedriges Gras – 12 cm vom Stoß entfernt.
+- Säule: `ruin` Schutt am Fuß, Bewehrung, abgerissenes Kabel; `organic` Ranken unter dem Kopf, Steine, Büsche.
+- Steg: `ruin` Kabel unter dem Steg; `organic` Ranken über beide Kanten (nichts auf dem Belag: seine Oberkante
+  schließt an den nächsten an).
+- **Fund:** Moospolster und Steine wurden nur am Mittelpunkt begrenzt und ragten bis 1,7 cm über den Rand; eine
+  4-m-Platte mit Bewuchs kam auf 2 212 Dreiecke (Budget 2 000). **Korrektur:** Teile mit ihrer Reichweite eingrenzen
+  (`_inside`), Anzahl je Größe gestuft. Danach: Umriss bei 30 Seeds je Typ und Art gehalten, höchstens 1 880
+  Dreiecke, kein Flackern, keine Geometrie ohne Kollision.
+
+## 3 · Kristalle
+
+- `crystal_cut = faceted` (Fels, Schwebeinsel, Hängekristalle; Modulwand standardmäßig): unregelmäßiger Querschnitt,
+  schmalerer Fuß, Schulter, ein zweiter Facettenring, schiefe Spitze, nur Dreiecke (flache Flächen für ein
+  durchscheinendes Material). Eigener Zufallsstrom: Fels und alles andere bleiben, wie sie waren (Test).
+- `crystal_color` je Thema (Industrial Bernstein, Crystal Hellblau, Organic Mintgrün, Void Violett …): Vorschau, Icon,
+  `.blend` und Stiltest zeigen sie; das Manifest nennt sie unter `paint` (mit Leuchtfarbe und Kantenleuchten) für
+  Unity (ToDo 28). Ältere Themen-Dateien ohne den Schlüssel bekommen ihn vom Grundthema.
+
+## 4 · Farbwähler in der App
+
+`app/Sources/PaintEditor.swift`, geöffnet mit dem Pinsel neben „Eigenes Thema“: Name, Anzeigename, Grundthema (setzt
+alle Werte), Farbwähler je Spielmaterial und für Abnutzung, Schmutz, Staub/Schnee, Bewuchs, Kantenleuchten, Kristalle,
+Regler für die Mengen, Leuchtfarbe. „Vorschau erzeugen“ ist ein echter Lauf (Modulwand, Boden, Säule, Kiste, 256 px;
+gemessen 5 s), „Speichern und verwenden“ schreibt die Datei und trägt sie als `--paint-file` ein. Vorlagen und
+Schlüssel kommen aus dem Katalog (`paint_schemes`, `paint_fields`) – keine Liste in der App.
+
+- **Fund:** Im Offscreen-Bild (dunkel) fehlten Überschrift und Knöpfe – der Editor hatte keinen eigenen Hintergrund,
+  weiße Schrift auf Weiß. Jetzt mit Fensterhintergrund.
+- `app/test_app.sh`: **26 von 26** (neu: Rundlauf Industrial, Crystal, Void, Beispieldatei und eine Datei mit den
+  Mengen 0 und 1 – was der Editor speichert, lädt cubegen unverändert; Editor offscreen; echte Vorschau).
+
+## 5 · Mehr Abwechslung
+
+`cubegen check` (Seed 42, 10 Varianten): Deckenmodul und Warnleuchte 6, Torbogen, Kamera, Laserspiegel,
+Laserempfänger, Laserteiler und Werkzeug 7. Teils gleichen sich die Varianten wirklich (wenige Zentimeter
+Unterschied), teils sieht die Signatur Änderungen im Inneren nicht (Torbogen mit 1,6 und 2,4 m Durchgang).
+
+- `cubegen/models/details.py`: je Variante ein bis zwei kleine Details aus dem eigenen Strom `variety` –
+  Schraubenkranz, Warnwinkel, Stromkasten, Kennschild mit Code (z. B. `M-07`) an Laserteilen; Kabelkanal, Schild
+  oder Verteilerkasten an der Kamera; Käfig, Kabelkanal oder Schild an der Warnleuchte; Schild, Lampen, Kabelkanal
+  oder Warnstreifen am Torbogen (innerhalb der Sturztiefe, Vorder- und Rückseite bleiben bündig); Kabeltrasse,
+  Sprinklerleitung oder Hängelampen unter dem Deckenmodul; Griffbänder am Werkzeug.
+- Ergebnis (Seed 42, 10 Varianten): Warnleuchte, Torbogen, Kamera, Laserspiegel, Laserempfänger 10; Deckenmodul,
+  Laserteiler, Werkzeug 9. Über 30 Varianten: kein Flackern, keine Geometrie ohne Kollision, im Budget.
+- **Funde der Tests:** Hängelampen und Kassetten nahmen verschiedene Leuchtmaterialien (ein Glow-Teil muss eines
+  haben) – die Lampen nehmen jetzt das der Kassetten. Die Torbogen-Details standen vorne weiter vor als der Sturz.
+- Die Signatur bleibt unverändert (sonst wählt `--unique` andere Varianten). Zwei ältere Tests, deren Voraussetzung
+  sich bewusst geändert hat, nehmen andere Beispiele: `test_unique_plan` (Laserspiegel jetzt alle verschieden →
+  Druckplatte), 0.17-Settest (Kiste jetzt set-fähig → Tür).
+
+## 6 · Prüfwerkzeuge
+
+- **`tools/vision_report.py`** (macOS; `tools/vision_check.swift`, einmal kompiliert): ganzer Katalog (187 Typen ×
+  3 = 561 Vorschauen und Icons) in 9 s – Feature Prints 4,5 s, Saliency 4,1 s; Zeitregel (1 min) eingehalten. Nicht
+  Teil von `generate`. Ergebnis: 62 Paare unter 0,2, davon 30 bei den experimentellen `test_*`-Typen (feste Formen),
+  die engsten echten: `robot_dog` 0,047, `geometry_test` 0,064, `emergency_light` 0,088. Icons: die Saliency-Boxen
+  sind zu grob für „angeschnitten“ (46 Fehlmeldungen bei unversehrten Icons) – dafür zählen jetzt die Pixel am Rand;
+  danach zwei Hinweise (Luke außermittig, Werkzeugkiste ohne Blickpunkt), beide unbedenklich.
+- **GitHub-Job `blender`:** lädt die neueste Blender der Reihe 4.5 LTS (gecacht) und führt die Testmodule aus, die
+  Blender brauchen (`test_pipeline`, `test_phase5_fragments`, `test_release_0150/0160/0170/0180`).
+- **`app/notarize.sh`:** Signatur mit Hardened Runtime und Zeitstempel, `notarytool submit --wait`, `stapler`,
+  `spctl`-Prüfung. Auf diesem Mac liegt nur ein Zertifikat „Apple Development“; für die Notarisierung braucht es
+  „Developer ID Application“ (Apple Developer Program) und ein `notarytool`-Profil – das Skript sagt das und bricht ab.
+
+## Unity
+
+Echter Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests`): 32 Modelle aus 16 Typen im Set (alle
+mit Zusatzdetails, neuen Maß-Parametern und Deckenmodul) und 10 mit Anstrich Crystal (Anbauten an Boden, Säule, Steg,
+facettierte Kristalle) – **0 abgelehnt, 0 Fehler**; zwei offene Item-Zuordnungen sind die Werkzeuge (Inventar-Items,
+wie bisher). Neu in der ROADMAP: ToDo 31 (Anschlussseiten der Sets im Modell-Browser); ToDo 28 und 29 nennen die
+vorbereiteten Daten.
+
+## Prüfung
+
+- `tests/test_release_0190.py` (15 Tests): Bau-Kit im Set bei drei Seeds, `set_pins`, Prüfung der Deklaration,
+  Maß-Parameter ohne Strom-Änderung, Deckenmodul im eigenen Grundriss, Anbauten (Umriss, Geometrie, `quiet`),
+  facettierte Kristalle (nur die Kristalle ändern sich), Kristallfarbe (auch alte Dateien), Manifest `paint` (echter
+  Lauf), Abwechslung der acht Typen, Details aus eigenem Strom, Katalog für den Editor, Vision-Bericht (Logik und
+  echter Lauf).
+- Golden-Daten: Geometrie geändert bei den acht Typen mit Details und beim Deckenmodul; nur Sidecar-Parameter bei
+  Boden, Deckenplatte, Kiste, Wandabschluss; alle übrigen 175 Typen unverändert.
+- `tools/run_tests.py` (volle Stufe, mit Blender und ImageMagick): **319 Tests grün** (290 s, 13. Oktober 2026);
+  `app/test_app.sh` **26 von 26**.
+- Code-Review vor dem Merge: zwei Funde behoben – der Editor übersprang Mengen von genau 0 oder 1 aus einer Datei
+  (Swift überbrückt diese JSON-Zahlen auch zu `Bool`; jetzt `CFBooleanGetTypeID`, Rundlauf-Test mit 0/1), und der
+  Test „Details aus eigenem Strom“ verglich zwei gleiche Läufe – jetzt mit abgeschalteten Details (`mock.patch`):
+  bewegliche Teile gleich, der Körper ohne Details vollständig enthalten.
+
+## Grenzen
+
+- Notarisierung erst mit Developer-ID-Zertifikat (Nutzer).
+- Requisiten (Tür, Spind, Konsole, Maschine, Regal) sind noch nicht set-fähig; Anbauten fehlen an Decke, Treppe,
+  Rampe, Geländer; Typen mit 8 von 10 unterscheidbaren Varianten stehen in der ROADMAP.
+- Der CI-Job `blender` läuft erst nach dem Push auf GitHub.

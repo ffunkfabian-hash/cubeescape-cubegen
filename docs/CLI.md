@@ -351,6 +351,11 @@ python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique -
 
 Die Themen gelten für alle Typen (seit 0.18.0 geprüft an Boden, Plattform, Säule, Steg, Treppe, Kiste, Tür, Geländer,
 Decke): `M_Ground` ist je Thema ein neutraler Grundton, Staub, Moos und Schnee liegen fleckig statt flächig.
+Kristalle bekommen die Kristallfarbe des Themas (`crystal_color`, auch im Manifest unter `paint`).
+
+**Anbauten** (seit 0.19.0): `--param floor_tile.dressing=ruin|organic` (ebenso `pillar`, `catwalk`,
+`test_wall_modules`) – Schutt, lose Platten, Kabel, Bewehrung bzw. Moos, Steine, Büsche, Ranken; der Set-Umriss
+bleibt. **Kristallschliff:** `--param rock.crystal_cut=faceted` (ebenso `floating_island`, `hanging_crystals`).
 
 **Eigenes Thema** (`--paint-file <Datei.json>`, auch Rezeptfeld `paint_file`, relativ zum Rezept): ein Anstrich als
 Datei – `name` (Buchstaben, Ziffern, `_`, kein eingebautes Thema), `base` (eingebautes Thema, Standard `industrial`)
@@ -454,6 +459,10 @@ python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger E
 | `draws` | Draw Calls: Materialien pro Objekt, summiert; statische Modelle: ein Material einmal (`*` = über dem Budget: 16, bei vielen beweglichen Teilen 2 pro Teil + 2) |
 | `z-fighting` | Flächenpaare, die in derselben Ebene liegen, in dieselbe Richtung zeigen und sich überdecken - sie flackern im Spiel. Gezählt nur, wenn man es sieht (verschiedene Materialien oder Objekte); Unterseiten auf dem Boden zählen nicht |
 | `distinct` | wie viele der Varianten sich wirklich unterscheiden (siehe `--unique`) |
+
+**Neural Engine (macOS):** `python3 tools/vision_report.py <Ausgabeordner>` vergleicht die Vorschauen je Typ per
+Apple Vision und listet fast gleiche Varianten; dazu Icons, in denen das Modell angeschnitten, klein oder außermittig
+ist. Nur ein Hinweis (die Werte unterscheiden sich je Gerät), ganzer Katalog in etwa 10 s.
 
 Der Befehl endet mit Fehlercode 1, wenn ein Typ sein Dreiecksbudget überschreitet. Flackernde Flächen gibt es
 keine mehr: Der Generator hebt bündig aufliegende Details um 2 mm an; die Tests prüfen das für alle Typen und

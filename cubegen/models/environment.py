@@ -17,6 +17,7 @@ import math
 from ..params import Param
 from ..geometry import prism, ring
 from .common import ALONG_X, cube, cyl, deg, frustum, stripes
+from .dressing import dress_pillar, dressing_param
 from .lettering import add_text, check_text, text_width
 from .registry import model
 
@@ -183,7 +184,7 @@ def door(rng, a):
            Param("size", "choice", "Größe (m)", choices=(1.0, 2.0, 3.0, 4.0)),
            Param("underside", "choice", "Unterseite", choices=("frustum", "keel")),
            Param("stripes", "bool", "Warnstreifen vorne"),
-       ])
+       ], set_faces=("x-", "x+", "y-", "y+"))  # decks join on four sides; stripes on top, the underside varies
 def platform(rng, a):
     p = a.p
     size = p.choice("size", [1.0, 2.0, 2.0, 3.0, 4.0])
@@ -381,6 +382,8 @@ def _wall_with_hole(a, m, mat, length, h, t, hole):
            Param("width", "float", "Breite (m)", lo=0.2, hi=3.0, size=True),
            Param("height", "choice", "Höhe (m)", choices=(3.0, 4.0)),
            Param("warning_band", "bool", "Warnband"),
+           dressing_param("ruin: Schutt am Fuß, Bewehrung, abgerissenes Kabel; organic: Ranken unter dem "
+                          "Kopf, Steine und Büsche am Fuß"),
        ])
 def pillar(rng, a):
     p = a.p
@@ -399,3 +402,4 @@ def pillar(rng, a):
             cube(lights, (0.04, 0.04, h * 0.72), (x * (w / 2 + 0.005), y * (w / 2 + 0.005), h / 2), glow)
     if p.bool("warning_band", 0.35, warning=True):
         cube(body, (w + 0.04, w + 0.04, 0.2), (0, 0, 0.5), "M_Warning")
+    dress_pillar(a, body, w, h, p.option("dressing"))

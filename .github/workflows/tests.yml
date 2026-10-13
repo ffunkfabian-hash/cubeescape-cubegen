@@ -24,3 +24,47 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y imagemagick
       - name: Run tests (Blender tests are skipped when Blender is missing)
         run: python tools/run_tests.py ${{ matrix.group }}
+
+  blender:
+    # the tests that need Blender (FBX export, add-on smoke test, baking, paint schemes) skip in the jobs above;
+    # this job installs a Blender LTS and runs exactly those modules (headless: previews fall back to Cycles CPU)
+    name: blender (${{ matrix.series }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        series: ["4.5"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ImageMagick and Blender's system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+      - name: Find the newest Blender of the series
+        id: blender
+        run: |
+          file=$(curl -fsSL "https://download.blender.org/release/Blender${{ matrix.series }}/" \
+            | grep -o 'blender-${{ matrix.series }}\.[0-9]*-linux-x64\.tar\.xz' | sort -V | tail -1)
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - name: Cache Blender
+        uses: actions/cache@v4
+        with:
+          path: ~/blender
+          key: ${{ steps.blender.outputs.file }}
+      - name: Install Blender
+        run: |
+          if [ ! -x ~/blender/blender ]; then
+            mkdir -p ~/blender
+            curl -fsSL "https://download.blender.org/release/Blender${{ matrix.series }}/${{ steps.blender.outputs.file }}" \
+              | tar -xJ -C ~/blender --strip-components=1
+          fi
+          ~/blender/blender --version | head -1
+      - name: Run the Blender tests
+        run: |
+          export CUBEGEN_BLENDER="$HOME/blender/blender"
+          modules=$(grep -l "HAS_BLENDER\|HAS_TOOLS\|find_blender()" tests/test_*.py | sed 's#tests/##; s#\.py$##' | sort)
+          echo "modules: $modules"
+          python -m unittest -v $(for m in $modules; do echo "tests.$m"; done)

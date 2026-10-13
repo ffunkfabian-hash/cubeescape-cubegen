@@ -9,6 +9,9 @@ import SwiftUI
 ///   Cubegen --run settings.json [--validate]            a whole run through the app's own process runner
 ///   Cubegen --ui-snapshot out.png [--results <output folder>] [--size 1470x956] [--light]
 ///                       [--expand <category>] [--select type,type]           the window, offscreen
+///                       [--paint-editor [<scheme.json>]]                     the paint editor instead
+///   Cubegen --paint-roundtrip <in.json | builtin name> <out.json>     an own scheme read and written by the editor
+///   Cubegen --paint-preview <scheme.json> <out.png>                   the editor's preview run (button "Vorschau")
 @main
 enum Main {
     @MainActor static func main() {
@@ -19,6 +22,8 @@ enum Main {
         if let out = CommandLine.value(args, "--snapshot") { exit(CommandLine.snapshot(out: out, args: args)) }
         if let path = CommandLine.value(args, "--run") { exit(CommandLine.run(path, validate: args.contains("--validate"))) }
         if let out = CommandLine.value(args, "--ui-snapshot") { exit(CommandLine.uiSnapshot(out: out, args: args)) }
+        if let source = CommandLine.value(args, "--paint-roundtrip") { exit(CommandLine.paintRoundtrip(source, args: args)) }
+        if let source = CommandLine.value(args, "--paint-preview") { exit(CommandLine.paintPreview(source, args: args)) }
         CubegenApp.main()
     }
 }
@@ -111,9 +116,11 @@ extension CommandLine {
         if let folder = value(args, "--results") { model.loadResults(URL(fileURLWithPath: folder)) }
         if let open = value(args, "--expand") { model.expanded.insert(open) }   // a category of the type list
         if let types = value(args, "--select") { model.settings.types = types.split(separator: ",").map(String.init) }
-        let dims = (value(args, "--size") ?? "1470x956").split(separator: "x").compactMap { Double($0) }
+        let editor = args.contains("--paint-editor")
+        let dims = (value(args, "--size") ?? (editor ? "960x660" : "1470x956")).split(separator: "x").compactMap { Double($0) }
         let size = CGSize(width: dims.first ?? 1470, height: dims.last ?? 956)
-        let host = NSHostingView(rootView: ContentView(model: model).frame(width: size.width, height: size.height))
+        let root: AnyView = editor ? AnyView(PaintEditor(model: model)) : AnyView(ContentView(model: model))
+        let host = NSHostingView(rootView: root.frame(width: size.width, height: size.height))
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless],
                               backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: args.contains("--light") ? .aqua : .darkAqua)
@@ -123,6 +130,10 @@ extension CommandLine {
         while model.catalog == nil && model.catalogError.isEmpty && Date() < deadline {
             RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         }
+        if editor {  // the editor opened on a scheme file (or Industrial)
+            if let file = value(args, "--paint-editor"), !file.hasPrefix("--") { model.settings.paintFile = file }
+            model.openPaintEditor()
+        }
         RunLoop.main.run(until: Date().addingTimeInterval(0.5))  // let SwiftUI lay out the loaded catalog
         host.layoutSubtreeIfNeeded()
         guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return fail("ui-snapshot: no bitmap") }
@@ -131,6 +142,55 @@ extension CommandLine {
         do { try png.write(to: URL(fileURLWithPath: out)) } catch { return fail("ui-snapshot: \(error.localizedDescription)") }
         print("ui-snapshot \(out)" + (model.catalogError.isEmpty ? "" : " (catalog: \(model.catalogError))"))
         return model.catalog == nil ? 1 : 0
+    }
+
+    /// Reads a scheme file (or a built-in scheme's values) like the editor and writes it like the editor saves it.
+    @MainActor static func paintRoundtrip(_ source: String, args: [String]) -> Int32 {
+        guard let i = args.firstIndex(of: source), i + 1 < args.count else { return fail("paint-roundtrip: out.json fehlt", 2) }
+        let model = AppModel(persist: false)
+        let deadline = Date().addingTimeInterval(30)
+        while model.catalog == nil && model.catalogError.isEmpty && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        guard model.catalog?.paint_schemes != nil else { return fail("paint-roundtrip: catalog without paint_schemes") }
+        var paint = OwnPaint()
+        if source.hasSuffix(".json") {
+            do { paint = try OwnPaint.load(URL(fileURLWithPath: source), catalog: model.catalog) } catch {
+                return fail("paint-roundtrip: \(error.localizedDescription)")
+            }
+        } else {
+            paint.reset(to: source, catalog: model.catalog)
+            paint.name = "roundtrip_\(source)"
+        }
+        if let problem = paint.problem(catalog: model.catalog) { return fail("paint-roundtrip: \(problem)") }
+        do { try paint.json().write(to: URL(fileURLWithPath: args[i + 1])) } catch {
+            return fail("paint-roundtrip: \(error.localizedDescription)")
+        }
+        print("paint-roundtrip \(paint.name) (base \(paint.base)): \(paint.colors.count) colours, "
+              + "\(paint.amounts.count) amounts, \(paint.tones.count) tones")
+        return 0
+    }
+
+    @MainActor static func paintPreview(_ source: String, args: [String]) -> Int32 {
+        guard let i = args.firstIndex(of: source), i + 1 < args.count else { return fail("paint-preview: out.png fehlt", 2) }
+        let model = AppModel(persist: false)
+        let deadline = Date().addingTimeInterval(30)
+        while model.catalog == nil && model.catalogError.isEmpty && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        model.settings.paintFile = source
+        model.openPaintEditor()
+        model.previewPaint()
+        while model.paintPreviewRunning { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }
+        guard let image = model.paintPreview, let tiff = image.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {
+            return fail("paint-preview: \(model.paintStatus)")
+        }
+        do { try png.write(to: URL(fileURLWithPath: args[i + 1])) } catch {
+            return fail("paint-preview: \(error.localizedDescription)")
+        }
+        print("paint-preview \(model.ownPaint.name) -> \(args[i + 1])")
+        return 0
     }
 
     @MainActor static func snapshot(out: String, args: [String]) -> Int32 {

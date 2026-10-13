@@ -132,6 +132,7 @@ def worker(job_path):
                 for slot in o.material_slots:
                     if slot.material and slot.material.name in ("M_GlowCyan", "M_GlowOrange"):
                         slot.material = glow_materials[scheme["glow"]]
+            stylebake._crystal_material(paint)  # crystals in the scheme's colour, as a real --paint run
             t = time.time()
             bw.frame_camera(cam, collection, 33.0, 24.0, 1.0)
             bw.render_preview(scene, os.path.join(out, f"{asset.name}_{paint}.png"))
@@ -139,6 +140,7 @@ def worker(job_path):
             for o, mats in originals.items():
                 for slot, mat in zip(o.material_slots, mats):
                     slot.material = mat
+        stylebake._crystal_material(None)  # the next model's "today" render in the game's colour
         timings[asset.name] = {"today_render": round(t1 - t0, 2), "bake": round(t2 - t1, 2),
                                "compose": round(compose_s, 2), "render": round(render_s, 2),
                                "device": maps["device"], "weight_maps": len(maps["weights"])}

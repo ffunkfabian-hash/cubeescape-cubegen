@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.19.0 „Kaleidoscope“ – 2026-10-13
+
+* **Bau-Kit set-fähig:** Anschlussseiten je Typ (`set_faces`) und festgehaltene Formwahlen (`set_pins`); gewürfelte
+  Maße als Parameter ohne Änderung des Zufallsstroms (Boden `depth`, Deckenplatte `thickness`, Kiste `depth`,
+  Wandabschluss `overhang`/`cap_height`). Alle 13 Bau-Kit-Typen halten im Set ihren Umriss (0.18: zehn nicht).
+  Deckenmodul: Kassettenrippen und Dachfirst ragten 4–5 cm in den Nachbarn – behoben.
+* **Anbauten auf Boden, Säule und Steg** (`dressing = ruin | organic`, `cubegen/models/dressing.py`).
+* **Kristalle:** facettierter Schliff (`crystal_cut = faceted`; Fels, Schwebeinsel, Hängekristalle, Modulwand) und
+  Kristallfarbe je Thema (`crystal_color`, Vorschau, Stiltest, Manifest `paint`).
+* **Farbwähler in der App** (`PaintEditor.swift`): eigenes Thema mit Vorschau, gespeichert für `--paint-file`;
+  Katalog mit `paint_schemes` und `paint_fields`. `app/test_app.sh`: 25 Prüfungen.
+* **Mehr Abwechslung:** Zusatzdetails aus eigenem Zufallsstrom (`cubegen/models/details.py`) für Deckenmodul,
+  Warnleuchte, Torbogen, Kamera, Laserspiegel, -empfänger, -teiler und Werkzeug: 6–7 → 9–10 von 10 unterscheidbar.
+* **Prüfwerkzeuge:** `tools/vision_report.py` (Neural Engine: Doubletten, Icon-Lesbarkeit; ganzer Katalog in ~10 s),
+  GitHub-Job `blender` (Blender 4.5 LTS, Testmodule mit Blender), `app/notarize.sh` (Developer ID nötig).
+* Golden-Daten: geändert sind die acht Typen mit Zusatzdetails und das Deckenmodul (Geometrie) sowie Boden,
+  Deckenplatte, Kiste und Wandabschluss (nur die neuen Maß-Parameter im Sidecar); alle übrigen unverändert.
+  Paket, CLI und Add-on auf 0.19.0. Bericht: [VERSION_0.19.0.md](VERSION_0.19.0.md).
+
 ## 0.18.1 „Chameleon“ – 2026-10-13
 
 * **Leuchtschlitz der Modulwand folgt dem Thema:** `test_wall_modules` setzte den Schlitz der Akzentsäule fest auf

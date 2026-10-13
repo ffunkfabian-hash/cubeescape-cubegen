@@ -111,6 +111,8 @@ struct Catalog: Decodable {
     let palettes: [String: Palette]
     let families: [String: Family]
     let paints: [String: Paint]?
+    let paint_schemes: [String: PaintSchemeData]?   // 0.19.0: templates for an own scheme (PaintEditor)
+    let paint_fields: PaintFields?
 
     var paletteNames: [String] { palettes.keys.sorted() }
 }

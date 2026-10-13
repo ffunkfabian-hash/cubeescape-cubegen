@@ -16,11 +16,12 @@ from .registry import model
     Param("stripes", "bool", "Warnstreifen vorne"),
     Param("hatch", "bool", "Orange Deckelluke"),
     Param("glow_pattern", "choice", "Glow-Muster", choices=("strips", "line")),
-])
+    Param("depth", "float", "Tiefe (m)", lo=0.2, hi=3.0),
+], set_faces=("x-", "x+", "y+", "z-"), set_pins=("style", "glow_pattern"))  # a row of crates: same box
 def crate(rng, a):
     p = a.p
     w = p.float("width", 0.8, 1.4)
-    d = w * rng.choice([1.0, 1.0, rng.uniform(0.7, 1.0)])
+    d = p.value("depth", w * rng.choice([1.0, 1.0, rng.uniform(0.7, 1.0)]))
     h = p.value("height", w * rng.uniform(0.6, 1.0))
     body_mat = p.material(["M_RobotDark", "M_Wall", "M_Metal"])
     trim = "M_Metal" if body_mat == "M_RobotDark" else "M_RobotDark"
