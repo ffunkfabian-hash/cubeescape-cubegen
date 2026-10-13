@@ -146,7 +146,10 @@ class ParallelImageMagickTest(unittest.TestCase):
                 one, blocks = os.path.join(d, f"one{count}.png"), os.path.join(d, f"blocks{count}.png")
                 im.contact_sheet(images[:count], labels[:count], one, title="Sheet", workers=1)
                 im.contact_sheet(images[:count], labels[:count], blocks, title="Sheet", workers=0)
-                diff = subprocess.run(["magick", "compare", "-metric", "AE", one, blocks, "null:"],
+                # ImageMagick 7: "magick compare", ImageMagick 6 (Ubuntu, GitHub Actions): "compare" (0.19.1)
+                magick7 = os.path.basename(im.convert[0]).lower().startswith("magick")
+                compare = (im.convert + ["compare"]) if magick7 else ["compare"]
+                diff = subprocess.run(compare + ["-metric", "AE", one, blocks, "null:"],
                                       capture_output=True, text=True)
                 self.assertEqual(diff.stderr.split()[0], "0", count)
 
