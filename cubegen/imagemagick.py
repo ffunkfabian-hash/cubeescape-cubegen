@@ -23,7 +23,45 @@ class ImageMagickError(RuntimeError):
 
 # Without this every PNG carries its creation time (tIME chunk, date:create / date:modify text): same pixels,
 # different bytes on every run - Unity re-imports unchanged files and file hashes can't be cache keys.
+# ImageMagick 7 honours the define; ImageMagick 6 (Ubuntu, GitHub Actions) wrote the chunks anyway (0.19.1), so
+# ``run`` also drops them from the written PNG (``strip_png_dates``) - a no-op where the define already worked.
 REPRODUCIBLE = ("-define", "png:exclude-chunks=date,time")
+_DATE_CHUNKS = (b"tEXt", b"zTXt", b"iTXt")
+
+
+def strip_png_dates(path: str) -> bool:
+    """Remove the time stamps from a PNG (tIME chunk, text chunks ``date:*``); True when the file changed."""
+    import struct
+
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return False
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    out, pos, changed = [data[:8]], 8, False
+    while pos + 8 <= len(data):
+        length, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        end = pos + 12 + length
+        body = data[pos + 8:pos + 8 + length]
+        if kind == b"tIME" or (kind in _DATE_CHUNKS and body.startswith(b"date:")):
+            changed = True
+        else:
+            out.append(data[pos:end])
+        pos = end
+        if kind == b"IEND":
+            break
+    if changed:
+        with open(path, "wb") as fh:
+            fh.write(b"".join(out))
+    return changed
+
+
+def _png_output(arg: str) -> Optional[str]:
+    """The file of an output argument (``PNG24:path`` -> path) when it is a PNG."""
+    path = arg.split(":", 1)[1] if arg[:6].upper().startswith("PNG") and ":" in arg[:7] else arg
+    return path if path.lower().endswith(".png") else None
 
 
 # Apps started from the macOS Finder (e.g. Blender running the add-on) don't see the
@@ -83,6 +121,10 @@ class ImageMagick:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=self.env)
         if proc.returncode != 0:
             raise ImageMagickError(f"ImageMagick failed ({' '.join(cmd[:3])} ...):\n{proc.stderr.strip()}")
+        if settings and args:  # the output is the last argument (also for montage)
+            target = _png_output(args[-1])
+            if target and os.path.isfile(target):
+                strip_png_dates(target)
         return proc.stdout
 
     def version(self) -> str:

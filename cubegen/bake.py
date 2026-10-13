@@ -22,7 +22,7 @@ import subprocess
 
 import bpy
 
-from .imagemagick import REPRODUCIBLE
+from .imagemagick import REPRODUCIBLE, _png_output, strip_png_dates
 
 KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}
 BAKE_UV = "BakeUV"
@@ -200,6 +200,9 @@ def _magick(cmd, args):
                           text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"ImageMagick failed: {proc.stderr.strip()}")
+    target = _png_output(args[-1]) if args else None  # ImageMagick 6 ignores the define (0.19.1)
+    if target and os.path.isfile(target):
+        strip_png_dates(target)
 
 
 def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, seed=0, device="cpu"):

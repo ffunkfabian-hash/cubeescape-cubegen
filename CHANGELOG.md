@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.1 „Kaleidoscope“ – 2026-10-13
+
+* **GitHub Actions wieder grün:** Der Ubuntu-Runner hat ImageMagick 6 – es schrieb Zeitstempel in die PNGs trotz
+  `png:exclude-chunks` (Läufe nicht bytegleich), und `magick` fehlt dort. Neu: `imagemagick.strip_png_dates` nach
+  jedem Schreiben (unter ImageMagick 7 wirkungslos, bytegleich geprüft); der Bildvergleich im Test nimmt das gefundene
+  ImageMagick. Rot war die CI seit 0.17.0. Bericht: [VERSION_0.19.1.md](VERSION_0.19.1.md).
+
 ## 0.19.0 „Kaleidoscope“ – 2026-10-13
 
 * **Bau-Kit set-fähig:** Anschlussseiten je Typ (`set_faces`) und festgehaltene Formwahlen (`set_pins`); gewürfelte

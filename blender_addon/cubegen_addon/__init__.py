@@ -15,7 +15,7 @@ folder lives in.
 bl_info = {
     "name": "Cube Escape Model Generator",
     "author": "cubegen",
-    "version": (0, 19, 0),
+    "version": (0, 19, 1),
     "blender": (3, 6, 0),
     "location": "3D Viewport > Sidebar (N) > Cube Escape",
     "description": "Seeded low-poly assets for Cube Escape: live preview, variant grid, FBX + icons for Unity",
