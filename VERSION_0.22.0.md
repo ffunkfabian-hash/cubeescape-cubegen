@@ -1,7 +1,6 @@
 # Cubegen 0.22.0 – Beacon
 
-*ungeprüft: Blender-/Unity-Abnahme offen* (Stufe 1, Cloud-Sitzung: volle Python-Suite mit Blender 5.2 als
-bpy-Modul und ImageMagick 6; Unity-Check, Blender-App und macOS-App gibt es dort nicht).
+*abgenommen (Stufe 2, lokal am 14. Oktober 2026)* – Prüfung siehe „Abnahme (Stufe 2)“.
 
 Arbeitsstand vom 14. Oktober 2026, unveröffentlicht; vorherige Version [0.21.3](VERSION_0.21.3.md).
 Zuarbeit für Cube Escape 0.57 (gemeinsamer Shader-Unterbau) und 0.58 (Cubegen in der Werkbank: Variantensets,
@@ -78,15 +77,31 @@ Hängekristallen ist es eine Anzahl und gehört zur Form.
   PNG-Define (nur ImageMagick 7), echter Unity-Check (`CUBEGEN_UNITY_CHECK=1`), 2048-px-Kiste
   (`CUBEGEN_SLOW_TESTS=1`).
 
-## Vor dem Merge noch offen (Stufe 2, lokal)
+## Abnahme (Stufe 2)
 
-- `python3 tools/unity_check.py --require` gegen Cube Escape (schreibt dort für Vertrag Version 1, solange Cube
-  Escape ihn hält; nach der Umstellung in Cube Escape erneut mit Version 2).
-- Volle Suite mit Blender und ImageMagick 7 auf dem Mac.
-- Sichtprüfung einer Leuchtkarte (Crystal, Dark) im Blender-Plugin.
+Lokal auf dem Mac (Apple M5, Blender 5.2.2 LTS, ImageMagick 7.1.2, Python 3.12), Stand `a72d0c7`:
+
+- **Volle Suite** `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full`: 355 Tests grün
+  in 233 s (models 41, quality 12, params 38, rest 264), darunter der echte Unity-Lauf, die 2048-px-Kiste, der
+  Vision-Bericht und der PNG-Vergleich mit ImageMagick 7. Übersprungen nur
+  `test_release_0180…test_dust_and_moss_leave_patches_instead_of_covering_the_top` (das System-Python hat kein numpy) –
+  mit Blenders Python 3.13 (numpy 2.3.4) `tests.test_release_0180`: 8 Tests grün, keiner übersprungen.
+- **Unity-Check** `python3 tools/unity_check.py --require` gegen Cube Escape `875ef216` (0.55.0, Vertrag Version 1):
+  **9 Prüfsätze, 262 Modelle, 0 abgelehnt, 0 Fehler** (1:48 min). Laufzeitpfad: 187 GLB, 179 angenommen, 8 mit nicht
+  unterstütztem Verhalten, 0 fehlgeschlagen – gleich wie 0.21.3 (`--only runtime` gegengeprüft).
+- **Echte Exporte** `test_wall_modules` und `crate`, Seed 19, `--textures baked --formats fbx,glb`, je `--paint crystal`,
+  `dark` und `industrial`: Crystal und Dark nennen `textures.baked.Emission` (sRGB, 512 px, eine Datei je Modell),
+  Industrial schreibt keine Leuchtkarte. `check --export`: Vertrag 2 alle 6 Modelle gültig; Vertrag 1 lehnt die vier
+  leuchtenden wie vorgesehen ab, Industrial bleibt gültig.
+- **Sichtprüfung im Blender-Plugin** (laufendes Blender, eigene Szene, nichts gespeichert): GLB-Import hängt die
+  Leuchtkarte an `Emission Color` mit Stärke 3 (`MTA_…`); gerendert leuchten bei Crystal die Kanten cyan, bei Dark rot,
+  deckungsgleich mit den Kanten der Albedo; Industrial ohne Leuchtkanten. Die Glow-Teile (`M_Glow…`) bleiben untexturiert.
+- Import und Kollision in der Cube-Escape-Testkopie über den Unity-Check (Editor-Import mit Collidern, LODs,
+  Wiederimport); keine neuen Typen und kein neues Verhalten, daher keine eigene Physikprüfung.
 
 ## Grenzen
 
 - Cube Escape liest Version 2 noch nicht: bis zur Umstellung (CE 0.57/0.58) `--contract 1` für Exporte ins Spiel.
+  Danach `python3 tools/unity_check.py --require` erneut, dann mit Version 2 (Leuchtkarte im Editor-Import).
 - Der Laufzeitpfad der Werkbank (GLB) bekommt die Leuchtkarte unabhängig vom Vertrag über `emissiveTexture`.
 - `joins` beschreibt Paare von Anschlussarten, kein Layout; der Raumgenerator (Erweiterung 1) bleibt offen.
