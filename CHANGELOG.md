@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.21.3 „Monolith“ – unveröffentlicht
+## 0.21.3 „Monolith“ – 2026-10-14
 
 * **GitHub Actions sparsam:** Nach 14 Tagen Oktober waren 90 % der 2.000 Freiminuten verbraucht (rund 40 min je Lauf
   mit 13 Jobs, Pushes auf PR-Branches liefen doppelt). Jetzt: `push` nur auf `main`, sonst über den PR; ein neuer
