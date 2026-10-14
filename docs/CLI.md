@@ -463,7 +463,9 @@ python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger E
 **Ein Renderer:** `--single-renderer` (auch Rezeptfeld `single_renderer`, App und Desktop-Fenster) – statische
 Modelle mit reinen Schmuckteilen werden ein Mesh-Objekt; das Manifest nennt je Modell `renderers`. **Werkbank-Budget:**
 GLB-Exporte über dem Budget von Cube Escapes Werkbank (32 MB Datei, 60 000 Dreiecke, 512 Teile, 32 Materialien,
-16 Texturen bis 2048 px, 64 MB Texturspeicher) ergeben eine Warnung und `runtime_budget` im Manifest.
+16 Texturen bis 2048 px, 64 MB Texturspeicher) ergeben eine Warnung und `runtime_budget` im Manifest. Gezählt wird
+wie in Cube Escape: jede verschiedene Textur (Rolle und Bildinhalt) einmal, komprimiert mit 1 Byte je Pixel plus
+Mipmaps – eine Kiste mit Kacheln in 2048 px braucht 42,7 MB.
 
 **Unity-Check:** `python3 tools/unity_check.py` (Cube Escape und Unity nötig) prüft feste Exporte mit dem echten
 Import des Spiels – Editor (FBX) und Werkbank-Laufzeit (GLB); siehe README › „Unity-Check“.

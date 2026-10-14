@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.21.1 „Monolith“ – 2026-10-14
+
+* **Texturbudget der Werkbank wie Cube Escape 0.51** (`CubegenTextures`): jede verschiedene (Rolle, Bildinhalt)
+  einmal, komprimiert mit 1 Byte je Pixel × 4/3, Metall/Rauheit einmal als Metall-/Glättekarte. Die Kiste mit Kacheln
+  in 2048 px (Seed 4242) hat 8 Texturen und 42,7 MB – im Budget; 0.21.0 rechnete 268 MB und warnte. Nur Texturen,
+  die ein Material lädt, zählen. Bericht: [VERSION_0.21.1.md](VERSION_0.21.1.md).
+
 ## 0.21.0 „Monolith“ – 2026-10-13
 
 Erkenntnisse aus Cube Escape 0.49 „Megastructure“ umgesetzt:

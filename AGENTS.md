@@ -44,7 +44,8 @@ Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema) und 0.19.0
 `VERSION_0.19.0.md`: set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge) samt
 Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick 6, GitHub Actions grün) und
 0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`) und 0.21.0
-„Monolith“ (13. Oktober 2026, `VERSION_0.21.0.md`: ein Renderer, Werkbank-Budget, Index, Messbänder);
+„Monolith“ (13. Oktober 2026, `VERSION_0.21.0.md`: ein Renderer, Werkbank-Budget, Index, Messbänder) samt
+Korrektur 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51);
 die nächste Version ist 0.22.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
@@ -122,7 +123,9 @@ Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, 
 - **Grenzen in Bytes, wo Dateien oder Speicher gemeint sind:** ein UTF-8-Zeichen hat bis zu drei Bytes – nie die
   Länge eines Strings mit einer Byte-Grenze vergleichen. Zeichen nur, wo Zeichen gemeint sind (Glyphen der
   Schrift, `check_text`). Budget der Werkbank: `contract.RUNTIME_BUDGET` (aus Cube Escape abgeschrieben, beim Ändern
-  dort nachsehen); `check_runtime_budget` prüft jedes GLB beim Erzeugen und in `check --export`.
+  dort nachsehen); `check_runtime_budget` prüft jedes GLB beim Erzeugen und in `check --export`. Texturspeicher wie
+  Cube Escape 0.51 (`CubegenTextures`): jede verschiedene (Rolle, Bildinhalt) einmal, BC3 mit 1 Byte je Pixel × 4/3,
+  Metall/Rauheit einmal als Metall-/Glättekarte.
 - **Index statt jede Datei lesen:** Größe und Änderungszeit entscheiden, ob eine Datei neu gelesen werden muss
   (`OutputCache` `stats`/`index`, `digest`); erst bei Abweichung wird gehasht.
 - **Erst Schritte benennen, dann optimieren:** neue Arbeit bekommt einen Schritt in `timings.steps` (Manifest);
