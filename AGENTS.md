@@ -48,8 +48,8 @@ Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick
 Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51) und 0.21.2
 (`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version) und 0.21.3 (`VERSION_0.21.3.md`:
 GitHub Actions sparsam);
-die laufende Arbeitsversion ist 0.22.0 „Beacon“ (`VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2,
-Manifestformat 2 für Cube Escape), die nächste 0.23.0.
+und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
+für Cube Escape) sind veröffentlicht; die nächste Version ist 0.23.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.

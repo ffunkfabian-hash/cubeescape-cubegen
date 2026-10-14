@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.22.0 „Beacon“ – unveröffentlicht
+## 0.22.0 „Beacon“ – 2026-10-14
 
 Zuarbeit für Cube Escape 0.57 (gemeinsamer Shader-Unterbau) und 0.58 (Cubegen in der Werkbank), nur die Generatorseite.
 Bericht: [VERSION_0.22.0.md](VERSION_0.22.0.md).

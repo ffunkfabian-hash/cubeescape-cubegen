@@ -2,7 +2,7 @@
 
 *abgenommen (Stufe 2, lokal am 14. Oktober 2026)* – Prüfung siehe „Abnahme (Stufe 2)“.
 
-Arbeitsstand vom 14. Oktober 2026, unveröffentlicht; vorherige Version [0.21.3](VERSION_0.21.3.md).
+Veröffentlicht am 14. Oktober 2026; vorherige Version [0.21.3](VERSION_0.21.3.md).
 Zuarbeit für Cube Escape 0.57 (gemeinsamer Shader-Unterbau) und 0.58 (Cubegen in der Werkbank: Variantensets,
 Anstriche, Anbauten, Anschlussseiten im Modell-Browser) – hier nur die Generatorseite.
 

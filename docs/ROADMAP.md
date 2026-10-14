@@ -1,8 +1,8 @@
 # Roadmap
 
-Stand: 14. Oktober 2026, cubegen **0.22.0 „Beacon“** unveröffentlicht
-([VERSION_0.22.0.md](../VERSION_0.22.0.md): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
-veröffentlicht ist 0.21.3 „Monolith“ (Tag `v0.21.3`; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer,
+Stand: 14. Oktober 2026, cubegen **0.22.0 „Beacon“** veröffentlicht (Tag `v0.22.0`;
+[VERSION_0.22.0.md](../VERSION_0.22.0.md): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
+davor 0.21.3 „Monolith“ (Tag `v0.21.3`; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer,
 Werkbank-Budget, Index, Messbänder; [VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51;
 0.21.2/0.21.3: Testkorrektur, GitHub Actions sparsam); davor 0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
 (Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
