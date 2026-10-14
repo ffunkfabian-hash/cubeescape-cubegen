@@ -31,8 +31,12 @@ def _glb(path, triangles=12, images=((64, 64),), materials=2, nodes=1, pad=0):
         binary += png
     binary += b"\x00" * pad
     binary += b"\x00" * (-len(binary) % 4)
+    # each image as a base colour of one material (0.21.1: only textures a material loads count)
+    mats = [{"name": f"M{i}"} for i in range(materials)]
+    for k in range(len(imgs)):
+        mats[k % materials].setdefault("pbrMetallicRoughness", {})["baseColorTexture"] = {"index": k}
     gltf = {"asset": {"version": "2.0"}, "nodes": [{"name": f"N{i}"} for i in range(nodes)],
-            "materials": [{"name": f"M{i}"} for i in range(materials)],
+            "materials": mats, "textures": [{"source": k} for k in range(len(imgs))],
             "accessors": [{"count": triangles * 3, "componentType": 5125, "type": "SCALAR"}],
             "meshes": [{"primitives": [{"indices": 0, "attributes": {}}]}],
             "bufferViews": views, "images": imgs, "buffers": [{"byteLength": len(binary)}]}
@@ -96,10 +100,11 @@ class RuntimeBudgetTest(unittest.TestCase):
             self.assertEqual(info["images"], [(256, 256), (128, 64)])
             self.assertEqual(info["bytes"], os.path.getsize(path))
             self.assertEqual(check_runtime_budget(path), [])
-            self.assertEqual(texture_bytes(2048, 2048), 2048 * 2048 * 4 * 4 // 3)
+            # 0.21.1: Cube Escape 0.51 loads compressed (BC3, 1 byte per pixel) - 0.21.0 counted RGBA32 (4 bytes)
+            self.assertEqual(texture_bytes(2048, 2048), 2048 * 2048 * 4 // 3)
             found = check_runtime_budget(path, {"triangles": 10, "texture_bytes": 1000, "glb_bytes": 100})
             self.assertEqual(len(found), 3)
-            _glb(path, images=((4096, 4096),))
+            _glb(path, images=((4096, 4096),), materials=1)
             self.assertTrue(any("larger than 2048" in f for f in check_runtime_budget(path)))
         self.assertEqual(RUNTIME_BUDGET["glb_bytes"], 32 * 1024 * 1024)  # Cube Escape CubegenGlb.Limits.MaxBytes
 

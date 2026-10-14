@@ -470,13 +470,21 @@ __all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_c
 #: what the workbench imports at most per player model - Cube Escape ``CubegenImportBudget`` and
 #: ``CubegenGlb.Limits.MaxBytes`` (checked 0.21.0). Limits on files and memory are BYTES: a UTF-8 character takes up
 #: to three bytes, so a string's length is never compared with them (Cube Escape 0.49 found that mix-up in a reader).
+#: Texture memory as Cube Escape 0.51 counts it (``CubegenTextures``): every different (role, image content) once.
 RUNTIME_BUDGET = {"glb_bytes": 32 * 1024 * 1024, "triangles": 60_000, "parts": 512, "materials": 32,
                   "textures": 16, "texture_size": 2048, "texture_bytes": 64 * 1024 * 1024}
 
 
 def texture_bytes(width: int, height: int) -> int:
-    """GPU memory of an RGBA32 texture with its mip chain - counted like Cube Escape's budget (w * h * 4 * 4 / 3)."""
-    return width * height * 4 * 4 // 3
+    """GPU memory of a texture as Cube Escape 0.51 loads it: compressed BC3/DXT5 (1 byte per pixel) with its mip chain
+    (x 4/3). Until 0.21.0: RGBA32 (4 bytes per pixel) - four times too much."""
+    return width * height * 4 // 3
+
+
+#: glTF texture slot -> the role Cube Escape loads it as. The metal/roughness source is converted into one
+#: metallic-gloss map (the source is not kept), so it counts once, as that role.
+TEXTURE_ROLES = (("baseColorTexture", "albedo"), ("metallicRoughnessTexture", "metallic_gloss"),
+                 ("normalTexture", "normal"), ("emissiveTexture", "emission"), ("occlusionTexture", "occlusion"))
 
 
 def glb_summary(path: str) -> Dict:
@@ -505,7 +513,9 @@ def glb_summary(path: str) -> Dict:
                 triangles += accessors[prim["indices"]]["count"] // 3
             elif "POSITION" in prim.get("attributes", {}):
                 triangles += accessors[prim["attributes"]["POSITION"]]["count"] // 3
-    images = []
+    import hashlib
+
+    images, contents = [], []
     for image in gltf.get("images", []):
         view = views[image["bufferView"]] if "bufferView" in image else None
         blob = binary[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]] if view else b""
@@ -513,8 +523,22 @@ def glb_summary(path: str) -> Dict:
             images.append(struct.unpack_from(">II", blob, 16))
         else:
             images.append(None)  # external or not a PNG: size unknown here
+        contents.append(hashlib.sha256(blob).hexdigest() if blob else f"image:{len(contents)}")
+    # what the materials load: (role, image content) - the same PNG bytes in the same role load once
+    sources = [t.get("source") for t in gltf.get("textures", [])]
+    used = {}
+    for material in gltf.get("materials", []):
+        slots = dict(material.get("pbrMetallicRoughness", {}), **material)
+        for slot, role in TEXTURE_ROLES:
+            ref = slots.get(slot)
+            if isinstance(ref, dict) and ref.get("index") is not None and ref["index"] < len(sources):
+                image = sources[ref["index"]]
+                if image is not None and image < len(images):
+                    used[(role, contents[image])] = images[image]
     return {"bytes": len(data), "length": length, "nodes": len(gltf.get("nodes", [])),
-            "materials": len(gltf.get("materials", [])), "triangles": triangles, "images": images}
+            "materials": len(gltf.get("materials", [])), "triangles": triangles, "images": images,
+            "textures": [{"role": role, "content": content[:12], "size": size}
+                         for (role, content), size in sorted(used.items(), key=lambda kv: kv[0])]}
 
 
 def check_runtime_budget(path: str, budget: Optional[Dict] = None) -> List[str]:
@@ -528,9 +552,10 @@ def check_runtime_budget(path: str, budget: Optional[Dict] = None) -> List[str]:
         limit = rules[label]
         if info[key] > limit:
             found.append(f"{info[key]} {label} > {limit}")
-    known = [size for size in info["images"] if size]
-    if len(info["images"]) > rules["textures"]:
-        found.append(f"{len(info['images'])} textures > {rules['textures']}")
+    # Cube Escape 0.51: every different (role, image content) a material loads, once
+    known = [t["size"] for t in info["textures"] if t["size"]]
+    if len(info["textures"]) > rules["textures"]:
+        found.append(f"{len(info['textures'])} textures > {rules['textures']}")
     too_big = [f"{w}x{h}" for w, h in known if max(w, h) > rules["texture_size"]]
     if too_big:
         found.append(f"textures larger than {rules['texture_size']} px: {', '.join(too_big)}")
