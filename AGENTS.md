@@ -92,10 +92,14 @@ Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getr
 ## Abschluss in zwei Stufen
 
 Sitzungen ohne Blender und Unity (z. B. in der Cloud, claude.ai/code) dürfen meist nur ihren eigenen Branch pushen –
-keine Tags, kein `main`, keine Release-Branches – und können keine echten Exporte und keinen Unity-Import prüfen.
+keine Tags, kein `main`, keine Release-Branches – und können keinen Unity-Import prüfen. **Cloud-Sitzungen** richtet
+der SessionStart-Hook `.claude/hooks/session-start.sh` ein (lokal tut er nichts): ImageMagick 6 und Blender 5.2 LTS als
+Python-Modul von PyPI (`bpy`, download.blender.org ist gesperrt) hinter dem Befehl `blender` (`.claude/hooks/blender_cli.py`)
+– damit laufen dort auch die Blender-Tests und echte Exporte (`--tier full`, headless auf der CPU). Kein Ersatz für Stufe 2:
+Blender-App mit GPU, Blender-Plugin, `unity_check.py` und die macOS-App gibt es nur lokal.
 
 - **Stufe 1 „ungeprüft“** (ohne Blender/Unity): `python3 -m unittest discover -s tests` (Blender-/ImageMagick-Tests
-  werden ohne die Werkzeuge übersprungen – das im Bericht nennen), bei Bedarf `--no-blender`-Erzeugung; Branch pushen,
+  werden ohne die Werkzeuge übersprungen – das im Bericht nennen; in der Cloud laufen sie mit dem Hook), bei Bedarf `--no-blender`-Erzeugung; Branch pushen,
   PR mit Abschnitt „Vor dem Merge noch offen“; der Versionsbericht `VERSION_<Version>.md` trägt oben
   *„ungeprüft: Blender-/Unity-Abnahme offen“*. Danach darf der Nutzer den PR auf GitHub mergen; kein Tag, kein Release.
 - Stufe 1 reicht als Abschluss **nur für Doku oder Werkzeuge ohne Einfluss auf die Ausgabe**. Bei Generator-Code,
