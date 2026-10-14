@@ -179,7 +179,8 @@ class PaintOutputTest(unittest.TestCase):
             with open(os.path.join(out, "manifest.json"), "r", encoding="utf-8") as fh:
                 entry = json.load(fh)["models"][0]
             self.assertEqual(entry["paint"], "organic")
-            self.assertEqual(sorted(entry["baked"]), ["Albedo", "Emission", "MetallicSmoothness", "Normal", "Roughness"])
+            # 0.22.0: Organic has no glowing edges (edge_glow 0) - no black Emission map any more (test_release_0220)
+            self.assertEqual(sorted(entry["baked"]), ["Albedo", "MetallicSmoothness", "Normal", "Roughness"])
             self.assertTrue({"ao", "edge", "up", "height", "diffuse", "normal", "weights"} <= set(entry["neutral"]))
             for path in list(entry["baked"].values()) + entry["neutral"]["weights"]:
                 self.assertTrue(os.path.isfile(os.path.join(out, path)), path)

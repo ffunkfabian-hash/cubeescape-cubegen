@@ -280,6 +280,130 @@ Liest der `CubegenImporter` diese Datei statt eigener Listen, laufen Generator u
 Eine neue Rolle oder ein neues Feld wird an einer Stelle eingetragen (`version` erhöhen), beide Seiten prüfen
 danach gleich. Bis dahin ist die Datei die Referenz zum Abgleich mit `Docs/CUBEGEN_IMPORT.md`.
 
+### Versionen des Vertrags (seit 0.22.0)
+
+| Version | seit | Inhalt |
+|---|---|---|
+| 1 | 0.9 | Regeln oben; gebackene Karten standen nur in der Liste des Importers (`CubegenMaterials`) |
+| 2 | 0.22.0 | neuer Abschnitt `baked_maps` mit `Emission`, dazu `history` |
+
+`baked_maps` (Version 2) beschreibt `textures.baked` im Sidecar:
+
+| Schlüssel | Wert | Bedeutung |
+|---|---|---|
+| `keys` | `Albedo`, `Normal`, `MetallicSmoothness`, `Roughness`, `AO`, `Height`, `Emission` | erlaubte Karten |
+| `required` | `Albedo`, `Normal`, `MetallicSmoothness` | Pflicht im Modus `baked` |
+| `srgb` | `Albedo`, `Emission` | Farbkarten (sRGB), alle anderen linear |
+| `since` | `{"Emission": 2}` | ab welcher Vertragsversion eine Karte im Sidecar stehen darf |
+| `material_prefix` | `MTA_` | Material `MTA_<Modell>` |
+| `emission_intensity` | `3.0` | `_EmissionColor` = Weiß × 3 (wie die Emission Strength in Blender) |
+| `distinct_files` | `true` | jede Karte eine eigene Datei |
+
+Beide Seiten brechen nichts, solange sie dieselbe Version sprechen. Cube Escape liest bis zur Umstellung Version 1
+(`CubegenContract` verlangt `version == 1` und kennt nur die Schlüssel von Version 1); dafür gibt es:
+
+```bash
+python3 -m cubegen contract --version 1 --out <Datei>      # die Datei von 0.21, inhaltsgleich
+python3 -m cubegen generate … --paint crystal --contract 1  # Sidecars für einen Import von Version 1
+python3 -m cubegen check --export <Ordner> --contract 1     # Export gegen Version 1 prüfen
+```
+
+Mit `--contract 1` bleibt die Leuchtkarte nur im Manifest (`models[].baked.Emission`); ein Sidecar ohne Emission ist
+auch für Version 2 gültig. `tools/unity_check.py` liest die Version aus Cube Escapes
+`Assets/Resources/Cubegen/cubegen_contract.json` und schreibt die Prüfsätze passend. **Umstellung in Cube Escape**
+(ROADMAP ToDo 26): `CubegenContract` liest Version 2 (Schlüssel `history`, `baked_maps`), `CubegenMaterials` nimmt
+die Kartenliste aus `baked_maps` statt der festen Liste, setzt bei `Emission` `_EmissionMap`, `_EMISSION` und
+`_EmissionColor` = Weiß × `emission_intensity`; danach `python3 -m cubegen contract --out
+Assets/Resources/Cubegen/cubegen_contract.json`.
+
+**Leuchtkarte** (`--paint`, ToDo 26): nur Themen mit Leuchtkanten (`edge_glow` > 0: Crystal, Dark, Space, Ice, Toxic,
+Void, eigene Themen mit `edge_glow`) schreiben `MTP_<Modell>_<Thema>_Emission.png`; Industrial, Clean, Ruin, Organic
+und Sand schreiben keine (bis 0.21 eine schwarze Karte – eine Textur weniger im Werkbank-Budget). Die Karte ist sRGB,
+die Leuchtfarbe ist `edge_glow_color` des Themas (Manifest `paint.edge_glow_color`) mal Kantenmaske; im GLB steckt
+sie als `emissiveTexture`.
+
+## Manifest für Cube Escape (`manifest.json`, Format 2 seit 0.22.0)
+
+Der Import liest heute nur Sidecar, FBX/GLB und die Textur-Manifeste. Für den Modell-Browser der Werkbank
+(ROADMAP ToDo 16, 25, 30, 31) steht im `manifest.json` jedes Laufs alles Weitere. `format` fehlt bis 0.21 (= 1);
+Format 2 ergänzt nur Schlüssel, ein Leser von Format 1 läuft weiter. Koordinaten wie im Sidecar: Unity, Meter,
+Pivot des Modells.
+
+**Wurzel**
+
+| Schlüssel | Inhalt |
+|---|---|
+| `format` | `2` |
+| `config.contract` | Vertragsversion, für die die Sidecars geschrieben sind |
+| `sets` | Variantensets (unten) |
+| `joins` | welche Anschlussarten zusammenpassen (unten) |
+| `dressings` | Anbauten je Typ und Thema (unten) |
+| `paint` | `name`, `glow`, `crystal_color`, `edge_glow_color` des Anstrichs, sonst `null` |
+| `models` | ein Eintrag je Modell (unten) |
+
+**`sets[]`** (`--set`, ToDo 25/31) – ein Set sind Varianten eines Typs mit gleichem Umriss:
+
+```json
+{"name": "floor_tile_set", "type": "floor_tile", "members": ["FloorTile_000", "FloorTile_001", "FloorTile_002"],
+ "pinned": {"depth": 0.1271, "size": 4.0}, "faces": ["x-", "x+", "y-", "y+", "z-"],
+ "faces_unity": [{"face": "x-", "direction": [1.0, 0.0, 0.0], "distance_m": 2.0},
+                 {"face": "y-", "direction": [0.0, 0.0, 1.0], "distance_m": 2.0},
+                 {"face": "z-", "direction": [0.0, -1.0, 0.0], "distance_m": 0.1271}],
+ "bounds": {"center": [0.0, 0.1878, 0.0], "size": [4.0, 0.6298, 4.0]},
+ "outline_ok": true, "deviation_m": 0.0, "preview": "set_floor_tile.png"}
+```
+
+- `members`: Modellnamen in Variantenreihenfolge (Einträge in `models`, dort mit `set` = Setname).
+- `pinned`: festgehaltene Parameter (Umriss und Formwahlen, `set_pins`).
+- `faces`: geprüfte Anschlussseiten in Generator-Achsen (`x-` links, `y-` vorne, `z-` unten; Blender);
+  `faces_unity`: dieselben Seiten in Unity – `direction` zeigt nach außen, `distance_m` ist der Abstand der Seite
+  vom Pivot entlang `direction`. Zwei Mitglieder schließen an, wenn eine Seite mit `direction` d und eine mit −d
+  aneinanderliegen; nur an diesen Seiten einrasten (ToDo 31). Seiten, die nicht genannt sind (bei Böden oben,
+  bei Wänden vorne), dürfen Details tragen und schließen nicht an.
+- `bounds`: Hüllquader des Umrisses (Variante 0, wie `bounds` im Sidecar).
+- `outline_ok = false`: die Mitglieder weichen um mehr als 1 cm ab (`deviation_m`) – der Typ ist nicht set-fähig,
+  im Browser kennzeichnen.
+- `preview`: Reihenbild aller Mitglieder (nur mit Vorschauen, sonst `null`).
+
+**`joins[]`** (ToDo 16) – alle Paare aus `families.JOINS`:
+
+```json
+{"a": "walk", "b": "walk_edge", "mode": "face", "fit_check": true}
+```
+
+`a`/`b` sind Anschlussarten (`models[].connectors[].kind`, in beliebiger Reihenfolge), `mode` `face` = Richtungen
+entgegengesetzt (Steg an Steg), `align` = gleiche Richtung (Tür in Wandöffnung, Abschluss auf der Wand),
+`fit_check` = `cubegen check --family` prüft die Maße dieser Fuge. Arten ohne Partner: `floor_walk` (Fuß einer
+Treppe oder Rampe auf dem Boden), `window`, `pipe_up` (senkrechter Rohrarm).
+
+**`models[].connectors[]`** – Anschlusspunkte jedes Modells:
+
+```json
+{"name": "deck_out", "kind": "walk", "width": 1.0, "position": [-2.0, 0.0, 0.0], "direction": [-1.0, 0.0, 0.0],
+ "moves": {"part": "Deck", "offset": [-2.0, 0.3, 0.0]}}
+```
+
+`position`/`direction` am Pivot, Maße je Art (`width`, `height`, `thickness`, `radius`, `clear` = lichte Öffnung).
+`moves` (neu in Format 2): der Anschluss sitzt auf einem bewegten Teil und gilt erst, wenn `part` um `offset`
+verschoben ist (ausgefahrene Brücke).
+
+**`dressings`** (ToDo 30) – Anbauten sind Geometrie, die ein Anstrich nicht liefern kann (nie gewürfelt):
+
+```json
+{"dressing": {"values": ["none", "ruin", "organic"], "default": "none",
+              "types": ["catwalk", "floor_tile", "pillar", "test_wall_modules"],
+              "paints": {"ruin": ["ruin"], "organic": ["organic"]}},
+ "crystals": {"values": ["none", "some", "many"], "default": "none", "types": ["test_wall_modules"]}}
+```
+
+`paints` nennt das Thema, für das ein Anbau gemacht ist (Vorschlag für den Browser, keine Pflicht). Je Modell
+`models[].dressing` mit den wirksamen Werten, z. B. `{"dressing": "ruin"}` oder
+`{"crystals": "some", "dressing": "none"}`; Typen ohne Anbauten haben den Schlüssel nicht.
+
+**Weitere Felder je Modell** (unverändert): `files`, `preview`, `icon`, `pivots`, `behaviours`, `stats`,
+`renderers`, `asset_hash`, `meta` (mit `params`), `family`, `param_sources`, `build_key`; mit Anstrich `baked`
+(Karten, mit `Emission` nur bei leuchtendem Thema), `baked_material`, `paint`, `weight_layout`, `neutral`.
+
 ## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
 
 Abgeglichen mit `Docs/CUBEGEN_IMPORT.md` des Spiels (Stand 6. Oktober 2026). cubegen prüft jeden Sidecar

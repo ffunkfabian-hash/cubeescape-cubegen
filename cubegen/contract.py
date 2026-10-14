@@ -14,12 +14,19 @@ file leaves the generator:
   (reported as an *open* assignment, not an error: cubegen never invents item ids)
 * with the FBX: every part exists once, same parent, mesh/empty, local position within 1 cm,
   model bounds within 2.5 cm + 1 % of the size vector, part bounds against the part's own mesh
+* ``textures``: only ``mode``, ``manifest`` and ``baked``; baked maps (section ``baked_maps``) only in mode ``baked``,
+  the required ones present, one file per map; ``check_export`` also finds the files
+
+The contract is versioned (``version``, ``history``): version 2 (0.22.0) adds ``baked_maps`` with ``Emission``.
+``contract_for(1)`` is the file an importer of version 1 reads, ``check_sidecar(data, version=1)`` the sidecar it
+accepts - ``generate --contract 1`` writes such sidecars (the Emission map then stays in the manifest only).
 
 ``check_sidecar(data)`` returns ``(errors, open_items)``.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import os
@@ -53,6 +60,37 @@ BEHAVIOUR_KEYS = set(CONTRACT["behaviour_keys"])
 
 POSITION_TOL = TOL["position_m"]
 
+CONTRACT_VERSION: int = CONTRACT["version"]
+SUPPORTED_VERSIONS = tuple(range(1, CONTRACT_VERSION + 1))
+BAKED_MAPS = CONTRACT["baked_maps"]
+TEXTURE_KEYS = ("mode", "manifest", "baked")  # the sidecar's "textures" object (CubegenMaterials reads exactly these)
+#: what version 2 added to the file: an importer of version 1 rejects unknown sections
+_SINCE_2 = ("history", "baked_maps")
+
+
+def check_version(version: int) -> int:
+    if version not in SUPPORTED_VERSIONS:
+        raise ValueError(f"contract version {version!r} unknown (supported: "
+                         f"{', '.join(str(v) for v in SUPPORTED_VERSIONS)})")
+    return version
+
+
+def contract_for(version: int = CONTRACT_VERSION) -> Dict:
+    """The contract as an importer of ``version`` reads it: version 1 is the file of cubegen 0.21 (same rules, without
+    ``history`` and ``baked_maps``)."""
+    data = copy.deepcopy(CONTRACT)
+    if check_version(version) < 2:
+        for key in _SINCE_2:
+            data.pop(key, None)
+    data["version"] = version
+    return data
+
+
+def baked_map_keys(version: int = CONTRACT_VERSION) -> Tuple[str, ...]:
+    """The baked maps an importer of ``version`` accepts in ``textures.baked`` (version 1: without Emission)."""
+    check_version(version)
+    return tuple(k for k in BAKED_MAPS["keys"] if BAKED_MAPS["since"].get(k, 1) <= version)
+
 
 def _num(x) -> bool:
     return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
@@ -78,8 +116,10 @@ def _role_parts(value) -> Optional[List[str]]:
     return None
 
 
-def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], List[str]]:
-    """Contract errors and open item assignments of a sidecar (parsed JSON)."""
+def check_sidecar(data, file_name: Optional[str] = None,
+                  version: int = CONTRACT_VERSION) -> Tuple[List[str], List[str]]:
+    """Contract errors and open item assignments of a sidecar (parsed JSON), for an importer of contract
+    ``version``."""
     errors: List[str] = []
     open_items: List[str] = []
     if not isinstance(data, dict):
@@ -116,10 +156,7 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
     if "collision" in data and data["collision"] not in CONTRACT["root"]["collision_modes"]:
         errors.append(f"collision: {data['collision']!r} not allowed")
     if "textures" in data:
-        tex = data["textures"]
-        if not isinstance(tex, dict) or tex.get("mode") not in CONTRACT["root"]["texture_modes"] or \
-                not isinstance(tex.get("manifest"), str):
-            errors.append("textures: expected {mode: tiled|baked|palette, manifest: path}")
+        errors += _check_textures(data["textures"], version)
 
     # -- parts ---------------------------------------------------------------
     parts: Dict[str, Dict] = {}
@@ -287,6 +324,44 @@ def check_sidecar(data, file_name: Optional[str] = None) -> Tuple[List[str], Lis
     return errors, open_items
 
 
+def _check_textures(tex, version: int) -> List[str]:
+    """The sidecar's ``textures``: mode and manifest; in mode baked the maps of ``baked_maps`` (as CubegenMaterials
+    reads them: unknown maps and missing required ones reject the model, one file per map)."""
+    if not isinstance(tex, dict) or tex.get("mode") not in CONTRACT["root"]["texture_modes"] or \
+            not isinstance(tex.get("manifest"), str):
+        return ["textures: expected {mode: tiled|baked|palette, manifest: path}"]
+    errors = [f"textures: unknown key {key!r}" for key in tex if key not in TEXTURE_KEYS]
+    baked = tex.get("baked")
+    if tex["mode"] != "baked":
+        if baked is not None:
+            errors.append("textures: baked maps need mode baked")
+        return errors
+    if not isinstance(baked, dict) or not all(isinstance(v, str) and v for v in baked.values()):
+        return errors + ["textures: mode baked needs baked: {map: path}"]
+    allowed = baked_map_keys(version)
+    for key in baked:
+        if key not in allowed:
+            since = BAKED_MAPS["since"].get(key)
+            errors.append(f"textures.baked: unknown map {key!r}" + (
+                f" (contract version {since}, this importer reads version {version})" if since else ""))
+    for key in BAKED_MAPS["required"]:
+        if key not in baked:
+            errors.append(f"textures.baked: missing map {key!r}")
+    if BAKED_MAPS["distinct_files"] and len(set(baked.values())) != len(baked):
+        errors.append("textures.baked: every map needs its own file")
+    return errors
+
+
+def _baked_files(data, sidecar_path: str) -> List[str]:
+    """Baked maps the sidecar names but the export lacks (paths relative to the sidecar, like Unity resolves them)."""
+    tex = data.get("textures")
+    if not isinstance(tex, dict) or not isinstance(tex.get("baked"), dict):
+        return []
+    folder = os.path.dirname(os.path.abspath(sidecar_path))
+    return [f"textures.baked.{key}: file {path!r} missing" for key, path in sorted(tex["baked"].items())
+            if isinstance(path, str) and not os.path.isfile(os.path.normpath(os.path.join(folder, path)))]
+
+
 def _check_leaves(where, positions, fields) -> List[str]:
     """Two door leaves must move apart: the second one by ``secondOffset``, by default ``-openOffset``."""
     first = fields["openOffset"]
@@ -436,8 +511,9 @@ def read_sidecar(path: str) -> Tuple[Optional[Dict], List[str]]:
     return data, errors
 
 
-def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
-    """Every ``*.cubegen.json`` below ``models_dir`` (with its FBX if there is one): {model: {errors, open}}."""
+def check_export(models_dir: str, version: int = CONTRACT_VERSION) -> Dict[str, Dict[str, List[str]]]:
+    """Every ``*.cubegen.json`` below ``models_dir`` (with its FBX and its baked maps) for an importer of contract
+    ``version``: {model: {errors, open}}."""
     result = {}
     for folder, _, files in os.walk(models_dir):
         for name in sorted(f for f in files if f.endswith(".cubegen.json")):
@@ -446,8 +522,8 @@ def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
             if data is None:
                 result[name[: -len(".cubegen.json")]] = {"errors": file_errors, "open": []}
                 continue
-            errors, open_items = check_sidecar(data, path)
-            errors = file_errors + errors
+            errors, open_items = check_sidecar(data, path, version)
+            errors = file_errors + errors + _baked_files(data, path)
             fbx = path[: -len(".cubegen.json")] + ".fbx"
             if not errors and os.path.isfile(fbx):
                 errors += check_fbx(data, fbx)
@@ -460,6 +536,7 @@ def check_export(models_dir: str) -> Dict[str, Dict[str, List[str]]]:
 
 
 __all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_contract", "CONTRACT", "CONTRACT_FILE",
+           "CONTRACT_VERSION", "SUPPORTED_VERSIONS", "BAKED_MAPS", "contract_for", "baked_map_keys", "check_version",
            "BEHAVIOURS", "ROOT_KEYS", "RUNTIME_BUDGET", "check_runtime_budget", "glb_summary", "texture_bytes"]
 
 
