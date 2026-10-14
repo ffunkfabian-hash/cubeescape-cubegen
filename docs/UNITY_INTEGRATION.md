@@ -286,6 +286,7 @@ danach gleich. Bis dahin ist die Datei die Referenz zum Abgleich mit `Docs/CUBEG
 |---|---|---|
 | 1 | 0.9 | Regeln oben; gebackene Karten standen nur in der Liste des Importers (`CubegenMaterials`) |
 | 2 | 0.22.0 | neuer Abschnitt `baked_maps` mit `Emission`, dazu `history` |
+| 3 | 0.24.0 | neutrale Karten (`textures.neutral`, `textures.weight_layout`, Abschnitt `neutral_maps`), Thema als Daten (Wurzelschlüssel `paint`, Abschnitt `paint_scheme`), eigene Materialnamen statt `M_Crystal` für Nicht-Kristalle (Abschnitt `materials`), Abschnitt `textures` mit `since`, `root.since` |
 
 `baked_maps` (Version 2) beschreibt `textures.baked` im Sidecar:
 
@@ -299,14 +300,19 @@ danach gleich. Bis dahin ist die Datei die Referenz zum Abgleich mit `Docs/CUBEG
 | `emission_intensity` | `3.0` | `_EmissionColor` = Weiß × 3 (wie die Emission Strength in Blender) |
 | `distinct_files` | `true` | jede Karte eine eigene Datei |
 
-Beide Seiten brechen nichts, solange sie dieselbe Version sprechen. Cube Escape liest bis zur Umstellung Version 1
-(`CubegenContract` verlangt `version == 1` und kennt nur die Schlüssel von Version 1); dafür gibt es:
+Beide Seiten brechen nichts, solange sie dieselbe Version sprechen. Für einen Import, der eine ältere Version liest
+(Cube Escape liest seit 0.57 Version 2, Version 3 folgt in dessen Phase 3), gibt es:
 
 ```bash
-python3 -m cubegen contract --version 1 --out <Datei>      # die Datei von 0.21, inhaltsgleich
-python3 -m cubegen generate … --paint crystal --contract 1  # Sidecars für einen Import von Version 1
-python3 -m cubegen check --export <Ordner> --contract 1     # Export gegen Version 1 prüfen
+python3 -m cubegen contract --version 2 --out <Datei>      # die Datei von 0.22/0.23, inhaltsgleich (1: von 0.21)
+python3 -m cubegen generate … --paint crystal --contract 2  # Sidecars für einen Import von Version 2 (oder 1)
+python3 -m cubegen check --export <Ordner> --contract 2     # Export gegen Version 2 prüfen
 ```
+
+`--contract 2` lässt neutrale Karten und Thema im Sidecar weg (sie bleiben im Manifest: `models[].neutral_maps`,
+`weight_layout`, `config.paint_scheme`) und schreibt für die neuen Materialnamen wieder `M_Crystal`
+(`Asset.legacy_materials`: bitgleich zum Modell von 0.23, belegt mit den Golden-Daten). `contract_for(2)` ist die
+Datei von 0.22/0.23 (Fixture `tests/fixtures/contract_v2.json`).
 
 Mit `--contract 1` bleibt die Leuchtkarte nur im Manifest (`models[].baked.Emission`); ein Sidecar ohne Emission ist
 auch für Version 2 gültig. `tools/unity_check.py` liest die Version aus Cube Escapes
@@ -321,6 +327,107 @@ Void, eigene Themen mit `edge_glow`) schreiben `MTP_<Modell>_<Thema>_Emission.pn
 und Sand schreiben keine (bis 0.21 eine schwarze Karte – eine Textur weniger im Werkbank-Budget). Die Karte ist sRGB,
 die Leuchtfarbe ist `edge_glow_color` des Themas (Manifest `paint.edge_glow_color`) mal Kantenmaske; im GLB steckt
 sie als `emissiveTexture`.
+
+### Neutrale Karten für den Umfärbe-Shader (Vertrag 3, seit 0.24.0)
+
+Mit `--paint` schreibt jeder Lauf neben den fertigen Karten (`MTP_<Modell>_<Thema>_*.png`, Material `MTA_<Modell>`)
+je Modell die gepackten neutralen Karten `MTN_<Modell>_<Karte>.png` in den Texturordner. Aus ihnen und dem Thema
+rechnet `paint.compose` die fertigen Karten – der Shader (Cube Escape: Rezept PAINT) rechnet dasselbe nach. Alle
+Karten sind **linear** (sRGB aus), 8 Bit, gleiche Auflösung wie der Atlas (`--texture-size`), UV0 des Modells.
+
+| Karte | R | G | B | A |
+|---|---|---|---|---|
+| `W0` | Gewicht `weight_layout[0][0]` | Gewicht `[0][1]` | Gewicht `[0][2]` | **Rauschen** 0–1 |
+| `W1` | Gewicht `weight_layout[1][0]` | `[1][1]` | `[1][2]` (ohne zweite Gruppe schwarz) | **Detail**: `0,35 + A × 1,45` |
+| `W2` | Gewicht `weight_layout[2][0]` | `[2][1]` | `[2][2]` | reserviert (1) – nur bei drei Gruppen |
+| `Fields` | Umgebungsverdeckung (AO) | Kante | oben (Weltnormale Z) | Höhe (0 am Fuß, 1 oben) |
+| `Normal` | Tangentennormale (OpenGL, +Y) | | | |
+
+- `weight_layout`: die Spielmaterialien des Modells (aus `paint_scheme.painted`, in dieser Reihenfolge) in Dreiergruppen;
+  ein fehlendes `W<k>` oder ein freier Kanal wiegt 0. `W0`, `W1`, `Fields`, `Normal` sind Pflicht, `W2` genau bei
+  drei Gruppen – fünf Texturen statt acht (bisher W0–W2, AO, Kante, oben, Höhe, Normal einzeln).
+- **Rauschen und Detail sind Kanäle:** Bis 0.23 erzeugte `compose` das Rauschen zur Laufzeit aus einem numpy-Seed.
+  Seit 0.24.0 setzt Cubegen die fertigen Karten **aus den gepackten 8-Bit-Werten** zusammen (`neutral.compose_packed`)
+  – ein Shader, der die Karten liest, rechnet exakt das Referenzbild nach. Die fertigen Karten ändern sich dadurch
+  gegenüber 0.23 um höchstens 5/255 (im Mittel 0,14/255, gemessen an Kiste, Säule, Modulwand in allen elf Themen).
+- `paint.compose` bleibt die Referenzformel (Cube Escape `MATERIALS.md`, Entscheidung 2). Ein Gewicht wird mit
+  `w / max(Σw, 1e-4)` normiert (8-Bit-Rundung), Detail multipliziert die Albedo, danach Schmutz, aufsteigender
+  Schmutz, Staub, Moos, Kantenlicht, Abnutzung und Leuchtkanten in dieser Reihenfolge.
+- Die Rohdaten des Backens (`Textures/Neutral/<Modell>_W<n>/AO/Edge/Up/Height/Diffuse/Normal.png`, Manifest
+  `models[].neutral`) bleiben unverändert erhalten – für den Stiltest, nicht für Unity.
+
+**Sidecar (Version 3):** `textures.neutral` und `textures.weight_layout` neben `baked`, dazu der Wurzelschlüssel
+`paint`: der Name eines eingebauten Themas – oder ein eigenes Thema vollständig als Daten (`name` und alle
+`paint_scheme.keys`, Farben sRGB `#rrggbb`, Mengen 0–1). Die eingebauten Themen liefert
+`python3 -m cubegen catalog --paints` (`paint_schemes`, `paint_keys`) – Cube Escape spiegelt die Datei wie
+`cubegen_contract.json`. Beispiel (`generate --seed 19 --pick crate:0 --paint dark`):
+
+```json
+{
+  "model": "Crate_000",
+  "textures": {
+    "mode": "baked",
+    "manifest": "Textures/CubeEscape_Textures.json",
+    "baked": {
+      "Albedo": "Textures/MTP_Crate_000_dark_Albedo.png",
+      "Roughness": "Textures/MTP_Crate_000_dark_Roughness.png",
+      "MetallicSmoothness": "Textures/MTP_Crate_000_dark_MetallicSmoothness.png",
+      "Normal": "Textures/MTP_Crate_000_dark_Normal.png",
+      "Emission": "Textures/MTP_Crate_000_dark_Emission.png"
+    },
+    "neutral": {
+      "W0": "Textures/MTN_Crate_000_W0.png",
+      "W1": "Textures/MTN_Crate_000_W1.png",
+      "Fields": "Textures/MTN_Crate_000_Fields.png",
+      "Normal": "Textures/MTN_Crate_000_Normal.png"
+    },
+    "weight_layout": [["M_RobotDark", "M_Metal", "M_Warning"]]
+  },
+  "paint": "dark"
+}
+```
+
+Ein eigenes Thema (`--paint-file paints/custom_example.json`) steht als Objekt da:
+`"paint": {"name": "rust_bucket", "label": "Rust Bucket", "colors": {…alle neun…}, "glow": "red", …}`.
+
+Regeln (`check_sidecar`, Version 3): `neutral` nur im Modus `baked`, nur zusammen mit `weight_layout` und `paint`;
+bekannte Karten, Pflichtkarten, `W2` genau bei drei Gruppen, jede Karte eine eigene Datei; `check --export` findet
+fehlende Dateien. Ein Import von Version 2 lehnt `paint`, `textures.neutral` und `textures.weight_layout` ab.
+
+**Vergleichsbilder** (Cube Escape `SurfaceRenderTests`): `python3 tools/paint_reference.py <Lauf>` setzt aus den
+`MTN_`-Karten eines Laufs jedes eingebaute Thema (und das eigene des Laufs) ohne Blender zusammen –
+`<Lauf>/paint_reference/<Thema>/MTP_<Modell>_<Thema>_Albedo/Roughness/MetallicSmoothness[/Emission].png` und
+`reference.json` (Modelle, `weight_layout`, neutrale Karten, Themendaten, vorgeschlagene Toleranz: je Kanal höchstens
+3/255, im Mittel 0,5/255). `--check` vergleicht das Thema des Laufs mit den von Blender gespeicherten Karten: sie sind
+bitgleich. `tools/unity_check.py` legt die Referenz für jeden Prüfsatz mit Anstrich an und reicht sie als
+`$CUBEGEN_PAINT_REFERENCE` an den Unity-Lauf.
+
+### Eigene Materialnamen statt `M_Crystal` (Vertrag 3, seit 0.24.0)
+
+`M_Crystal` ist nur noch echter Kristall (Fels, Kristallgruppe, Hängekristalle, Asteroid, Stalagmit, Schwebeinsel- und
+Plattform-Unterseite, Reaktorkern, Kryo-Reif, Ersatzteil „crystal“, Modulwand – `materials.CRYSTAL_TYPES`, ein Test
+hält es fest). Was bisher `M_Crystal` trug, ohne Kristall zu sein, hat einen eigenen Namen. Alle haben vorerst die
+Werte von `M_Crystal` (gleiches Aussehen), bis Cube Escape sie gestaltet:
+
+| Material | sRGB | Glätte | Metall | Emission | wofür (Typen) |
+|---|---|---|---|---|---|
+| `M_Liquid` | `#4ce6ff` | 0,9 | 0 | 2,5 | Flüssigkeit, Wasser, Schlamm (`water_level`, `puddle` slime, `lab_device`, `galley`) |
+| `M_Hologram` | `#4ce6ff` | 0,9 | 0 | 2,5 | Hologramme und Energiefelder (`hologram`, `force_field`) |
+| `M_Lamp` | `#4ce6ff` | 0,9 | 0 | 2,5 | Lampenflächen, Sterne (`floodlight` ohne `--glow`, `planet_window`) |
+| `M_Leaf` | `#4ce6ff` | 0,9 | 0 | 2,5 | Alien-Blätter, Pilzflächen, Pilzhüte (`plant`, `hydroponic_bed`, `vines`, `fungus_carpet`, `mushroom`) |
+| `M_Biolume` | `#4ce6ff` | 0,9 | 0 | 2,5 | leuchtende Organik: Knospen, Wurzeladern, Sporenpunkte (`vines`, `wall_roots`, `fungus_carpet`) |
+| `M_Signal` | `#4ce6ff` | 0,9 | 0 | 2,5 | Sequenzfarbe der Tonfolge (`sequence_panel`, auch `onMaterial`) |
+| `M_Accent` | `#4ce6ff` | 0,9 | 0 | 2,5 | Leuchtakzente von Bau-Kit-Teilen (`pad` Teleporterring, Planet in `planet_window`) |
+| `M_Optic` | `#4ce6ff` | 0,9 | 0 | 2,5 | Linsen und Prismen (`laser_receiver`, `laser_splitter`, `spare_part` Linse, `test_lens_array`) |
+
+Emission ist die Stärke wie bei den anderen `M_`-Materialien (`materials.MATERIALS`: Farbe × 2,5). Die Liste steht im
+Vertrag (Abschnitt `materials`: `split` mit Verwendung, `like`, `legacy`) und je Lauf im Manifest (`materials`: je Name
+`srgb`, `smoothness`, `metallic`, `emission`, `use`, `legacy`; `written: false`, wenn der Lauf für Version 2/1 wieder
+`M_Crystal` schrieb). Wie die anderen Leucht-, Kristall- und Glasmaterialien behalten sie ihr eigenes Material beim
+Backen, Anstreichen und in Paletten (Palettenmodus: die Zelle von `M_Crystal`, das Palettenbild bleibt gleich). Die
+Kristallfarbe eines Themas (`paint.crystal_color`) gilt nur noch für `M_Crystal`. **Für Cube Escape:** die acht
+Materialien in der `MaterialLibrary` anlegen (vorerst Kopien von `M_Crystal`), danach Vertrag 3 lesen. Alte Ausgabe
+bleibt historisch: Exporte bis 0.23 und Läufe mit `--contract 2`/`1` tragen `M_Crystal`.
 
 ## Manifest für Cube Escape (`manifest.json`, Format 2 seit 0.22.0)
 
@@ -339,6 +446,7 @@ Pivot des Modells.
 | `joins` | welche Anschlussarten zusammenpassen (unten) |
 | `dressings` | Anbauten je Typ und Thema (unten) |
 | `paint` | `name`, `glow`, `crystal_color`, `edge_glow_color` des Anstrichs, sonst `null` |
+| `materials` | (0.24.0) die von `M_Crystal` abgespaltenen Materialnamen mit Werten, `written` (siehe oben) |
 | `models` | ein Eintrag je Modell (unten) |
 
 **`sets[]`** (`--set`, ToDo 25/31) – ein Set sind Varianten eines Typs mit gleichem Umriss:
@@ -402,7 +510,9 @@ verschoben ist (ausgefahrene Brücke).
 
 **Weitere Felder je Modell** (unverändert): `files`, `preview`, `icon`, `pivots`, `behaviours`, `stats`,
 `renderers`, `asset_hash`, `meta` (mit `params`), `family`, `param_sources`, `build_key`; mit Anstrich `baked`
-(Karten, mit `Emission` nur bei leuchtendem Thema), `baked_material`, `paint`, `weight_layout`, `neutral`.
+(Karten, mit `Emission` nur bei leuchtendem Thema), `baked_material`, `paint`, `weight_layout`, `neutral` (Rohdaten
+des Backens) und seit 0.24.0 `neutral_maps` (die gepackten `MTN_`-Karten, `{"W0": "models/Textures/MTN_Crate_000_W0.png",
+…}`, bei jeder Vertragsversion).
 
 ## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
 

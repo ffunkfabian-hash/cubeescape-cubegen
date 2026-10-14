@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
 
 from cubegen.blender import find_blender  # noqa: E402
-from cubegen.contract import (BAKED_MAPS, CONTRACT, CONTRACT_FILE, CONTRACT_VERSION, baked_map_keys,  # noqa: E402
+from cubegen.contract import (BAKED_MAPS, CONTRACT_FILE, CONTRACT_VERSION, baked_map_keys,  # noqa: E402
                               check_export, check_sidecar, contract_for)
 from cubegen.families import JOINS, RULES, join_table  # noqa: E402
 from cubegen.imagemagick import find_imagemagick  # noqa: E402
@@ -42,7 +42,8 @@ def baked_rig(maps):
 
 class ContractVersionTest(unittest.TestCase):
     def test_version_2_adds_the_emission_map_version_1_stays_as_it_was(self):
-        self.assertEqual(CONTRACT_VERSION, 2)
+        # 0.24.0: the current version is 3 (test_release_0240) - version 2 is what contract_for(2) gives
+        self.assertGreaterEqual(CONTRACT_VERSION, 2)
         self.assertEqual(baked_map_keys(1), V1_MAPS)
         self.assertEqual(baked_map_keys(2), V1_MAPS + ("Emission",))
         self.assertEqual(BAKED_MAPS["required"], ["Albedo", "Normal", "MetallicSmoothness"])
@@ -50,9 +51,10 @@ class ContractVersionTest(unittest.TestCase):
         old = contract_for(1)
         self.assertEqual(set(old), CE_V1_KEYS)  # an importer of version 1 reads it unchanged
         self.assertEqual(old["version"], 1)
+        v2 = contract_for(2)
         self.assertEqual({k: v for k, v in old.items() if k != "version"},
-                         {k: v for k, v in CONTRACT.items() if k not in ("version", "history", "baked_maps")})
-        self.assertEqual(sorted(CONTRACT["history"]), ["1", "2"])
+                         {k: v for k, v in v2.items() if k not in ("version", "history", "baked_maps")})
+        self.assertEqual(sorted(v2["history"]), ["1", "2"])
 
     def test_contract_command_writes_either_version(self):
         from cubegen.cli import main
@@ -115,7 +117,7 @@ class ContractVersionTest(unittest.TestCase):
     def test_config_and_cli_take_the_contract_version(self):
         from cubegen.cli import build_config, make_parser
 
-        config = BatchConfig(seed=1, models={"crate": 1}, out_dir="x", contract=3)
+        config = BatchConfig(seed=1, models={"crate": 1}, out_dir="x", contract=CONTRACT_VERSION + 1)
         with self.assertRaises(ValueError):
             config.validate()
         args = make_parser().parse_args(["generate", "--types", "crate", "--contract", "1", "--no-blender"])
@@ -269,7 +271,8 @@ class EmissionMapTest(unittest.TestCase):
             with open(sidecar, "r", encoding="utf-8") as fh:
                 rig = json.load(fh)
             self.assertNotIn("textures", rig)
-            self.assertEqual({m for part in rig["parts"] for m in part["materials"]}, {"M_Crystal"})
+            # 0.24.0: the slime is M_Liquid now (M_Crystal only for real crystals, test_release_0240)
+            self.assertEqual({m for part in rig["parts"] for m in part["materials"]}, {"M_Liquid"})
 
     def test_contract_1_keeps_the_map_in_the_manifest_only(self):
         with tempfile.TemporaryDirectory() as out:

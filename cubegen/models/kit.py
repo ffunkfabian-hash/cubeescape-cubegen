@@ -822,7 +822,7 @@ def pad(rng, a):
         n = 12
         for i in range(n):
             ang = 2 * math.pi * i / n
-            mat = "M_Crystal" if i % 3 == 0 else "M_Metal"
+            mat = "M_Accent" if i % 3 == 0 else "M_Metal"
             cube(ring, (2 * math.pi * r * 0.95 / n * 1.05, 0.08, 0.08),
                  (math.cos(ang) * r * 0.95, math.sin(ang) * r * 0.95, 1.6), mat, rot=(0, 0, ang + math.pi / 2))
         a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})

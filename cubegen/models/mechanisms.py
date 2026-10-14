@@ -204,7 +204,7 @@ def laser_splitter(rng, a):
     size = rng.uniform(0.16, 0.24)
     ph = size * rng.uniform(1.4, 2.0)
     tri = [(math.cos(deg(90 + 120 * k)) * size, math.sin(deg(90 + 120 * k)) * size) for k in range(3)]
-    turn.add(prism(tri, ph, "M_Crystal"), loc=(0, 0, h))
+    turn.add(prism(tri, ph, "M_Optic"), loc=(0, 0, h))
     for dz in (-ph / 2 - 0.02, ph / 2 + 0.02):  # metal caps holding the crystal
         cyl(turn, size * 0.75, 0.04, (0, 0, h + dz), "M_Metal", sides=6)
     cube(turn, (0.04, 0.04, 0.06), (0, -size * 0.6, h - ph / 2 - 0.06), "M_Warning")  # orientation mark
@@ -257,7 +257,7 @@ def force_field(rng, a):
     center = (0.0, 0.0, height / 2)
     field = a.part("Field", pivot=center)
     if style == "field":
-        cube(field, (width, 0.04, height - 0.04), center, "M_Crystal")
+        cube(field, (width, 0.04, height - 0.04), center, "M_Hologram")
     else:
         n = max(3, int(height / 0.35))
         for i in range(n):

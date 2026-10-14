@@ -472,7 +472,7 @@ def laser_receiver(rng, a):
         pillar_front(a, body, -0.125, 0.0, h - 0.15 - r - 0.05, 0.35, "R")
     cyl(body, r, 0.18, (0, 0.03, h), "M_RobotDark", sides=8, bevel=0.02, rot=ALONG_Y)
     cyl(body, r * 0.75, 0.06, (0, -0.08, h), "M_Metal", sides=8, rot=ALONG_Y)
-    cyl(a.part("Lens"), r * 0.5, 0.08, (0, -0.1, h), "M_Crystal", sides=6, rot=ALONG_Y)
+    cyl(a.part("Lens"), r * 0.5, 0.08, (0, -0.1, h), "M_Optic", sides=6, rot=ALONG_Y)
     for i in range(4):
         ang = math.pi / 4 + i * math.pi / 2
         cube(lights, (0.04, 0.02, 0.04), (math.cos(ang) * r * 0.9, -0.07, h + math.sin(ang) * r * 0.9), status)

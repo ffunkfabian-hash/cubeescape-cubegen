@@ -18,6 +18,13 @@ The sidecars are written for the contract version Cube Escape keeps (``Assets/Re
 cubegen_contract.json``, ``generate --contract``): with version 1 the Emission map of the paint probe (Crystal) stays in
 the manifest, with version 2 the import reads it too.
 
+Probe ``neutral`` (0.24.0, "Anstrich neutral") needs contract version 3 (neutral maps and the scheme in the sidecar).
+Does Cube Escape read version 3, its sidecars must import. Below that it runs twice: written for version 3 the import
+has to reject every model (expected - ``rejected_as_expected``), written for Cube Escape's version (without the neutral
+maps) it has to import. Every probe with ``--paint`` also gets its reference maps (``tools/paint_reference.py``: every
+scheme composed from the neutral maps) in ``<probe>/paint_reference`` - handed to the Unity run as
+``$CUBEGEN_PAINT_REFERENCE`` for the shader comparison (Cube Escape ``SurfaceRenderTests``, once it exists).
+
 The Cube Escape checkout: ``--ce`` or ``$CUBEGEN_CE_ROOT``, else ``~/Claude/Cube Escape``. Without it (or without
 its verify script) the check says so and exits 0 - ``--require`` makes that an error (release check).
 Report: ``output/unity_check/report.json``. Exit code 1 when a probe fails.
@@ -73,8 +80,14 @@ PROBES: Dict[str, Dict] = {
                         "--single-renderer", "--lods"]},
     "runtime": {"seed": "42", "test": "runtime", "about": "alle Typen als GLB (Laufzeitpfad der Werkbank)",
                 "args": ["--count", "1", "--formats", "glb"]},
+    "neutral": {"seed": "23", "test": "cli", "contract": 3,
+                "about": "Anstrich neutral: neutrale Karten, Thema und neue Materialnamen (Vertrag 3), Dark leuchtet",
+                "args": ["--types", "crate,floor_tile,pillar,wall,test_wall_modules,vending_machine,hologram,"
+                                    "floodlight", "--count", "1",
+                         "--param", "test_wall_modules.crystals=some", "--paint", "dark", "--texture-size", "128"]},
 }
-QUICK = ("kit", "paint")
+QUICK = ("kit", "paint", "neutral")
+REFERENCE = "paint_reference"  # <probe>/paint_reference: every scheme composed from the probe's neutral maps
 
 # "Passed | bestanden 1 | fehlgeschlagen 0 | …" or "Failed(Child) | bestanden 0 | fehlgeschlagen 1 | …"
 RESULT = re.compile(r"(Passed|Failed)(?:\([^)]*\))?\s*\|\s*bestanden\s+(\d+)\s*\|\s*fehlgeschlagen\s+(\d+)")
@@ -160,37 +173,104 @@ def runtime_audit(models: str) -> Optional[Dict]:
             "failed_files": [row["file"] for row in rows if row.get("result") == "failed"][:20]}
 
 
-def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] = None) -> Dict:
-    probe = PROBES[name]
-    out = os.path.join(work, name)
+def _unity(name: str, ce: str, models: str, reference: Optional[str]) -> subprocess.CompletedProcess:
+    test_filter, variable = TESTS[PROBES[name]["test"]]
+    env = dict(os.environ, **{variable: models})
+    if reference:
+        env["CUBEGEN_PAINT_REFERENCE"] = reference
+    return subprocess.run([os.path.join(ce, VERIFY), "test", "EditMode", test_filter, RUN_NAME], cwd=ce, env=env,
+                          capture_output=True, text=True)
+
+
+def _generate(name: str, out: str, contract: Optional[int]) -> subprocess.CompletedProcess:
     shutil.rmtree(out, ignore_errors=True)
-    start = time.time()
     env = dict(os.environ, PYTHONPATH=ROOT + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH")
                                               else ""))
-    gen = subprocess.run(generate_command(name, out, contract), cwd=ROOT, env=env, capture_output=True, text=True)
-    entry = {"name": name, "about": probe["about"], "test": probe["test"], "seconds": {}}
-    entry["seconds"]["generate"] = round(time.time() - start, 1)
-    if gen.returncode != 0:
-        entry.update(ok=False, problem="cubegen generate fehlgeschlagen", output=(gen.stdout + gen.stderr)[-2000:])
-        return entry
-    models = os.path.join(out, "models")
-    entry["exports"] = len([f for f in os.listdir(models) if f.endswith(".cubegen.json")])
-    test_filter, variable = TESTS[probe["test"]]
-    start = time.time()
-    unity = subprocess.run([os.path.join(ce, VERIFY), "test", "EditMode", test_filter, RUN_NAME], cwd=ce,
-                           env=dict(os.environ, **{variable: models}), capture_output=True, text=True)
-    entry["seconds"]["unity"] = round(time.time() - start, 1)
-    result = parse_verify(unity.stdout + unity.stderr)
-    entry.update(result)
+    return subprocess.run(generate_command(name, out, contract), cwd=ROOT, env=env, capture_output=True, text=True)
+
+
+def paint_reference(out: str) -> Optional[str]:
+    """Reference maps of a probe with --paint (every scheme, ``tools/paint_reference.py``); None without paint."""
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import paint_reference as ref
+
+    try:
+        manifest = ref.load_manifest(out)
+    except (OSError, ValueError):
+        return None
+    if not ref.models_with_maps(manifest):
+        return None
+    target = os.path.join(out, REFERENCE)
+    try:
+        ref.write_reference(out, target, log=lambda _: None)
+    except ImportError:  # numpy: in Blender's Python, not always in the system's
+        print("  Referenzbilder übersprungen: numpy fehlt (python3 -m pip install numpy)", flush=True)
+        return None
+    return target
+
+
+def expected_rejection(stdout: str, models: List[str]) -> bool:
+    """A verify run that failed because the import rejected every model: each one named in the failure (verify output
+    or its Unity log - the test lists "<model>: <warnings>" per rejected model)."""
+    result = parse_verify(stdout)
+    text = stdout
     if result["log"] and os.path.isfile(result["log"]):
         with open(result["log"], "r", encoding="utf-8", errors="replace") as fh:
-            text = fh.read()
-        entry["integration"] = parse_integration(text)
-    if probe["test"] == "runtime":
-        entry["runtime"] = runtime_audit(models)
-    entry["ok"] = result["passed"] and unity.returncode == 0
-    if not entry["ok"]:
-        entry["output"] = (unity.stdout + unity.stderr)[-3000:]
+            text += fh.read()
+    return not result["passed"] and bool(models) and all(f"{m}:" in text for m in models)
+
+
+def legs(name: str, contract: Optional[int]) -> List[Dict]:
+    """The runs of a probe: [{contract, expect}] - expect "import" or "reject". A probe needing a newer contract than
+    Cube Escape reads runs once for that version (rejected) and once for Cube Escape's (imported)."""
+    need = PROBES[name].get("contract")
+    if need is None or contract is None or contract >= need:  # None: no contract file - cubegen's own version
+        return [{"contract": need if need is not None else contract, "expect": "import"}]
+    return [{"contract": need, "expect": "reject"}, {"contract": contract, "expect": "import"}]
+
+
+def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] = None) -> Dict:
+    probe = PROBES[name]
+    entry = {"name": name, "about": probe["about"], "test": probe["test"], "seconds": {}}
+    runs = legs(name, contract)
+    for leg in runs:
+        tag = "" if len(runs) == 1 else f"_v{leg['contract'] if leg['contract'] is not None else 'ce'}"
+        out = os.path.join(work, name + tag)
+        start = time.time()
+        gen = _generate(name, out, leg["contract"])
+        entry["seconds"]["generate" + tag] = round(time.time() - start, 1)
+        if gen.returncode != 0:
+            entry.update(ok=False, problem="cubegen generate fehlgeschlagen", output=(gen.stdout + gen.stderr)[-2000:])
+            return entry
+        models = os.path.join(out, "models")
+        names = sorted(f[: -len(".cubegen.json")] for f in os.listdir(models) if f.endswith(".cubegen.json"))
+        reference = paint_reference(out)
+        start = time.time()
+        unity = _unity(name, ce, models, reference)
+        entry["seconds"]["unity" + tag] = round(time.time() - start, 1)
+        text = unity.stdout + unity.stderr
+        if leg["expect"] == "reject":
+            ok = expected_rejection(text, names)
+            entry["rejected_as_expected"] = {"contract": leg["contract"], "models": len(names), "ok": ok}
+            if not ok:
+                entry.update(ok=False, problem=f"Vertrag {leg['contract']}: Import hat nicht jedes Modell abgelehnt",
+                             output=text[-3000:])
+                return entry
+            continue
+        entry["exports"] = len(names)
+        if reference:
+            entry["reference"] = reference
+        result = parse_verify(text)
+        entry.update(result)
+        if result["log"] and os.path.isfile(result["log"]):
+            with open(result["log"], "r", encoding="utf-8", errors="replace") as fh:
+                log_text = fh.read()
+            entry["integration"] = parse_integration(log_text)
+        if probe["test"] == "runtime":
+            entry["runtime"] = runtime_audit(models)
+        entry["ok"] = result["passed"] and unity.returncode == 0
+        if not entry["ok"]:
+            entry["output"] = text[-3000:]
     return entry
 
 
@@ -209,6 +289,9 @@ def summary_line(entry: Dict) -> str:
         detail = "kein Zähler im Log"
     state = "ok    " if entry["ok"] else "FEHLER"
     seconds = sum(entry["seconds"].values())
+    rejected = entry.get("rejected_as_expected")
+    if rejected:
+        detail += f"; mit Vertrag {rejected['contract']} {rejected['models']} abgelehnt wie erwartet"
     return f"{entry['name']:9s} {state} {entry['exports']:3d} Modelle, {detail} ({seconds:.0f} s)"
 
 
@@ -242,7 +325,9 @@ def main(argv=None) -> int:
         report["probes"].append(entry)
         print("  " + summary_line(entry), flush=True)
         if entry["ok"] and not args.keep:
-            shutil.rmtree(os.path.join(args.out, name), ignore_errors=True)
+            for folder in os.listdir(args.out):
+                if folder == name or folder.startswith(name + "_v"):
+                    shutil.rmtree(os.path.join(args.out, folder), ignore_errors=True)
     report["ok"] = all(p["ok"] for p in report["probes"])
     with open(os.path.join(args.out, "report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)

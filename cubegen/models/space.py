@@ -156,7 +156,7 @@ def asteroid(rng, a):
     a.meta["size_m"] = round(s, 3)
 
 
-PLANETS = (("M_HazardOrange", "M_Warning"), ("M_Crystal", "M_Platform"), ("M_Wall", "M_Metal"),
+PLANETS = (("M_HazardOrange", "M_Warning"), ("M_Accent", "M_Platform"), ("M_Wall", "M_Metal"),
            ("M_GlowOrange", "M_HazardOrange"))
 
 
@@ -217,7 +217,7 @@ def planet_window(rng, a):
         x, zz = rng.uniform(-w / 2, w / 2), rng.uniform(-h / 2, h / 2)
         if math.hypot(x - pc[0], zz - (pc[2] - z)) < pr * 1.1:
             continue
-        cube(stars, (0.015, 0.01, 0.015), (x, yb - 0.045, z + zz), "M_Crystal")
+        cube(stars, (0.015, 0.01, 0.015), (x, yb - 0.045, z + zz), "M_Lamp")
     if not stars.faces:
-        cube(stars, (0.015, 0.01, 0.015), (w * 0.45, yb - 0.045, z + h * 0.45), "M_Crystal")
+        cube(stars, (0.015, 0.01, 0.015), (w * 0.45, yb - 0.045, z + h * 0.45), "M_Lamp")
     a.meta.update({"shape": shape, "planet": surface})

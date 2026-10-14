@@ -165,6 +165,11 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Abschnitt `baked_maps`; `--contract 1` und `contract --version 1` für den heutigen Import), nur bei leuchtenden
   Themen; Manifestformat 2 mit `sets[].faces_unity`/`bounds`, `joins`, `dressings`, `models[].set`/`dressing`,
   `connectors[].moves` – Format in [UNITY_INTEGRATION.md](UNITY_INTEGRATION.md) › „Manifest für Cube Escape“.
+- [x] **Zuarbeit für Cube Escape 0.57 Phase 3** (0.24.0): neutrale Karten gepackt (`MTN_…_W0/W1[/W2]/Fields/Normal`,
+  Rauschen und Detail als Kanal) im Sidecar, Thema als Daten (`paint`, `catalog --paints`), Vertrag Version 3,
+  eigene Materialnamen statt `M_Crystal` für Nicht-Kristalle, Vergleichsbilder (`tools/paint_reference.py`),
+  Unity-Check-Prüfsatz `neutral` – Format in [UNITY_INTEGRATION.md](UNITY_INTEGRATION.md).
+- [ ] **Neutrale Karten im GLB-Laufzeitpfad** (Cube Escape Zuarbeit 5, ToDo 29): Paket neben dem GLB oder `extras`.
 - [ ] **Unveränderte Modelle nicht neu bauen:** Ein Lauf ganz aus dem Cache baut alle Modelle trotzdem (Vertrag,
   Manifest; Katalog 561 Modelle: 2,2 s Bauen, 2,8 s Manifest). Manifest-Einträge und Vertragsprüfung unveränderter
   Modelle über ihren `build_key` aus dem letzten Manifest übernehmen (Index).
@@ -366,17 +371,19 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   Warum: Speicher wächst nicht mit der Zahl der Themen (1024 px: fertige Karten ≈ 5 MB je Modell **und** Thema –
   20 Wandteile × 6 Themen ≈ 640 MB; neutral ≈ 6 MB je Modell für alle Themen ≈ 120 MB), Themenwechsel zur Laufzeit
   (Level-Thema, Story-Verfall, Spielerwahl in der Werkbank), passt zum geplanten Masken-Shader der Roboter-Skins.
-  Vorbereitet: `Textures/Neutral/<Modell>_W<n>.png` (Gewichte, drei Spielmaterialien je RGB, Reihenfolge im Manifest
-  `models[].weight_layout`), `_AO`, `_Edge`, `_Up`, `_Height`, `_Diffuse` (Detail der Kacheln), `_Normal`; die Formel
-  in `cubegen/paint.py` (`compose`, `detail_map`) ist die Referenz – Shader und Generator müssen gleich aussehen
-  (Vergleichsbild). Offen: Rauschen im Shader (Textur oder prozedural), Packen der Masken (AO/Kante/oben/Höhe in
-  einem RGBA), Rückfall für niedrige Grafikstufen (fertige Karten), Laufzeitpfad GLB. Eigene Themen (0.18.0) stehen
-  als vollständige Daten im Manifest (`config.paint_scheme`) – der Shader braucht dieselben Schlüssel als Parameter.
+  Generator-Seite (0.24.0): fünf gepackte Karten `MTN_<Modell>_W0/W1[/W2]/Fields/Normal.png` (Rauschen in W0.a,
+  Detail in W1.a, AO/Kante/oben/Höhe in `Fields`), im Sidecar ab Vertrag 3 (`textures.neutral`, `weight_layout`,
+  `paint` als Name oder vollständiges Thema); die fertigen Karten entstehen aus genau diesen 8-Bit-Werten, `compose`
+  bleibt die Referenz; Vergleichsbilder je Thema mit `tools/paint_reference.py`. Offen in Cube Escape: Vertrag 3
+  lesen, Rezept PAINT, Vergleich mit den Referenzen; Laufzeitpfad GLB (Zuarbeit 5).
 - [ ] **28 · Echtes Kristallmaterial** (0.18.0, Konzept „04 Crystal“): `M_Crystal` ist heute eine flache Leuchtfarbe.
   In Unity ein URP-Material für Kristall-Teile (durchscheinend/Fresnel, facettierte Normalen, innerer Schimmer, Farbe
   aus dem Thema bzw. `--glow`), zugeordnet über den Materialnamen wie Glas; Kollision unverändert. Mit ToDo 26
   (Leuchtkarte) abstimmen, damit Kristall und Leuchtkanten dieselbe Farbe tragen. Vorbereitet (0.19.0): Farbe je Thema
-  im Manifest (`paint.crystal_color`), facettierte Kristalle (`crystal_cut = faceted`) mit flachen Flächen.
+  im Manifest (`paint.crystal_color`), facettierte Kristalle (`crystal_cut = faceted`) mit flachen Flächen. Seit
+  0.24.0 trägt nur echter Kristall `M_Crystal`; Wasser, Hologramme, Lampen, Blätter … haben eigene Namen
+  (`M_Liquid`, `M_Hologram`, `M_Lamp`, `M_Leaf`, `M_Biolume`, `M_Signal`, `M_Accent`, `M_Optic`, Vertrag 3) – Cube
+  Escape legt sie in der `MaterialLibrary` an (vorerst wie `M_Crystal`).
 - [ ] **29 · Anstriche in der Werkbank** (0.18.0): Die Laufzeit-Generation (`CubegenJobRunner`) bietet heute keinen
   Anstrich. Auswahl „Anstrich“ aus `cubegen catalog --json` (`paints`), eigenes Thema mit Farbwählern (Farben je
   Spielmaterial, Mengen 0–1, Leuchtfarbe cyan/rot/orange) als JSON in den Benutzerdaten, Übergabe per

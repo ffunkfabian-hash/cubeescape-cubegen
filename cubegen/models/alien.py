@@ -2,7 +2,7 @@
 
 Static decoration (Art/Models/Library/Nature) - only the cocoon's glowing core
 pulses (``SignalLight``). Like the plants, alien leaves use the game's colours:
-``M_Crystal``, ``M_HazardOrange`` or ``M_Warning`` (``meta.leaves``).
+``M_Leaf`` (``M_Crystal`` before 0.24), ``M_HazardOrange`` or ``M_Warning`` (``meta.leaves``).
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from .common import add_vec, cube, cyl, deg, strut
 from .nature import _jitter
 from .registry import model
 
-LEAVES = ("M_Crystal", "M_HazardOrange", "M_Warning")
+LEAVES = ("M_Leaf", "M_HazardOrange", "M_Warning")
 UPRIGHT = ((1, 0, 0), (0, 0, -1), (0, 1, 0))  # (x, z) polygon facing the front, extruded towards -y
 
 
@@ -61,7 +61,7 @@ def vines(rng, a):
                 count += 1
         if bulbs and rng.random() < 0.6:
             end = pts[-1]
-            lights.add(sphere(0.045, 6, 3, "M_Crystal"), loc=(end[0], end[1] - 0.02, end[2] - 0.04))
+            lights.add(sphere(0.045, 6, 3, "M_Biolume"), loc=(end[0], end[1] - 0.02, end[2] - 0.04))
     a.meta.update({"leaves": leaf, "tendrils": n, "leaf_count": count})
 
 
@@ -145,7 +145,7 @@ def wall_roots(rng, a):
             strut(body, mid, tip, r0 * 0.4, root_mat, sides=5, radius_end=r0 * 0.1)
         if veins:
             cube(lights, (r0 * 0.5, 0.01, 0.12), ((start[0] + mid[0]) / 2, (start[1] + mid[1]) / 2 - r0 * 0.9,
-                                                  (start[2] + mid[2]) / 2), "M_Crystal",
+                                                  (start[2] + mid[2]) / 2), "M_Biolume",
                  rot=(0, -math.atan2(mid[2] - start[2], mid[0] - start[0]) + math.pi / 2, 0))
     a.meta.update({"roots": n, "breach_m": round(s, 3)})
 
@@ -160,7 +160,7 @@ def fungus_carpet(rng, a):
     p = a.p
     s = p.float("size", 1.0, 2.5)
     caps = p.int("caps", 4, 12)
-    mat = p.material(["M_HazardOrange", "M_Crystal", "M_Warning", "M_Ground"])
+    mat = p.material(["M_HazardOrange", "M_Leaf", "M_Warning", "M_Ground"])
     body = a.part("Fungus")
     for k in range(rng.randint(3, 6)):  # overlapping flat patches
         ang = rng.uniform(0, 2 * math.pi)
@@ -181,11 +181,11 @@ def fungus_carpet(rng, a):
         lights = a.part("Lights")
         for _ in range(rng.randint(5, 12)):
             ang, d = rng.uniform(0, 2 * math.pi), s * rng.uniform(0.05, 0.4)
-            cube(lights, (0.025, 0.025, 0.02), (math.cos(ang) * d, math.sin(ang) * d, 0.05), "M_Crystal")
+            cube(lights, (0.025, 0.025, 0.02), (math.cos(ang) * d, math.sin(ang) * d, 0.05), "M_Biolume")
     a.meta.update({"caps": caps, "colour": mat})
 
 
-PUDDLES = {"water": "M_Glass", "slime": "M_Crystal", "oil": "M_RobotDark", "toxic": "M_GlowOrange"}
+PUDDLES = {"water": "M_Glass", "slime": "M_Liquid", "oil": "M_RobotDark", "toxic": "M_GlowOrange"}
 
 
 @model("puddle", "Puddle", "nature", "Puddle on the floor: water, glowing slime, oil or toxic sludge - a flat "

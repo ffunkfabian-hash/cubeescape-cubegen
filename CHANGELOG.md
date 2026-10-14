@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.24.0 „Primer“ – 2026-10-14
+
+Zuarbeit für Cube Escape 0.57 Phase 3 „Anstrich“ (Cube Escape `Docs/MATERIALS.md`, Punkte 2, 3, 4, 6, 7).
+Bericht: [VERSION_0.24.0.md](VERSION_0.24.0.md).
+
+* **Neutrale Karten für den Umfärbe-Shader (ToDo 27):** `--paint` schreibt je Modell fünf gepackte Karten
+  `MTN_<Modell>_W0/W1[/W2]/Fields/Normal.png` – Gewichte der Spielmaterialien (RGB), **Rauschen** (W0.a) und
+  **Detail** (W1.a) als Kanal, AO/Kante/oben/Höhe in einem RGBA (`cubegen/neutral.py`). Die fertigen `MTP_`-Karten
+  entstehen jetzt aus genau diesen 8-Bit-Werten (höchstens 5/255 anders als 0.23); `paint.compose` bleibt die Formel.
+* **Vertrag Version 3:** `textures.neutral`, `textures.weight_layout`, Wurzelschlüssel `paint` (Name oder eigenes
+  Thema als Daten), Abschnitte `neutral_maps`, `materials`, `paint_scheme`, `textures`; `--contract 2`/`1` schreiben
+  wie bisher (Fixture `tests/fixtures/contract_v2.json`). `cubegen catalog --paints`: die Themen ohne Modellbau.
+* **Eigene Materialnamen statt `M_Crystal` (ToDo 28):** `M_Liquid`, `M_Hologram`, `M_Lamp`, `M_Leaf`, `M_Biolume`,
+  `M_Signal`, `M_Accent`, `M_Optic` (Werte wie `M_Crystal`) in 20 Typen; `M_Crystal` ist nur noch echter Kristall.
+  Golden-Daten dieser Typen neu (nur Namen; mit `--contract 2` bitgleich zu 0.23, Fixture `golden_0230_crystal.json`).
+* **Vergleichsbilder:** `tools/paint_reference.py` setzt jedes Thema aus den neutralen Karten eines Laufs ohne
+  Blender zusammen (`--check`: bitgleich zu Blenders Karten).
+* **Unity-Check:** Prüfsatz `neutral` (Vertrag 3; unter Version 3 erwartet abgelehnt, mit Cube Escapes Version
+  angenommen), Vergleichsbilder je Anstrich-Prüfsatz.
+
 ## 0.23.0 „Wingman“ – 2026-10-14
 
 * **Agenten-Werkzeuge** (mit Cube Escape 0.56 und dem Roboter-Generator 1.18): Subagents `cg-test-runner` (Tests

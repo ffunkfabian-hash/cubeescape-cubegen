@@ -1,11 +1,12 @@
 {
   "contract": "cubegen-sidecar",
-  "version": 2,
+  "version": 3,
   "source": "Cube Escape Docs/CUBEGEN_IMPORT.md, 6 October 2026",
   "note": "The rules of the Unity import (CubegenImporter) for <Name>.cubegen.json. cubegen/contract.py checks every export with this file; the Unity import can read the same file (python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json).",
   "history": {
     "1": "until cubegen 0.21: the importer kept its own list of baked maps (Albedo, Normal, MetallicSmoothness, Roughness, AO, Height)",
-    "2": "cubegen 0.22.0: section baked_maps - the maps of textures.baked, with Emission (paint schemes that glow). python -m cubegen contract --version 1 writes the version-1 file and generate --contract 1 the matching sidecars for an importer that reads version 1 only"
+    "2": "cubegen 0.22.0: section baked_maps - the maps of textures.baked, with Emission (paint schemes that glow). python -m cubegen contract --version 1 writes the version-1 file and generate --contract 1 the matching sidecars for an importer that reads version 1 only",
+    "3": "cubegen 0.24.0: neutral maps of --paint for a recolouring shader (textures.neutral, textures.weight_layout, section neutral_maps) and the paint scheme as data (root key paint, section paint_scheme), own material names for what used M_Crystal without being a crystal (section materials). --contract 2 and 1 leave them out (M_Crystal again)"
   },
   "file": {
     "max_bytes": 4194304,
@@ -14,7 +15,8 @@
   },
   "root": {
     "keys": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours", "seed", "masterSeed",
-             "generator", "params", "style", "textures", "collision", "colliders"],
+             "generator", "params", "style", "textures", "collision", "colliders", "paint"],
+    "since": {"paint": 3},
     "required": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours"],
     "reserved_categories": ["Generated"],
     "pivots": ["floor", "top", "center", "wall"],
@@ -113,6 +115,57 @@
     "material_prefix": "MTA_",
     "emission_intensity": 3.0,
     "distinct_files": true
+  },
+  "textures": {
+    "keys": ["mode", "manifest", "baked", "neutral", "weight_layout"],
+    "since": {"neutral": 3, "weight_layout": 3}
+  },
+  "neutral_maps": {
+    "keys": ["W0", "W1", "W2", "Fields", "Normal"],
+    "required": ["W0", "W1", "Fields", "Normal"],
+    "srgb": [],
+    "channels": {
+      "W0": {"rgb": "weights of weight_layout[0]", "a": "noise"},
+      "W1": {"rgb": "weights of weight_layout[1] (black without a second group)", "a": "detail"},
+      "W2": {"rgb": "weights of weight_layout[2]", "a": "reserved (1)"},
+      "Fields": {"r": "ambient occlusion", "g": "edge", "b": "up", "a": "height"},
+      "Normal": {"rgb": "tangent-space normal (OpenGL, +Y up)"}
+    },
+    "detail_range": [0.35, 1.8],
+    "file_prefix": "MTN_",
+    "weights": "W<k>.rgb = weights of weight_layout[k]; a missing W<k> or channel weighs 0",
+    "reference": "cubegen/paint.py compose() on the packed values (8 bit / 255) - the MTP_ maps",
+    "needs": ["weight_layout", "paint"],
+    "distinct_files": true
+  },
+  "materials": {
+    "split": {
+      "M_Liquid": "liquids: water, slime, lab liquids, food in trays",
+      "M_Hologram": "holograms and energy fields",
+      "M_Lamp": "lamp faces and points of light (floodlight, stars)",
+      "M_Leaf": "alien leaves and fungus patches",
+      "M_Biolume": "glowing organic lights (bulbs, root veins, spore dots)",
+      "M_Signal": "the light colour of a sequence panel",
+      "M_Accent": "luminous accents of kit pieces (teleporter ring, planet in a window)",
+      "M_Optic": "lenses and prisms (laser receiver, laser splitter, lens items)"
+    },
+    "like": "M_Crystal",
+    "crystal": "M_Crystal: real crystals only (rock, crystal cluster, hanging crystals ...)",
+    "values": "every split name has the values of M_Crystal (colour, smoothness, metallic, emission) until the game styles it",
+    "legacy": "an importer before version 3 knows M_Crystal only: generate --contract 2 or 1 writes M_Crystal for every split name"
+  },
+  "paint_scheme": {
+    "keys": ["label", "colors", "glow", "edge_light", "wear", "wear_color", "grime", "grime_color", "rising_grime",
+             "dust", "dust_color", "moss", "moss_color", "edge_glow", "edge_glow_color", "roughness", "metal",
+             "crystal_color"],
+    "custom_keys": ["name"],
+    "painted": ["M_Ground", "M_Wall", "M_Platform", "M_HazardOrange", "M_RobotBody", "M_RobotDark", "M_Metal",
+                "M_Warning", "M_PortalPanel"],
+    "amounts": ["edge_light", "wear", "grime", "rising_grime", "dust", "moss", "edge_glow", "roughness", "metal"],
+    "colors": ["wear_color", "grime_color", "dust_color", "moss_color", "edge_glow_color", "crystal_color"],
+    "glow": ["cyan", "red", "orange"],
+    "builtin": "python -m cubegen catalog --paints (paint_schemes): a sidecar names a built-in scheme by its name",
+    "custom": "an object with name (letters, digits, _; not a built-in name) and every key - colours sRGB '#rrggbb', amounts 0..1"
   },
   "tolerances": {
     "position_m": 0.01,

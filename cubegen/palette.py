@@ -32,7 +32,7 @@ import struct
 import zlib
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from .materials import MATERIALS
+from .materials import LEGACY_NAMES, MATERIALS, legacy_name
 
 PALETTE_MATERIAL = "MP_Palette"  # the standard palette (the game's colours); other palettes: MP_Palette_<Name>
 DEFAULT_PALETTE = "standard"
@@ -42,7 +42,8 @@ SWAPPED_ROLES = {"SignalIndicator": ("renderers",), "Machine": ("glow",), "Signa
                  "Rotatable": ("glow",), "Door": ("statusLights",)}
 COLUMNS = 4
 CELL = 16  # px per cell
-ORDER = list(MATERIALS)  # cell index = position in the game's material table (new materials go at the end)
+ORDER = [m for m in MATERIALS if m not in LEGACY_NAMES]  # cell index = position in the game's material table (new
+# materials go at the end); the names split off M_Crystal (0.24) share its cell - same colour, the palette image stays
 
 
 # ---------------------------------------------------------------------------
@@ -165,13 +166,15 @@ def palette_colors(name: Optional[str] = None) -> Dict[str, Tuple[Tuple[float, f
         return dict(MATERIALS)
     entry = COLOR_PALETTES[name]
     colors, scale = entry["colors"], float(entry.get("emission") or 1.0)
-    return {m: (tuple(colors.get(m, rgb)), smooth, metal, emission * scale if emission else emission)
+    # the names split off M_Crystal (0.24) take the palette's crystal colour, like their shared cell
+    return {m: (tuple(colors.get(m, colors.get(legacy_name(m), rgb))), smooth, metal,
+                emission * scale if emission else emission)
             for m, (rgb, smooth, metal, emission) in MATERIALS.items()}
 
 
 def cell(material: str) -> Tuple[int, int]:
     """(column, row from the top) of a material's cell."""
-    i = ORDER.index(material)
+    i = ORDER.index(legacy_name(material))
     return i % COLUMNS, i // COLUMNS
 
 

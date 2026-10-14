@@ -22,15 +22,16 @@ from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
 from .params import Style
-from .materials import MATERIALS
+from .materials import KEEP_OWN, LEGACY_NAMES, MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
-from .paint import PAINTS, check_paint, load_scheme, register_scheme
+from .paint import BUILTIN_PAINTS, PAINTS, check_paint, load_scheme, register_scheme
 from .variety import pick_unique
-from .contract import CONTRACT_VERSION, baked_map_keys, check_fbx, check_runtime_budget, check_sidecar, check_version
+from .contract import (CONTRACT_VERSION, baked_map_keys, check_fbx, check_runtime_budget, check_sidecar, check_version,
+                       texture_keys)
 from .families import join_table, unity_connectors
 from . import palette as palette_mod
 
-BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
+BAKE_KEEP = set(KEEP_OWN)  # = bake.KEEP
 from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
@@ -185,6 +186,8 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
         spec["repair_safe"] = True
     if config.single_renderer:
         spec["single_renderer"] = True
+    if config.contract < 3:  # an importer before version 3 knows M_Crystal only (materials.LEGACY_NAMES)
+        spec["legacy_materials"] = True
     return spec
 
 
@@ -196,6 +199,26 @@ MANIFEST_FORMAT = 2
 DRESSING_PARAMS = ("dressing", "crystals")
 #: the paint scheme each dressing was made for (concepts "Ruin" and "Organic") - a suggestion, never enforced
 DRESSING_PAINTS = {"ruin": ["ruin"], "organic": ["organic"]}
+
+
+def split_materials(written: bool = True) -> Dict[str, Any]:
+    """Manifest ``materials``: every name split off ``M_Crystal`` (0.24.0) with its values - sRGB colour, Unity
+    smoothness, metallic, emission strength - what it is for and the name an older importer reads instead."""
+    from .materials import CRYSTAL_SPLIT, to_hex
+
+    return {"written": written, "like": "M_Crystal",
+            "split": {name: {"srgb": to_hex(name), "smoothness": MATERIALS[name][1], "metallic": MATERIALS[name][2],
+                             "emission": MATERIALS[name][3], "use": use, "legacy": LEGACY_NAMES[name]}
+                      for name, use in CRYSTAL_SPLIT.items()}}
+
+
+def sidecar_paint(paint: str, scheme: Optional[Dict[str, Any]] = None):
+    """Root key ``paint`` of a sidecar (contract version 3): a built-in scheme by name, a custom one as complete data
+    (``name`` + every ``SCHEME_KEYS`` key) - the shader needs exactly those values."""
+    if paint in BUILTIN_PAINTS:
+        return paint
+    data = scheme if scheme is not None else PAINTS[paint]
+    return {"name": paint, **{k: (dict(v) if isinstance(v, dict) else v) for k, v in data.items()}}
 
 
 def dressing_params(model_type: str) -> Dict[str, Any]:
@@ -385,6 +408,8 @@ def build_spec(spec: Dict):
     """The asset a planned spec describes (same call as inside Blender)."""
     asset = generate_asset(spec["type"], spec["seed"], spec["name"], spec["scale"], params=spec.get("params"),
                            style=Style.from_dict(spec.get("style")))
+    if spec.get("legacy_materials"):
+        asset.legacy_materials()
     if spec.get("repair_safe"):
         asset.repair_safe()
     if spec.get("single_renderer"):
@@ -489,7 +514,10 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
                 res.update({"paint": entry.get("paint"), "weight_layout": entry.get("weight_layout"),
                             "neutral": {k: (_abs(v, out) if isinstance(v, str) else [_abs(x, out) for x in v])
                                         for k, v in entry["neutral"].items()}})
-        paths = list(res["files"].values()) + list(res.get("baked", {}).values())
+            if entry.get("neutral_maps"):
+                res["neutral_maps"] = {k: _abs(v, out) for k, v in entry["neutral_maps"].items()}
+        paths = list(res["files"].values()) + list(res.get("baked", {}).values()) \
+            + list(res.get("neutral_maps", {}).values())
         for value in (res.get("neutral") or {}).values():  # the neutral maps of a paint scheme (later shader)
             paths += value if isinstance(value, list) else [value]
         if render:
@@ -996,6 +1024,12 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                         allowed = baked_map_keys(config.contract)
                         rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()
                                                     if k in allowed}
+                    if res.get("neutral_maps") and "neutral" in texture_keys(config.contract):
+                        # version 3: the packed neutral maps and the scheme for a recolouring shader (ToDo 27)
+                        rig["textures"]["neutral"] = {k: _rel(v, spec["models_dir"])
+                                                      for k, v in res["neutral_maps"].items()}
+                        rig["textures"]["weight_layout"] = [list(g) for g in res["weight_layout"]]
+                        rig["paint"] = sidecar_paint(config.paint, config.paint_scheme)
                 elif palette:
                     rig["textures"] = {"mode": "palette",
                                        "manifest": _rel(os.path.join(textures_dir,
@@ -1047,6 +1081,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             **({"paint": res["paint"], "weight_layout": res.get("weight_layout"),
                 "neutral": {k: (_rel(v, out) if isinstance(v, str) else [_rel(x, out) for x in v])
                             for k, v in res["neutral"].items()}} if res.get("neutral") else {}),
+            # 0.24.0: the packed maps a shader reads (textures.neutral of contract version 3 - here for every version)
+            **({"neutral_maps": {k: _rel(v, out) for k, v in res["neutral_maps"].items()}}
+               if res.get("neutral_maps") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()
@@ -1083,6 +1120,9 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                    "crystal_color": PAINTS[config.paint]["crystal_color"],
                    "edge_glow_color": PAINTS[config.paint]["edge_glow_color"]} if config.paint else None),
         "family": family_info,
+        # 0.24.0: the material names split off M_Crystal (contract section materials) with their values, so Cube Escape
+        # can add them to its material library; "written": false = this run wrote M_Crystal (--contract 2 or 1)
+        "materials": split_materials(written=config.contract >= 3),
         # which connector kinds (models[].connectors[].kind) join, and how (ROADMAP ToDo 16)
         "joins": join_table(),
         # dressing parameters per type and the paint scheme each value belongs to (ToDo 30)

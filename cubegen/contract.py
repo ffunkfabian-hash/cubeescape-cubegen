@@ -17,9 +17,14 @@ file leaves the generator:
 * ``textures``: only ``mode``, ``manifest`` and ``baked``; baked maps (section ``baked_maps``) only in mode ``baked``,
   the required ones present, one file per map; ``check_export`` also finds the files
 
-The contract is versioned (``version``, ``history``): version 2 (0.22.0) adds ``baked_maps`` with ``Emission``.
-``contract_for(1)`` is the file an importer of version 1 reads, ``check_sidecar(data, version=1)`` the sidecar it
-accepts - ``generate --contract 1`` writes such sidecars (the Emission map then stays in the manifest only).
+* ``textures.neutral`` (version 3): the packed neutral maps of ``--paint`` (section ``neutral_maps``) with
+  ``textures.weight_layout``; root key ``paint``: a built-in scheme's name or a custom scheme as data (section
+  ``paint_scheme``)
+
+The contract is versioned (``version``, ``history``): version 2 (0.22.0) adds ``baked_maps`` with ``Emission``,
+version 3 (0.24.0) the neutral maps and the scheme. ``contract_for(v)`` is the file an importer of version ``v``
+reads, ``check_sidecar(data, version=v)`` the sidecar it accepts - ``generate --contract v`` writes such sidecars
+(what a version does not know stays in the manifest only).
 
 ``check_sidecar(data)`` returns ``(errors, open_items)``.
 """
@@ -63,9 +68,30 @@ POSITION_TOL = TOL["position_m"]
 CONTRACT_VERSION: int = CONTRACT["version"]
 SUPPORTED_VERSIONS = tuple(range(1, CONTRACT_VERSION + 1))
 BAKED_MAPS = CONTRACT["baked_maps"]
-TEXTURE_KEYS = ("mode", "manifest", "baked")  # the sidecar's "textures" object (CubegenMaterials reads exactly these)
-#: what version 2 added to the file: an importer of version 1 rejects unknown sections
-_SINCE_2 = ("history", "baked_maps")
+#: the sidecar's "textures" object (CubegenMaterials reads exactly these in versions 1 and 2)
+TEXTURE_KEYS = tuple(CONTRACT["textures"]["keys"])
+NEUTRAL_MAPS = CONTRACT["neutral_maps"]
+PAINT_SCHEME = CONTRACT["paint_scheme"]
+#: material names split off M_Crystal (version 3, cubegen/materials.py CRYSTAL_SPLIT)
+SPLIT_MATERIALS = tuple(CONTRACT["materials"]["split"])
+#: what a version added to the file: an importer of an older version rejects unknown sections
+_SECTIONS_SINCE = {2: ("history", "baked_maps"), 3: ("textures", "neutral_maps", "materials", "paint_scheme")}
+
+
+def _since(table: Dict, key: str) -> int:
+    return int(table.get("since", {}).get(key, 1))
+
+
+def root_keys(version: int = CONTRACT_VERSION) -> Tuple[str, ...]:
+    """The sidecar root keys an importer of ``version`` accepts (``paint`` from version 3)."""
+    check_version(version)
+    return tuple(k for k in CONTRACT["root"]["keys"] if _since(CONTRACT["root"], k) <= version)
+
+
+def texture_keys(version: int = CONTRACT_VERSION) -> Tuple[str, ...]:
+    """The keys of the sidecar's ``textures`` for ``version`` (``neutral``, ``weight_layout`` from version 3)."""
+    check_version(version)
+    return tuple(k for k in TEXTURE_KEYS if _since(CONTRACT["textures"], k) <= version)
 
 
 def check_version(version: int) -> int:
@@ -77,11 +103,20 @@ def check_version(version: int) -> int:
 
 def contract_for(version: int = CONTRACT_VERSION) -> Dict:
     """The contract as an importer of ``version`` reads it: version 1 is the file of cubegen 0.21 (same rules, without
-    ``history`` and ``baked_maps``)."""
+    ``history`` and ``baked_maps``), version 2 the file of cubegen 0.22/0.23 (without the neutral maps and the
+    scheme)."""
     data = copy.deepcopy(CONTRACT)
-    if check_version(version) < 2:
-        for key in _SINCE_2:
-            data.pop(key, None)
+    check_version(version)
+    for since, sections in _SECTIONS_SINCE.items():
+        if version < since:
+            for key in sections:
+                data.pop(key, None)
+    root = data["root"]
+    root["keys"] = list(root_keys(version))
+    if version < 3:
+        root.pop("since", None)
+    if "history" in data:
+        data["history"] = {k: v for k, v in data["history"].items() if int(k) <= version}
     data["version"] = version
     return data
 
@@ -124,9 +159,12 @@ def check_sidecar(data, file_name: Optional[str] = None,
     open_items: List[str] = []
     if not isinstance(data, dict):
         return ["root: expected an object"], open_items
+    allowed_root = root_keys(version)
     for key in data:
-        if key not in ROOT_KEYS:
-            errors.append(f"root: unknown key {key!r}")
+        if key not in allowed_root:
+            since = _since(CONTRACT["root"], key) if key in ROOT_KEYS else None
+            errors.append(f"root: unknown key {key!r}" + (
+                f" (contract version {since}, this importer reads version {version})" if since and since > 1 else ""))
     for key in ROOT_REQUIRED:
         if key not in data:
             errors.append(f"root: missing {key!r}")
@@ -157,6 +195,18 @@ def check_sidecar(data, file_name: Optional[str] = None,
         errors.append(f"collision: {data['collision']!r} not allowed")
     if "textures" in data:
         errors += _check_textures(data["textures"], version)
+    if "paint" in data:
+        errors += _check_paint(data["paint"])
+    if version < 3:  # a behaviour that swaps materials (SignalIndicator onMaterial) names one too
+        for b in data["behaviours"] if isinstance(data["behaviours"], list) else []:
+            fields = b.get("fields") if isinstance(b, dict) else None
+            for key, value in (fields.items() if isinstance(fields, dict) else ()):
+                if value in SPLIT_MATERIALS:
+                    errors.append(f"{b.get('script')}.{key}: material {value} (contract version 3, this importer "
+                                  f"reads version {version}: M_Crystal)")
+    tex = data.get("textures")
+    if isinstance(tex, dict) and "neutral" in tex and "paint" not in data:
+        errors.append("textures.neutral needs the paint scheme (root key 'paint')")
 
     # -- parts ---------------------------------------------------------------
     parts: Dict[str, Dict] = {}
@@ -190,6 +240,10 @@ def check_sidecar(data, file_name: Optional[str] = None,
                 errors.append(f"part {name!r}: empty must be true/false")
             if not isinstance(part["materials"], list) or not all(isinstance(m, str) for m in part["materials"]):
                 errors.append(f"part {name!r}: materials must be a list of names")
+            elif version < 3 and any(m in SPLIT_MATERIALS for m in part["materials"]):
+                split = ", ".join(m for m in part["materials"] if m in SPLIT_MATERIALS)
+                errors.append(f"part {name!r}: material {split} (contract version 3, this importer reads version "
+                              f"{version}: M_Crystal)")
             elif not part["empty"] and not part["materials"]:
                 errors.append(f"part {name!r}: a mesh part needs materials")
             if "bounds" in part and not _bounds_ok(part["bounds"]):
@@ -326,15 +380,24 @@ def check_sidecar(data, file_name: Optional[str] = None,
 
 def _check_textures(tex, version: int) -> List[str]:
     """The sidecar's ``textures``: mode and manifest; in mode baked the maps of ``baked_maps`` (as CubegenMaterials
-    reads them: unknown maps and missing required ones reject the model, one file per map)."""
+    reads them: unknown maps and missing required ones reject the model, one file per map); from version 3 the neutral
+    maps (``neutral_maps``) with their ``weight_layout``."""
     if not isinstance(tex, dict) or tex.get("mode") not in CONTRACT["root"]["texture_modes"] or \
             not isinstance(tex.get("manifest"), str):
         return ["textures: expected {mode: tiled|baked|palette, manifest: path}"]
-    errors = [f"textures: unknown key {key!r}" for key in tex if key not in TEXTURE_KEYS]
+    allowed_keys = texture_keys(version)
+    errors = []
+    for key in tex:
+        if key not in allowed_keys:
+            since = _since(CONTRACT["textures"], key) if key in TEXTURE_KEYS else None
+            errors.append(f"textures: unknown key {key!r}" + (
+                f" (contract version {since}, this importer reads version {version})" if since and since > 1 else ""))
     baked = tex.get("baked")
     if tex["mode"] != "baked":
         if baked is not None:
             errors.append("textures: baked maps need mode baked")
+        if "neutral" in tex:
+            errors.append("textures: neutral maps need mode baked")
         return errors
     if not isinstance(baked, dict) or not all(isinstance(v, str) and v for v in baked.values()):
         return errors + ["textures: mode baked needs baked: {map: path}"]
@@ -349,17 +412,84 @@ def _check_textures(tex, version: int) -> List[str]:
             errors.append(f"textures.baked: missing map {key!r}")
     if BAKED_MAPS["distinct_files"] and len(set(baked.values())) != len(baked):
         errors.append("textures.baked: every map needs its own file")
+    if "neutral" in tex or "weight_layout" in tex:
+        errors += _check_neutral(tex.get("neutral"), tex.get("weight_layout"))
     return errors
 
 
+def _check_layout(layout) -> List[str]:
+    """``weight_layout``: the painted game materials of the model in ``paint_scheme.painted`` order, in groups of three
+    (one RGB weight map per group), at most three groups."""
+    painted = PAINT_SCHEME["painted"]
+    if not isinstance(layout, list) or not 1 <= len(layout) <= 3 or \
+            not all(isinstance(g, list) and 1 <= len(g) <= 3 and all(isinstance(m, str) for m in g) for g in layout):
+        return ["textures.weight_layout: expected 1-3 groups of 1-3 material names"]
+    flat = [m for g in layout for m in g]
+    unknown = [m for m in flat if m not in painted]
+    if unknown:
+        return [f"textures.weight_layout: {', '.join(unknown)} is not a painted material ({', '.join(painted)})"]
+    if flat != sorted(set(flat), key=painted.index) or any(len(g) != 3 for g in layout[:-1]):
+        return ["textures.weight_layout: materials once each, in paint_scheme.painted order, groups of three"]
+    return []
+
+
+def _check_neutral(neutral, layout) -> List[str]:
+    if neutral is None or layout is None:
+        return ["textures: neutral and weight_layout go together"]
+    errors = _check_layout(layout)
+    if not isinstance(neutral, dict) or not all(isinstance(v, str) and v for v in neutral.values()):
+        return errors + ["textures.neutral: expected {map: path}"]
+    for key in neutral:
+        if key not in NEUTRAL_MAPS["keys"]:
+            errors.append(f"textures.neutral: unknown map {key!r}")
+    for key in NEUTRAL_MAPS["required"]:
+        if key not in neutral:
+            errors.append(f"textures.neutral: missing map {key!r}")
+    if not errors and ("W2" in neutral) != (len(layout) == 3):  # W0/W1 always (noise, detail), W2 for group 3
+        errors.append(f"textures.neutral: W2 goes with a third weight group (weight_layout has {len(layout)})")
+    if NEUTRAL_MAPS["distinct_files"] and len(set(neutral.values())) != len(neutral):
+        errors.append("textures.neutral: every map needs its own file")
+    return errors
+
+
+def _check_paint(paint) -> List[str]:
+    """Root key ``paint``: a built-in scheme by name, or a custom scheme as data (name + every scheme key)."""
+    from .paint import BUILTIN_PAINTS, check_scheme
+
+    if isinstance(paint, str):
+        return [] if paint in BUILTIN_PAINTS else [f"paint: {paint!r} is no built-in scheme "
+                                                   f"({', '.join(sorted(BUILTIN_PAINTS))})"]
+    if not isinstance(paint, dict):
+        return ["paint: expected a scheme name or {name, ...scheme}"]
+    name = paint.get("name")
+    if not isinstance(name, str) or not name or not all(c.isalnum() or c == "_" for c in name):
+        return ["paint.name: letters, digits and _ only"]
+    if name in BUILTIN_PAINTS:
+        return [f"paint.name: {name!r} is a built-in scheme - name it as a text"]
+    try:
+        check_scheme({k: v for k, v in paint.items() if k != "name"}, "paint")
+    except ValueError as exc:
+        return [str(exc)]
+    missing = [m for m in PAINT_SCHEME["painted"] if m not in paint["colors"]]
+    if missing:
+        return [f"paint.colors: missing {', '.join(missing)} (a sidecar carries the complete scheme)"]
+    return []
+
+
 def _baked_files(data, sidecar_path: str) -> List[str]:
-    """Baked maps the sidecar names but the export lacks (paths relative to the sidecar, like Unity resolves them)."""
+    """Baked and neutral maps the sidecar names but the export lacks (paths relative to the sidecar, like Unity
+    resolves them)."""
     tex = data.get("textures")
-    if not isinstance(tex, dict) or not isinstance(tex.get("baked"), dict):
+    if not isinstance(tex, dict):
         return []
     folder = os.path.dirname(os.path.abspath(sidecar_path))
-    return [f"textures.baked.{key}: file {path!r} missing" for key, path in sorted(tex["baked"].items())
-            if isinstance(path, str) and not os.path.isfile(os.path.normpath(os.path.join(folder, path)))]
+    missing = []
+    for section in ("baked", "neutral"):
+        if isinstance(tex.get(section), dict):
+            missing += [f"textures.{section}.{key}: file {path!r} missing"
+                        for key, path in sorted(tex[section].items())
+                        if isinstance(path, str) and not os.path.isfile(os.path.normpath(os.path.join(folder, path)))]
+    return missing
 
 
 def _check_leaves(where, positions, fields) -> List[str]:
@@ -536,7 +666,8 @@ def check_export(models_dir: str, version: int = CONTRACT_VERSION) -> Dict[str, 
 
 
 __all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_contract", "CONTRACT", "CONTRACT_FILE",
-           "CONTRACT_VERSION", "SUPPORTED_VERSIONS", "BAKED_MAPS", "contract_for", "baked_map_keys", "check_version",
+           "CONTRACT_VERSION", "SUPPORTED_VERSIONS", "BAKED_MAPS", "NEUTRAL_MAPS", "PAINT_SCHEME", "contract_for",
+           "baked_map_keys", "root_keys", "texture_keys", "check_version",
            "BEHAVIOURS", "ROOT_KEYS", "RUNTIME_BUDGET", "check_runtime_budget", "glb_summary", "texture_bytes"]
 
 

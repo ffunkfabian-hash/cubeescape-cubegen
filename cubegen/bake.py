@@ -23,8 +23,9 @@ import subprocess
 import bpy
 
 from .imagemagick import REPRODUCIBLE, _png_output, strip_png_dates
+from .materials import KEEP_OWN
 
-KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}
+KEEP = set(KEEP_OWN)  # glow, crystal, glass and (0.24) the names split off M_Crystal keep their own material
 BAKE_UV = "BakeUV"
 DEVICES = ("auto", "cpu", "gpu")
 GPU_FROM = 1024  # auto: GPU from this atlas size; measured 0.15.0 (M5, Metal): 512 px CPU faster, 1024 px GPU ~1.8x
