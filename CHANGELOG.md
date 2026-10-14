@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.24.0 „Primer“ – unveröffentlicht
+## 0.24.0 „Primer“ – 2026-10-14
 
 Zuarbeit für Cube Escape 0.57 Phase 3 „Anstrich“ (Cube Escape `Docs/MATERIALS.md`, Punkte 2, 3, 4, 6, 7).
 Bericht: [VERSION_0.24.0.md](VERSION_0.24.0.md).

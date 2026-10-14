@@ -2,7 +2,7 @@
 
 *abgenommen (Stufe 2, lokal am 14. Oktober 2026)* – Prüfung siehe „Abnahme (Stufe 2)“.
 
-Unveröffentlicht; vorherige Version [0.23.0](VERSION_0.23.0.md).
+Veröffentlicht am 14. Oktober 2026; Release-Zweig `release/0.24.0`; vorherige Version [0.23.0](VERSION_0.23.0.md).
 Zuarbeit für Cube Escape 0.57 „Undercoat“, Phase 3 „Anstrich“ (Cube Escape `Docs/MATERIALS.md` › „Zuarbeit für
 Cubegen 0.22“): Punkte 2, 3, 4, 6 und 7. Punkt 1 (Leuchtkarte) kam mit 0.22 „Beacon“; Punkt 4 stand dort als
 geliefert, fehlte aber (`cubegen/materials.py` kannte nur `M_Crystal`) und kommt hier. Punkt 5 (GLB-Laufzeitpfad)
