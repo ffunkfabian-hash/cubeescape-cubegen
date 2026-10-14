@@ -106,7 +106,10 @@ Hinweis übersprungen.
   auf der Kommandozeile).
 - Bewusst geändert: `test_release_0220` erwartete Version 2 als aktuelle Version – jetzt über `contract_for(2)`;
   Golden-Daten der 20 Typen mit neuen Materialnamen (oben belegt).
-- Volle Suite in der Cloud: siehe Abschlussbericht der Sitzung (Zahlen unten nachgetragen).
+- Volle Suite in der Cloud (`tools/run_tests.py --tier full`, Blender 5.2.2 als bpy-Modul, ImageMagick 6.9):
+  381 Tests grün in 7:24 min (models 41, quality 12, params 38, rest 290), 4 übersprungen wie bisher –
+  Vision-Bericht (nur macOS), PNG-Define (nur ImageMagick 7), echter Unity-Check (`CUBEGEN_UNITY_CHECK=1`),
+  2048-px-Kiste (`CUBEGEN_SLOW_TESTS=1`).
 
 ## Vor dem Merge noch offen (Stufe 2, lokal)
 
