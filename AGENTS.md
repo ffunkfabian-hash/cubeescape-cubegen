@@ -46,7 +46,8 @@ Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick
 0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`) und 0.21.0
 „Monolith“ (13. Oktober 2026, `VERSION_0.21.0.md`: ein Renderer, Werkbank-Budget, Index, Messbänder) samt
 Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51) und 0.21.2
-(`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version);
+(`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version) und 0.21.3 (`VERSION_0.21.3.md`:
+GitHub Actions sparsam);
 die nächste Version ist 0.22.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
@@ -60,6 +61,16 @@ Sitzungen pausieren. Werkzeug: `pause_sessions.py` aus Cube Escape
 Befehle anderer Claude-/Codex-Sitzungen an (SIGSTOP), setzt sie danach immer fort (SIGCONT), lässt die Sitzungen selbst,
 den Unity-Editor und Blender des Nutzers unberührt. Nur so lange wie nötig pausieren und es im Bericht nennen. Ein
 pausierter Befehl kann in die Zeitgrenze seines Werkzeugs laufen – dann führt die andere Sitzung ihn erneut aus.
+
+## GitHub Actions sparsam (globale Regel)
+
+Die Regel steht global in `~/.claude/CLAUDE.md` (Codex: `~/.codex/AGENTS.md`, ein Link darauf) und gilt für alle Repos
+des Kontos: 2.000 min im Monat, Budget 0 $ – leer heißt, kein Workflow läuft mehr bis zum Monatsanfang. Kurz: `push`
+nur auf `main`, sonst über den PR; `concurrency` mit `cancel-in-progress`; `paths-ignore` für Doku; wenige volle Jobs;
+große Matrix nur auf `main`; `timeout-minutes`; lokal zuerst testen. Umsetzung hier seit 0.21.3
+(`.github/workflows/tests.yml`): ein Job `test` je Python-Version mit `tools/run_tests.py --tier standard` (alle
+Gruppen parallel), ein PR testet 3.11 und Blender, 3.9/3.11/3.13 laufen auf `main` und über „Run workflow“. Hook
+`actions-sparsam` warnt beim Bearbeiten eines Workflows.
 
 ## Versionen, Branches und Worktrees
 
@@ -173,8 +184,9 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   (`CubegenRealGenerationTests`). Etwa 3 min; `--quick` nur Bau-Kit und Anstrich. Prüfsätze nur bewusst ändern
   (Ergebnisse bleiben vergleichbar); ein neues Merkmal bekommt seinen Prüfsatz. Ohne Cube-Escape-Checkout meldet es
   „übersprungen“ (`--require`: Fehler).
-- **GitHub Actions:** Job `blender` installiert die neueste Blender-LTS der Reihe (Matrix `series`) und führt die
-  Testmodule aus, die Blender brauchen; die übrigen Jobs überspringen sie.
+- **GitHub Actions:** Job `test` (eine Python-Version je Job, alle Gruppen parallel, Stufe `standard`) und Job
+  `blender` (neueste Blender-LTS der Reihe, Matrix `series`, nur die Testmodule mit Blender). Minuten sparen: siehe
+  „GitHub Actions sparsam“.
 
 ## Plugins und Hooks (Claude Code)
 

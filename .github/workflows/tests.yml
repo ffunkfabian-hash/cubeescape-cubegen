@@ -1,20 +1,33 @@
 name: tests
 
+# Actions minutes are a budget (private repo, 2,000 min/month, billed per job and rounded up to whole minutes;
+# AGENTS.md › GitHub Actions sparsam): pushes only on main, every other branch is checked through its pull request
+# (push + pull_request would run twice), a newer push cancels the older run, docs-only changes do not run, and a
+# pull request tests one Python - the full matrix runs on main and on demand (Actions › tests › Run workflow).
 on:
   push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**"]
   pull_request:
+    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    name: test (${{ matrix.python-version }}, ${{ matrix.group }})
+    name: test (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 = Blender's Python; the others must build bit-identical models (tests/test_golden.py)
-        python-version: ["3.9", "3.11", "3.13"]
-        # groups of about 2 minutes each, see tools/run_tests.py (unlisted test modules run in "rest")
-        group: [models, quality, params, rest]
+        # 3.11 = Blender's Python; the others must build bit-identical models (tests/test_golden.py).
+        # One job per Python runs all groups in parallel (tools/run_tests.py): each job costs its setup and is
+        # rounded up, so four group jobs cost about twice as much as one.
+        python-version: ${{ fromJSON(github.event_name == 'pull_request' && '["3.11"]' || '["3.9", "3.11", "3.13"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,14 +35,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
-      - name: Run tests (Blender tests are skipped when Blender is missing)
-        run: python tools/run_tests.py ${{ matrix.group }}
+      - name: Run tests (standard tier; the Blender tests run in the job "blender")
+        run: python tools/run_tests.py --tier standard
 
   blender:
     # the tests that need Blender (FBX export, add-on smoke test, baking, paint schemes) skip in the jobs above;
     # this job installs a Blender LTS and runs exactly those modules (headless: previews fall back to Cycles CPU)
     name: blender (${{ matrix.series }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
