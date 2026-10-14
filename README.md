@@ -89,7 +89,9 @@ Höhe, Maß-Parameter), unterscheiden sich aber innen – Teile, die nebeneinand
 Ebenso in App und Desktop-Fenster („Variantenset“). Beispiel: [docs/wall_set_0170.png](docs/wall_set_0170.png).
 Seit 0.19.0 ist das ganze Bau-Kit set-fähig (Wand, Boden, Decke, Deckenplatte, Steg, Geländer, Säule, Kiste, Treppe,
 Plattform, Rampe, Wandabschluss, Ecke); geprüft werden die Seiten, an denen Nachbarn anschließen (`sets[].faces`:
-Boden vier Seiten und unten, Decke vier Seiten und oben, Wand links/rechts, unten/oben, hinten).
+Boden vier Seiten und unten, Decke vier Seiten und oben, Wand links/rechts, unten/oben, hinten). Seit 0.22.0 stehen
+sie auch in Unity-Koordinaten (`sets[].faces_unity`: Richtung und Abstand vom Pivot) samt Umriss (`bounds`) im
+Manifest; Format: [docs/UNITY_INTEGRATION.md](docs/UNITY_INTEGRATION.md) › „Manifest für Cube Escape“.
 Bild: [docs/kaleidoscope_0190.png](docs/kaleidoscope_0190.png).
 
 ```bash
@@ -382,8 +384,10 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
   (`Docs/CUBEGEN_IMPORT.md`), bevor Blender startet, und danach gegen die echte FBX. Ein Verstoß bricht den
   Export mit allen Fundstellen ab; offene Item-IDs stehen als Hinweis im Log. Einen fertigen Export-Ordner prüft
   `python -m cubegen check --export <Ordner>`. Die Regeln stehen maschinenlesbar in `cubegen/contract.json`
-  (Schlüssel, Rollen, Feldtypen, Toleranzen, Dateigrenzen); `python -m cubegen contract --out <Datei>` gibt
-  dieselbe Datei an den Unity-Import weiter, damit beide Seiten nach denselben Regeln prüfen.
+  (Schlüssel, Rollen, Feldtypen, gebackene Karten, Toleranzen, Dateigrenzen); `python -m cubegen contract --out
+  <Datei>` gibt dieselbe Datei an den Unity-Import weiter, damit beide Seiten nach denselben Regeln prüfen. Der
+  Vertrag ist versioniert (seit 0.22.0 Version 2 mit der Leuchtkarte); für einen Import von Version 1 gibt es
+  `contract --version 1` und `generate --contract 1` (`docs/UNITY_INTEGRATION.md`).
 * **Item-IDs**: `--param keycard.item_id=<ID>` schreibt `ItemPickup.fields.itemId`; cubegen erfindet keine IDs.
 
 ## Animation & Unity-Scripts

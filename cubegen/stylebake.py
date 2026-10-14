@@ -222,9 +222,10 @@ def _write(rgb, name, path, alpha=None):
     return path
 
 
-def compose_paint(maps, name, paint, out_dir, seed, prefix=""):
+def compose_paint(maps, name, paint, out_dir, seed, prefix="", emission=True):
     """The maps of ``paint`` from ``bake_masks``' maps - no Blender bake involved: Albedo and Emission (sRGB),
-    Roughness (grey) and MetallicSmoothness (R metallic, A smoothness - Unity's layout) as PNG."""
+    Roughness (grey) and MetallicSmoothness (R metallic, A smoothness - Unity's layout) as PNG. ``emission=False``:
+    no Emission file (a scheme without glowing edges would write a black one)."""
     import numpy as np
 
     if _LOADED.get("maps") is not maps:  # the same model's maps for every scheme: read the PNGs once
@@ -247,7 +248,8 @@ def compose_paint(maps, name, paint, out_dir, seed, prefix=""):
     rough = result["roughness"]
     return {
         "albedo": _write(_to_srgb(result["albedo"]), f"{name}_{paint}_Albedo", base + "Albedo.png"),
-        "emission": _write(_to_srgb(result["emission"]), f"{name}_{paint}_Emission", base + "Emission.png"),
+        **({"emission": _write(_to_srgb(result["emission"]), f"{name}_{paint}_Emission", base + "Emission.png")}
+           if emission else {}),
         "roughness": _write(np.repeat(rough[..., None], 3, axis=2), f"{name}_{paint}_Roughness", base + "Roughness.png"),
         "metallic_smoothness": _write(np.repeat(result["metallic"][..., None], 3, axis=2),
                                       f"{name}_{paint}_MetallicSmoothness", base + "MetallicSmoothness.png",
@@ -280,29 +282,38 @@ def _crystal_material(paint):
 def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=16, device="cpu"):
     """``--paint``: bake the neutral maps once, compose ``paint`` and give the model one material on the atlas (the
     atlas becomes UV0, like ``--textures baked``). Returns ``bake.bake_asset``'s shape - ``{"material", "maps",
-    "device"}`` with Albedo, Normal, Roughness, MetallicSmoothness (what Unity's baked import reads) and Emission -
-    plus ``"neutral"``: the neutral maps for a recolouring shader. None without paintable parts."""
+    "device"}`` with Albedo, Normal, Roughness, MetallicSmoothness and, for a scheme with glowing edges
+    (``edge_glow`` > 0), Emission (contract ``baked_maps``, strength ``emission_intensity``) - plus ``"neutral"``: the
+    neutral maps for a recolouring shader. None without paintable parts."""
     import shutil
+
+    from cubegen.contract import BAKED_MAPS
+    from cubegen.paint import scheme_glows
 
     neutral_dir = os.path.join(out_dir, "Neutral")
     os.makedirs(neutral_dir, exist_ok=True)
     maps = bake_masks(collection, name, neutral_dir, size, samples=samples, device=device, base_of=base_of)
     if maps is None:
         return None
-    painted = compose_paint(maps, name, paint, out_dir, seed, prefix="MTP_")
+    glows = scheme_glows(paint)
+    painted = compose_paint(maps, name, paint, out_dir, seed, prefix="MTP_", emission=glows)
     final = {"Albedo": painted["albedo"], "Roughness": painted["roughness"],
-             "MetallicSmoothness": painted["metallic_smoothness"], "Emission": painted["emission"],
+             "MetallicSmoothness": painted["metallic_smoothness"],
              "Normal": os.path.join(out_dir, f"MTP_{name}_{paint}_Normal.png")}
+    if glows:  # the glowing edges (Crystal blue, Dark red ...): a black map would only cost texture memory
+        final["Emission"] = painted["emission"]
     shutil.copyfile(maps["normal"], final["Normal"])
     # the material is named like --textures baked (MTA_<Asset>): Unity's baked import reads exactly that name; the
     # scheme is recorded in the manifest ("paint") and in the map file names (MTP_<Asset>_<scheme>_*.png)
     material = bk._baked_material(f"MTA_{name}", {k: v for k, v in final.items() if k != "Emission"})
-    nodes, links = material.node_tree.nodes, material.node_tree.links
-    emission = nodes.new("ShaderNodeTexImage")
-    emission.image = bpy.data.images.load(final["Emission"], check_existing=True)
-    bsdf = nodes.get("Principled BSDF")
-    links.new(emission.outputs["Color"], bsdf.inputs["Emission Color"])
-    bsdf.inputs["Emission Strength"].default_value = 3.0
+    if glows:
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        emission = nodes.new("ShaderNodeTexImage")
+        emission.image = bpy.data.images.load(final["Emission"], check_existing=True)
+        bsdf = nodes.get("Principled BSDF")
+        links.new(emission.outputs["Color"], bsdf.inputs["Emission Color"])
+        # the same strength Unity sets (_EmissionColor = white x emission_intensity)
+        bsdf.inputs["Emission Strength"].default_value = BAKED_MAPS["emission_intensity"]
     crystal = _crystal_material(paint)
     for o in bk._mesh_objects(collection):
         for slot in o.material_slots:

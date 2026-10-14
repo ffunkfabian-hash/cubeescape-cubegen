@@ -241,6 +241,11 @@ def check_paint(name: str) -> str:
     return name
 
 
+def scheme_glows(paint: str) -> bool:
+    """Whether a scheme's surfaces glow (``edge_glow`` > 0) - only then does ``--paint`` write an Emission map."""
+    return PAINTS[check_paint(paint)]["edge_glow"] > 0
+
+
 def weight_layout(materials: Sequence[str]) -> List[Tuple[str, ...]]:
     """The painted materials of a model in groups of three: one RGB weight image per group (R, G, B)."""
     used = [m for m in PAINTED if m in materials]

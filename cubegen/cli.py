@@ -14,6 +14,7 @@ from .blender import BlenderError, blender_version, find_blender, probe_engine
 from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
 from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
+from .contract import CONTRACT_VERSION, SUPPORTED_VERSIONS
 from .paint import AMOUNT_KEYS, COLOR_KEYS, GLOW_COLORS, PAINTED, PAINTS, paint_names
 from .palette import palette_names
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
@@ -24,7 +25,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
                   "icon_size", "icon_background", "models_dir", "library_dir", "icons_dir", "icon_azimuth",
                   "icon_elevation", "icon_zoom", "textures", "texture_size", "texture_set", "textures_dir",
                   "palette", "unique", "lods", "jobs", "bake_device", "variant_set", "paint", "paint_file",
-                  "single_renderer")
+                  "single_renderer", "contract")
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
@@ -238,6 +239,8 @@ def build_config(args: argparse.Namespace) -> BatchConfig:
         values["variant_set"] = True
     if args.single_renderer:
         values["single_renderer"] = True
+    if args.contract is not None:
+        values["contract"] = args.contract
     if args.paint:
         values["paint"] = args.paint
         values.pop("paint_file", None)  # the command line wins over a recipe's own scheme
@@ -560,7 +563,8 @@ def cmd_export_check(args) -> int:
 
     if not os.path.isdir(args.export):
         raise ValueError(f"--export: {args.export!r} is not a folder")
-    result = check_export(args.export)
+    version = args.contract or CONTRACT_VERSION
+    result = check_export(args.export, version)
     if args.json:
         print(json.dumps(result, indent=2))
     else:
@@ -573,25 +577,30 @@ def cmd_export_check(args) -> int:
                 print(f"{model}: workbench budget - {b}")
         bad = sum(1 for r in result.values() if r["errors"])
         over = sum(1 for r in result.values() if r.get("runtime"))
-        print(f"\n{len(result)} model(s): {bad} rejected by the Unity import, "
+        print(f"\n{len(result)} model(s), contract version {version}: {bad} rejected by the Unity import, "
               f"{sum(1 for r in result.values() if r['open'])} with an open item assignment"
               + (f", {over} over the workbench budget (GLB)" if over else ""))
     return 1 if any(r["errors"] for r in result.values()) or not result else 0
 
 
 def cmd_contract(args) -> int:
-    """The Unity import contract as JSON (cubegen/contract.json) - for the game's importer."""
-    import shutil
+    """The Unity import contract as JSON (cubegen/contract.json) - for the game's importer; ``--version 1`` the file an
+    importer of version 1 reads (``contract.contract_for``)."""
+    from .contract import CONTRACT_FILE, contract_for
 
-    from .contract import CONTRACT_FILE
-
+    version = args.contract_version or CONTRACT_VERSION
+    if version == CONTRACT_VERSION:
+        with open(CONTRACT_FILE, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    else:
+        text = json.dumps(contract_for(version), indent=2) + "\n"
     if args.out:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-        shutil.copyfile(CONTRACT_FILE, args.out)
-        print(f"contract -> {args.out}")
+        with open(args.out, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        print(f"contract version {version} -> {args.out}")
     else:
-        with open(CONTRACT_FILE, "r", encoding="utf-8") as fh:
-            sys.stdout.write(fh.read())
+        sys.stdout.write(text)
     return 0
 
 
@@ -722,6 +731,10 @@ def make_parser() -> argparse.ArgumentParser:
     tx.add_argument("--paint-file", metavar="FILE",
                     help="own paint scheme from a JSON file: {\"name\", \"base\": a built-in scheme, any of its keys} "
                          "- e.g. paints/custom_example.json")
+    tx.add_argument("--contract", type=int, choices=list(SUPPORTED_VERSIONS),
+                    help=f"contract version of the Unity import the sidecars are written for (default "
+                         f"{CONTRACT_VERSION}); 1 = an importer without the Emission map of --paint (Cube Escape "
+                         "before reading contract version 2): the map then stays in the manifest only")
     tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
                     help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
                          "below that the CPU is faster); CPU and GPU differ in the noise")
@@ -801,11 +814,16 @@ def make_parser() -> argparse.ArgumentParser:
     c.add_argument("--family", help="instead: fit checks of a family kit (sizes, joints, free passages, colliders)")
     c.add_argument("--recipe", help="with --family: a kit recipe on top of the family")
     c.add_argument("--export", metavar="DIR", help="instead: check an exported models folder against the Unity "
-                                                   "import contract (every .cubegen.json, with its FBX)")
+                                                   "import contract (every .cubegen.json, with its FBX and maps)")
+    c.add_argument("--contract", type=int, choices=list(SUPPORTED_VERSIONS),
+                   help=f"with --export: the importer's contract version (default {CONTRACT_VERSION})")
     c.set_defaults(func=cmd_check)
 
     ct = sub.add_parser("contract", help="the Unity import contract as JSON (shared with the game's importer)")
     ct.add_argument("--out", help="write it to this file (e.g. <Unity>/Assets/Editor/Cubegen/cubegen_contract.json)")
+    ct.add_argument("--version", type=int, choices=list(SUPPORTED_VERSIONS), dest="contract_version",
+                    help=f"contract version (default {CONTRACT_VERSION}); 1 = the file of cubegen 0.21 for an "
+                         "importer that reads version 1 only")
     ct.set_defaults(func=cmd_contract)
 
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")

@@ -48,7 +48,8 @@ Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick
 Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51) und 0.21.2
 (`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version) und 0.21.3 (`VERSION_0.21.3.md`:
 GitHub Actions sparsam);
-die nächste Version ist 0.22.0.
+die laufende Arbeitsversion ist 0.22.0 „Beacon“ (`VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2,
+Manifestformat 2 für Cube Escape), die nächste 0.23.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -314,8 +315,12 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Ein neutraler Back, Themen als Daten** (`cubegen/paint.py` `PAINTS`, Schlüssel `SCHEME_KEYS`): neue Themen sind
   neue Einträge, nie ein eigener Back-Pfad. `compose` ist die Referenzformel – auch für den späteren Unity-Shader
   (ROADMAP ToDo 27); Änderungen an der Formel dort mitdenken.
-- **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0), Sidecar `baked` nur mit
-  Albedo/Normal/Roughness/MetallicSmoothness; `Emission` und die neutralen Karten stehen nur im Manifest (ToDo 26/27).
+- **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0); erlaubte Karten in
+  `textures.baked` stehen im Vertrag (`contract.json` › `baked_maps`, versioniert: `Emission` ab Version 2, nur bei
+  Themen mit `edge_glow` > 0). Der Vertrag ändert sich nur mit neuer `version` und Rückweg (`contract_for`,
+  `--contract`); die neutralen Karten stehen nur im Manifest (ToDo 27). Manifestfelder für Cube Escape
+  (`format`, `sets`, `joins`, `dressings`) sind in `docs/UNITY_INTEGRATION.md` beschrieben – nur ergänzen, eine
+  Bedeutung ändert sich nur mit neuem `format`.
 - **Für alle Typen:** `M_Ground` ist je Thema ein neutraler Grundton (Böden!), Akzente der Modulwand nutzen
   `M_HazardOrange`; Staub, Moos, Schnee mit Rauschflecken, nie flächig. Ein Thema nie nur an Wänden abstimmen –
   Vergleich über mehrere Typen (`style_test.py --models floor_tile,platform,pillar,…`). Der Stiltest färbt

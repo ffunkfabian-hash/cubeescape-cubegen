@@ -1,8 +1,12 @@
 {
   "contract": "cubegen-sidecar",
-  "version": 1,
+  "version": 2,
   "source": "Cube Escape Docs/CUBEGEN_IMPORT.md, 6 October 2026",
   "note": "The rules of the Unity import (CubegenImporter) for <Name>.cubegen.json. cubegen/contract.py checks every export with this file; the Unity import can read the same file (python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json).",
+  "history": {
+    "1": "until cubegen 0.21: the importer kept its own list of baked maps (Albedo, Normal, MetallicSmoothness, Roughness, AO, Height)",
+    "2": "cubegen 0.22.0: section baked_maps - the maps of textures.baked, with Emission (paint schemes that glow). python -m cubegen contract --version 1 writes the version-1 file and generate --contract 1 the matching sidecars for an importer that reads version 1 only"
+  },
   "file": {
     "max_bytes": 4194304,
     "max_depth": 64,
@@ -100,6 +104,15 @@
     "box": ["type", "part", "center", "size", "rotation"],
     "mesh": ["type", "part", "convex"],
     "moving_mesh_must_be_convex": true
+  },
+  "baked_maps": {
+    "keys": ["Albedo", "Normal", "MetallicSmoothness", "Roughness", "AO", "Height", "Emission"],
+    "required": ["Albedo", "Normal", "MetallicSmoothness"],
+    "srgb": ["Albedo", "Emission"],
+    "since": {"Emission": 2},
+    "material_prefix": "MTA_",
+    "emission_intensity": 3.0,
+    "distinct_files": true
   },
   "tolerances": {
     "position_m": 0.01,

@@ -14,6 +14,10 @@ runs Unity in that checkout's verify copy (the game's rule: Unity never on a che
 - GLB + sidecar of every type -> ``CubegenRealGenerationTests`` (the workbench's runtime path); it writes
   ``runtime-audit.json`` next to the models.
 
+The sidecars are written for the contract version Cube Escape keeps (``Assets/Resources/Cubegen/
+cubegen_contract.json``, ``generate --contract``): with version 1 the Emission map of the paint probe (Crystal) stays in
+the manifest, with version 2 the import reads it too.
+
 The Cube Escape checkout: ``--ce`` or ``$CUBEGEN_CE_ROOT``, else ``~/Claude/Cube Escape``. Without it (or without
 its verify script) the check says so and exits 0 - ``--require`` makes that an error (release check).
 Report: ``output/unity_check/report.json``. Exit code 1 when a probe fails.
@@ -103,10 +107,27 @@ def plan(only: Optional[List[str]] = None, quick: bool = False) -> List[str]:
     return names
 
 
-def generate_command(name: str, out: str) -> List[str]:
+#: the contract file Cube Escape keeps (python -m cubegen contract --out ...): its version decides what the sidecars may
+#: name (0.22.0: version 2 adds the Emission map of a paint scheme)
+CE_CONTRACT = os.path.join("Assets", "Resources", "Cubegen", "cubegen_contract.json")
+
+
+def ce_contract_version(ce: str) -> Optional[int]:
+    """The contract version Cube Escape's import reads (None: no contract file there)."""
+    try:
+        with open(os.path.join(ce, CE_CONTRACT), "r", encoding="utf-8") as fh:
+            version = json.load(fh).get("version")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return version if isinstance(version, int) and not isinstance(version, bool) else None
+
+
+def generate_command(name: str, out: str, contract: Optional[int] = None) -> List[str]:
+    """``contract``: the importer's version - the sidecars are written for exactly that one (never newer than
+    cubegen knows: an unknown version fails the generate step with a clear message)."""
     probe = PROBES[name]
     return [sys.executable, "-m", "cubegen", "generate", "--seed", probe["seed"], *probe["args"], "--no-render",
-            "--no-blend", "--out", out]
+            "--no-blend", *(["--contract", str(contract)] if contract is not None else []), "--out", out]
 
 
 def parse_verify(stdout: str) -> Dict:
@@ -139,14 +160,14 @@ def runtime_audit(models: str) -> Optional[Dict]:
             "failed_files": [row["file"] for row in rows if row.get("result") == "failed"][:20]}
 
 
-def run_probe(name: str, ce: str, work: str, log=print) -> Dict:
+def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] = None) -> Dict:
     probe = PROBES[name]
     out = os.path.join(work, name)
     shutil.rmtree(out, ignore_errors=True)
     start = time.time()
     env = dict(os.environ, PYTHONPATH=ROOT + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH")
                                               else ""))
-    gen = subprocess.run(generate_command(name, out), cwd=ROOT, env=env, capture_output=True, text=True)
+    gen = subprocess.run(generate_command(name, out, contract), cwd=ROOT, env=env, capture_output=True, text=True)
     entry = {"name": name, "about": probe["about"], "test": probe["test"], "seconds": {}}
     entry["seconds"]["generate"] = round(time.time() - start, 1)
     if gen.returncode != 0:
@@ -212,10 +233,12 @@ def main(argv=None) -> int:
         print(f"Unity-Check übersprungen: {why}")
         return 2 if args.require else 0
     os.makedirs(args.out, exist_ok=True)
-    report = {"cubegen": _version(), "ce": ce, "ce_commit": _git_head(ce), "probes": []}
+    contract = ce_contract_version(ce)
+    report = {"cubegen": _version(), "ce": ce, "ce_commit": _git_head(ce), "contract": contract, "probes": []}
+    print(f"Vertrag von Cube Escape: Version {contract if contract is not None else '? (Standard von cubegen)'}")
     for name in names:
         print(f"> {name}: {PROBES[name]['about']} …", flush=True)
-        entry = run_probe(name, ce, args.out)
+        entry = run_probe(name, ce, args.out, contract=contract)
         report["probes"].append(entry)
         print("  " + summary_line(entry), flush=True)
         if entry["ok"] and not args.keep:
