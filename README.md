@@ -131,8 +131,13 @@ und Laufzeitpfad der Werkbank (GLB aller Typen) – in dessen Testkopie. Etwa 3 
 
 ```bash
 python3 tools/unity_check.py --list     # die Prüfsätze
-python3 tools/unity_check.py --quick    # nur Bau-Kit und Anstrich
+python3 tools/unity_check.py --quick    # nur Bau-Kit, Anstrich und Anstrich neutral
 ```
+
+Prüfsatz `neutral` (0.24.0) braucht Vertrag 3 (neutrale Karten, Thema, neue Materialnamen). Liest Cube Escape eine
+ältere Version, läuft er zweimal: für Version 3 geschrieben muss der Import jedes Modell ablehnen, für Cube Escapes
+Version geschrieben annehmen. Jeder Prüfsatz mit Anstrich bekommt Vergleichsbilder (`tools/paint_reference.py`) unter
+`<Prüfsatz>/paint_reference`, an Unity übergeben als `$CUBEGEN_PAINT_REFERENCE`.
 
 ## App (macOS)
 
@@ -386,8 +391,9 @@ Unity-Import davon nutzt und was dort noch fehlt in [`docs/UNITY_INTEGRATION.md`
   `python -m cubegen check --export <Ordner>`. Die Regeln stehen maschinenlesbar in `cubegen/contract.json`
   (Schlüssel, Rollen, Feldtypen, gebackene Karten, Toleranzen, Dateigrenzen); `python -m cubegen contract --out
   <Datei>` gibt dieselbe Datei an den Unity-Import weiter, damit beide Seiten nach denselben Regeln prüfen. Der
-  Vertrag ist versioniert (seit 0.22.0 Version 2 mit der Leuchtkarte); für einen Import von Version 1 gibt es
-  `contract --version 1` und `generate --contract 1` (`docs/UNITY_INTEGRATION.md`).
+  Vertrag ist versioniert (0.22.0 Version 2 mit der Leuchtkarte, 0.24.0 Version 3 mit neutralen Karten, Thema und
+  eigenen Materialnamen statt `M_Crystal`); für einen Import einer älteren Version gibt es `contract --version 2|1`
+  und `generate --contract 2|1` (`docs/UNITY_INTEGRATION.md`).
 * **Item-IDs**: `--param keycard.item_id=<ID>` schreibt `ItemPickup.fields.itemId`; cubegen erfindet keine IDs.
 
 ## Animation & Unity-Scripts
@@ -769,8 +775,8 @@ Code.
 | `robots` | `turret` (Wachgeschütz: `Turret` dreht, `Gun` neigt sich, Laservisier), `spider_bot` (Spinnenroboter, Beine `Leg_<n>` mit Pivot an der Hüfte), `android` (Androide, stehend oder kaputt an die Wand gelehnt) |
 | `nature` | `plant` (Farn, Leuchtknollen, Stacheln; Topf rund, eckig oder Fels), `hydroponic_bed` (Pflanzbeet mit 1–3 Ebenen und Pflanzenlampe), `stalagmite` (Gruppe, Säule bis zur Decke, mit Kristallspitzen), `mushroom` (Pilzgruppe bis Riesenpilz, leuchtende Lamellen) |
 
-* **Pflanzen**: Das Spiel hat kein grünes Material. Blätter sind deshalb „außerirdisch“: `M_Crystal` (leuchtet
-  cyan), `M_HazardOrange` oder `M_Warning`. Welche Farbe der Seed gewählt hat, steht in `meta.leaves`.
+* **Pflanzen**: Das Spiel hat kein grünes Material. Blätter sind deshalb „außerirdisch“: `M_Leaf` (leuchtet
+  cyan; bis 0.23 `M_Crystal`), `M_HazardOrange` oder `M_Warning`. Welche Farbe der Seed gewählt hat, steht in `meta.leaves`.
 * **Wandmontiert** (`button`, `gear_puzzle`, `cable_plug`, `scanner`, `wall_panel`, `monitor_wall`, `intercom`):
   Rückseite an der Wand bei y = +0,1, Pivot am Boden darunter.
 * **Begehbar**: `hatch` und `floor_grate` haben die Oberkante bei z = 0, `vent_shaft` hat innen einen Boden (Pivot

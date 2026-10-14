@@ -346,7 +346,7 @@ class PaletteTests(unittest.TestCase):
                 self.assertEqual(json.load(fh)["textures"]["mode"], "palette")
 
     def test_color_palettes(self):
-        from cubegen.materials import MATERIALS
+        from cubegen.materials import LEGACY_NAMES, MATERIALS
 
         self.assertEqual(palette.palette_names()[0], "standard")
         self.assertEqual(palette.palette_material(None), "MP_Palette")
@@ -359,10 +359,12 @@ class PaletteTests(unittest.TestCase):
         seen = set()
         for name, entry in palette.COLOR_PALETTES.items():
             colors = entry["colors"]
-            self.assertEqual(set(colors), set(MATERIALS) - {"M_Glass"}, name)  # glass keeps its own material
+            # glass keeps its own material; 0.24: the names split off M_Crystal share its cell and colour
+            self.assertEqual(set(colors), set(MATERIALS) - {"M_Glass"} - set(LEGACY_NAMES), name)
             for rgb in colors.values():
                 self.assertTrue(all(0.0 <= c <= 1.0 for c in rgb), name)
             table = palette.palette_colors(name)
+            self.assertEqual(table["M_Liquid"][0], table["M_Crystal"][0], name)
             self.assertEqual({m: v[1:3] for m, v in table.items()}, {m: v[1:3] for m, v in MATERIALS.items()})
             red, cyan = table["M_GlowRed"][0], table["M_GlowCyan"][0]
             self.assertGreater(red[0], max(red[1], red[2]) + 0.3, name)  # alarm red stays red

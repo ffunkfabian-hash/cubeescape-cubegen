@@ -60,6 +60,8 @@ def clear_scene():
 def _generate(spec):
     asset = generate_asset(spec["type"], spec["seed"], name=spec["name"], scale=spec.get("scale", 1.0),
                            params=spec.get("params"), style=Style.from_dict(spec.get("style")))
+    if spec.get("legacy_materials"):  # the same as pipeline.build_spec: M_Crystal for an importer before contract 3
+        asset.legacy_materials()
     if spec.get("repair_safe"):
         asset.repair_safe()
     if spec.get("single_renderer"):  # the same as pipeline.build_spec: one renderer for static models
@@ -336,7 +338,8 @@ def run_job(job_path):
         if baked:
             entry.update({"baked": baked["maps"], "baked_material": baked["material"], "bake_device": baked["device"]})
             if baked.get("neutral"):
-                entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"]})
+                entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"],
+                              "neutral_maps": baked["packed"]})
         results.append(entry)
         counter = "" if queue else f"({i}/{total}) "
         log(f"{counter}{asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")

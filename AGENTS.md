@@ -50,7 +50,8 @@ Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube
 GitHub Actions sparsam);
 und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
 für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
-`ce-shared`) sind veröffentlicht; die nächste Version ist 0.24.0.
+`ce-shared`) sind veröffentlicht. 0.24.0 „Primer“ (`VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
+Materialnamen im Vertrag Version 3, Vergleichsbilder) ist in Arbeit.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -323,7 +324,9 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0); erlaubte Karten in
   `textures.baked` stehen im Vertrag (`contract.json` › `baked_maps`, versioniert: `Emission` ab Version 2, nur bei
   Themen mit `edge_glow` > 0). Der Vertrag ändert sich nur mit neuer `version` und Rückweg (`contract_for`,
-  `--contract`); die neutralen Karten stehen nur im Manifest (ToDo 27). Manifestfelder für Cube Escape
+  `--contract`). Seit Version 3 (0.24.0) nennt der Sidecar die gepackten neutralen Karten (`MTN_`, `cubegen/neutral.py`)
+  und das Thema (`paint`); die fertigen Karten entstehen aus genau diesen 8-Bit-Werten (ein Shader rechnet sie exakt
+  nach, `tools/paint_reference.py`). Manifestfelder für Cube Escape
   (`format`, `sets`, `joins`, `dressings`) sind in `docs/UNITY_INTEGRATION.md` beschrieben – nur ergänzen, eine
   Bedeutung ändert sich nur mit neuem `format`.
 - **Für alle Typen:** `M_Ground` ist je Thema ein neutraler Grundton (Böden!), Akzente der Modulwand nutzen
@@ -339,6 +342,10 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
   `quiet` (bei `none` nicht im Sidecar), nie gewürfelt, keine Kollision (klein, versperrt keinen Weg). Nichts darf
   unter den Boden reichen (`on_floor`), sonst verschiebt der Pivot das ganze Teil und der Set-Stoß bricht; Teile
   werden mit ihrer Reichweite eingegrenzt (`_inside`), nicht nur ihr Mittelpunkt.
+- **`M_Crystal` nur für echten Kristall** (seit 0.24.0): Flüssigkeit, Hologramm/Energiefeld, Lampe, Blatt, leuchtende
+  Organik, Sequenzfarbe, Leuchtakzent und Optik haben eigene Namen (`materials.CRYSTAL_SPLIT`, Test: nur
+  `CRYSTAL_TYPES` nutzen `M_Crystal`). Ein neuer Typ wählt den passenden Namen; ein neues Material kommt ans Ende von
+  `MATERIALS`, in den Vertrag (`materials`) und braucht einen Rückweg für ältere Vertragsversionen (`LEGACY_NAMES`).
 - **Kristalle:** `crystal_color` je Thema (Manifest `paint`, Vorschau/Icon in der Farbe; Unity: ToDo 28);
   `crystal_cut = faceted` (Fels, Schwebeinsel, Hängekristalle, Modulwand) aus eigenem Zufallsstrom.
 - **Prüfen:** `tools/style_test.py --paints all --concept <Konzeptbogen>` (Vergleich mit dem Konzept) und der echte

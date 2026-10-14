@@ -11,7 +11,7 @@ import os
 import bpy
 
 from . import bake as bk
-from .paint import PAINTED, compose, detail_map, weight_layout
+from .paint import PAINTED, detail_map, weight_layout
 
 EDGE_RADIUS = 0.03   # m, a little more than the models' 2 cm bevels
 EDGE_GAIN = 6.0      # 1 - dot(bevel normal, normal) is small: scale it to a 0..1 mask
@@ -191,18 +191,6 @@ def _load(path, srgb=False):
 _LOADED = {}  # neutral maps of the model being composed (one model at a time: memory stays bounded)
 
 
-def _noise(size, seed, cells=48):
-    """Deterministic noise 0..1 (bilinear upscaled random grid)."""
-    import numpy as np
-
-    grid = np.random.RandomState(seed % 2**31).rand(cells + 1, cells + 1).astype(np.float32)
-    x = np.linspace(0, cells, size, dtype=np.float32)
-    i = np.minimum(x.astype(np.int32), cells - 1)
-    f = x - i
-    rows = grid[i] * (1 - f)[:, None] + grid[i + 1] * f[:, None]
-    return rows[:, i] * (1 - f)[None, :] + rows[:, i + 1] * f[None, :]
-
-
 def _to_srgb(linear):
     import numpy as np
 
@@ -222,28 +210,36 @@ def _write(rgb, name, path, alpha=None):
     return path
 
 
+def pack_maps(maps, seed):
+    """The packed neutral maps (``neutral.pack``: W0..W2 with noise and detail in alpha, Fields) of ``bake_masks``'
+    maps; read once per model (every scheme of a run composes from the same)."""
+    from .neutral import noise, pack
+
+    if _LOADED.get("maps") is not maps or _LOADED.get("seed") != seed:  # the same model's maps for every scheme
+        _LOADED.clear()
+        _LOADED.update(maps=maps, seed=seed)
+    if "packed" not in _LOADED:
+        weights = [_load(p) for p in maps["weights"]]
+        ao, edge, up = (_load(maps[k])[..., 0] for k in ("ao", "edge", "up"))
+        layout = [tuple(g) for g in maps["layout"]]
+        detail = detail_map(weights, layout, _load(maps["diffuse"], True)) if maps.get("diffuse") else None
+        height = _load(maps["height"])[..., 0] if maps.get("height") else None
+        _LOADED["packed"] = pack(weights, layout, ao, edge, up, height, noise(ao.shape[0], seed), detail)
+    return _LOADED["packed"]
+
+
 def compose_paint(maps, name, paint, out_dir, seed, prefix="", emission=True):
     """The maps of ``paint`` from ``bake_masks``' maps - no Blender bake involved: Albedo and Emission (sRGB),
     Roughness (grey) and MetallicSmoothness (R metallic, A smoothness - Unity's layout) as PNG. ``emission=False``:
-    no Emission file (a scheme without glowing edges would write a black one)."""
+    no Emission file (a scheme without glowing edges would write a black one).
+
+    0.24.0: composed from the packed neutral maps (``pack_maps``, 8 bit as a shader samples them - noise and detail
+    included), so ``neutral.compose_packed`` on the ``MTN_`` files gives exactly these maps."""
     import numpy as np
 
-    if _LOADED.get("maps") is not maps:  # the same model's maps for every scheme: read the PNGs once
-        _LOADED.clear()
-        _LOADED["maps"] = maps
+    from .neutral import compose_packed
 
-    def load(key, path, srgb=False):
-        if key not in _LOADED:
-            _LOADED[key] = _load(path, srgb)
-        return _LOADED[key]
-
-    weights = [load(f"w{i}", p) for i, p in enumerate(maps["weights"])]
-    ao, edge, up = (load(k, maps[k])[..., 0] for k in ("ao", "edge", "up"))
-    noise = 0.6 * _noise(ao.shape[0], seed, 32) + 0.4 * _noise(ao.shape[0], seed + 1, 160)
-    layout = [tuple(g) for g in maps["layout"]]
-    detail = detail_map(weights, layout, load("diffuse", maps["diffuse"], True)) if maps.get("diffuse") else None
-    height = load("height", maps["height"])[..., 0] if maps.get("height") else None
-    result = compose(weights, layout, ao, edge, up, noise, paint, detail, height)
+    result = compose_packed(pack_maps(maps, seed), maps["layout"], paint)
     base = os.path.join(out_dir, f"{prefix}{name}_{paint}_")
     rough = result["roughness"]
     return {
@@ -284,7 +280,8 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
     atlas becomes UV0, like ``--textures baked``). Returns ``bake.bake_asset``'s shape - ``{"material", "maps",
     "device"}`` with Albedo, Normal, Roughness, MetallicSmoothness and, for a scheme with glowing edges
     (``edge_glow`` > 0), Emission (contract ``baked_maps``, strength ``emission_intensity``) - plus ``"neutral"``: the
-    neutral maps for a recolouring shader. None without paintable parts."""
+    raw neutral bake (``Textures/Neutral``) and ``"packed"``: the five maps a recolouring shader reads
+    (``MTN_<model>_W0..W2/Fields/Normal.png``, ``cubegen/neutral.py``). None without paintable parts."""
     import shutil
 
     from cubegen.contract import BAKED_MAPS
@@ -303,6 +300,12 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
     if glows:  # the glowing edges (Crystal blue, Dark red ...): a black map would only cost texture memory
         final["Emission"] = painted["emission"]
     shutil.copyfile(maps["normal"], final["Normal"])
+    # the neutral maps for a recolouring shader (contract version 3, textures.neutral): MTN_<model>_<map>.png
+    from cubegen.neutral import file_name, write_neutral
+
+    packed = write_neutral(pack_maps(maps, seed), name, out_dir)
+    packed["Normal"] = os.path.join(out_dir, file_name(name, "Normal"))
+    shutil.copyfile(maps["normal"], packed["Normal"])
     # the material is named like --textures baked (MTA_<Asset>): Unity's baked import reads exactly that name; the
     # scheme is recorded in the manifest ("paint") and in the map file names (MTP_<Asset>_<scheme>_*.png)
     material = bk._baked_material(f"MTA_{name}", {k: v for k, v in final.items() if k != "Emission"})
@@ -327,7 +330,7 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
         o.data.uv_layers[bk.BAKE_UV].name = "UVMap"
     neutral = {k: v for k, v in maps.items() if k not in ("layout", "device")}
     return {"material": material.name, "maps": final, "device": maps["device"], "neutral": neutral,
-            "layout": maps["layout"]}
+            "layout": maps["layout"], "packed": packed}
 
 
 def apply_paint(collection, maps, paint, textures, roughness, base_names=()):

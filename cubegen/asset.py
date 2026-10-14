@@ -151,6 +151,40 @@ class Asset:
         if model_type and not self.meta.get("type"):
             self.meta["type"] = model_type
 
+    def legacy_materials(self) -> List[str]:
+        """Contract version 1/2 (``--contract``): the material names of 0.24.0 that split ``M_Crystal`` (water,
+        holograms, lamps ...) become ``M_Crystal`` again - in faces, behaviour fields and meta, so the model is the
+        one of cubegen 0.23 (golden digests, test_release_0240). Returns the names replaced."""
+        import re
+
+        from .materials import LEGACY_NAMES
+
+        found = set()
+        names = re.compile(r"\b(" + "|".join(sorted(LEGACY_NAMES)) + r")\b")
+
+        def replace(match):
+            found.add(match.group(1))
+            return LEGACY_NAMES[match.group(1)]
+
+        def swap(value):
+            if isinstance(value, str):  # also inside texts (a behaviour note names its light colour)
+                return names.sub(replace, value)
+            if isinstance(value, dict):
+                return {k: swap(v) for k, v in value.items()}
+            if isinstance(value, list):
+                return [swap(v) for v in value]
+            if isinstance(value, tuple):
+                return tuple(swap(v) for v in value)
+            return value
+
+        for o in self.objects:
+            if o.mesh is not None and any(r in LEGACY_NAMES for r in o.mesh.roles):
+                found.update(r for r in o.mesh.roles if r in LEGACY_NAMES)
+                o.mesh.roles = [LEGACY_NAMES.get(r, r) for r in o.mesh.roles]
+        self.behaviours = swap(self.behaviours)
+        self.meta = swap(self.meta)
+        return sorted(found)
+
     def repair_safe(self) -> List[str]:
         """Remove only faceless mesh objects that have no children or contract references."""
         referenced = set()

@@ -13,7 +13,7 @@ from .common import ALONG_X, ALONG_Y, cube, cyl, deg, strut
 from .lettering import add_text, check_text, text_width
 from .registry import model
 
-LIQUIDS = ("M_Crystal", "M_GlowOrange", "M_Warning", "M_GlowRed", "M_HazardOrange")
+LIQUIDS = ("M_Liquid", "M_GlowOrange", "M_Warning", "M_GlowRed", "M_HazardOrange")
 
 
 # --------------------------------------------------------------------------
@@ -151,7 +151,7 @@ def galley(rng, a):
             x = -ln / 2 + ln * (i + 0.5) / trays
             y = rng.choice([-1, 1]) * w * 0.25
             cube(body, (0.35, 0.25, 0.02), (x, y, h + 0.01), "M_Wall")
-            cyl(body, 0.06, 0.03, (x - 0.08, y, h + 0.035), rng.choice(["M_HazardOrange", "M_Warning", "M_Crystal"]),
+            cyl(body, 0.06, 0.03, (x - 0.08, y, h + 0.035), rng.choice(["M_HazardOrange", "M_Warning", "M_Liquid"]),
                 sides=8)
             cyl(body, 0.035, 0.1, (x + 0.1, y + 0.05, h + 0.07), "M_Metal", sides=6)
         a.meta["trays"] = trays

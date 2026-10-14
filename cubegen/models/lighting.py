@@ -59,7 +59,7 @@ def floodlight(rng, a):
     top = h + hh * rows / 2 + 0.05
     cube(body, (hw * cols + 0.1, 0.06, 0.06), (0, 0.05, h + 0.02), "M_Metal")  # yoke bar
     lamp_points = []
-    lamp = GLOW_LAMPS.get(p.style.glow or "", "M_Crystal")  # bright white-cyan unless the style fixes a glow
+    lamp = GLOW_LAMPS.get(p.style.glow or "", "M_Lamp")  # bright white-cyan unless the style fixes a glow
     for c in range(cols):
         for r in range(rows):
             center = ((c - (cols - 1) / 2) * (hw + 0.05), 0.0, h + 0.08 + hh / 2 + r * (hh + 0.04))

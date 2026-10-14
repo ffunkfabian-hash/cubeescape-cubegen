@@ -219,8 +219,8 @@ def hanging_crystals(rng, a):
     a.meta["crystals"] = n
 
 
-# The game has no green material: plants are alien - glowing cyan (M_Crystal) or rust orange leaves.
-LEAVES = ["M_Crystal", "M_HazardOrange", "M_Crystal", "M_Warning"]
+# The game has no green material: plants are alien - glowing cyan (M_Leaf, M_Crystal before 0.24) or rust orange leaves.
+LEAVES = ["M_Leaf", "M_HazardOrange", "M_Leaf", "M_Warning"]
 
 
 def _leaf(mesh, foot, length, width, yaw, pitch, material):
@@ -396,7 +396,7 @@ def mushroom(rng, a):
     h = p.float("height", 0.4, 1.6)
     spots = p.bool("spots", 0.5)
     m, gills = a.part("Mushroom"), a.part("Lights")
-    cap = rng.choice(["M_HazardOrange", "M_Crystal", "M_Platform", "M_Warning", "M_RobotBody"])
+    cap = rng.choice(["M_HazardOrange", "M_Leaf", "M_Platform", "M_Warning", "M_RobotBody"])
     stem = rng.choice(["M_PortalPanel", "M_Platform", "M_Wall"])
     glow = p.glow_from(["M_GlowCyan", "M_GlowCyan", "M_GlowOrange"])
     for i in range(n):

@@ -15,7 +15,7 @@ from .imagemagick import ImageMagickError, find_imagemagick
 from .models import REGISTRY, generate_asset, model_types
 from .params import DAMAGE_STATES, GENERATIONS, LATEST_GENERATION, Style, parse_param_overrides
 from .contract import CONTRACT_VERSION, SUPPORTED_VERSIONS
-from .paint import AMOUNT_KEYS, COLOR_KEYS, GLOW_COLORS, PAINTED, PAINTS, paint_names
+from .paint import AMOUNT_KEYS, COLOR_KEYS, GLOW_COLORS, PAINTED, PAINTS, SCHEME_KEYS, paint_names
 from .palette import palette_names
 from .pipeline import FORMATS, BatchConfig, build_spec, generate_batch, plan_models
 from .seeds import parse_seed
@@ -471,18 +471,29 @@ def catalog_data() -> Dict[str, object]:
                 for name in palette_names()}
     return {"catalog": 1, "generator": f"cubegen {__version__}", "version": __version__,
             "generations": list(GENERATIONS), "latestGeneration": LATEST_GENERATION, "formats": list(FORMATS),
-            "options": options, "palettes": palettes, "families": families, "types": types,
-            "paints": {name: {"label": PAINTS[name]["label"], "glow": PAINTS[name]["glow"]} for name in paint_names()},
-            # 0.19.0: the full schemes as templates for an own scheme (app colour pickers, later the workbench) and the
-            # keys a scheme file may set (--paint-file)
-            "paint_schemes": {name: PAINTS[name] for name in paint_names()},
-            "paint_fields": {"painted": list(PAINTED), "amounts": list(AMOUNT_KEYS), "colors": list(COLOR_KEYS),
-                             "glow": list(GLOW_COLORS)}}
+            "options": options, "palettes": palettes, "families": families, "types": types, **paint_catalog()}
+
+
+def paint_catalog() -> Dict[str, object]:
+    """The built-in paint schemes as data - the source Cube Escape mirrors (like the contract) for its shader: a
+    sidecar names a built-in scheme by its name (contract version 3, root key ``paint``)."""
+    return {
+        "paints": {name: {"label": PAINTS[name]["label"], "glow": PAINTS[name]["glow"]} for name in paint_names()},
+        # 0.19.0: the full schemes as templates for an own scheme (app colour pickers, later the workbench) and the
+        # keys a scheme file may set (--paint-file)
+        "paint_schemes": {name: PAINTS[name] for name in paint_names()},
+        "paint_fields": {"painted": list(PAINTED), "amounts": list(AMOUNT_KEYS), "colors": list(COLOR_KEYS),
+                         "glow": list(GLOW_COLORS)},
+        # 0.24.0: every key a complete scheme has (a sidecar's custom scheme carries all of them, plus its name)
+        "paint_keys": list(SCHEME_KEYS),
+    }
 
 
 def cmd_catalog(args) -> int:
     """Machine-readable catalog for game front ends (Cube Escape's workbench builds its fields from it)."""
-    text = json.dumps(catalog_data(), indent=2 if args.pretty else None, ensure_ascii=False, sort_keys=True)
+    data = catalog_data() if not args.paints else {"catalog": 1, "generator": f"cubegen {__version__}",
+                                                   "version": __version__, **paint_catalog()}
+    text = json.dumps(data, indent=2 if args.pretty else None, ensure_ascii=False, sort_keys=True)
     if args.out:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as fh:
@@ -733,8 +744,9 @@ def make_parser() -> argparse.ArgumentParser:
                          "- e.g. paints/custom_example.json")
     tx.add_argument("--contract", type=int, choices=list(SUPPORTED_VERSIONS),
                     help=f"contract version of the Unity import the sidecars are written for (default "
-                         f"{CONTRACT_VERSION}); 1 = an importer without the Emission map of --paint (Cube Escape "
-                         "before reading contract version 2): the map then stays in the manifest only")
+                         f"{CONTRACT_VERSION}); 2 = without the neutral maps and the scheme of --paint (sidecar "
+                         "textures.neutral, paint), 1 = also without its Emission map - what a version does not know "
+                         "stays in the manifest only")
     tx.add_argument("--bake-device", choices=["auto", "cpu", "gpu"],
                     help="Cycles device for --textures baked (default auto: GPU from 1024 px if there is one, "
                          "below that the CPU is faster); CPU and GPU differ in the noise")
@@ -801,6 +813,9 @@ def make_parser() -> argparse.ArgumentParser:
     cg.add_argument("--json", action="store_true", help="accepted for symmetry with list; output is always JSON")
     cg.add_argument("--pretty", action="store_true", help="indent the JSON")
     cg.add_argument("--out", help="write it to this file instead of stdout")
+    cg.add_argument("--paints", action="store_true",
+                    help="only the paint schemes (paints, paint_schemes, paint_fields, paint_keys) - fast, no model "
+                         "builds; the file Cube Escape mirrors for its shader")
     cg.set_defaults(func=cmd_catalog)
 
     c = sub.add_parser("check", help="quality report: triangle budget, draw calls, z-fighting, colliders, "
@@ -822,8 +837,8 @@ def make_parser() -> argparse.ArgumentParser:
     ct = sub.add_parser("contract", help="the Unity import contract as JSON (shared with the game's importer)")
     ct.add_argument("--out", help="write it to this file (e.g. <Unity>/Assets/Editor/Cubegen/cubegen_contract.json)")
     ct.add_argument("--version", type=int, choices=list(SUPPORTED_VERSIONS), dest="contract_version",
-                    help=f"contract version (default {CONTRACT_VERSION}); 1 = the file of cubegen 0.21 for an "
-                         "importer that reads version 1 only")
+                    help=f"contract version (default {CONTRACT_VERSION}); 2 = the file of cubegen 0.22/0.23, 1 = the "
+                         "file of cubegen 0.21 - for an importer that reads that version only")
     ct.set_defaults(func=cmd_contract)
 
     f = sub.add_parser("families", help="list the built-in model families (--dims: all measures)")

@@ -71,7 +71,7 @@ def push_block(rng, a):
 # tone / colour sequence panel
 # --------------------------------------------------------------------------
 
-SEQUENCE_COLOURS = ("M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Warning", "M_HazardOrange")
+SEQUENCE_COLOURS = ("M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Signal", "M_Warning", "M_HazardOrange")
 
 
 @model("sequence_panel", "SequencePanel", "puzzle", "Wall panel for a tone and colour sequence (Simon): 4-6 "
@@ -146,7 +146,7 @@ def water_level(rng, a):
     n = p.int("tubes", 2, 3)
     h = p.float("height", 1.4, 2.2)
     fluid = p.choice("fluid", ["water", "water", "glowing", "toxic"])
-    fluid_mat = {"water": "M_Crystal", "glowing": "M_GlowCyan", "toxic": "M_GlowOrange"}[fluid]
+    fluid_mat = {"water": "M_Liquid", "glowing": "M_GlowCyan", "toxic": "M_GlowOrange"}[fluid]
     body, glass = a.part("Body"), a.part("Glass")
     r = rng.uniform(0.12, 0.2)
     gap = r * 3.2

@@ -53,7 +53,8 @@ class ParseTest(unittest.TestCase):
 
 class PlanTest(unittest.TestCase):
     def test_probes_are_fixed_and_cover_both_import_paths(self):
-        self.assertEqual(unity_check.plan(quick=True), ["kit", "paint"])
+        # 0.24.0: --quick also runs the probe "neutral" (contract version 3, test_release_0240)
+        self.assertEqual(unity_check.plan(quick=True), ["kit", "paint", "neutral"])
         self.assertEqual(unity_check.plan(["runtime", "kit"]), ["kit", "runtime"])  # in the fixed order
         self.assertEqual({p["test"] for p in unity_check.PROBES.values()}, {"cli", "runtime"})
         with self.assertRaises(ValueError):

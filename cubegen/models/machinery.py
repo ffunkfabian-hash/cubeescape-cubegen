@@ -358,13 +358,13 @@ def hologram(rng, a):
     center = (0.0, 0.0, zc)
     holo = a.part("Rotor", pivot=center)
     if kind == "globe":
-        holo.add(sphere(size, 10, 6, "M_Crystal"), loc=center)
+        holo.add(sphere(size, 10, 6, "M_Hologram"), loc=center)
         for tilt in (deg(20), deg(-35)):
             holo.add(torus(size * 1.35, 0.012, 16, 3, light), loc=center, rot=(tilt, 0, 0))
         cyl(holo, size * 0.2, size * 0.15, (size * 0.9, 0, zc + size * 0.9), light, sides=6)  # moon
     elif kind == "station":
-        holo.add(torus(size, size * 0.08, 14, 4, "M_Crystal"), loc=center)
-        cyl(holo, size * 0.15, size * 1.2, center, "M_Crystal", sides=6)
+        holo.add(torus(size, size * 0.08, 14, 4, "M_Hologram"), loc=center)
+        cyl(holo, size * 0.15, size * 1.2, center, "M_Hologram", sides=6)
         for k in range(4):
             ang = math.pi / 2 * k
             cube(holo, (size, 0.025, 0.025), (math.cos(ang) * size / 2, math.sin(ang) * size / 2, zc), light,
@@ -380,7 +380,7 @@ def hologram(rng, a):
                     dims = [0.025, 0.025, 0.025]
                     dims[ax] = 2 * e + 0.025
                     cube(holo, tuple(dims), (pos[0], pos[1], zc + pos[2]), light)
-        cube(holo, (e * 0.8, e * 0.8, e * 0.8), center, "M_Crystal", rot=(deg(35), deg(45), 0))
+        cube(holo, (e * 0.8, e * 0.8, e * 0.8), center, "M_Hologram", rot=(deg(35), deg(45), 0))
     a.behaviour("Rotator", {"target": "Rotor"}, {"axis": "up", "speed": p.option("speed")})
     a.behaviour("SignalLight", {"glow": "Glow"}, {"mode": p.option("mode")})
 

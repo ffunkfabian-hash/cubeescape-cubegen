@@ -18,10 +18,11 @@ import math
 from ..geometry import euler_matrix, mat_mul_vec
 from ..quality import needs_collider
 from ..seeds import StableRandom
+from ..materials import CRYSTAL_SPLIT
 from .wear import apply_wear
 
 LIGHT_PARTS = ("Glow", "Lights", "Screen", "StatusLight_Front", "StatusLight_Back", "Crystals")
-GLOW = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal"}
+GLOW = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal"} | set(CRYSTAL_SPLIT)  # 0.24: the split names too
 DEAD = "M_RobotDark"
 FRACTURE = "M_Ground"
 

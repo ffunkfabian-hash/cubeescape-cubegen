@@ -37,7 +37,7 @@ cubegen doctor
 | `python3 -m cubegen list` | alle Modelltypen nach Kategorie (`--json` für Skripte) |
 | `python3 -m cubegen params [TYP]` | Parameter aller Typen bzw. eines Typs, z. B. `params lever` |
 | `python3 -m cubegen check` | Qualitätsbericht: Dreiecke, Draw Calls, flackernde Flächen, Collider, Doppelte (Abschnitt 14); `--family` prüft die Passung eines Kits, `--export` einen fertigen Export gegen den Unity-Vertrag |
-| `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels |
+| `python3 -m cubegen contract` | Der Unity-Importvertrag als JSON (`cubegen/contract.json`); `--out DATEI` schreibt ihn für den Import des Spiels, `--version 2`/`1` eine ältere Fassung |
 | `python3 -m cubegen families` | Modellfamilien mit Maßen, Stil und Kit (`--dims`: alle Maße und welche Parameter sie setzen) |
 | `python3 -m cubegen palettes` | Farbpaletten des Paletten-Modus (`--swatches DATEI`: Farbfelder zum Vergleichen) |
 | `python3 -m cubegen doctor` | Installation prüfen |
@@ -340,15 +340,24 @@ und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Materia
 
 **Anstriche** (`--paint industrial|clean|ruin|crystal|dark|organic|sand|space|ice|toxic|void`): das Skin-Prinzip des Roboter-Generators.
 Jedes Modell wird einmal neutral gebacken (Gewichte der Spielmaterialien, Umgebungsverdeckung, Kanten, oben, Höhe,
-Detail und Normalen der Kacheln, in `Textures/Neutral`), das Thema daraus zusammengesetzt: Albedo, Normal, Roughness,
+Detail und Normalen der Kacheln, Rohdaten in `Textures/Neutral`), das Thema daraus zusammengesetzt: Albedo, Normal, Roughness,
 MetallicSmoothness (Unity liest sie wie `--textures baked`, Material `MTA_<Modell>`) und bei Themen mit Leuchtkanten
 (`edge_glow` > 0: Crystal, Dark, Space, Ice, Toxic, Void) Emission. Die Leuchtfarbe folgt dem Thema, außer `--glow`
 sagt anderes. Mit `--set` entstehen Wandsets im selben Thema.
 
-**Vertragsversion** (seit 0.22.0): Die Sidecars nennen die Leuchtkarte ab Vertrag Version 2 (`textures.baked.Emission`).
-Für einen Unity-Import, der Version 1 liest (Cube Escape vor der Umstellung), `--contract 1` (auch Rezeptfeld
-`contract`): die Karte bleibt dann nur im Manifest. `python3 -m cubegen contract --version 1 --out <Datei>` schreibt den
-Vertrag von Version 1, `check --export <Ordner> --contract 1` prüft dagegen. Formate: `docs/UNITY_INTEGRATION.md`.
+**Neutrale Karten** (seit 0.24.0): Jeder Anstrich-Lauf schreibt je Modell zusätzlich fünf gepackte Karten für einen
+Umfärbe-Shader, `Textures/MTN_<Modell>_W0/W1[/W2]/Fields/Normal.png` (Gewichte, Rauschen, Detail, AO, Kante, oben,
+Höhe). Die fertigen Karten entstehen genau aus diesen 8-Bit-Werten. `python3 tools/paint_reference.py <Ausgabeordner>`
+setzt daraus jedes Thema ohne Blender zusammen (Vergleichsbilder für Cube Escape; `--check`: gleich den Karten des
+Laufs). Die eingebauten Themen als Daten: `python3 -m cubegen catalog --paints`.
+
+**Vertragsversion** (seit 0.22.0, jetzt 3): Version 2 nennt die Leuchtkarte im Sidecar (`textures.baked.Emission`),
+Version 3 (0.24.0) die neutralen Karten (`textures.neutral`, `textures.weight_layout`), das Thema (`paint`) und eigene
+Materialnamen für alles, was bisher `M_Crystal` trug, ohne Kristall zu sein (`M_Liquid`, `M_Hologram`, `M_Lamp`,
+`M_Leaf`, `M_Biolume`, `M_Signal`, `M_Accent`, `M_Optic`). Für einen Unity-Import, der eine ältere Version liest,
+`--contract 2` bzw. `1` (auch Rezeptfeld `contract`): Neues bleibt nur im Manifest, die neuen Materialnamen werden
+wieder `M_Crystal`. `python3 -m cubegen contract --version 2 --out <Datei>` schreibt den Vertrag dieser Version,
+`check --export <Ordner> --contract 2` prüft dagegen. Formate: `docs/UNITY_INTEGRATION.md`.
 
 ```bash
 python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --paint ruin
@@ -456,7 +465,7 @@ python3 -m cubegen check                      # alle Typen, je 10 Varianten von 
 python3 -m cubegen check --types door,laser_mirror --count 20 --detail high
 python3 -m cubegen check --json > quality.json
 python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger Export gegen den Unity-Vertrag
-python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models --contract 1   # gegen einen Import von Version 1
+python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models --contract 2   # gegen einen Import von Version 2
 ```
 
 | Spalte | Bedeutung |
@@ -541,7 +550,7 @@ schon, bevor er Dateien schreibt.
 | `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
 | `--paint` | – | Anstrich (Thema): clean, crystal, dark, ice, industrial, organic, ruin, sand, space, toxic, void – gebackener Atlas aus einem neutralen Back (schaltet `--textures baked` ein) |
 | `--paint-file` | – | eigenes Thema aus einer JSON-Datei (`name`, `base`, abweichende Werte); ersetzt `--paint` |
-| `--contract` | 2 | Vertragsversion des Unity-Imports, für die die Sidecars geschrieben werden; 1 = ohne Leuchtkarte im Sidecar (bleibt im Manifest) |
+| `--contract` | 3 | Vertragsversion des Unity-Imports, für die die Sidecars geschrieben werden; 2 = ohne neutrale Karten und Thema, `M_Crystal` statt der neuen Materialnamen; 1 = zusätzlich ohne Leuchtkarte (alles bleibt im Manifest) |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |

@@ -129,7 +129,7 @@ def test_warning_beacon(rng, a):
 def test_lens_array(rng, a):
     body = a.part("Body")
     cube(body, (1.8, 0.65, 0.16), (0, 0, 0.08), "M_RobotDark", bevel=0.025)
-    for x, radius, material in ((-0.58, 0.22, "M_GlowCyan"), (0, 0.28, "M_Crystal"),
+    for x, radius, material in ((-0.58, 0.22, "M_GlowCyan"), (0, 0.28, "M_Optic"),
                                 (0.58, 0.22, "M_GlowOrange")):
         cyl(body, radius * 1.25, 0.14, (x, 0, 0.23), "M_Metal", sides=10)
         body.add(torus(radius, 0.035, 12, 4, "M_RobotDark"), loc=(x, 0, 0.46), rot=ALONG_Y)

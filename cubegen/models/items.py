@@ -151,7 +151,7 @@ def spare_part(rng, a):
         a.meta["teeth"] = teeth
     elif kind == "lens":
         cyl(body, s, 0.05, (0, 0, 0), "M_RobotDark", sides=12, rot=ALONG_Y)
-        cyl(a.part("Glow"), s * 0.8, 0.06, (0, 0, 0), rng.choice(["M_Crystal", "M_Glass"]), sides=12, rot=ALONG_Y)
+        cyl(a.part("Glow"), s * 0.8, 0.06, (0, 0, 0), rng.choice(["M_Optic", "M_Glass"]), sides=12, rot=ALONG_Y)
         cube(body, (s * 0.3, 0.04, s * 0.25), (0, 0, s + s * 0.1), "M_Metal")  # mounting tab
     elif kind == "crystal":
         crystals = a.part("Glow")
