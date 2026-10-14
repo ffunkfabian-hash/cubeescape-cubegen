@@ -1,7 +1,7 @@
 # Cubegen 0.23.0 – Wingman
 
-*Ungeprüft: unveröffentlicht, Release auf Wunsch des Nutzers.* Release-Zweig `release/0.23.0`; vorherige Version
-0.22.0 „Beacon“ (parallel auf eigenem Branch), auf `main` zuletzt [0.21.3](VERSION_0.21.3.md). Nur Agenten-Werkzeuge für Claude Code; Generator, Add-on und Ausgabe sind unverändert
+*Veröffentlicht am 14. Oktober 2026.* Release-Zweig `release/0.23.0`; vorherige Version [0.22.0](VERSION_0.22.0.md)
+„Beacon“ (am selben Tag veröffentlicht, Wingman danach auf sie nachgezogen). Nur Agenten-Werkzeuge für Claude Code; Generator, Add-on und Ausgabe sind unverändert
 (außer der Versionsnummer).
 
 Gemeinsamer Auftrag mit Cube Escape 0.56 „Pit Crew“ und dem Roboter-Generator 1.18.0 „Ground Crew“.

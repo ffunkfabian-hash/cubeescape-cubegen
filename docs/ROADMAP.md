@@ -1,8 +1,11 @@
 # Roadmap
 
-Stand: 14. Oktober 2026, cubegen **0.21.2 „Monolith“** veröffentlicht (Tag `v0.21.2`, Release-Zweig
-`release/0.21.2`; [VERSION_0.21.2.md](../VERSION_0.21.2.md): Test unabhängig von ImageMagick; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer, Werkbank-Budget, Index, Messbänder;
-[VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51); davor 0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
+Stand: 14. Oktober 2026, cubegen **0.23.0 „Wingman“** veröffentlicht (Tag `v0.23.0`; [VERSION_0.23.0.md](../VERSION_0.23.0.md):
+Subagents, gemeinsames Plugin `ce-shared`); davor 0.22.0 „Beacon“ (Tag `v0.22.0`;
+[VERSION_0.22.0.md](../VERSION_0.22.0.md): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
+davor 0.21.3 „Monolith“ (Tag `v0.21.3`; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer,
+Werkbank-Budget, Index, Messbänder; [VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51;
+0.21.2/0.21.3: Testkorrektur, GitHub Actions sparsam); davor 0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
 (Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
 1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
@@ -158,6 +161,10 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
 - [x] **Erkenntnisse aus Cube Escape 0.49** (0.21.0): ein Renderer (`--single-renderer`), Budget der Werkbank in
   Bytes, Index statt jede Datei lesen, benannte Schritte und Messbänder (`tools/perf_band.py`), Verzeichnisse statt
   Suchen (jedes Modell einmal je Lauf gebaut; CPU-Zeit Katalog ohne Blender 4,65 → 2,57 s).
+- [x] **Zuarbeit für Cube Escape 0.57/0.58** (0.22.0): Leuchtkarte der Anstriche im Sidecar (Vertrag Version 2,
+  Abschnitt `baked_maps`; `--contract 1` und `contract --version 1` für den heutigen Import), nur bei leuchtenden
+  Themen; Manifestformat 2 mit `sets[].faces_unity`/`bounds`, `joins`, `dressings`, `models[].set`/`dressing`,
+  `connectors[].moves` – Format in [UNITY_INTEGRATION.md](UNITY_INTEGRATION.md) › „Manifest für Cube Escape“.
 - [ ] **Unveränderte Modelle nicht neu bauen:** Ein Lauf ganz aus dem Cache baut alle Modelle trotzdem (Vertrag,
   Manifest; Katalog 561 Modelle: 2,2 s Bauen, 2,8 s Manifest). Manifest-Einträge und Vertragsprüfung unveränderter
   Modelle über ihren `build_key` aus dem letzten Manifest übernehmen (Index).
@@ -273,7 +280,9 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   Markierung; bewegte, brechende und flüssige Varianten bleiben dynamisch. Messung im
   Rückfallrenderer: 130 → 80 normale Draw Calls. Keine angenommene Kostenfreiheit für
   alle statischen Modelle und keine automatische Kombination von Werkbankinstanzen.
-- [ ] **16 · Anschlüsse/Layout-JSON:** Manifestadapter und Raumgenerator bleiben offen.
+- [ ] **16 · Anschlüsse/Layout-JSON:** Manifestadapter und Raumgenerator bleiben offen. Generator-Seite (0.22.0): das
+  Manifest nennt je Modell `connectors` (mit `moves` für Anschlüsse auf bewegten Teilen) und mit `joins`, welche
+  Arten zusammenpassen (`face`/`align`, `fit_check`).
 - [x] **17 · Gemeinsamer Vertrag:** Unity lädt und validiert den exportierten
   `cubegen_contract.json`; C#-Adapter bleiben die feste Komponentenfreigabe.
 - [x] **18 · Palette:** Standard-/Rostpaletten und je Manifest-GUID getrennte
@@ -344,10 +353,14 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   statt einzelner Kacheln), beim Platzieren die Mitglieder abwechseln oder zufällig wählen, damit nebeneinander
   gestellte Teile sich nicht wiederholen; `outline_ok = false` sichtbar machen (Teile schließen nicht sauber an).
   Mit den vorhandenen Modellsets der Werkbank abstimmen (gleiche Datenhaltung, keine zweite Sammlung).
+  Generator-Seite vollständig (0.22.0): `sets[]` mit `name`, `type`, `members`, `pinned`, `faces`, `faces_unity`,
+  `bounds`, `outline_ok`, `deviation_m`, `preview`; je Modell `set`.
 - [ ] **26 · Leuchtkarte für gebackene Anstriche** (0.17.0): `--paint` schreibt eine `Emission`-Karte (Crystal: blaue,
-  Dark: rote Leuchtkanten), der Unity-Vertrag kennt sie bei `baked` noch nicht – sie steht nur im Manifest
-  (`models[].baked.Emission`). Import: `Emission` als erlaubte baked-Map, `_EmissionMap` setzen; Vertrag
-  (`contract.json`) und `CubegenMaterials.cs` gemeinsam ändern.
+  Dark: rote Leuchtkanten). Generator-Seite erledigt (0.22.0): Vertrag Version 2 (`baked_maps`: `Emission`, sRGB,
+  `emission_intensity` 3), der Sidecar nennt sie (`textures.baked.Emission`), nur Themen mit `edge_glow` > 0 schreiben
+  sie; `--contract 1` hält den Sidecar für den heutigen Import. Offen in Cube Escape: `CubegenContract` liest Version 2,
+  `CubegenMaterials` nimmt die Kartenliste aus `baked_maps` und setzt `_EmissionMap`/`_EMISSION`/`_EmissionColor`,
+  danach den Vertrag neu exportieren (`docs/UNITY_INTEGRATION.md` › „Versionen des Vertrags“).
 - [ ] **27 · Shader mit Umfärbung (Cube-Escape-Variante, später)** – Empfehlung aus 0.17.0, vom Nutzer so beschlossen:
   erst fertige Karten (umgesetzt), dann ein URP-Shader, der dieselben neutralen Karten zur Laufzeit umfärbt.
   Warum: Speicher wächst nicht mit der Zahl der Themen (1024 px: fertige Karten ≈ 5 MB je Modell **und** Thema –
@@ -374,9 +387,11 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 - [ ] **30 · Anbauten je Thema im Modell-Browser** (0.18.0): `test_wall_modules` mit `dressing=ruin|organic` und
   `crystals` als Varianten eines Sets anzeigen (ToDo 25); experimenteller Typ – erst nach Freigabe als Standardset.
   Seit 0.19.0 auch Boden, Säule und Steg (`dressing`) – als Bau-Kit-Teile für Standardsets geeignet.
+  Generator-Seite (0.22.0): Manifest `dressings` (Werte, Typen, passendes Thema) und je Modell `dressing`.
 - [ ] **31 · Set-Anschlussseiten im Modell-Browser** (0.19.0): Das Manifest nennt je Set die geprüften Seiten
   (`sets[].faces`, z. B. Boden `x-, x+, y-, y+, z-`). Beim Platzieren nur an diesen Seiten einrasten und Mitglieder
-  abwechseln; mit ToDo 25 umsetzen.
+  abwechseln; mit ToDo 25 umsetzen. Seit 0.22.0 auch in Unity-Koordinaten (`sets[].faces_unity`: Richtung nach außen
+  und Abstand vom Pivot) mit dem Umriss `sets[].bounds`.
 
 - [x] **32 · Flache Kopien für Cubegen-Modelle** – umgesetzt in Cube Escape 0.51 „Tight Ship“: Standardsets
   Revision 3 mit `single_renderer`, 385 von 553 Modellen sind flache Kopien (vorher etwa 120); der Builder übergeht

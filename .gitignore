@@ -12,3 +12,6 @@ dist/
 
 # macOS app build
 app/.build/
+
+# macOS
+.DS_Store

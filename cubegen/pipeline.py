@@ -26,8 +26,8 @@ from .materials import MATERIALS
 from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
 from .paint import PAINTS, check_paint, load_scheme, register_scheme
 from .variety import pick_unique
-from .contract import check_fbx, check_runtime_budget, check_sidecar
-from .families import unity_connectors
+from .contract import CONTRACT_VERSION, baked_map_keys, check_fbx, check_runtime_budget, check_sidecar, check_version
+from .families import join_table, unity_connectors
 from . import palette as palette_mod
 
 BAKE_KEEP = {"M_GlowCyan", "M_GlowRed", "M_GlowOrange", "M_Crystal", "M_Glass"}  # = bake.KEEP
@@ -35,8 +35,7 @@ from .seeds import model_seed
 
 FORMATS = ("fbx", "glb", "gltf", "obj")
 BAKE_DEVICES = ("auto", "cpu", "gpu")  # = bake.DEVICES
-#: baked maps the Unity import accepts in a sidecar (CubegenMaterials: Albedo, Normal, MetallicSmoothness required)
-BAKED_MAP_KEYS = ("Albedo", "Normal", "MetallicSmoothness", "Roughness", "AO", "Height")
+#: the baked maps a sidecar names come from the contract (``contract.baked_map_keys``, section ``baked_maps``)
 
 # Time budget per stage (seconds), measured 0.15.0 on an Apple M5 with headroom of about 3x; a slower stage only
 # warns (log + manifest "timings"), it never fails a run. "per_model" counts the models built in this run.
@@ -102,8 +101,11 @@ class BatchConfig:
     verbose: bool = False
     repair_safe: bool = False
     single_renderer: bool = False  # static models with decorative parts only: one mesh object (Asset.merge_static)
+    contract: int = CONTRACT_VERSION  # the importer's contract version the sidecars are written for (--contract):
+    #                                   1 = Cube Escape before the Emission map (the map stays in the manifest)
 
     def validate(self) -> None:
+        check_version(self.contract)
         if self.paint_file:
             name, self.paint_scheme = load_scheme(self.paint_file)
             register_scheme(name, self.paint_scheme)
@@ -184,6 +186,48 @@ def _spec(config: BatchConfig, model_type: str, index: int) -> Dict:
     if config.single_renderer:
         spec["single_renderer"] = True
     return spec
+
+
+#: manifest.json format (0.22.0): 1 = until cubegen 0.21 (no "format" key), 2 = + "format", "joins", "dressings",
+#: sets[].faces_unity / bounds, models[].set / dressing, connectors[].moves and the Emission map only for glowing
+#: paint schemes. Only additions: a reader of format 1 keeps working; a key changes meaning only with a new format.
+MANIFEST_FORMAT = 2
+#: look parameters of a type that are "dressings" (ROADMAP ToDo 30): geometry a paint scheme cannot give, never rolled
+DRESSING_PARAMS = ("dressing", "crystals")
+#: the paint scheme each dressing was made for (concepts "Ruin" and "Organic") - a suggestion, never enforced
+DRESSING_PAINTS = {"ruin": ["ruin"], "organic": ["organic"]}
+
+
+def dressing_params(model_type: str) -> Dict[str, Any]:
+    """The type's dressing parameters (choices only - ``crystals`` of the rock types is a count, not a dressing)."""
+    return {p.name: p for p in REGISTRY[model_type].params if p.name in DRESSING_PARAMS and p.kind == "choice"}
+
+
+def dressing_table() -> Dict[str, Dict[str, Any]]:
+    """For the manifest: per dressing parameter its values, default, the types that have it and (``dressing``) the
+    paint scheme each value belongs to."""
+    table: Dict[str, Dict[str, Any]] = {}
+    for model_type in sorted(REGISTRY):
+        for name, param in dressing_params(model_type).items():
+            entry = table.setdefault(name, {"values": list(param.choices), "default": param.default, "types": []})
+            entry["types"].append(model_type)
+    if "dressing" in table:
+        table["dressing"]["paints"] = DRESSING_PAINTS
+    return table
+
+
+def _faces_unity(faces, box) -> List[Dict[str, Any]]:
+    """The set's joining faces in Unity coordinates: outward ``direction`` and ``distance_m`` of the face from the
+    pivot along it (``x-`` of a 4 m floor tile: direction [1, 0, 0], 2.0)."""
+    lo, hi = box
+    out = []
+    for face in faces:
+        axis = "xyz".index(face[0])
+        sign = 1.0 if face[1] == "+" else -1.0
+        normal = tuple(sign if i == axis else 0.0 for i in range(3))
+        out.append({"face": face, "direction": list(to_unity(normal)),
+                    "distance_m": round(sign * (hi if sign > 0 else lo)[axis], 4) + 0.0})
+    return out
 
 
 #: parameters that define a piece's outline (with every ``Param(size=True)``): fixed for all members of a variant set
@@ -639,8 +683,12 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
                 im.run([arg for p in previews for arg in ("(", p, "-resize", "320x320", ")")]
                        + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
                 images.put("set:" + row, key, [row])
+        lo, hi = boxes[0]  # the outline every member keeps (variant 0's), Unity coordinates like a sidecar's bounds
         sets.append({"name": name, "type": members[0]["type"], "members": [s["name"] for s in members],
                      "pinned": members[0]["set"]["pinned"], "faces": list(faces),
+                     "faces_unity": _faces_unity(faces, boxes[0]),
+                     "bounds": {"center": list(to_unity(tuple((lo[i] + hi[i]) / 2 for i in range(3)))),
+                                "size": [abs(c) for c in to_unity(tuple(hi[i] - lo[i] for i in range(3)))]},
                      "outline_ok": deviation <= SET_TOLERANCE_M,
                      "deviation_m": round(deviation, 4), "preview": row})
     return sets
@@ -936,21 +984,24 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
                 rig = rig_data(asset, spec, config.seed, asset_map, lod=lod_of(spec) if spec.get("lod") else None)
-                if textures:
+                if textures and not (config.textures == "baked" and not res.get("baked")):
+                    # (baked mode, nothing baked - only glow, crystal or glass materials: plain M_* parts, no
+                    # textures entry - the importer requires the baked maps in mode baked)
                     rig["textures"] = {"mode": config.textures,
                                        "manifest": _rel(os.path.join(textures_dir, "CubeEscape_Textures.json"),
                                                         spec["models_dir"])}
                     if res.get("baked"):
-                        # only the maps Unity's baked import reads; a paint scheme's Emission stays in the
-                        # manifest until the import reads it (ROADMAP ToDo 26)
+                        # the maps the importer's contract version reads: version 2 with a paint scheme's Emission,
+                        # version 1 without (it stays in the manifest)
+                        allowed = baked_map_keys(config.contract)
                         rig["textures"]["baked"] = {k: _rel(v, spec["models_dir"]) for k, v in res["baked"].items()
-                                                    if k in BAKED_MAP_KEYS}
+                                                    if k in allowed}
                 elif palette:
                     rig["textures"] = {"mode": "palette",
                                        "manifest": _rel(os.path.join(textures_dir,
                                                                      palette_mod.palette_manifest_name(config.palette)),
                                                         spec["models_dir"])}
-                problems, _ = check_sidecar(rig, rig_path)
+                problems, _ = check_sidecar(rig, rig_path, config.contract)
                 if problems:
                     raise RuntimeError(f"{rig_path} breaks the Unity import contract:\n  " + "\n  ".join(problems))
                 json.dump(rig, fh, indent=2)
@@ -985,6 +1036,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             **({"family": spec["family"]} if spec.get("family") else {}),
             **({"param_sources": spec["param_sources"]} if spec.get("param_sources") else {}),
             "connectors": unity_connectors(asset, spec["type"]),
+            **({"set": spec["set"]["name"]} if spec.get("set") else {}),
+            **({"dressing": {k: asset.p.used.get(k, param.default)
+                             for k, param in dressing_params(spec["type"]).items()}}
+               if dressing_params(spec["type"]) else {}),
             **({"build_key": spec["build_key"]} if spec.get("build_key") else {}),
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
                 "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device")}
@@ -1005,6 +1060,7 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         cfg.pop(key, None)
     manifest = {
         "generator": "cubegen",
+        "format": MANIFEST_FORMAT,
         "version": __version__,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_hash": code_fingerprint(),
@@ -1027,6 +1083,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                    "crystal_color": PAINTS[config.paint]["crystal_color"],
                    "edge_glow_color": PAINTS[config.paint]["edge_glow_color"]} if config.paint else None),
         "family": family_info,
+        # which connector kinds (models[].connectors[].kind) join, and how (ROADMAP ToDo 16)
+        "joins": join_table(),
+        # dressing parameters per type and the paint scheme each value belongs to (ToDo 30)
+        "dressings": dressing_table(),
         "timings": None,
         "models": entries,
     }

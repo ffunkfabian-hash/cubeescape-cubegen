@@ -341,9 +341,14 @@ und Teile, die die Scripts umfärben (Status-Lichter, Glow), ihr eigenes Materia
 **Anstriche** (`--paint industrial|clean|ruin|crystal|dark|organic|sand|space|ice|toxic|void`): das Skin-Prinzip des Roboter-Generators.
 Jedes Modell wird einmal neutral gebacken (Gewichte der Spielmaterialien, Umgebungsverdeckung, Kanten, oben, Höhe,
 Detail und Normalen der Kacheln, in `Textures/Neutral`), das Thema daraus zusammengesetzt: Albedo, Normal, Roughness,
-MetallicSmoothness (Unity liest sie wie `--textures baked`, Material `MTA_<Modell>`) und Emission (Leuchtkanten,
-in Unity noch nicht gelesen). Die Leuchtfarbe folgt dem Thema, außer `--glow` sagt anderes. Mit `--set` entstehen
-Wandsets im selben Thema.
+MetallicSmoothness (Unity liest sie wie `--textures baked`, Material `MTA_<Modell>`) und bei Themen mit Leuchtkanten
+(`edge_glow` > 0: Crystal, Dark, Space, Ice, Toxic, Void) Emission. Die Leuchtfarbe folgt dem Thema, außer `--glow`
+sagt anderes. Mit `--set` entstehen Wandsets im selben Thema.
+
+**Vertragsversion** (seit 0.22.0): Die Sidecars nennen die Leuchtkarte ab Vertrag Version 2 (`textures.baked.Emission`).
+Für einen Unity-Import, der Version 1 liest (Cube Escape vor der Umstellung), `--contract 1` (auch Rezeptfeld
+`contract`): die Karte bleibt dann nur im Manifest. `python3 -m cubegen contract --version 1 --out <Datei>` schreibt den
+Vertrag von Version 1, `check --export <Ordner> --contract 1` prüft dagegen. Formate: `docs/UNITY_INTEGRATION.md`.
 
 ```bash
 python3 -m cubegen generate --types test_wall_modules --count 5 --set --unique --paint ruin
@@ -451,6 +456,7 @@ python3 -m cubegen check                      # alle Typen, je 10 Varianten von 
 python3 -m cubegen check --types door,laser_mirror --count 20 --detail high
 python3 -m cubegen check --json > quality.json
 python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models   # fertiger Export gegen den Unity-Vertrag
+python3 -m cubegen check --export ../CubeEscape/Assets/Art/Models --contract 1   # gegen einen Import von Version 1
 ```
 
 | Spalte | Bedeutung |
@@ -535,6 +541,7 @@ schon, bevor er Dateien schreibt.
 | `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
 | `--paint` | – | Anstrich (Thema): clean, crystal, dark, ice, industrial, organic, ruin, sand, space, toxic, void – gebackener Atlas aus einem neutralen Back (schaltet `--textures baked` ein) |
 | `--paint-file` | – | eigenes Thema aus einer JSON-Datei (`name`, `base`, abweichende Werte); ersetzt `--paint` |
+| `--contract` | 2 | Vertragsversion des Unity-Imports, für die die Sidecars geschrieben werden; 1 = ohne Leuchtkarte im Sidecar (bleibt im Manifest) |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |

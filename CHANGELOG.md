@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.23.0 „Wingman“ – unveröffentlicht
+## 0.23.0 „Wingman“ – 2026-10-14
 
 * **Agenten-Werkzeuge** (mit Cube Escape 0.56 und dem Roboter-Generator 1.18): Subagents `cg-test-runner` (Tests
   ausführen und berichten, ändert nichts) und `cg-doc-keeper` (Doku auf Endstand, nur Markdown) in `.claude/agents/`,
@@ -8,6 +8,27 @@
   `ffunkfabian-hash/ce-agent-tools`): Force-Push, nacktes `git stash`, Unity auf Checkouts und GitHub Actions kommen
   von dort statt aus eigenen hookify-Dateien. Generator und Ausgabe unverändert.
   Bericht: [VERSION_0.23.0.md](VERSION_0.23.0.md).
+
+## 0.22.0 „Beacon“ – 2026-10-14
+
+Zuarbeit für Cube Escape 0.57 (gemeinsamer Shader-Unterbau) und 0.58 (Cubegen in der Werkbank), nur die Generatorseite.
+Bericht: [VERSION_0.22.0.md](VERSION_0.22.0.md).
+
+* **Leuchtkarte im Vertrag (ROADMAP ToDo 26):** `cubegen/contract.json` Version 2 mit Abschnitt `baked_maps`
+  (erlaubte und Pflichtkarten, sRGB-Karten, `Emission` ab Version 2, `emission_intensity` 3, eine Datei je Karte).
+  Der Sidecar nennt bei `--paint` die Leuchtkarte (`textures.baked.Emission`); `check_sidecar` und `check --export`
+  prüfen die Karten samt Dateien. Nur Themen mit Leuchtkanten (`edge_glow` > 0) schreiben die Karte – bisher entstand
+  bei Industrial, Clean, Ruin, Organic und Sand eine schwarze Karte, die im GLB eine Textur des Werkbank-Budgets
+  belegte. **Rückweg für den heutigen Import:** `generate --contract 1` (Rezeptfeld `contract`), `contract --version
+  1`, `check --export … --contract 1`; `tools/unity_check.py` schreibt für die Version, die Cube Escape hält.
+* **Manifestformat 2 (ToDo 16, 25, 30, 31):** `format`; `sets[].faces_unity` (geprüfte Anschlussseiten in Unity:
+  Richtung und Abstand vom Pivot) und `sets[].bounds`; `models[].set`; `joins` (welche Anschlussarten zusammenpassen);
+  `connectors[].moves` (Anschluss auf bewegtem Teil, z. B. ausgefahrene Brücke – fiel bisher weg); `dressings`
+  (Anbau-Parameter je Typ, passendes Thema) und `models[].dressing`. Nur Ergänzungen; Format in
+  `docs/UNITY_INTEGRATION.md` › „Manifest für Cube Escape“.
+* Ein Modell ohne gebackenes Material im Modus `baked` (nur Glow, Kristall oder Glas) bekommt keinen `textures`-Eintrag
+  mehr – der Import verlangt im Modus `baked` die Karten.
+* `.DS_Store` in `.gitignore`.
 
 ## 0.21.3 „Monolith“ – 2026-10-14
 

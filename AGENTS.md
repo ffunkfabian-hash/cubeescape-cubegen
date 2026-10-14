@@ -48,7 +48,9 @@ Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick
 Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51) und 0.21.2
 (`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version) und 0.21.3 (`VERSION_0.21.3.md`:
 GitHub Actions sparsam);
-0.22.0 „Beacon“ und 0.23.0 „Wingman“ (`VERSION_0.23.0.md`: Subagents, gemeinsames Plugin `ce-shared`) sind in Arbeit.
+und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
+für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
+`ce-shared`) sind veröffentlicht; die nächste Version ist 0.24.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -92,10 +94,14 @@ Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getr
 ## Abschluss in zwei Stufen
 
 Sitzungen ohne Blender und Unity (z. B. in der Cloud, claude.ai/code) dürfen meist nur ihren eigenen Branch pushen –
-keine Tags, kein `main`, keine Release-Branches – und können keine echten Exporte und keinen Unity-Import prüfen.
+keine Tags, kein `main`, keine Release-Branches – und können keinen Unity-Import prüfen. **Cloud-Sitzungen** richtet
+der SessionStart-Hook `.claude/hooks/session-start.sh` ein (lokal tut er nichts): ImageMagick 6 und Blender 5.2 LTS als
+Python-Modul von PyPI (`bpy`, download.blender.org ist gesperrt) hinter dem Befehl `blender` (`.claude/hooks/blender_cli.py`)
+– damit laufen dort auch die Blender-Tests und echte Exporte (`--tier full`, headless auf der CPU). Kein Ersatz für Stufe 2:
+Blender-App mit GPU, Blender-Plugin, `unity_check.py` und die macOS-App gibt es nur lokal.
 
 - **Stufe 1 „ungeprüft“** (ohne Blender/Unity): `python3 -m unittest discover -s tests` (Blender-/ImageMagick-Tests
-  werden ohne die Werkzeuge übersprungen – das im Bericht nennen), bei Bedarf `--no-blender`-Erzeugung; Branch pushen,
+  werden ohne die Werkzeuge übersprungen – das im Bericht nennen; in der Cloud laufen sie mit dem Hook), bei Bedarf `--no-blender`-Erzeugung; Branch pushen,
   PR mit Abschnitt „Vor dem Merge noch offen“; der Versionsbericht `VERSION_<Version>.md` trägt oben
   *„ungeprüft: Blender-/Unity-Abnahme offen“*. Danach darf der Nutzer den PR auf GitHub mergen; kein Tag, kein Release.
 - Stufe 1 reicht als Abschluss **nur für Doku oder Werkzeuge ohne Einfluss auf die Ausgabe**. Bei Generator-Code,
@@ -314,8 +320,12 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Ein neutraler Back, Themen als Daten** (`cubegen/paint.py` `PAINTS`, Schlüssel `SCHEME_KEYS`): neue Themen sind
   neue Einträge, nie ein eigener Back-Pfad. `compose` ist die Referenzformel – auch für den späteren Unity-Shader
   (ROADMAP ToDo 27); Änderungen an der Formel dort mitdenken.
-- **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0), Sidecar `baked` nur mit
-  Albedo/Normal/Roughness/MetallicSmoothness; `Emission` und die neutralen Karten stehen nur im Manifest (ToDo 26/27).
+- **Unity-Vertrag:** Material heißt `MTA_<Modell>` (sonst lehnt der Import ab, belegt 0.17.0); erlaubte Karten in
+  `textures.baked` stehen im Vertrag (`contract.json` › `baked_maps`, versioniert: `Emission` ab Version 2, nur bei
+  Themen mit `edge_glow` > 0). Der Vertrag ändert sich nur mit neuer `version` und Rückweg (`contract_for`,
+  `--contract`); die neutralen Karten stehen nur im Manifest (ToDo 27). Manifestfelder für Cube Escape
+  (`format`, `sets`, `joins`, `dressings`) sind in `docs/UNITY_INTEGRATION.md` beschrieben – nur ergänzen, eine
+  Bedeutung ändert sich nur mit neuem `format`.
 - **Für alle Typen:** `M_Ground` ist je Thema ein neutraler Grundton (Böden!), Akzente der Modulwand nutzen
   `M_HazardOrange`; Staub, Moos, Schnee mit Rauschflecken, nie flächig. Ein Thema nie nur an Wänden abstimmen –
   Vergleich über mehrere Typen (`style_test.py --models floor_tile,platform,pillar,…`). Der Stiltest färbt

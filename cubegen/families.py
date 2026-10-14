@@ -477,6 +477,8 @@ def unity_connectors(asset, model_type: str) -> List[Dict[str, Any]]:
         entry = {k: v for k, v in c.items() if k not in ("pos", "dir", "moves")}
         entry["position"] = list(to_unity(c["pos"]))
         entry["direction"] = list(to_unity(c["dir"]))
+        if c.get("moves"):  # the connector rides on a moving part: where it is once the part has moved (0.22.0)
+            entry["moves"] = {"part": c["moves"]["part"], "offset": list(to_unity(c["moves"]["offset"]))}
         if "clear" in entry:
             entry["clear"] = [round(v, 4) for v in entry["clear"]]
         for key in ("width", "height", "thickness", "radius"):
@@ -790,6 +792,14 @@ JOINS = {
 }
 
 
+def join_table() -> List[Dict[str, Any]]:
+    """``JOINS`` for the manifest (Unity: which connector kinds snap together): kinds ``a``/``b`` (either order),
+    ``mode`` ("face": directions opposite, "align": same direction) and ``fit_check`` (``RULES`` checks the measures
+    of such a joint - ``check --family``)."""
+    return [{"a": a, "b": b, "mode": mode, "fit_check": (a, b) in RULES or (b, a) in RULES}
+            for (a, b), mode in sorted(JOINS.items())]
+
+
 def fit_report(members: Sequence[Tuple[str, Any, str]], dims: Optional[Dict[str, Any]] = None
                ) -> List[Dict[str, Any]]:
     """Check every compatible connector pair of a kit. ``members`` = [(name, asset, type)].
@@ -836,6 +846,6 @@ def same_look(specs: Sequence[Dict[str, Any]]) -> List[str]:
     return []
 
 
-__all__ = ["DIMS", "FIXED", "RULES", "JOINS", "family_files", "find_family", "load_family", "check_dims", "derived_params",
+__all__ = ["DIMS", "FIXED", "RULES", "JOINS", "join_table", "family_files", "find_family", "load_family", "check_dims", "derived_params",
            "misfits", "dims_from_model", "connectors", "unity_connectors", "collision_boxes", "fit_report",
            "compatibility_matrix", "same_look"]
