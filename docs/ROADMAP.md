@@ -407,4 +407,4 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
 3. **Draw Calls:** `sliding_puzzle` (33) und `conveyor` (21) liegen im Budget pro beweglichem Teil, sind aber
    teuer; Teile zusammenlegen oder für sie den Paletten-Modus empfehlen.
 4. **Blender in der CI:** erledigt in 0.19.0 (Job `blender` in `.github/workflows/tests.yml`, neueste Blender 4.5
-   LTS, führt die Testmodule mit Blender aus).
+   LTS, führt die Testmodule mit Blender aus; seit 0.21.3 sparsam: ein Job je Python, volle Matrix nur auf `main`).

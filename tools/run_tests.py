@@ -1,9 +1,9 @@
-"""Run the tests in groups of similar length - in parallel locally, one group per job in CI.
+"""Run the tests in groups of similar length - in parallel, locally and in CI (one job per Python version).
 
     python3 tools/run_tests.py                  ->  full tier: all groups at once (one process each), summary at the end
     python3 tools/run_tests.py --tier quick     ->  everyday check after a change, without Blender and the sweeps
     python3 tools/run_tests.py --tier standard  ->  every module, without Blender
-    python3 tools/run_tests.py models           ->  only this group (CI: one job per group)
+    python3 tools/run_tests.py models           ->  only this group
     python3 tools/run_tests.py --list           ->  which test module runs in which group and tier
 
 Tiers (like the robot generator's): ``quick`` leaves out Blender and the modules that sweep every type

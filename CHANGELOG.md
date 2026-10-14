@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.21.3 „Monolith“ – unveröffentlicht
+
+* **GitHub Actions sparsam:** Nach 14 Tagen Oktober waren 90 % der 2.000 Freiminuten verbraucht (rund 40 min je Lauf
+  mit 13 Jobs, Pushes auf PR-Branches liefen doppelt). Jetzt: `push` nur auf `main`, sonst über den PR; ein neuer
+  Push bricht den alten Lauf ab; reine Doku löst nichts aus; ein Job je Python-Version mit allen Gruppen parallel;
+  ein PR testet Python 3.11 und Blender, die volle Matrix läuft auf `main` und auf Wunsch; `timeout-minutes` je Job.
+  Regel global (`~/.claude/CLAUDE.md`) und in `AGENTS.md` („GitHub Actions sparsam“), Hook `actions-sparsam`. Ausgabe unverändert.
+  Bericht: [VERSION_0.21.3.md](VERSION_0.21.3.md).
+
 ## 0.21.2 „Monolith“ – 2026-10-14
 
 * Test der Kiste mit Kacheln: ImageMagick 6 (GitHub-Runner) schreibt zwei sonst bytegleiche Karten verschieden –
