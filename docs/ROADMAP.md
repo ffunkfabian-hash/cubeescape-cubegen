@@ -1,7 +1,7 @@
 # Roadmap
 
-Stand: 14. Oktober 2026, cubegen **0.21.1 „Monolith“** veröffentlicht (Tag `v0.21.1`, Release-Zweig
-`release/0.21.1`, [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer, Werkbank-Budget, Index, Messbänder;
+Stand: 14. Oktober 2026, cubegen **0.21.2 „Monolith“** veröffentlicht (Tag `v0.21.2`, Release-Zweig
+`release/0.21.2`; [VERSION_0.21.2.md](../VERSION_0.21.2.md): Test unabhängig von ImageMagick; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer, Werkbank-Budget, Index, Messbänder;
 [VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51); davor 0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
 (Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen

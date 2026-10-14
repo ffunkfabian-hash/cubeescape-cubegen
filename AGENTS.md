@@ -45,7 +45,8 @@ Korrektur 0.18.1 (`VERSION_0.18.1.md`: Leuchtschlitz folgt dem Thema) und 0.19.0
 Korrektur 0.19.1 (`VERSION_0.19.1.md`: reproduzierbare PNGs auch mit ImageMagick 6, GitHub Actions grün) und
 0.20.0 „Gatekeeper“ (13. Oktober 2026, `VERSION_0.20.0.md`: Unity-Check `tools/unity_check.py`) und 0.21.0
 „Monolith“ (13. Oktober 2026, `VERSION_0.21.0.md`: ein Renderer, Werkbank-Budget, Index, Messbänder) samt
-Korrektur 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51);
+Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube Escape 0.51) und 0.21.2
+(`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version);
 die nächste Version ist 0.22.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
