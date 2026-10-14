@@ -1,6 +1,7 @@
 # Roadmap
 
-Stand: 14. Oktober 2026, cubegen **0.22.0 „Beacon“** veröffentlicht (Tag `v0.22.0`;
+Stand: 14. Oktober 2026, cubegen **0.23.0 „Wingman“** veröffentlicht (Tag `v0.23.0`; [VERSION_0.23.0.md](../VERSION_0.23.0.md):
+Subagents, gemeinsames Plugin `ce-shared`); davor 0.22.0 „Beacon“ (Tag `v0.22.0`;
 [VERSION_0.22.0.md](../VERSION_0.22.0.md): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
 davor 0.21.3 „Monolith“ (Tag `v0.21.3`; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer,
 Werkbank-Budget, Index, Messbänder; [VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51;

@@ -49,7 +49,8 @@ Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube
 (`VERSION_0.21.2.md`: Test unabhängig von der ImageMagick-Version) und 0.21.3 (`VERSION_0.21.3.md`:
 GitHub Actions sparsam);
 und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
-für Cube Escape) sind veröffentlicht; die nächste Version ist 0.23.0.
+für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
+`ce-shared`) sind veröffentlicht; die nächste Version ist 0.24.0.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -71,7 +72,7 @@ nur auf `main`, sonst über den PR; `concurrency` mit `cancel-in-progress`; `pat
 große Matrix nur auf `main`; `timeout-minutes`; lokal zuerst testen. Umsetzung hier seit 0.21.3
 (`.github/workflows/tests.yml`): ein Job `test` je Python-Version mit `tools/run_tests.py --tier standard` (alle
 Gruppen parallel), ein PR testet 3.11 und Blender, 3.9/3.11/3.13 laufen auf `main` und über „Run workflow“. Hook
-`actions-sparsam` warnt beim Bearbeiten eines Workflows.
+`actions-sparsam` (Plugin `ce-shared`) warnt beim Bearbeiten eines Workflows.
 
 ## Versionen, Branches und Worktrees
 
@@ -206,13 +207,17 @@ Text. Gemeinsam mit Cube Escape und dem Roboter-Generator (dort je eine eigene T
 | `engineering` | `debug`, `testing-strategy`, `documentation` |
 | `design` | `ux-copy`, `accessibility-review` für Desktop-Fenster und Blender-Add-on |
 | `unity` | `physics-3d-collision` beim Prüfen der Kollision in der Cube-Escape-Testkopie (`ce-cubegen` dort) |
-| `hookify` | Regeln als `.claude/hookify.<name>.local.md` (eingecheckt mit `git add -f`, da `.claude/` lokal ausgeschlossen ist) |
+| `hookify` | Repo-eigene Regeln als `.claude/hookify.<name>.local.md` (eingecheckt mit `git add -f`, da `.claude/` lokal ausgeschlossen ist) |
+| `ce-shared` | eigenes Plugin für Cube Escape, Cubegen und den Roboter-Generator (privates GitHub-Repo ffunkfabian-hash/ce-agent-tools, eingetragen in `.claude/settings.json`): gemeinsame Regeln und die Werkzeug-Profile der Subagents (`.claude/agent-guard.json`) |
 | Blender-MCP | siehe „Werkzeuge: ImageMagick und Blender-Plugin“ |
 
-**Hooks** (hookify) **blockieren** Unity auf einem Checkout, nacktes `git stash` (geteilter Stash-Stapel), Force-Push
-und Änderungen von Hand an `output/`; sie **halten das Sitzungsende an**, bis nach einer Python-Änderung die Suite lief,
-und **warnen** bei Commit/Merge/Tag/Push (nur auf Wunsch), Golden-Daten und Versionsdateien. Ändert sich eine dieser
-Regeln, ändert sich ihre Hook-Datei mit.
+**Hooks blockieren** (Plugin `ce-shared`) Unity und die Unity-CLI auf einem Cube-Escape-Checkout oder ohne
+`--project-path`, nacktes `git stash` (geteilter Stash-Stapel), Force-Push und Teleportieren einer Cloud-Sitzung,
+(hookify) Änderungen von Hand an `output/`; sie **halten das Sitzungsende an**, bis nach einer Python-Änderung die
+Suite lief, und **warnen** bei Commit/Merge/Tag/Push (nur auf Wunsch), Golden-Daten, Versionsdateien und Workflows.
+Ändert sich eine dieser Regeln, ändert sich ihre Hook-Datei mit (gemeinsame im Plugin-Repo, mit Tests).
+**Subagents** (`.claude/agents/`): `cg-test-runner` (Tests nach Stufe, berichtet nur) und `cg-doc-keeper` (Doku auf
+Endstand, nur Markdown) – Befehle und Schreibpfade begrenzt `.claude/agent-guard.json`.
 
 ## Blender-Batch schnell halten (Erfahrungen aus dem Roboter-Generator)
 
