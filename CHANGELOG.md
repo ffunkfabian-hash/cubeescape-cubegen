@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.23.0 „Wingman“ – unveröffentlicht
+
+* **Agenten-Werkzeuge** (mit Cube Escape 0.56 und dem Roboter-Generator 1.18): Subagents `cg-test-runner` (Tests
+  ausführen und berichten, ändert nichts) und `cg-doc-keeper` (Doku auf Endstand, nur Markdown) in `.claude/agents/`,
+  Werkzeuge je Agent in `.claude/agent-guard.json`. Gemeinsames Plugin `ce-shared` (privates Repo
+  `ffunkfabian-hash/ce-agent-tools`): Force-Push, nacktes `git stash`, Unity auf Checkouts und GitHub Actions kommen
+  von dort statt aus eigenen hookify-Dateien. Generator und Ausgabe unverändert.
+  Bericht: [VERSION_0.23.0.md](VERSION_0.23.0.md).
+
 ## 0.21.3 „Monolith“ – 2026-10-14
 
 * **GitHub Actions sparsam:** Nach 14 Tagen Oktober waren 90 % der 2.000 Freiminuten verbraucht (rund 40 min je Lauf
