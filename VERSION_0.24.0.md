@@ -1,7 +1,6 @@
 # Cubegen 0.24.0 – Primer
 
-*ungeprüft: Blender-/Unity-Abnahme offen* – Stufe 1 in der Cloud (Blender 5.2 als bpy-Modul, ImageMagick 6); offen
-sind die Sichtprüfung, `tools/unity_check.py --require` und der Import in der Cube-Escape-Testkopie (unten).
+*abgenommen (Stufe 2, lokal am 14. Oktober 2026)* – Prüfung siehe „Abnahme (Stufe 2)“.
 
 Unveröffentlicht; vorherige Version [0.23.0](VERSION_0.23.0.md).
 Zuarbeit für Cube Escape 0.57 „Undercoat“, Phase 3 „Anstrich“ (Cube Escape `Docs/MATERIALS.md` › „Zuarbeit für
@@ -111,11 +110,36 @@ Hinweis übersprungen.
   Vision-Bericht (nur macOS), PNG-Define (nur ImageMagick 7), echter Unity-Check (`CUBEGEN_UNITY_CHECK=1`),
   2048-px-Kiste (`CUBEGEN_SLOW_TESTS=1`).
 
-## Vor dem Merge noch offen (Stufe 2, lokal)
+## Abnahme (Stufe 2)
 
-- Volle Suite mit Blender-App und ImageMagick 7 ohne übersprungene Tests.
-- Echte Exporte mit `--paint` (mehrere Themen, eigenes Thema), `MTN_`-Karten ansehen (Kanäle einzeln), Kontaktbogen.
-- `python3 tools/unity_check.py --require` gegen Cube Escape (liest Vertrag 2): `neutral` muss mit Vertrag 3
-  abgelehnt und mit Vertrag 2 angenommen werden; die übrigen Prüfsätze unverändert grün. Die Ablehnungserkennung
-  (Modellnamen in Ausgabe/Log) ist ohne Unity nur an Textbeispielen getestet.
-- Sobald Cube Escape die acht Materialien in der `MaterialLibrary` hat und Vertrag 3 liest: `neutral` als echter Import.
+Lokal auf dem Mac (Apple M5, Blender 5.2.2 LTS, ImageMagick 7.1.2, Python 3.12), Stand `c3e07fc`:
+
+- **Volle Suite** `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full`: 381 Tests grün
+  (models 41, quality 12, params 38, rest 290), darunter der echte Unity-Lauf, die 2048-px-Kiste, der Vision-Bericht und
+  der PNG-Vergleich mit ImageMagick 7. Das System-Python hat kein numpy (13 übersprungen in `rest`) – die Gruppe mit
+  Blenders Python 3.13 (numpy 2.3.4) wiederholt: `rest` 290 Tests grün, **keiner übersprungen**.
+- **Unity-Check** `tools/unity_check.py --require` gegen Cube Escape `e09bea82` (0.57.0, Vertrag Version 2):
+  **10 Prüfsätze, 270 Modelle bestanden**, alle Prüfsätze außer `neutral` 0 abgelehnt / 0 Fehler, Laufzeitpfad 187 GLB:
+  179 angenommen, 8 mit nicht unterstütztem Verhalten, 0 fehlgeschlagen (wie 0.22/0.23). `neutral`: für Vertrag 3
+  geschrieben lehnt der echte Import **alle 8 Modelle** ab – Grund im Unity-Ergebnis je Modell „Unbekannte Angabe:
+  paint“ (Cube Escapes Vertragsprüfung kennt den Wurzelschlüssel von Version 3 nicht), also die Vertragsprüfung und
+  kein Absturz; für Vertrag 2 geschrieben 8 angenommen (2 Gameplay, 6 statisch, 0 Fehler).
+- **Echte Exporte** Seed 24, `vending_machine`, `hologram`, `floodlight`, `crate`, `test_wall_modules`,
+  `crystal_cluster` mit `--paint dark`, `organic`, `crystal` und `--paint-file paints/custom_example.json`
+  (`rust_bucket`), dazu `vending_machine` mit Seed 23 (drei Gewichtsgruppen, `W2`) in denselben vier Themen:
+  `tools/paint_reference.py <Lauf> --check` **bitgleich** in allen 28 Fällen (24 + 4 mit `W2`). `MTN_`-Karten kanalweise
+  angesehen (Verkaufsautomat mit `W2`): W0/W1 RGB Gewichte, A Rauschen bzw. Detail; W2 nur R belegt (`M_Warning`),
+  A = 1; Fields AO, Kante, oben, Höhenverlauf; Normale unauffällig. Die Gewichte summieren sich an Inselrändern auf
+  weniger als 1 – `compose` teilt durch die Abdeckung, das Ergebnis bleibt bitgleich. Kontaktbögen der vier Themen
+  zeigen die erwarteten Farben.
+- **20 Typen mit neuen Materialnamen** (Seed 230, ohne Anstrich) mit 0.23.0 (`main` `8292024`) und 0.24.0 erzeugt:
+  alle 20 Vorschaubilder und der Kontaktbogen **pixelgleich** (`magick compare -metric AE -fuzz 1%`: 0 Pixel); die
+  Sidecars nennen `M_Crystal` nicht mehr. Die Sichtprüfung im Blender-Plugin war nicht möglich (Blender lief nicht mit
+  dem MCP-Add-on); der Pixelvergleich ersetzt sie.
+- Import und Kollision in der Cube-Escape-Testkopie über den Unity-Check; keine neuen Typen und kein neues Verhalten,
+  daher keine eigene Physikprüfung.
+
+## Offen
+
+- Sobald Cube Escape die acht Materialien in der `MaterialLibrary` hat und Vertrag 3 liest: `neutral` als echter Import
+  (Cube Escape, Materialsystem Phase 3).
