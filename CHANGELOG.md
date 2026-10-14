@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.2 „Monolith“ – 2026-10-14
+
+* Test der Kiste mit Kacheln: ImageMagick 6 (GitHub-Runner) schreibt zwei sonst bytegleiche Karten verschieden –
+  9 statt 8 Texturen; der Test verlangt 8 nur mit ImageMagick 7, das Budget immer. Ausgabe unverändert.
+  Bericht: [VERSION_0.21.2.md](VERSION_0.21.2.md).
+
 ## 0.21.1 „Monolith“ – 2026-10-14
 
 * **Texturbudget der Werkbank wie Cube Escape 0.51** (`CubegenTextures`): jede verschiedene (Rolle, Bildinhalt)
