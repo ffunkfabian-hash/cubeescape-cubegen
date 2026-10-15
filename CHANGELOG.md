@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.1 „Stockpile“ – 2026-10-15
+
+Nur Doku: `AGENTS.md` (in jeder Sitzung geladen) von 462 auf 281 Zeilen; Code, Geometrie, Materialien und Sidecars
+bleiben wie in 0.26.0 (bis auf die Versionsangabe). Bericht: [VERSION_0.26.1.md](VERSION_0.26.1.md).
+
+* **`AGENTS.md` kürzer:** Versionsliste (steht im Changelog), Messwerte, Begründungen und lange Beispiele aus „Leistung und
+  Grenzen“, „Blender-Batch schnell halten“, „Gemeinsamer Cache“, „Variantensets“, „Anstriche“, „macOS-App“, Unity-Check
+  (schwerer Lauf, Neural Engine) und GitHub Actions stehen jetzt in `docs/CLI.md` › 16 „Entwicklerhintergrund“; in
+  `AGENTS.md` bleiben die Regeln und je ein Verweis (16.x).
+
 ## 0.26.0 „Stockpile“ – 2026-10-15
 
 Cache, Werkzeuge und CI; Geometrie, Materialien und Sidecars bleiben wie in 0.25.0 (bis auf die Versionsangabe).
