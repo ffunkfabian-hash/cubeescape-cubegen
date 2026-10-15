@@ -1,6 +1,6 @@
 # Cubegen 0.25.0 – Quartermaster
 
-Unveröffentlicht; Zweig `release/0.25.0`; vorherige Version [0.24.0](VERSION_0.24.0.md).
+Veröffentlicht am 15. Oktober 2026; Release-Zweig `release/0.25.0`; vorherige Version [0.24.0](VERSION_0.24.0.md).
 Test- und Cache-Werkzeuge (Python). Geometrie, Materialien, Texturen und Sidecars bleiben wie in 0.24.0 – nur die
 Versionsangabe im Sidecar ändert sich (Nachweis unten). Lehren aus dem Roboter-Generator 1.20.2 (am selben Tag, selber
 Rechner): ein Cache je Checkout macht jeden neuen Worktree kalt, absolute Pfade in Schlüsseln verhindern die
@@ -82,7 +82,7 @@ lesen und füllen nie den Cache des Rechners, ein warmer Cache verdeckt keinen k
 | `python3 tools/run_tests.py --tier full` | 0.24.0 | 0.25.0 |
 |---|---|---|
 | Dauer | 127 s | 91 s |
-| Tests | 381 | 407 (26 neu) |
+| Tests | 381 | 407 (26 neu; 408 mit dem späteren Vergleichsbild-Test) |
 | übersprungen | 15 (13 numpy, 2 Opt-in) | 2 (nur Opt-in, mit Grund) |
 
 ## 3. Ein schwerer Lauf zur Zeit
@@ -103,4 +103,39 @@ ist.
 
 ## Prüfung
 
-ABNAHME_PLATZHALTER
+Lokal auf dem Mac (Apple M5, Blender 5.2 LTS, ImageMagick 7.1.2, Python 3.12; numpy-Gruppe Blenders Python 3.13 mit
+numpy 2.3.4), Cube Escape `a228d7d3` (0.59 „Turnstile“, Vertrag Version 2):
+
+- **Volle Suite** `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full`: **408 Tests grün,
+  0 übersprungen** (models 41, quality 12, params 38, pipeline 13, numpy 34, rest 270), 170 s samt echtem Unity-Lauf
+  und 2048-px-Kiste. Golden- und Digest-Tests (`test_golden`, `test_quality`) unverändert grün. Ohne die beiden Opt-ins
+  407 Tests, 2 übersprungen (genau diese, mit Grund).
+- **Neue Tests** (`tests/test_release_0250.py`, 27): Wiederverwendung in einem zweiten Ordner und in einem zweiten
+  Checkout (Paketkopie, eigener Prozess; zweiter Lauf ohne ImageMagick-Aufruf), Icons/Kontaktbogen/Set-Reihe aus dem
+  Cache trotz neu gerenderter Vorschauen (Blender), relative Pfade und Umzug des Ordners, Lesen von Format 1,
+  `--force`, kaputter Inhalt, sechs gleichzeitige Schreiber (155 Einträge, alle ganz, keine Temp-Reste),
+  Kürzungsreihenfolge (am längsten unbenutzt zuerst, Treffer frischt auf, nichts unter zwei Stunden, geteilte Inhalte
+  bleiben), Übernahme alter Caches (verifiziert, geänderte Datei bleibt zurück, anderer Bildcode nichts, einmal je
+  Cache), Bildcode-Hülle, Sperre für schwere Läufe (Warten mit Halteranzeige, nicht vererbt trotz laufendem Kind,
+  `CE_HEAVY_LOCK=0`, `CE_HEAVY_HELD=1`, Datei wird angelegt), numpy-Gruppe und Überspringgründe.
+- **Echte Exporte zweimal:** Bau-Kit (26 Modelle, Kacheltexturen) und Anstrich (4 Modelle) je dreimal in frische Ordner
+  zweier frischer Worktrees – 0.25.0 nahm ab dem ersten Lauf alles aus dem gemeinsamen Cache (`textures from the shared
+  cache`, `shared cache: 41 image(s) copied`, `icons: 0 new, 26 reused`); Zeiten oben.
+- **Bytegleich zu 0.24.0** (gleiche Eingaben, 0.25.0 einmal kalt mit leerem Cache, einmal warm): alle Texturen,
+  `CubeEscape_Textures.json`, `materials.png`, der Kontaktbogen, die gebackenen `MTN_`/`MTP_`/`Neutral`-Karten
+  **bytegleich**; Sidecars bis auf `"generator": "cubegen 0.25.0"` gleich (30 von 30); Icons, Set-Reihen und Vorschauen
+  **pixelgleich** (`compare -metric AE` 0) – ihre Bytes unterscheiden sich wie zwischen zwei 0.24-Läufen (Blenders
+  Renderstempel, die ImageMagick übernimmt). FBX knotenweise verglichen (`cubegen.fbxread`): Unterschiede nur in
+  Zeitstempel, Dokument-ID, Objekt-IDs, Verbindungen und absoluten Texturpfaden – dieselben wie zwischen zwei
+  0.24-Läufen in verschiedene Ordner; Geometrie, Transformationen und Materialwerte gleich.
+- **Unity-Check** `python3 tools/unity_check.py --require --quick`: **bestanden, 3 Prüfsätze, 40 Modelle**, 0 abgelehnt /
+  0 Fehler; `neutral` mit Vertrag 3 lehnt der Import alle 8 wie erwartet ab, mit Version 2 nimmt er sie an. Sperre frei
+  (0 s gewartet). Die Vergleichsbilder der Anstrich-Prüfsätze entstehen jetzt mit Blenders Python (vorher „übersprungen:
+  numpy fehlt“).
+- Keine neuen Typen, kein neues Verhalten, keine Änderung an Geometrie oder Kollision – keine eigene Physikprüfung.
+
+## Offen
+
+- Blender-Ergebnisse (Backen, Exporte) gemeinsam cachen – ROADMAP; beim Anstrich der größte Teil eines frischen Laufs.
+- Die Übernahme alter Caches fand auf diesem Rechner nur einen Ordner von 0.18.0 (anderer Bildcode, nichts übernommen);
+  ab jetzt füllen alle Checkouts denselben Cache.

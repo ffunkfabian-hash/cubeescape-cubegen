@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.25.0 „Quartermaster“ – unveröffentlicht
+## 0.25.0 „Quartermaster“ – 2026-10-15
 
 Test- und Cache-Werkzeuge; Geometrie, Materialien und Sidecars bleiben wie in 0.24.0 (bis auf die Versionsangabe).
 Bericht: [VERSION_0.25.0.md](VERSION_0.25.0.md).

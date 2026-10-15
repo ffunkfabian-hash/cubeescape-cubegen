@@ -50,9 +50,9 @@ Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube
 GitHub Actions sparsam);
 und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
 für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
-`ce-shared`) und 0.24.0 „Primer“ (14. Oktober 2026, `VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
-Materialnamen im Vertrag Version 3, Vergleichsbilder) sind veröffentlicht. 0.25.0 „Quartermaster“
-(`VERSION_0.25.0.md`: gemeinsamer Cache, numpy-Tests ohne Auslassen, Sperre für schwere Läufe) ist in Arbeit.
+`ce-shared`), 0.24.0 „Primer“ (14. Oktober 2026, `VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
+Materialnamen im Vertrag Version 3, Vergleichsbilder) und 0.25.0 „Quartermaster“ (15. Oktober 2026,
+`VERSION_0.25.0.md`: gemeinsamer Cache, numpy-Tests ohne Auslassen, Sperre für schwere Läufe) sind veröffentlicht.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.

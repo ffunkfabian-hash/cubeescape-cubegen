@@ -178,7 +178,12 @@ def migrate_once(store: Store, log: Callable[[str], None] = print, roots: Option
     if not force and (os.path.isfile(marker) or (roots is None and os.environ.get("CUBEGEN_CACHE"))):
         return None
     folders = find_folders(roots if roots is not None else default_roots())
-    results = [migrate_folder(f, store, log) for f in folders]
+    results = []
+    for folder in folders:
+        try:
+            results.append(migrate_folder(folder, store, log))
+        except OSError as exc:  # a full or read-only cache disk never fails the run that triggered this
+            results.append({"folder": folder, "migrated": 0, "skipped": 0, "reason": str(exc)})
     summary = {"format": 1, "at": time.strftime("%Y-%m-%d %H:%M:%S"), "folders": results}
     try:
         atomic_write(marker, json.dumps(summary, indent=1).encode("utf-8"))
