@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.25.0 „Quartermaster“ – 2026-10-15
+
+Test- und Cache-Werkzeuge; Geometrie, Materialien und Sidecars bleiben wie in 0.24.0 (bis auf die Versionsangabe).
+Bericht: [VERSION_0.25.0.md](VERSION_0.25.0.md).
+
+* **Gemeinsamer Cache:** Texturen, Icons, Kontaktbogen, Set-Reihen und Material-Übersicht liegen inhaltsadressiert in
+  `~/Library/Caches/Cubegen/cache` (Linux `$XDG_CACHE_HOME/cubegen/cache`) – ein neuer Ausgabeordner oder Worktree, die
+  App und der Unity-Check bekommen sie von dort. `CUBEGEN_CACHE` verlegt (`0`: aus), `CUBEGEN_CACHE_LIMIT_GB` begrenzt
+  (Standard 4, am längsten Unbenutztes zuerst, nichts aus den letzten zwei Stunden). Atomare Schreibvorgänge, keine
+  absoluten Pfade in Schlüsseln (der Texturordner fiel heraus), Bildschlüssel hängen am Bildcode statt am ganzen
+  Generator, Vorschauen zählen mit ihrem Bildinhalt (Blenders Renderstempel). `.cubegen_cache.json` Format 2 mit
+  relativen Pfaden. Einmalige Übernahme der Caches von 0.24.0; `python3 -m cubegen cache` (`--prune`, `--migrate`).
+* **Tests ohne Auslassen:** `tools/run_tests.py` führt die Module mit numpy in einer eigenen Gruppe mit einem Python aus,
+  das numpy hat (auf dem Mac Blenders), nennt die Interpreter und jeden übersprungenen Test mit Grund; eigene Gruppe
+  `pipeline`; jeder Lauf mit eigenem, frischem Cache.
+* **Ein schwerer Lauf zur Zeit:** `tools/unity_check.py` wartet vor Unity auf Cube Escapes Sperre
+  `~/Library/Caches/CubeEscape/heavy-run.lock` (Cube Escape 0.59), zeigt den Halter, vererbt sie nie;
+  `CE_HEAVY_LOCK=0` überspringt.
+* `AGENTS.md`: Abschnitte „Gemeinsamer Cache“ und „Aufträge an andere Sitzungen“ (Vorlage), Sperre beim Unity-Check.
+
 ## 0.24.0 „Primer“ – 2026-10-14
 
 Zuarbeit für Cube Escape 0.57 Phase 3 „Anstrich“ (Cube Escape `Docs/MATERIALS.md`, Punkte 2, 3, 4, 6, 7).

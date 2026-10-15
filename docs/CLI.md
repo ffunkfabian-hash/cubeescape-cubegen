@@ -429,11 +429,19 @@ Textur-Einstellungen, Blender-Version und der cubegen-Code selbst. Unveränderte
 Änderungen vorliegen; beim reinen OBJ-Export werden unveränderte Meshes ebenfalls übernommen. `--force` baut
 alles neu.
 
-Auch die Bilder entstehen nur bei Bedarf neu: Kacheltexturen, Icons, Kontaktbogen und Material-Übersicht werden
-übernommen, wenn ihre Eingaben gleich sind und die Dateien noch genau so auf der Platte liegen
-(`textures unchanged`, `icons: 0 new, 6 reused`). Die Schlüssel stehen in `.cubegen_cache.json` im Ausgabe- und im
-Texturordner (Unity übergeht Dateien mit Punkt). Alle PNG-Dateien sind bei gleicher Eingabe bytegleich – ImageMagick
-schreibt keine Zeitstempel hinein.
+Auch die Bilder entstehen nur bei Bedarf neu: Kacheltexturen, Icons, Kontaktbogen, Set-Reihen und Material-Übersicht
+werden übernommen, wenn ihre Eingaben gleich sind und die Dateien noch genau so auf der Platte liegen
+(`textures unchanged`, `icons: 0 new, 6 reused`). Welche Dateien im Ordner aktuell sind, steht in `.cubegen_cache.json`
+im Ausgabe- und im Texturordner (Pfade relativ; Unity übergeht Dateien mit Punkt). Alle PNG-Dateien sind bei gleicher
+Eingabe bytegleich – ImageMagick schreibt keine Zeitstempel hinein.
+
+**Gemeinsamer Cache (seit 0.25.0):** Was ein Lauf an Bildern erzeugt, liegt zusätzlich inhaltsadressiert in
+`~/Library/Caches/Cubegen/cache` (Linux `$XDG_CACHE_HOME/cubegen/cache`) – ein neuer Ausgabeordner, ein neuer Worktree
+oder die App bekommen dieselben Bilder von dort (`textures from the shared cache`, `shared cache: 41 image(s) copied`),
+statt ImageMagick laufen zu lassen. `CUBEGEN_CACHE=<Ordner>` verlegt ihn, `CUBEGEN_CACHE=0` schaltet ihn ab,
+`CUBEGEN_CACHE_LIMIT_GB` begrenzt ihn (Standard 4; am längsten Unbenutztes geht zuerst, nichts aus den letzten zwei
+Stunden). `python3 -m cubegen cache` zeigt Ort und Größe, `--prune` kürzt sofort, `--migrate DIR` übernimmt die
+Bilder eines Ausgabeordners von 0.24.0. Exporte, Vorschauen und gebackene Karten (Blender) bleiben ordnergebunden.
 
 **Parallel:** Ohne `--jobs` (oder mit `--jobs auto`) entscheidet cubegen selbst: bis Kerne − 1 Blender-Prozesse, aber
 nur so viele, wie sich lohnen – jeder soll mindestens 2 s Arbeit bekommen (ein Start kostet etwa 0,6 s). Beim Backen

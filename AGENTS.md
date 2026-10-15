@@ -50,8 +50,9 @@ Korrekturen 0.21.1 (14. Oktober 2026, `VERSION_0.21.1.md`: Texturbudget wie Cube
 GitHub Actions sparsam);
 und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
 für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
-`ce-shared`) sind veröffentlicht. 0.24.0 „Primer“ (`VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
-Materialnamen im Vertrag Version 3, Vergleichsbilder) ist in Arbeit.
+`ce-shared`), 0.24.0 „Primer“ (14. Oktober 2026, `VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
+Materialnamen im Vertrag Version 3, Vergleichsbilder) und 0.25.0 „Quartermaster“ (15. Oktober 2026,
+`VERSION_0.25.0.md`: gemeinsamer Cache, numpy-Tests ohne Auslassen, Sperre für schwere Läufe) sind veröffentlicht.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -108,7 +109,9 @@ Blender-App mit GPU, Blender-Plugin, `unity_check.py` und die macOS-App gibt es 
 - Stufe 1 reicht als Abschluss **nur für Doku oder Werkzeuge ohne Einfluss auf die Ausgabe**. Bei Generator-Code,
   Geometrie, Kollision, Materialien/Texturen, Sidecar/Vertrag oder Add-on ist sie ein Vorab-Stand: Der Bericht endet
   **immer** mit dem ausgefüllten Prompt für den lokalen Test (Vorlage unten) als kopierbarem Codeblock.
-- **Stufe 2 „abgenommen“** (lokal): volle Python-Suite **mit** Blender und ImageMagick (keine übersprungenen Tests),
+- **Stufe 2 „abgenommen“** (lokal): volle Python-Suite **mit** Blender und ImageMagick (keine übersprungenen Tests:
+  `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full`; die numpy-Module laufen mit
+  einem Python, das numpy hat – `run_tests.py` nimmt selbst Blenders Python und nennt die Interpreter),
   echte Exporte der geänderten Typen, Sichtprüfung (Kontaktbogen, Blender-Plugin), **`python3 tools/unity_check.py
   --require`** (feste Prüfsätze durch den echten Import von Cube Escape, Ergebniszeile in den Versionsbericht), bei
   neuen Typen oder Gameplay zusätzlich die geänderten Typen und die Physik in der Cube-Escape-Testkopie (Skill
@@ -191,6 +194,13 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   (`CubegenRealGenerationTests`). Etwa 3 min; `--quick` nur Bau-Kit und Anstrich. Prüfsätze nur bewusst ändern
   (Ergebnisse bleiben vergleichbar); ein neues Merkmal bekommt seinen Prüfsatz. Ohne Cube-Escape-Checkout meldet es
   „übersprungen“ (`--require`: Fehler).
+  **Ein schwerer Lauf zur Zeit** (seit 0.25.0, Vertrag mit Cube Escape 0.59 „Turnstile“, `Tools/heavy_lock.py` dort):
+  vor dem ersten Unity-Start wartet der Check auf die Sperre des ganzen Rechners – exklusives `flock` auf
+  `~/Library/Caches/CubeEscape/heavy-run.lock` (fehlt die Datei, legt er sie an; nie löschen) – und hält sie bis zum
+  letzten Prüfsatz (`HeavyLock` in `tools/unity_check.py`). Ein Wartender druckt den Halter (JSON-Zeile `{"pid",
+  "what", "checkout", "since"}`, schreibt der Halter hinein) und meldet sich alle fünf Minuten. Der Deskriptor wird
+  nie vererbt (`O_CLOEXEC`), Kinder bekommen `CE_HEAVY_HELD=1` (Cube Escapes Schritte darunter warten nicht auf
+  ihren Elternprozess); `CE_HEAVY_LOCK=0` überspringt die Schlange. Der Vertrag ändert sich nur gemeinsam mit Cube Escape.
 - **GitHub Actions:** Job `test` (eine Python-Version je Job, alle Gruppen parallel, Stufe `standard`) und Job
   `blender` (neueste Blender-LTS der Reihe, Matrix `series`, nur die Testmodule mit Blender). Minuten sparen: siehe
   „GitHub Actions sparsam“.
@@ -267,8 +277,9 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
   `timings.overlap` nennt solche Stufen, ihre Zeiten sind dann nicht addierbar.
 - **Bytegleiche Bilder sind die Voraussetzung für jeden Cache.** Jeder ImageMagick-Aufruf läuft mit
   `imagemagick.REPRODUCIBLE` (`-define png:exclude-chunks=date,time`); `cubegen/cache.py` übernimmt Texturen, Icons,
-  Kontaktbogen und Material-Übersicht nur, wenn Eingabeschlüssel und Datei-Hashes stimmen. Neue Bildschritte nutzen
-  denselben Cache; ein Test erzeugt zweimal und vergleicht die Bytes.
+  Kontaktbogen, Set-Reihen und Material-Übersicht nur, wenn Eingabeschlüssel und Datei-Hashes stimmen – aus dem
+  eigenen Ordner oder aus dem gemeinsamen Cache (Abschnitt unten). Neue Bildschritte nutzen denselben Cache; ein Test
+  erzeugt zweimal und vergleicht die Bytes.
 - **Zeiten messen statt schätzen:** Das Manifest trägt `timings` mit Budget je Stufe (`STAGE_BUDGETS`); eine neue
   Stufe bekommt ein Budget aus einer Messung. Nach Code-Änderungen `python3 tools/run_tests.py --tier quick`
   (rund 30 s), vor dem Release die volle Suite.
@@ -289,6 +300,48 @@ parallele Unity-/Blender-Läufe anderer Agenten verlangsamen um das Zwei- bis F�
 - **Die Neural Engine nutzt Blender nicht** (nur über Core ML erreichbar); Metal verteilt GPU-Arbeit selbst auf alle
   GPU-Kerne. Geprüft in 0.14.2: Vision-Merkmalsvergleiche taugen nicht als Prüfschranke (je Gerät andere Werte,
   trennen Fehler nicht besser als ein exakter Pixelvergleich); höchstens als Hinweiswerkzeug mit Zeitregel (ROADMAP).
+
+## Gemeinsamer Cache (seit 0.25.0, Erfahrungen aus dem Roboter-Generator 1.20)
+
+Ein Cache je Ausgabeordner machte jeden neuen Worktree und Ordner kalt. Seit 0.25.0 liegt der inhaltsadressierte
+Teil an **einer** Stelle für Haupt-Checkout, Worktrees, App und `unity_check.py`: `~/Library/Caches/Cubegen/cache`
+(Linux `$XDG_CACHE_HOME/cubegen/cache`, sonst `~/.cache/…`), `CUBEGEN_CACHE=<Ordner>` verlegt ihn, `CUBEGEN_CACHE=0`
+schaltet ihn ab. `python3 -m cubegen cache` zeigt Ort und Größe (`--prune`, `--migrate DIR`).
+
+- **Was wohin:** `objects/<ab>/<sha256>` Dateiinhalte, `entries/<ab>/<Schlüssel>.json` Schlüssel → Rollen und Daten;
+  im Ausgabeordner bleibt nur, was an den Ordner gebunden ist (`.cubegen_cache.json` Format 2: welche Dateien dort
+  aktuell sind, Pfade relativ). `--force` verwendet nichts wieder, trägt aber ein (wie bisher).
+- **Schlüssel nur aus Eingaben, nie aus Pfaden:** kein absoluter Pfad in Schlüssel oder Einträgen (0.24 hatte den
+  Texturordner im Schlüssel). Der Code-Anteil ist der Hash des Bildcodes (`pipeline.image_code`: `imagemagick`,
+  `textures` und was sie importieren – eine Änderung anderswo im Generator lässt den Cache warm); ImageMagick-
+  Argumente, die in `pipeline.py` stehen, gehören selbst in den Schlüssel (`SET_ROW_*`). Vorschauen zählen mit ihrem
+  Bildinhalt (`png_content_hash`): Blender stempelt Datum und Renderzeit hinein.
+- **Atomar schreiben** (Temp-Datei im selben Ordner, dann umbenennen), Inhalte vor dem Eintrag; ein kaputter Inhalt
+  erreicht nie einen Ausgabeordner (Hash beim Kopieren geprüft). Ein Fehler des Cache-Laufwerks bricht keinen Lauf ab.
+- **Größe:** `CUBEGEN_CACHE_LIMIT_GB` (Standard 4); höchstens stündlich wird gekürzt, am längsten Unbenutztes zuerst,
+  nichts aus den letzten zwei Stunden (ein Treffer frischt den Eintrag auf) – kein Schritt löscht, was ein anderer
+  Checkout gerade braucht.
+- **Übernahme alter Caches:** einmal je Cache (`migrated.json`) aus `output/` des Haupt-Checkouts und des eigenen –
+  nur Einträge, deren alter Schlüssel sich aus dem Manifest exakt nachrechnen lässt und deren Generator denselben
+  Bildcode hatte (`migrate.MIGRATABLE`, heute 0.24.0). Ändert sich der Bildcode, Eintrag dort und im Test entfernen.
+- **Nicht im Cache, bewusst:** Blender-Ergebnisse (FBX/GLB/OBJ, Vorschauen, Backen). Das FBX enthält absolute
+  Texturpfade und Zeitstempel (bytegleich nur im eigenen Ordner – dort übernimmt `build_key` wie bisher); gebackene
+  Karten passen nur zu den UVs desselben Exports (Robogen: UVs mitcachen); Vorschauen kosten mit Workbench wenige
+  Zehntelsekunden. Wer das ändert: Schlüssel mit **jeder** Eingabe, UVs und Bilder gemeinsam.
+- **Tests** laufen mit einem eigenen, frischen Cache je `run_tests.py`-Lauf (nie mit dem des Rechners).
+
+## Aufträge an andere Sitzungen
+
+Ein Auftrag an eine andere Sitzung (Cube Escape, Roboter-Generator, eine zweite Cubegen-Sitzung) enthält nur die Aufgabe
+und diese Punkte – kurz, als Liste:
+
+```text
+Art der Änderung: <Generator / Ausgabe / Werkzeug / Test / Doku> – was sich NICHT ändern darf
+Prüfweg: <Tests (Stufe), echte Läufe, Unity-Check, Vergleich gegen Version X>
+Erwartete Unterschiede: <keine (bytegleich) / welche Dateien, welche Felder>
+Release: <ja: Version, Merge, Tag, Push / nein: nur Branch>
+Bericht: Version/Name, Commits/Tag, Messwerte (vorher/nachher, Last), Testzahlen (übersprungen mit Grund), Offenes
+```
 
 ## Variantensets (Variation ohne Wiederholung)
 

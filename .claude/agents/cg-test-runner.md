@@ -17,7 +17,9 @@ nicht, sondern nenne ihn im Bericht.
 1. `git status --short` und `git diff --stat` lesen: Welche Teile sind betroffen (Generator, Add-on, App, Werkzeuge)?
 2. Passende Stufe wählen, wenn der Auftrag keine nennt:
    - beim Arbeiten `python3 tools/run_tests.py --tier quick`, vor „fertig“ `--tier standard` (ohne Blender),
-     vor einem Release `--tier full` (mit Blender und ImageMagick); `--list` zeigt Gruppen und Module.
+     vor einem Release `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full` (mit Blender,
+     ImageMagick und Unity; Ziel 0 übersprungen); `--list` zeigt Gruppen, Module und Interpreter. Die Zusammenfassung
+     nennt jeden übersprungenen Test mit Grund und welches Python die numpy-Gruppe lief.
    - ein Modul gezielt: `python3 -m unittest tests.test_<name> -v`.
    - Unity-Check nur auf Wunsch oder bei Stufe 2: `python3 tools/unity_check.py [--quick|--require]` – er nutzt die
      Testkopie von Cube Escape, nie einen Checkout; die Dauer nennen.
