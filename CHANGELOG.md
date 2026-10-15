@@ -26,6 +26,7 @@ Bericht: [Cubegen 0.30.1](docs/versions/0.30.md#cubegen-0301--common-ground).
 * `--shape smooth|voxel|facet|holes`: abgeleitete Formen mit gleichen Teilen, Collidern und Atlas; Golden- und Unity-Prüfsätze.
 * Vertrag Version 4 (rückwärtskompatibel, `--contract 3` wie bisher): Zonenkarte `textures.zones`, Effektblock `effects`.
 * Versionsberichte neu geordnet: ein Bericht je Hauptversion, ältere im Archiv; `app/notarize.sh` entfernt.
+* Neues Werkzeug `tools/atlas_check.py`: Belegung, Überlappung und Ränder der Atlas-UVs (Atlas ohne Befund).
 Bericht: [Cubegen 0.30](docs/versions/0.30.md).
 
 ## 0.29.0 „Crossflow“ – 2026-10-15
