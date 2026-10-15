@@ -1,6 +1,6 @@
 # Cubegen · verbindliche Arbeitsregeln für KI-Agenten
 
-Langform, Begründungen und Messwerte zu den Abschnitten unten: `docs/CLI.md` › 16 „Entwicklerhintergrund“ (16.x je
+Langform, Begründungen und Messwerte zu den Abschnitten unten: `docs/DEVELOPER.md` (ein Abschnitt je
 Verweis). Versionsgeschichte: `CHANGELOG.md` und `VERSION_<Version>.md`.
 
 ## Passende Kollision für jedes Modell
@@ -53,7 +53,7 @@ Die Regel steht global in `~/.claude/CLAUDE.md` (Codex: `~/.codex/AGENTS.md`) un
 2.000 min im Monat, Budget 0 $ – leer heißt, kein Workflow läuft mehr bis zum Monatsanfang. Kurz: `push` nur auf
 `main`, sonst über den PR; `concurrency` mit `cancel-in-progress`; `paths-ignore` für Doku; wenige volle Jobs; große
 Matrix nur auf Wunsch; `timeout-minutes`; lokal zuerst testen. Hier **ein Job je Lauf** (`.github/workflows/tests.yml`):
-Push auf `main` = `quick`, PR = `full`, „Run workflow“ = `quick`/`standard`/`full`; `app/**` löst nichts aus (16.8).
+Push auf `main` = `quick`, PR = `full`, „Run workflow“ = `quick`/`standard`/`full`; `app/**` löst nichts aus (DEVELOPER.md 8).
 
 ## Versionen, Branches und Worktrees
 
@@ -114,7 +114,7 @@ Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Pu
 Abschlussbericht auf Deutsch: was geändert wurde, wie geprüft (Tests, Anzahl, Ergebnis), Merge-, Tag- und PR-Stand mit Links, was offen ist.
 ```
 
-## Leistung und Grenzen (seit 0.21.0; Begründung 16.1)
+## Leistung und Grenzen (seit 0.21.0; Begründung DEVELOPER.md 1)
 
 - **Ein Renderer, wo es geht:** `--single-renderer` fasst die Mesh-Objekte statischer Modelle zusammen, deren Teile nur
   Optik tragen (`asset.DECORATIVE_PARTS`). Neue Typen: Schmuckteile mit Namen aus der Liste benennen, Teile mit
@@ -153,7 +153,7 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   ansehen, Ansichten rendern. Immer in einer eigenen Szene, nichts speichern – die Quelle bleibt der Generator. Ohne
   laufendes Blender (Cloud, Batch) gilt nur der Batch-Export.
 - **Neural Engine (nur macOS):** `tools/vision_report.py <Ausgabeordner>` ist nur ein Hinweis, entscheidet nie über
-  ausgegebene Varianten und läuft nie im normalen Lauf (16.7).
+  ausgegebene Varianten und läuft nie im normalen Lauf (DEVELOPER.md 7).
 - **Unity-Check** (`tools/unity_check.py`, nur lokal mit Cube Escape und Unity): feste Prüfsätze (Bau-Kit-Sets,
   Zusatzdetails, Gameplay, Anstrich mit Anbauten und Kristallen, eigenes Thema, Kacheln, Schäden, alle Typen als GLB)
   laufen über Cube Escapes `verify.sh` in der Testkopie, nie auf einem Checkout: Editor-Import
@@ -161,7 +161,7 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   nur Bau-Kit und Anstrich. Prüfsätze nur bewusst ändern (Ergebnisse bleiben vergleichbar); ein neues Merkmal bekommt
   seinen Prüfsatz. Ohne Cube-Escape-Checkout „übersprungen“ (`--require`: Fehler). **Ein schwerer Lauf zur Zeit:** vor
   Unity wartet der Check auf `~/Library/Caches/CubeEscape/heavy-run.lock` (nie löschen; `CE_HEAVY_LOCK=0` überspringt;
-  Vertrag nur gemeinsam mit Cube Escape ändern, 16.7).
+  Vertrag nur gemeinsam mit Cube Escape ändern, DEVELOPER.md 7).
 
 ## Plugins und Hooks (Claude Code)
 
@@ -188,7 +188,7 @@ Suite lief, und **warnen** bei Commit/Merge/Tag/Push (nur auf Wunsch), Golden-Da
 **Subagents** (`.claude/agents/`): `cg-test-runner` (Tests nach Stufe, berichtet nur) und `cg-doc-keeper` (Doku auf
 Endstand, nur Markdown) – Befehle und Schreibpfade begrenzt `.claude/agent-guard.json`.
 
-## Blender-Batch schnell halten (Regeln; Messungen und Begründung 16.2)
+## Blender-Batch schnell halten (Regeln; Messungen und Begründung DEVELOPER.md 2)
 
 Gilt für jeden Blender-Batch-Lauf dieses Repos. Messen statt raten (`cProfile` per Wrapper um `main()`, macOS
 `sample <pid> 5`, GPU-Last über `ioreg -r -c IOAccelerator`), Zeiten nur auf ruhiger Maschine vergleichen und die
@@ -208,7 +208,7 @@ Systemlast mitprotokollieren.
   numpy-Kleinkram: `foreach_get("co", …)` in `float32`. Die Neural Engine nutzt Blender nicht.
 - Nach Code-Änderungen `python3 tools/run_tests.py --tier quick` (rund 30 s), vor dem Release die volle Suite.
 
-## Gemeinsamer Cache (seit 0.25.0; Aufbau und Begründung 16.3)
+## Gemeinsamer Cache (seit 0.25.0; Aufbau und Begründung DEVELOPER.md 3)
 
 Ein inhaltsadressierter Cache für Haupt-Checkout, Worktrees, App und `unity_check.py`: `~/Library/Caches/Cubegen/cache`
 (Linux `$XDG_CACHE_HOME/cubegen/cache`); `CUBEGEN_CACHE=<Ordner>` verlegt ihn, `CUBEGEN_CACHE=0` schaltet ihn ab,
@@ -234,7 +234,7 @@ Release: <ja: Version, Merge, Tag, Push / nein: nur Branch>
 Bericht: Version/Name, Commits/Tag, Messwerte (vorher/nachher, Last), Testzahlen (übersprungen mit Grund), Offenes
 ```
 
-## Variantensets (Variation ohne Wiederholung; Einzelheiten 16.4)
+## Variantensets (Variation ohne Wiederholung; Einzelheiten DEVELOPER.md 4)
 
 Teile, die im Level nebeneinander stehen, dürfen nicht gleich aussehen: ein Set sind Varianten mit **gleichem Umriss**
 und **anderem Innenleben** (`--set`, Manifest `sets`).
@@ -247,7 +247,7 @@ und **anderem Innenleben** (`--set`, Manifest `sets`).
   einheitliche Look bleibt Sache des Stils (`--glow`, `--theme`, Anstriche).
 - **Prüfen:** `--set --unique`, Reihenbild `set_<Typ>.png`; Stiltest `tools/style_test.py --row <Typ>@…:5`.
 
-## Anstriche (`--paint`; Einzelheiten 16.5)
+## Anstriche (`--paint`; Einzelheiten DEVELOPER.md 5)
 
 - **Ein neutraler Back, Themen als Daten** (`cubegen/paint.py` `PAINTS`, `SCHEME_KEYS`): neue Themen sind neue Einträge,
   nie ein eigener Back-Pfad. `compose` ist die Referenzformel (auch für den späteren Unity-Shader, ROADMAP ToDo 27).
@@ -259,11 +259,11 @@ und **anderem Innenleben** (`--set`, Manifest `sets`).
   eine Farbe, sondern `a.p.glow()`/`glow_or()`; Leuchtfarben auch in einem echten `--paint`-Lauf prüfen.
 - **Eigenes Thema** (`--paint-file`, `paint.load_scheme`) nie über eine globale Datei; **Anbauten** (`dressing`, eigener
   Zufallsstrom, keine Kollision, nichts unter den Boden) und **`M_Crystal` nur für echten Kristall** (neues Material ans
-  Ende von `MATERIALS`, in den Vertrag, Rückweg in `LEGACY_NAMES`): Einzelheiten 16.5.
+  Ende von `MATERIALS`, in den Vertrag, Rückweg in `LEGACY_NAMES`): Einzelheiten DEVELOPER.md 5.
 - **Prüfen:** `tools/style_test.py --paints all --concept <Konzeptbogen>` und der echte Import in der
   Cube-Escape-Testkopie (`CubegenCliIntegrationTests` mit `CUBEGEN_TEST_EXPORTS`).
 
-## macOS-App (`app/`; Einzelheiten 16.6)
+## macOS-App (`app/`; Einzelheiten DEVELOPER.md 6)
 
 SwiftUI + SceneKit, `swiftc` ohne Xcode-Projekt. **Eine Quelle:** die App startet das mitgelieferte Paket und liest alles
 aus `cubegen catalog`, keine eigenen Listen; ihre Kommandozeile folgt `cubegen/gui.py` (ändert sich dort etwas, ändert

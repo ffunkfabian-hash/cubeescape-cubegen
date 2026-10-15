@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.0 „Fieldbook“ – unveröffentlicht
+
+Nur Doku: der Entwicklerhintergrund zieht aus `docs/CLI.md` › 16 in ein eigenes Doc. Code, Geometrie, Materialien und
+Sidecars bleiben wie in 0.26.1 (bis auf die Versionsangabe). Bericht: [VERSION_0.27.0.md](VERSION_0.27.0.md).
+
+* **`docs/DEVELOPER.md` neu:** Abschnitte 1–8 (vorher CLI.md 16.1–16.8) wörtlich übernommen; `docs/CLI.md` (Bedienung)
+  verlinkt nur noch darauf. Verweise in `AGENTS.md` heißen jetzt „DEVELOPER.md n“.
+
 ## 0.26.1 „Stockpile“ – 2026-10-15
 
 Nur Doku: `AGENTS.md` (in jeder Sitzung geladen) von 462 auf 281 Zeilen; Code, Geometrie, Materialien und Sidecars
