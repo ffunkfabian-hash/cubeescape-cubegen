@@ -131,7 +131,7 @@ Lokal auf dem Mac (Apple M5, Blender 5.2.2 LTS, ImageMagick 7.1.2, Python 3.12; 
 Cube Escape-Checkout `~/Claude/Cube Escape`:
 
 - **Volle Suite** `CUBEGEN_UNITY_CHECK=1 CUBEGEN_SLOW_TESTS=1 python3 tools/run_tests.py --tier full`: **442 Tests grün,
-  0 übersprungen** (models 41, quality 12, params 38, pipeline 13, numpy 34, rest 304), 328 s samt echtem Unity-Lauf
+  0 übersprungen** (models 41, quality 12, params 38, pipeline 13, numpy 34, rest 304), 462 s samt echtem Unity-Lauf
   und 2048-px-Kiste (Unity-Editor des Nutzers lief nebenher). Golden- und Digest-Tests unverändert grün.
 - **Neue Tests** (`tests/test_release_0260.py`, 34): FBX-Umschreiben an einem echten Blender-FBX (`tests/fixtures/
   crate_tiled.fbx`, Pfade neutral) – unverändert bytegleich, nur ganze Pfadteile, 64-Bit-Köpfe, unbekanntes Layout

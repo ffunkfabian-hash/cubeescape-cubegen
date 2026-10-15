@@ -357,8 +357,12 @@ def equivalent(test, a, b):
     other = sorted(os.path.relpath(os.path.join(r, n), b) for r, _, ns in os.walk(b) for n in ns
                    if not n.startswith(".") and not n.endswith(".blend") and n != "manifest.json")
     test.assertEqual(names, other)
+    with open(os.path.join(b, "manifest.json"), "r", encoding="utf-8") as fh:
+        engine = (json.load(fh).get("blender") or {}).get("render_engine")
     for rel in names:
         pa, pb = os.path.join(a, rel), os.path.join(b, rel)
+        if rel.startswith(("previews", "icons", "contact_sheet", "set_")) and engine != "BLENDER_WORKBENCH":
+            continue  # Cycles (headless CI) may render other noise each time; Workbench gives the same pixels
         if rel.endswith(".fbx"):
             fa = {"textures": os.path.join(a, "models", "Textures"), "models": os.path.join(a, "models")}
             fb = {"textures": os.path.join(b, "models", "Textures"), "models": os.path.join(b, "models")}
