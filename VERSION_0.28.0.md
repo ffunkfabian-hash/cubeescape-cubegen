@@ -1,6 +1,6 @@
 # Cubegen 0.28.0 – Clean Slate
 
-Release-Zweig `release/0.28.0` (unveröffentlicht); vorherige Version [0.27.0](VERSION_0.27.0.md).
+Veröffentlicht am 15. Oktober 2026; Release-Zweig `release/0.28.0`; vorherige Version [0.27.0](VERSION_0.27.0.md).
 Nur ein Test; kein Generator-Code, keine Ausgabe geändert – nur die Versionsangabe im Sidecar.
 
 ## Fund
