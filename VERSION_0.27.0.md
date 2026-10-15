@@ -1,6 +1,6 @@
 # Cubegen 0.27.0 – Fieldbook
 
-Release-Zweig `release/0.27.0` (unveröffentlicht); vorherige Version [0.26.1](VERSION_0.26.1.md).
+Veröffentlicht am 15. Oktober 2026; Release-Zweig `release/0.27.0`; vorherige Version [0.26.1](VERSION_0.26.1.md).
 Doku und ein Werkzeug (`tools/unity_check.py`, Sperre für schwere Läufe); keine Ausgabe geändert – nur die
 Versionsangabe im Sidecar.
 
