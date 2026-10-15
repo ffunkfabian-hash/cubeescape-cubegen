@@ -222,7 +222,7 @@ entfernt beides wieder.
 ## Herunterladen (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/cubeescape-cubegen/HEAD/tools/install.sh | bash
 ```
 
 Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),

@@ -89,7 +89,7 @@ einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht er
   Changelog-Eintrag „## <Version> „<Name>“ – unveröffentlicht“.
 - Release (nur auf Wunsch des Nutzers): Datum statt „unveröffentlicht“, Tests grün, `git merge --no-ff` in `main`
   („Cubegen <Version> – Release übernehmen“), Tag `v<Version>`, Push von `main`, `release/<Version>` und Tag.
-  `main` ist der Standard-Branch auf GitHub (ffunkfabian-hash/lowpoly_cubeescape_model_generatior).
+  `main` ist der Standard-Branch auf GitHub (ffunkfabian-hash/cubeescape-cubegen).
 
 Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getrennt nach derselben Regel.
 

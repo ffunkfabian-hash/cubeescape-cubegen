@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Download / update cubegen (CLI + Blender add-on) for macOS and Linux.
 #
-#   curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/cubeescape-cubegen/HEAD/tools/install.sh | bash
 #   bash install.sh [--dir DIR] [--branch BRANCH] [--no-link]
 #
 # Puts the project into ~/cubegen (or DIR), a `cubegen` command into ~/.local/bin, builds the Blender add-on
 # (DIR/dist/cubegen_blender_addon.zip) and checks Blender + ImageMagick. Run it again to update.
 set -euo pipefail
 
-REPO="ffunkfabian-hash/lowpoly_cubeescape_model_generatior"
+REPO="ffunkfabian-hash/cubeescape-cubegen"
 DIR="${CUBEGEN_DIR:-$HOME/cubegen}"
 BRANCH=""
 LINK=1

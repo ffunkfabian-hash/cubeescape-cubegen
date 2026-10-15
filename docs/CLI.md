@@ -9,8 +9,8 @@ Voraussetzungen: **Python ≥ 3.9**, **[Blender](https://www.blender.org/downloa
 **[ImageMagick](https://imagemagick.org)** (macOS: `brew install imagemagick`). Python-Pakete braucht es keine.
 
 ```bash
-git clone https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior.git
-cd lowpoly_cubeescape_model_generatior
+git clone https://github.com/ffunkfabian-hash/cubeescape-cubegen.git
+cd cubeescape-cubegen
 python3 -m cubegen doctor
 ```
 
@@ -24,7 +24,7 @@ Die Desktop-GUI startest du mit `cubegen gui` oder dem installierten Befehl `cub
 Alternativ als Befehl `cubegen` installieren (dann ohne `python3 -m`, aber ohne die Rezepte aus `recipes/`):
 
 ```bash
-pip install "git+https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior.git"
+pip install "git+https://github.com/ffunkfabian-hash/cubeescape-cubegen.git"
 cubegen doctor
 ```
 
