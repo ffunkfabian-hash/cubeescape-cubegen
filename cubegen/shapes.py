@@ -50,6 +50,7 @@ HOLE_MAX = 0.15        # m: the largest hole - nothing (a player capsule, a robo
 HOLE_MIN = 0.06
 HOLE_THIN = 0.12       # m: a plate is at most this thick ...
 HOLE_RATIO = 4.0       # ... and its other two sides at least this many times its thickness, and 8 holes wide
+TOP_STEP = 0.05        # m: the top of a part is matched to this (voxel caps in fine layers, facet vertices added)
 HOLE_LAYER = 0.8       # the single layer of cells is this share of the thickness (bevelled edges stay outside the cells)
 
 Vec = Tuple[float, float, float]
@@ -125,6 +126,45 @@ def _cells(planes, lo: Vec, hi: Vec, cell: Vec, origin: Vec = (0.0, 0.0, 0.0)) -
     return found or None
 
 
+def _top_z(planes, x: float, y: float) -> Optional[float]:
+    """Height of the upper surface of a convex part (outward ``planes``) at (x, y), or None when the part has no
+    surface there (Cyrus-Beck on the vertical line)."""
+    top, bottom = math.inf, -math.inf
+    for n, d, _, _ in planes:
+        rest = d - n[0] * x - n[1] * y
+        if abs(n[2]) < 1e-9:
+            if rest < -EPS:
+                return None
+        elif n[2] > 0:
+            top = min(top, rest / n[2])
+        else:
+            bottom = max(bottom, rest / n[2])
+    if top == math.inf or top < bottom - EPS:
+        return None
+    return top
+
+
+def _cap_layers(cells, planes, cell: float, layers: int):
+    """Fine layers above the top cell of each column: the cells are ``layers`` fine layers high (``cell / layers`` <=
+    ``TOP_STEP``), and above the top cell of a column as many whole fine layers are added as stay inside the part at
+    every corner of the column. The top of the voxel form then lies at most one fine layer (or the slope across one
+    column) under the smooth part instead of up to a whole cell."""
+    fine = cell / layers
+    columns: Dict[Tuple[int, int], int] = {}
+    for ix, iy, iz in cells:
+        if columns.get((ix, iy), iz - 1) < iz:
+            columns[(ix, iy)] = iz
+    out = set()
+    for (ix, iy), iz in columns.items():
+        corners = [_top_z(planes, (ix + a) * cell, (iy + b) * cell) for a in (0, 1) for b in (0, 1)]
+        if any(c is None for c in corners):
+            continue
+        room = min(corners) - (iz + 1) * cell
+        for k in range(max(0, int(math.floor(room / fine + EPS)))):
+            out.add((ix, iy, (iz + 1) * layers + k))
+    return out
+
+
 def _merged_faces(cells: Set[Tuple[int, int, int]], roles: Dict[Tuple[int, int], str], cell,
                   origin: Vec = (0.0, 0.0, 0.0)):
     """Quads ``(corners, role)`` of the surface of ``cells``: faces towards air only, neighbours of one direction and
@@ -185,8 +225,10 @@ def voxelize_part(mesh, part: Part, cell: float):
     if not cells:
         return None
     fallback = Counter(mesh.roles[fi] for fi in part.face_indices()).most_common(1)[0][0]
-    return _merged_faces(cells, _direction_roles(planes, fallback), cell)
-
+    layers = max(1, math.ceil(cell / TOP_STEP - EPS))
+    caps = _cap_layers(cells, planes, cell, layers)
+    fine = {(ix, iy, iz * layers + k) for ix, iy, iz in cells for k in range(layers)} | caps
+    return _merged_faces(fine, _direction_roles(planes, fallback), (cell, cell, cell / layers))
 
 
 def _replace(mesh, replaced: Sequence[Tuple[Part, list]]) -> None:
@@ -268,6 +310,29 @@ def _hull(points: Sequence[Vec]) -> Optional[List[Tuple[int, int, int]]]:
     return faces
 
 
+def _top_deficit(points, triangles, candidates) -> Optional[Vec]:
+    """The candidate vertex that sticks out most above (or beside) the hull ``triangles`` of ``points`` by more than
+    ``TOP_STEP``, or None."""
+    planes = []
+    for a, b, c in triangles:
+        nrm = v_cross(v_sub(points[b], points[a]), v_sub(points[c], points[a]))
+        length = math.sqrt(v_dot(nrm, nrm))
+        if length < 1e-12:
+            continue
+        nrm = (nrm[0] / length, nrm[1] / length, nrm[2] / length)
+        planes.append((nrm, v_dot(nrm, points[a]), 0.0, ""))
+    worst, best = None, TOP_STEP
+    have = set(points)
+    for p in candidates:
+        if p in have:
+            continue
+        top = _top_z(planes, p[0], p[1])
+        gap = math.inf if top is None else p[2] - top
+        if gap > best:
+            worst, best = p, gap
+    return worst
+
+
 def facet_part(mesh, part: Part):
     """Quads of the faceted form of one closed convex part (the hull of a farthest-point subset of its vertices), or
     None when the part stays as it is."""
@@ -294,6 +359,14 @@ def facet_part(mesh, part: Part):
         chosen.append(max((i for i in range(len(unique)) if i not in chosen), key=lambda i: (far[i], -i)))
     points = [unique[i] for i in sorted(chosen)]
     triangles = _hull(points)
+    # Keep the top: add original vertices while one lies more than TOP_STEP above the hull (round tops and rims
+    # must not sink; the hull is inside the part, so only a missing vertex can lower the walkable surface).
+    while triangles:
+        worst = _top_deficit(points, triangles, unique)
+        if worst is None:
+            break
+        points = sorted(set(points) | {worst})
+        triangles = _hull(points)
     if not triangles or len(triangles) >= len(part.face_indices()) * 2:
         return None  # no gain: the part is faceted enough
     fallback = Counter(mesh.roles[fi] for fi in part.face_indices()).most_common(1)[0][0]

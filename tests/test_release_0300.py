@@ -91,7 +91,7 @@ class EffectsTest(unittest.TestCase):
 class DerivedShapeTest(unittest.TestCase):
     """--shape voxel | facet | holes: derived from the finished model, always inside it."""
 
-    FORMS = (("voxel", 30), ("facet", 100), ("holes", 20))
+    FORMS = (("voxel", 30), ("facet", 85), ("holes", 20))  # facet: 94 since 0.30.2 (was above 100; the top-keeping vertices cost some)
 
     def test_smooth_is_the_default_and_changes_nothing(self):
         self.assertEqual(Style().shape, "smooth")
@@ -122,9 +122,9 @@ class DerivedShapeTest(unittest.TestCase):
                 changed += 1
                 self.assertEqual(derived.meta[shapes.META_KEY]["form"], form)
                 (lo, hi), (dlo, dhi) = smooth.bbox(), derived.bbox()
-                for i in range(3):  # (the flush-detail pass lifts a coplanar detail by DECAL_OFFSET, 2 mm, afterwards)
-                    self.assertGreaterEqual(dlo[i], lo[i] - 2.5e-3, label)
-                    self.assertLessEqual(dhi[i], hi[i] + 2.5e-3, label)
+                for i in range(3):  # (the flush-detail pass lifts a coplanar detail by DECAL_OFFSET, 2 mm, in up to 3 passes, afterwards)
+                    self.assertGreaterEqual(dlo[i], lo[i] - 6.5e-3, label)
+                    self.assertLessEqual(dhi[i], hi[i] + 6.5e-3, label)
                 self.assertLessEqual(len(uncovered_geometry(derived, e.pivot)), len(uncovered_geometry(smooth, e.pivot)),
                                      label)
                 cs, cd = check(smooth, e.category, e.pivot), check(derived, e.category, e.pivot)

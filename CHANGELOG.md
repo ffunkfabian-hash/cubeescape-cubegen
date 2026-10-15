@@ -3,6 +3,15 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## 0.30.2 „Lattice“ – unveröffentlicht
+
+* Formen `--shape voxel|facet` behalten die begehbare Oberseite: Voxel setzen über der obersten Zelle Feinschichten (0,05 m) auf,
+  Facetten nehmen Eckpunkte hinzu, bis keiner mehr als 0,05 m über der Hülle liegt (Tank, Ventilator, Turbine sanken um bis zu 1,2 m).
+* Glatte Modelle, Collider, Teile, IDs, Atlas und Dreiecksbudget unverändert; Golden-Werte nur `shape_voxel`/`shape_facet`.
+* Neuer Test `tests/test_release_0302.py`, Unity-Prüfsatz `shape_round`.
+
+Bericht: [Cubegen 0.30.2](docs/versions/0.30.md#cubegen-0302--lattice).
+
 ## 0.30.1 „Common Ground“ – unveröffentlicht
 
 * Nur Werkzeuge und Doku; Generator, Geometrie, Materialien und Sidecars unverändert (bis auf die Versionsangabe).
