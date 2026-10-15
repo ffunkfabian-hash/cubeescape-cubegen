@@ -537,7 +537,8 @@ class ReleaseTest(unittest.TestCase):
         write(os.path.join(root, "blender_addon", "cubegen_addon", "__init__.py"),
               f'bl_info = {{"name": "x", "version": ({major}, {minor}, {patch})}}\n'.encode())
         write(os.path.join(root, "CHANGELOG.md"), f"# Changelog\n\n## {version} „{name}“ – {date}\n\n* x\n".encode())
-        write(os.path.join(root, f"VERSION_{version}.md"), f"# Cubegen {version} – {name}\n\nText.\n".encode())
+        write(os.path.join(root, "docs", "versions", f"{major}.{minor}.md"),
+              f"# Cubegen {major}.{minor} – {name}\n\n## Cubegen {version} – {name}\n\nText.\n".encode())
 
     def run_release(self, *args, cwd=None):
         out = []
@@ -590,8 +591,9 @@ class ReleaseTest(unittest.TestCase):
 
     def test_unreleased_or_unchecked_versions_stop(self):
         write(os.path.join(self.wt, "CHANGELOG.md"), f"## {self.VERSION} „Testpilot“ – unveröffentlicht\n".encode())
-        write(os.path.join(self.wt, f"VERSION_{self.VERSION}.md"),
-              f"# Cubegen {self.VERSION} – Testpilot\n\n*ungeprüft: Blender-/Unity-Abnahme offen*\n".encode())
+        write(os.path.join(self.wt, "docs", "versions", "9.1.md"),
+              f"# Cubegen 9.1 – Testpilot\n\n## Cubegen {self.VERSION} – Testpilot\n\n"
+              "*ungeprüft: Blender-/Unity-Abnahme offen*\n".encode())
         git(self.wt, "commit", "-q", "-am", "draft")
         out = self.failing()
         self.assertIn("hat kein Datum", out)

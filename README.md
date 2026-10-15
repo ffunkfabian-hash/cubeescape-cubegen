@@ -3,18 +3,18 @@
 Aktuelle Version: **0.12.0** (10. Oktober 2026). Release-Zweig: `release/0.12.0`.
 Paket, CLI und Blender-Quell-Add-on verwenden dieselbe Version. 0.12.0 veröffentlicht die bisher
 unveröffentlichten Arbeitsstände 0.11.1–0.11.4: erste Asset-Welle (elf Typen, drei Varianten, genaue
-Kollision der Prototypen, [0.11.2](VERSION_0.11.2.md)), zweite Stationswelle und Kollision des eingestürzten
-Stegs ([0.11.3](VERSION_0.11.3.md)), dritte Stationswelle, sieben Modell-Kits und Modellkorrekturen
-([0.11.4](VERSION_0.11.4.md)) – [Versionsbericht 0.12.0](VERSION_0.12.0.md). Vorheriger veröffentlichter
-Stand: [0.11.0](VERSION_0.11.0.md).
+Kollision der Prototypen, [0.11.2](docs/archive/versions/0.11.md#cubegen-0112--erste-asset-welle-aus-ideenmd-varianten-und-prototyp-kollision)), zweite Stationswelle und Kollision des eingestürzten
+Stegs ([0.11.3](docs/archive/versions/0.11.md#cubegen-0113--zweite-stationswelle-und-vollständige-stegkollision)), dritte Stationswelle, sieben Modell-Kits und Modellkorrekturen
+([0.11.4](docs/archive/versions/0.11.md#cubegen-0114--modellprüfung-und-familien-kits)) – [Versionsbericht 0.12.0](docs/archive/versions/0.12.md#cubegen-0120--stationswellen-modell-kits-und-generation-3-korrekturen). Vorheriger veröffentlichter
+Stand: [0.11.0](docs/archive/versions/0.11.md#cubegen-0110--fragmentkollision-und-unity-integration).
 Die bisher geplanten 0.10.6-Arbeiten sind darin übernommen; historische Nachweise
-stehen im [archivierten Arbeitsbericht](docs/archive/VERSION_0.10.6_WORKING.md).
+stehen im [archivierten Arbeitsbericht](docs/archive/versions/0.10.6_WORKING.md).
 Das Blender-Add-on-ZIP wird mit `python3 tools/build_addon.py` für 0.12.0 gebaut; ein lokal installiertes Add-on
 muss danach neu installiert werden;
 bereits geöffnete Blender-Sitzungen laden den Code nach Neustart/Neuladen.
 Cube Escape enthält den geprüften Stand seit `464717e`, einschließlich der
 sichtbaren Bruch-Testanlage Z-1. Bedienung und Prüfbelege stehen im Versionsbericht.
-Vorherige Version: [0.10.5](VERSION_0.10.5.md).
+Vorherige Version: [0.10.5](docs/archive/versions/0.10.md#cubegen-0105--versions--und-prüfbericht).
 
 Seed-basierter Low-Poly-Asset-Generator für **Cube Escape**. Ein *Master-Seed* erzeugt reproduzierbar ganze Batches
 von Varianten im Stil der Station – Kisten, Kanister, Tanks, Rohre, Maschinen, Generatoren, Konsolen, Terminals,
@@ -1044,4 +1044,4 @@ und 38 geprüfte Anschlüsse enthalten. In Cube Escape sind beliebige Kit-Mitgli
 mit Kategorien und Suche kombinierbar. Die Rezepte bauen keine Level automatisch.
 Pro Kit einen eigenen Texturordner verwenden, damit jeder Materialmanifest seine eindeutige Quelle behält.
 Beispiel: `python3 -m cubegen generate --recipe recipes/kits/lab.json --out output/lab --textures-dir output/lab/Textures`.
-Modellkorrekturen und Prüfstatus: [VERSION_0.11.4.md](VERSION_0.11.4.md).
+Modellkorrekturen und Prüfstatus: [docs/archive/versions/0.11.md](docs/archive/versions/0.11.md#cubegen-0114--modellprüfung-und-familien-kits).

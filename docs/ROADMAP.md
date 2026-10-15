@@ -1,15 +1,15 @@
 # Roadmap
 
-Stand: 14. Oktober 2026, cubegen **0.23.0 „Wingman“** veröffentlicht (Tag `v0.23.0`; [VERSION_0.23.0.md](../VERSION_0.23.0.md):
+Stand: 14. Oktober 2026, cubegen **0.23.0 „Wingman“** veröffentlicht (Tag `v0.23.0`; [archive/versions/0.23.md](archive/versions/0.23.md#cubegen-0230--wingman):
 Subagents, gemeinsames Plugin `ce-shared`); davor 0.22.0 „Beacon“ (Tag `v0.22.0`;
-[VERSION_0.22.0.md](../VERSION_0.22.0.md): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
-davor 0.21.3 „Monolith“ (Tag `v0.21.3`; [VERSION_0.21.0.md](../VERSION_0.21.0.md): ein Renderer,
-Werkbank-Budget, Index, Messbänder; [VERSION_0.21.1.md](../VERSION_0.21.1.md): Texturbudget wie Cube Escape 0.51;
+[archive/versions/0.22.md](archive/versions/0.22.md#cubegen-0220--beacon): Leuchtkarte im Vertrag Version 2, Manifestformat 2 für Cube Escape);
+davor 0.21.3 „Monolith“ (Tag `v0.21.3`; [archive/versions/0.21.md](archive/versions/0.21.md#cubegen-0210--monolith): ein Renderer,
+Werkbank-Budget, Index, Messbänder; [archive/versions/0.21.md](archive/versions/0.21.md#cubegen-0211--monolith): Texturbudget wie Cube Escape 0.51;
 0.21.2/0.21.3: Testkorrektur, GitHub Actions sparsam); davor 0.20.0 „Gatekeeper“ (Unity-Check), 0.19.1 „Kaleidoscope“ (set-fähiges Bau-Kit, Anbauten, Kristalle, Farbwähler, Abwechslung, Prüfwerkzeuge), 0.18.1 „Chameleon“
 (Anstriche auf allen Typen, eigenes Thema), 0.17.0 „Prism“ (Anstriche, Variantensets), 0.16.0 „Overdrive“ (macOS-App) und 0.15.0 „Stoppuhr“. 187 registrierte Typen (davon `test_wall_modules` experimentell), macOS-App unter `app/`.
 Unity-Integrationsphasen 0–5 sind in Cube Escape übernommen (Phase 5: `464717e`, Doku `f11867e`); die Asset-Wellen
-1–3 ([0.11.2](../VERSION_0.11.2.md) bis [0.11.4](../VERSION_0.11.4.md)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
-in [IDEEN.md](../IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
+1–3 ([0.11.2](archive/versions/0.11.md#cubegen-0112--erste-asset-welle-aus-ideenmd-varianten-und-prototyp-kollision) bis [0.11.4](archive/versions/0.11.md#cubegen-0114--modellprüfung-und-familien-kits)) sind mit 0.12.0 veröffentlicht, Inhaltsstatus
+in [IDEEN.md](IDEEN.md). Neue Befunde gehören in den Bericht der laufenden Arbeitsversion; veröffentlichte Berichte
 bleiben historisch. Die ursprünglichen Qualitätszahlen unten stammen aus dem 0.10.0-Abgleich; neue Nachweise stehen in
 den Versionsberichten und im Unity-Systemdoc.
 Jede Liste beginnt mit dem Wichtigsten.
@@ -81,7 +81,7 @@ Alle behoben (0.10.0, siehe [CHANGELOG](../CHANGELOG.md)).
   kostet es mehr Zeit, wird das Feature nicht umgesetzt.
 
 Weitere Punkte aus dem Abgleich mit dem Roboter-Generator, aus Cube Escape und der ImageMagick-Prüfung, umgesetzt in
-0.15.0 (Messwerte in [VERSION_0.15.0.md](../VERSION_0.15.0.md)):
+0.15.0 (Messwerte in [archive/versions/0.15.md](archive/versions/0.15.md#cubegen-0150--stoppuhr)):
 
 - [x] **Backen auf der GPU:** `--bake-device auto|cpu|gpu` (Standard `auto`: GPU ab 1024 px, sonst CPU). Gemessen mit
   zusammengefügter Kopie: 512 px CPU 14 s gegen GPU 19 s (10 Modelle), 1024 px CPU 19 s gegen GPU 10 s, 2048 px CPU 73 s
@@ -107,7 +107,7 @@ kein Cubegen-Material setzt eine transparente Render-Methode. `foreach_get` als 
 Werden Texturvarianten je Palette oder transparente Materialien eingeführt, gelten diese Regeln (AGENTS.md).
 
 Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
-[VERSION_0.16.0.md](../VERSION_0.16.0.md)):
+[archive/versions/0.16.md](archive/versions/0.16.md#cubegen-0160--overdrive)):
 
 - [x] **`--jobs auto` als Standard:** bis Kerne − 1, nur so viele Prozesse, wie sich lohnen; CPU-Backen höchstens 2,
   GPU-Arbeit höchstens 3.
@@ -122,7 +122,7 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
 - [x] **macOS-App** `app/` (0.16.0): erzeugt Modelle wie das Desktop-Fenster, nach dem Vorbild des Robot Viewers;
   Symbole per ImageMagick, Katalog als einzige Quelle, 17 Prüfungen in `app/test_app.sh`.
 - [x] **Stiltest Anstriche** (0.17.0, experimentell): einmal neutral backen, Anstriche als Daten
-  zusammensetzen – Ergebnis und offene Richtungsfragen in [VERSION_0.17.0.md](../VERSION_0.17.0.md).
+  zusammensetzen – Ergebnis und offene Richtungsfragen in [archive/versions/0.17.md](archive/versions/0.17.md#cubegen-0170--prism).
 - [x] **Variantensets** (0.17.0): `--set` – alle Varianten eines Typs behalten die Außenmaße der ersten
   (`OUTLINE_PARAMS`, `Param(size=True)`) und unterscheiden sich innen; Manifest `sets` mit `outline_ok`/`deviation_m`
   und Reihenbild `set_<Typ>.png`; Option auch in App und Desktop-Fenster. Regeln für set-fähige Typen: AGENTS.md ›
@@ -316,7 +316,7 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   Quellen (Torbogen, Träger, Symbolplatten, Pilzteppich, Pfütze): im selben Prüfsatz
   bleiben 15 Quellen. 210 Generator-Tests und acht echte FBX-Importe grün;
   Aussparungen, Bewegung, Pause und insgesamt 30 serialisierte Resets an drei
-  isolierten Profilen geprüft. Details und Abschlussregression in `VERSION_0.11.0.md`.
+  isolierten Profilen geprüft. Details und Abschlussregression in `archive/versions/0.11.md`.
   Alle 15 verbleibenden Quellen nach Ursache untersucht; gezielte Drehprofil-
   Nacharbeit macht Antenne, Kristallsockel und Transformator zusätzlich konvex.
   Im selben Prüfsatz bleiben zwölf Quellen mit verformten Flächen offen.
@@ -334,7 +334,7 @@ Details zu den Mechaniken: [`UNITY_INTEGRATION.md`](UNITY_INTEGRATION.md).
   beliebige Parameter; offene/ungeeignete Netze bleiben statisch. Lokales Blender-
   Add-on und CLI jetzt 0.11.0, alte Exporte benötigen Neugenerierung. Weitere
   Gameplayprofile bleiben eigene Freigaben. Abschlussbelege und Grenzen im
-  [0.11.0-Bericht](../VERSION_0.11.0.md).
+  [0.11.0-Bericht](archive/versions/0.11.md#cubegen-0110--fragmentkollision-und-unity-integration).
   Sichtbare Bruch-Testanlage Z-1 mit zwölf konkreten Profilen ergänzt: je Station
   BRUCH/RESET, Fall über Fangboden, bestehende E/F-Bedienung und V-Ansichtswechsel.
   Alle zwölf Stationen in Iso/Ego zweimal einschließlich Reset nach Cleanup

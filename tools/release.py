@@ -12,8 +12,9 @@ found through ``git worktree list`` (the worktree that has ``main``) - it is nev
 Checks (all of them, also in a dry run; any error stops ``--apply`` before the first change):
 
 - version: the same in ``pyproject.toml``, ``cubegen/__init__.py`` and the add-on's ``bl_info``; ``CHANGELOG.md`` has
-  ``## <version> „<Name>“ – <YYYY-MM-DD>`` (a date, not "unveröffentlicht"); ``VERSION_<version>.md`` exists, is
-  titled ``# Cubegen <version> – <Name>`` and is no longer marked "ungeprüft";
+  ``## <version> „<Name>“ – <YYYY-MM-DD>`` (a date, not "unveröffentlicht"); the report
+  ``docs/versions/<major>.md`` (``<major>`` = the first two numbers, e.g. ``0.30``) has a section
+  ``## Cubegen <version> – <Name>`` that is no longer marked "ungeprüft";
 - branches: the release branch is called ``release/<version>``, its worktree (if any) and the main checkout are clean, ``main`` equals
   ``<remote>/main`` after a fetch (``--no-fetch``: the last known state) and is part of the release branch (the merge
   can't conflict); tag ``v<version>`` exists neither here nor on the remote; a release branch on the remote is
@@ -107,6 +108,21 @@ def versions(cwd: str, branch: str) -> Dict[str, Optional[str]]:
         match = re.search(pattern, show(cwd, branch, rel) or "", re.MULTILINE)
         found[label] = ".".join(match.groups()) if match else None
     return found
+
+
+def report_section(text: str, version: str, name: str) -> list:
+    """The lines of the section ``## Cubegen <version> – <name>`` of a version report (up to the next ``## ``);
+    empty when there is none."""
+    lines, found = text.splitlines(), []
+    start = f"## Cubegen {version} – {name}"
+    for i, line in enumerate(lines):
+        if line.strip() == start:
+            for follow in lines[i + 1:]:
+                if follow.startswith("## "):
+                    break
+                found.append(follow)
+            return found or [""]
+    return []
 
 
 def changelog_entry(text: str, version: str) -> Tuple[Optional[str], Optional[str]]:
@@ -263,12 +279,13 @@ def check(checkout: str, branch: Optional[str] = None, remote: str = "origin", m
         report.check(bool(date), f"CHANGELOG-Datum {date}",
                      f"CHANGELOG.md: {version} hat kein Datum (noch „unveröffentlicht“?) - erst Datum eintragen und "
                      "committen")
-    head = (show(checkout, branch, f"VERSION_{version}.md") or "").splitlines()
-    title = head[0].strip() if head else ""
-    if report.check(title == f"# Cubegen {version} – {plan.name}", f"VERSION_{version}.md: „{title[2:]}“",
-                    f"VERSION_{version}.md fehlt oder hat nicht den Titel „# Cubegen {version} – {plan.name}“"):
-        report.check(not any("ungeprüft" in line for line in head[:6]), f"VERSION_{version}.md ohne Vermerk "
-                     "„ungeprüft“", f"VERSION_{version}.md ist noch als „ungeprüft“ markiert (Stufe 2 fehlt)")
+    report_file = "docs/versions/" + ".".join(version.split(".")[:2]) + ".md"
+    section = report_section(show(checkout, branch, report_file) or "", version, plan.name)
+    if report.check(bool(section), f"{report_file}: Abschnitt „Cubegen {version} – {plan.name}“",
+                    f"{report_file} fehlt oder hat keinen Abschnitt „## Cubegen {version} – {plan.name}“"):
+        report.check(not any("ungeprüft" in line for line in section[:6]), f"{report_file} ohne Vermerk "
+                     "„ungeprüft“", f"{report_file}: Abschnitt {version} ist noch als „ungeprüft“ markiert "
+                     "(Stufe 2 fehlt)")
 
     main_dir = checkout_of(checkout, main)
     plan.main_dir = main_dir or ""

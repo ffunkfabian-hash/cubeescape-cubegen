@@ -20,9 +20,8 @@
         "AGENTS.md",
         "CLAUDE.md",
         "CHANGELOG.md",
-        "IDEEN.md",
-        "VERSION_*.md",
-        "docs/*.md"
+        "docs/*.md",
+        "docs/versions/*.md"
       ],
       "deny_edit": []
     }

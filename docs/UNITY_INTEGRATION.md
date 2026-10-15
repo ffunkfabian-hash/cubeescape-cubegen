@@ -26,7 +26,7 @@ Kamera/Geschütz unterstützen positive und negative Schwenkgeschwindigkeit.
 Bei ausdrücklich gesetztem Speed 0 bleiben aktuelle Generationen stehen; ohne
 Speed-Vorgabe bleibt der historische implizite Sweep mit 30°/s erhalten. Generation 1
 bewahrt die frühere Stillstand-/Sweep-Semantik. Der damalige Korrekturbericht
-steht in `VERSION_0.10.4.md`; aktueller Arbeitsstand: [0.11.0](../VERSION_0.11.0.md).
+steht in `archive/versions/0.10.md`; aktueller Arbeitsstand: [0.11.0](archive/versions/0.11.md#cubegen-0110--fragmentkollision-und-unity-integration).
 
 ## Historischer Aufbau-Prompt
 
@@ -715,7 +715,7 @@ Bruch-/Schaden-/Signal-/Reset-Lebenszyklus, baut Körper einmalig und begrenzt a
 Körper, Shapes und Lebensdauer. Der Draw-Call-Bericht zählt Fragment-Meshes auch im
 Paletten-Modus einzeln. Unity-Abnahme und geprüfte Modellprofile stehen im aktuellen
 `Docs/CUBEGEN_IMPORT.md` von Cube Escape. Alle unmittelbaren Generatorbefunde für
-Phase 5 und kommende Aufträge: [VERSION_0.11.0.md](../VERSION_0.11.0.md).
+Phase 5 und kommende Aufträge: [archive/versions/0.11.md](archive/versions/0.11.md#cubegen-0110--fragmentkollision-und-unity-integration).
 
 Audio-/FX-Anker werden bei verfügbaren Unity-Mechaniken an deren echten Zustand
 gebunden. Dampf, Strom und bewegte Teile dürfen ohne Aktivität weder Loop noch
@@ -778,14 +778,14 @@ in Python konservativ begrenzt; echte FBX-/Unity-Physikprüfungen bleiben erford
 Cube Escape Integrationsphase 4 authoriert 13 konkrete Modellprofile an den vorhandenen
 Gefahren-/Plattform-/Fluid-/Portal-Systemen. Diese Freigabe gilt nur in Cube Escape,
 nicht automatisch für jeden Export desselben Modelltyps. Korrekturen, Regressionen
-und aktueller Prüfstatus stehen in `../VERSION_0.10.5.md`.
+und aktueller Prüfstatus stehen in `archive/versions/0.10.md`.
 
 
 Statische und zerstörte Modelle der Generation 3 erhalten ohne eigenes Shape-Rezept
 nun genaue nichtkonvexe Mesh-Collider pro Teil. Der frühere Gesamthüllen-Rückfall ist
 für neue Exporte damit nicht erforderlich. Vorhandene Exporte werden nicht rückwirkend
 repariert; Generation 1/2 bleiben historisch. Kollisionspflicht und Abnahmekriterien
-für künftige Agenten stehen in `../AGENTS.md`, Befunde in `../VERSION_0.10.5.md`.
+für künftige Agenten stehen in `../AGENTS.md`, Befunde in `archive/versions/0.10.md`.
 
 
 ### Kameraneigung und zerstörte Exportflächen · 0.10.5
@@ -795,7 +795,7 @@ Generation-3-Kastenkameras schauen nach der Vorzeichenkorrektur 15–30° nach u
 bleiben erhalten. Bestehende Vorschauen/Exporte erneut erzeugen und reimportieren.
 Zerstörte Generation-3-Meshes werden beim Blender-Export ausdrücklich trianguliert,
 damit Unity nichtplanare Bruchflächen samt Materialrolle nicht verwirft. Regressionen
-prüfen Blickrichtung, echten FBX und Frakturmaterial im GLB. Prüfbericht: `VERSION_0.10.5.md`.
+prüfen Blickrichtung, echten FBX und Frakturmaterial im GLB. Prüfbericht: `archive/versions/0.10.md`.
 
 
 ## Compound-Bruch und radiale Partition · 0.11.0
@@ -817,7 +817,7 @@ sind kostenpflichtig; keine Laufzeitzerlegung, keine weiteren Rigidbodies und ke
 automatische Gameplay-/Spielerlevel-Freigabe. Import-/Physikbudgets bleiben erhalten.
 Generation 1/2 und bestehende Exporte bleiben historisch; für Korrekturen neu
 exportieren. Das vorhandene Blender-Add-on ist lokal auf 0.11.0 aktualisiert.
-Vollständige Nachweise, Modellkorrekturen und Grenzen: [Versionsbericht](../VERSION_0.11.0.md).
+Vollständige Nachweise, Modellkorrekturen und Grenzen: [Versionsbericht](archive/versions/0.11.md#cubegen-0110--fragmentkollision-und-unity-integration).
 
 
 ### Sichtbare Abnahme in Cube Escape

@@ -1,7 +1,7 @@
 # Cubegen · verbindliche Arbeitsregeln für KI-Agenten
 
 Langform, Begründungen und Messwerte zu den Abschnitten unten: `docs/DEVELOPER.md` (ein Abschnitt je
-Verweis). Techniken des Roboter-Generators und ihr Stand in Cubegen: `docs/TECHNIK.md`. Versionsgeschichte: `CHANGELOG.md` und `VERSION_<Version>.md`.
+Verweis). Techniken des Roboter-Generators und ihr Stand in Cubegen: `docs/TECHNIK.md`. Versionsgeschichte: `CHANGELOG.md` (einzige Übersicht) und die Berichte `docs/versions/<Hauptversion>.md`.
 
 ## Passende Kollision für jedes Modell
 
@@ -34,7 +34,7 @@ Ein erfolgreicher Export oder eine reine Prüfung der Bounds ist kein Physiknach
   Laufzeit-/Physiktests. Kein Unity-Start auf einem Checkout.
 
 Belegte Generatorfehler (Kollision, Geometrie, Export, Sidecar-/Metadaten) sofort beheben. Neue Befunde
-gehören in den Versionsbericht der laufenden Arbeitsversion `VERSION_<Version>.md` (siehe „Versionen,
+gehören in den Versionsbericht der laufenden Arbeitsversion `docs/versions/<Hauptversion>.md` (siehe „Versionen,
 Branches und Worktrees“): Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen. Veröffentlichte
 Berichte bleiben historisch. Diese Regel gilt auch in allen späteren Integrationsphasen.
 
@@ -64,8 +64,9 @@ einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht er
 
 - Version in `pyproject.toml`, `cubegen/__init__.py` und `blender_addon/cubegen_addon/__init__.py` (`bl_info`)
   gemeinsam anheben – `tests/test_versions.py` prüft die Gleichheit samt gebautem Add-on-ZIP.
-- Branch `release/<Version>`, Bericht `VERSION_<Version>.md` mit Titel „Cubegen <Version> – <Name>“ und
-  Changelog-Eintrag „## <Version> „<Name>“ – unveröffentlicht“.
+- Branch `release/<Version>`, Bericht `docs/versions/<Haupt>.md` (`<Haupt>` = die ersten zwei Zahlen, 0.30.0 → `0.30`) mit
+  Titel „# Cubegen <Haupt> – <Name>“ und Abschnitt „## Cubegen <Version> – <Name>“, Changelog-Eintrag
+  „## <Version> „<Name>“ – unveröffentlicht“ (3–5 Zeilen und Link auf den Abschnitt).
 - Release (nur auf Wunsch des Nutzers): Datum statt „unveröffentlicht“, Tests grün, dann `python3 tools/release.py`
   im Release-Worktree (Probelauf, ändert nichts; Prüfliste im Kopf der Datei); `--apply --trailer "Co-Authored-By: …"`
   merged im Haupt-Checkout (`git merge --no-ff`, „Cubegen <Version> – Release übernehmen“), taggt `v<Version>` und
@@ -73,6 +74,17 @@ einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht er
   GitHub (ffunkfabian-hash/cubeescape-cubegen).
 
 Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getrennt nach derselben Regel.
+
+## Versionsberichte (Standard aller Projekte, seit 0.30)
+
+Ein Bericht je **Hauptversion** (die ersten zwei Zahlen: 0.30) unter `docs/versions/<Haupt>.md`; ein Patch (0.30.1) **ergänzt**
+den Bericht seiner Hauptversion als Abschnitt `## Cubegen 0.30.1 – <Name>`, nur eine neue Hauptversion legt eine Datei an.
+Die letzten drei Hauptversionen liegen in `docs/versions/`, ältere in `docs/archive/versions/` (Agenten laden das Archiv
+nicht von selbst, lesen es nur bei Bedarf). **Hauptordner schlank:** nur `README.md`, `AGENTS.md`, `CLAUDE.md`,
+`CHANGELOG.md` und Konfiguration – keine `VERSION_*.md`, keine Notiz- oder Zwischenstandsdateien (Ideen: `docs/IDEEN.md`).
+`CHANGELOG.md` hat je Version 3–5 Zeilen und einen Link auf den Abschnitt des Berichts. Beim Anlegen einer neuen Hauptversion
+wandert der Bericht der viertletzten ins Archiv (`git mv`, Links in CHANGELOG/Docs mit anpassen); `tools/release.py`
+prüft den Abschnitt der Version.
 
 ## Abschluss in zwei Stufen
 
@@ -84,7 +96,7 @@ Blender-Plugin, `unity_check.py` und die macOS-App gibt es nur lokal.
 
 - **Stufe 1 „ungeprüft“** (ohne Blender/Unity): `python3 -m unittest discover -s tests` (Blender-/ImageMagick-Tests
   werden ohne die Werkzeuge übersprungen – das im Bericht nennen), bei Bedarf `--no-blender`-Erzeugung; Branch pushen,
-  PR mit Abschnitt „Vor dem Merge noch offen“; der Versionsbericht `VERSION_<Version>.md` trägt oben
+  PR mit Abschnitt „Vor dem Merge noch offen“; der Abschnitt der Version im Versionsbericht trägt oben
   *„ungeprüft: Blender-/Unity-Abnahme offen“*. Danach darf der Nutzer den PR auf GitHub mergen; kein Tag, kein Release.
 - Stufe 1 reicht als Abschluss **nur für Doku oder Werkzeuge ohne Einfluss auf die Ausgabe**. Bei Generator-Code,
   Geometrie, Kollision, Materialien/Texturen, Sidecar/Vertrag oder Add-on ist sie ein Vorab-Stand: Der Bericht endet
@@ -107,7 +119,7 @@ Tag: <v0.x.0> · Release-Branch: <release/0.x.0> · Umfang: Abnahme und Release 
 Vor dem Merge noch offen:
 - <offener Punkt aus dem PR, z. B. Exporte von …, Unity-Import in der Testkopie, Kontaktbogen ansehen>
 Abnahme: eigener Worktree; volle Python-Suite mit Blender und ImageMagick ohne übersprungene Tests, echte Exporte der
-geänderten Typen, Sichtprüfung, Import und Physik in der Cube-Escape-Testkopie, Bericht VERSION_<Version>.md auf
+geänderten Typen, Sichtprüfung, Import und Physik in der Cube-Escape-Testkopie, Versionsbericht (`docs/versions/<Haupt>.md`) auf
 Endstand, Vermerk „ungeprüft“ entfernen, committen, Branch pushen.
 Stopp: Bleibt etwas rot oder ist eine Richtungsfrage offen – anhalten und fragen, nicht releasen.
 Release: Datum statt „unveröffentlicht“, git merge --no-ff in main, Tag, Push von main, Release-Branch und Tag ohne --force.
