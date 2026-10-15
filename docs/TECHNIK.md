@@ -50,7 +50,7 @@ mit dem, was fehlt. Entwicklerhintergrund zu den vorhandenen Teilen: [`DEVELOPER
 | Ruhige Maschine | §20 | teilweise: `pause_sessions.py` laut AGENTS.md, `perf_band.py` erkennt Last; kein `quiet.py` vor Volllauf | verlässliche Messwerte |
 | Ein schwerer Lauf zur Zeit | §20 | teilweise: `HeavyLock` und `run_in_group` in `tools/unity_check.py`; `tools/run_tests.py --tier full` nimmt die Sperre nicht | keine Überlast bei parallelen Sitzungen |
 | Release als ein Befehl | §21 | schon da: `tools/release.py` (Probelauf als Standard, `--apply`) | Release ohne Handarbeit |
-| Bericht als Gate | §13 | schon da: `tests/golden.json` (`Asset.digest` je Typ), `tests/quality_baseline.json`, `tests/test_golden.py`, `tests/test_quality.py` | Modelländerungen fallen sofort auf |
+| Bericht als Gate | §13 | teilweise: feste Golden-Daten statt Vorher-Nachher-Bericht – `tests/golden.json` (`Asset.digest` je Typ), `tests/quality_baseline.json`, `tests/test_golden.py`, `tests/test_quality.py` | Modelländerungen fallen sofort auf |
 | Emitter als Daten | §10 | schon da: `Audio_*`/`FX_*`-Anker mit Sidecar (`models/anchors.py`) | Effekte ohne Partikel im Modell |
 | Seed-Ströme getrennt | (RG §3 Abnutzung) | schon da: `seeds.derive_seed`, `a.sub("dressing")` – Zusatzteile ändern das Modell nicht | stabile Seeds |
 
@@ -98,7 +98,7 @@ Nachbarflächen werden zu Rechtecken verschmolzen (17 136 → 11 348 Dreiecke).
 **Cubegen heute:** Variantensets mit gleichem Umriss und anderem Innenleben (`--set`, DEVELOPER 4), Kristallschliff
 (`crystal_cut`); keine Formableitung.
 **Umsetzung:** Als eigene Stilachse `shape = smooth | voxel | facet` des Stils, abgeleitet nach dem Bau und vor dem
-Atlas, Kollisionsrezept der Grundform übernehmen (innen rastern, Kleinteile glatt). Erst nach Atlas-Nachpacken (§7)
+Atlas, Kollisionsrezept der Grundform übernehmen (innen rastern, Kleinteile glatt). Erst nach Atlas-Nachpacken (§6)
 und mit eigener Golden-Gruppe. **Aufwand: L.**
 
 ## 5. Vorschau, Katalog, Icons (RG §5, §6, §7, §8)
@@ -226,7 +226,7 @@ Abgehakt nur, was Cubegen nachweislich ganz hat; bei „teilweise“ steht, was 
 - [ ] Präsentationskarten mit Dreiviertel-Kamera, Randlicht, Bloom nur auf Emission – teilweise: Kontaktbögen
 - [ ] Icons je Modell/Variante mit Lesbarkeitsprüfung – teilweise: Icons da, Prüfung nur als Hinweis (`vision_report.py`)
 - [ ] Vorschau-App: Daten-Texturen roh laden, Uniforms packen, A/B-Vergleich, GIF/MP4-Export – offen (nicht geprüft)
-- [x] Bericht-Gate: Kennzahlen vor und nach jeder Änderung vergleichen – `tests/golden.json`,
+- [ ] Bericht-Gate: Kennzahlen vor und nach jeder Änderung vergleichen – teilweise: feste Golden-Daten (`tests/golden.json`),
       `tests/quality_baseline.json`, `tests/test_golden.py`, `tests/test_quality.py`
 - [ ] Unity-Testprojekt je Generator – teilweise: `tools/unity_check.py` in der Cube-Escape-Testkopie, kein eigenes Projekt
 - [ ] Verwitterung als normierte Felder mit Regler, Werkstoff-Muster – teilweise: Regler je Thema, ohne Normierung
