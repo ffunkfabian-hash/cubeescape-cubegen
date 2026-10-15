@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -207,8 +208,9 @@ class BakeTest(unittest.TestCase):
     def test_baked_atlas_is_byte_identical_across_runs_and_work_packages(self):
         # Roboter-Generator 1.8: Blender's UV packing can differ between runs. Measured 0.15.0: Cubegen's atlas
         # (Smart UV Project per asset) is stable - this keeps it that way, also with parallel work packages.
+        # 0.26.0: without the shared cache - runs b and c would copy run a's unit (export + bake) instead of baking
         names = ("Crate_000", "Door_000", "Door_001")
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CUBEGEN_CACHE": "0"}):
             outs = {}
             for run, extra in (("a", []), ("b", []), ("c", ["--jobs", "2"])):
                 out = os.path.join(tmp, run)

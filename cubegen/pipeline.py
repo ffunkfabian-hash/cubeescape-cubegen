@@ -862,6 +862,68 @@ def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick
     return textures
 
 
+def _model_keys(todo: List[Dict], job: Dict, dirs: Dict[str, str], textures_dir: Optional[str], out: str,
+                config: "BatchConfig", blender: str, magick_version: str, store: Optional[Store]) -> Dict[str, Dict]:
+    """Shared-cache keys of the models Blender would build (0.26.0, ``cubegen/modelcache.py``): per name ``unit``
+    (export + bake + preview), ``bake`` (the bake alone, ``--textures baked`` / ``--paint``) and the run's
+    ``folders`` - nothing without a store; a model whose inputs still name a folder gets no key (built as before)."""
+    if store is None or not todo:
+        return {}
+    from .modelcache import Folders, bake_key, model_key
+
+    extra = {"blender": blender, "magick": magick_version}
+    if job.get("textures"):  # the tile textures' files are what their own key says (size, set, image code, magick)
+        extra["texture_key"] = texture_key(config.texture_size, config.texture_set, magick_version)
+    keys = {}
+    for spec in todo:
+        folders = Folders(spec["models_dir"], dirs["previews"], textures_dir, out)
+        unit = model_key(spec, job, folders, extra)
+        if unit:
+            keys[spec["name"]] = {"unit": unit, "bake": bake_key(spec, job, folders, extra), "folders": folders}
+    return keys
+
+
+def _fetch_models(todo: List[Dict], keys: Dict[str, Dict], store: Store, uv_dir: Optional[str],
+                  log: Callable[[str], None]) -> Dict[str, Dict]:
+    """Whole units from the shared cache (returned as worker results); for the other models a cached bake goes to
+    the worker as ``spec["bake_cache"]`` (maps copied into the folders, UVs into ``uv_dir``)."""
+    from .modelcache import BakeCache, ModelCache
+
+    units, bakes = ModelCache(store), BakeCache(store)
+    found = {}
+    for spec in todo:
+        key = keys.get(spec["name"])
+        if not key:
+            continue
+        hit = units.fetch(key["unit"], key["folders"])
+        if hit is not None:
+            found[spec["name"]] = hit
+        elif key["bake"] and uv_dir:
+            bake = bakes.fetch(key["bake"], spec["name"], key["folders"], uv_dir)
+            if bake is not None:
+                spec["bake_cache"] = bake
+    if found:
+        log(f"shared cache: {len(found)} model(s) copied (export, bake, preview) from {store.root}")
+    if bakes.fetched:
+        log(f"shared cache: {bakes.fetched} bake(s) reused (maps and atlas UVs) - export and preview in Blender")
+    return found
+
+
+def _store_models(result: Dict, keys: Dict[str, Dict], store: Store, log: Callable[[str], None]) -> None:
+    from .modelcache import BakeCache, ModelCache
+
+    units, bakes = ModelCache(store), BakeCache(store)
+    for r in result["models"]:
+        key = keys.get(r["name"])
+        if not key:
+            continue
+        units.put(key["unit"], dict(r, engine=result.get("engine")), key["folders"])
+        if key["bake"] and r.get("bake_uvs"):
+            bakes.put(key["bake"], r, key["folders"])
+    for reason in units.refused + bakes.refused:
+        log(f"note: not in the shared cache - {reason}")
+
+
 def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> Dict:
     config.validate()
     seconds: Dict[str, float] = {}
@@ -1016,6 +1078,20 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         results = dict(reused)
         blender_info = {"version": version, "render_engine": None}
         lap("plan")
+        # 0.26.0: a model built in another folder or checkout with exactly these inputs comes from the shared cache -
+        # export, bake and preview as one unit (cubegen/modelcache.py); --force rebuilds but records
+        model_keys = _model_keys(todo, job, dirs, textures_dir, out, config, version, magick_version, store)
+        cached: Dict[str, Dict] = {}
+        built_here = list(todo)
+        uv_dir = tempfile.mkdtemp(prefix="cubegen_uvs_") if any(k["bake"] for k in model_keys.values()) else None
+        job["uv_dir"] = uv_dir  # new bakes leave their atlas UVs there (worker), cached ones are read from there
+        if model_keys and not config.force:
+            t = time.perf_counter()
+            cached = _fetch_models(todo, model_keys, store, uv_dir, log)
+            steps["model_cache"] = time.perf_counter() - t
+            results.update(cached)
+            todo = [s for s in todo if s["name"] not in cached]
+            lap("cache")
         jobs = config.jobs or auto_jobs(len(todo), config, engine)
         blender_failed = False
         try:
@@ -1028,6 +1104,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 result = None
         except BaseException:
             blender_failed = True
+            if uv_dir:
+                shutil.rmtree(uv_dir, ignore_errors=True)
             raise
         finally:
             if texture_job is not None:  # also when Blender failed: the thread must not outlive the run
@@ -1053,9 +1131,17 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 for stage, value in (r.get("timings") or {}).items():
                     worker[stage] = worker.get(stage, 0.0) + value
             blender_info = {"version": result.get("blender"),
-                            "render_engine": result.get("engine") if config.render and todo else None}
+                            "render_engine": result.get("engine") if config.render and built_here else None}
+            if model_keys and todo:
+                t = time.perf_counter()
+                _store_models(result, model_keys, store, log)
+                steps["model_cache"] = steps.get("model_cache", 0.0) + time.perf_counter() - t
+                lap("cache")
+        if uv_dir:
+            shutil.rmtree(uv_dir, ignore_errors=True)
         if config.render and not blender_info["render_engine"]:
-            blender_info["render_engine"] = _previous_engine(out)
+            blender_info["render_engine"] = next((r["engine"] for r in cached.values() if r.get("engine")), None) \
+                or _previous_engine(out)
     else:
         if formats != ["obj"]:
             log("--no-blender: only OBJ export is available, ignoring other formats")

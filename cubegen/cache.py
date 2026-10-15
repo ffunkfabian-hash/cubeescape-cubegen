@@ -271,6 +271,31 @@ class Store:
         atomic_write(self.entry_path(key), json.dumps(entry, sort_keys=True).encode("utf-8"))
         return True
 
+    def add_bytes(self, data: bytes, sha: Optional[str] = None) -> str:
+        """Store ``data`` itself (0.26.0: a rewritten FBX that exists nowhere on disk); returns its SHA-256."""
+        digest = hashlib.sha256(data).hexdigest()
+        if sha is not None and sha != digest:
+            raise ValueError("content does not match its hash")
+        target = self.object_path(digest)
+        if os.path.isfile(target):
+            _touch(target)
+        else:
+            atomic_write(target, data)
+        return digest
+
+    def put_entry(self, key: str, files: Dict[str, str], data=None, step: Optional[str] = None) -> None:
+        """Write the entry ``key`` -> ``files`` (``{role: sha256}``) whose contents are stored already (``add`` /
+        ``add_bytes`` first - the entry last, as in ``put``)."""
+        size = 0
+        for sha in set(files.values()):
+            try:
+                size += os.path.getsize(self.object_path(sha))
+            except OSError:
+                pass
+        entry = {"format": STORE_FORMAT, "key": key, "step": step, "data": data,
+                 "files": dict(sorted(files.items())), "bytes": size}
+        atomic_write(self.entry_path(key), json.dumps(entry, sort_keys=True).encode("utf-8"))
+
     # --- size ---
 
     def scan(self):
