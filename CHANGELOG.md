@@ -2,11 +2,17 @@
 
 ## 0.27.0 „Fieldbook“ – unveröffentlicht
 
-Nur Doku: der Entwicklerhintergrund zieht aus `docs/CLI.md` › 16 in ein eigenes Doc. Code, Geometrie, Materialien und
-Sidecars bleiben wie in 0.26.1 (bis auf die Versionsangabe). Bericht: [VERSION_0.27.0.md](VERSION_0.27.0.md).
+Doku und ein Werkzeug: der Entwicklerhintergrund zieht aus `docs/CLI.md` › 16 in ein eigenes Doc, und
+`tools/unity_check.py` hält die Sperre für schwere Läufe bis zum letzten Enkelprozess. Code der Generierung, Geometrie,
+Materialien und Sidecars bleiben wie in 0.26.1 (bis auf die Versionsangabe). Bericht: [VERSION_0.27.0.md](VERSION_0.27.0.md).
 
 * **`docs/DEVELOPER.md` neu:** Abschnitte 1–8 (vorher CLI.md 16.1–16.8) wörtlich übernommen; `docs/CLI.md` (Bedienung)
   verlinkt nur noch darauf. Verweise in `AGENTS.md` heißen jetzt „DEVELOPER.md n“.
+* **Die Sperre für schwere Läufe hält bis zum letzten Enkelprozess** (gemeinsam mit Cube Escape 0.61.3, Roboter-Generator
+  1.20.5 und Toolgen 0.4.0; Befund eines Codex-Reviews von Toolgen 0.4 „Fieldstrip“): Der Unity-Schritt des Checks läuft
+  in einer eigenen Prozessgruppe (`run_in_group`), TERM/HUP/INT gehen an die ganze Gruppe, und der Schritt endet erst,
+  wenn die Gruppe leer ist. Vorher beendete ein Signal nur den Check selbst – die Sperre war frei, während `verify.sh`
+  und Unity weiterliefen. Neue Tests: `tests/test_release_0270.py`.
 
 ## 0.26.1 „Stockpile“ – 2026-10-15
 

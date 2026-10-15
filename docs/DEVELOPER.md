@@ -239,7 +239,11 @@ ad-hoc signiert; Kommandozeilen-Modi statt UI-Automation für die Tests.
   letzten Prüfsatz (`HeavyLock` in `tools/unity_check.py`). Ein Wartender druckt den Halter (JSON-Zeile `{"pid",
   "what", "checkout", "since"}`, schreibt der Halter hinein) und meldet sich alle fünf Minuten. Der Deskriptor wird
   nie vererbt (`O_CLOEXEC`), Kinder bekommen `CE_HEAVY_HELD=1` (Cube Escapes Schritte darunter warten nicht auf
-  ihren Elternprozess); `CE_HEAVY_LOCK=0` überspringt die Schlange. Der Vertrag ändert sich nur gemeinsam mit Cube Escape.
+  ihren Elternprozess); `CE_HEAVY_LOCK=0` überspringt die Schlange. Jeder Unity-Schritt läuft seit 0.27.0 in einer
+  eigenen Prozessgruppe (`run_in_group`): TERM/HUP/INT für den Check gehen an die ganze Gruppe, danach endet der Check
+  (Exit 128 + Signal), und der Schritt ist erst vorbei, wenn die Gruppe leer ist – stirbt `verify.sh` vor Unity, bleibt
+  die Sperre trotzdem bis zum Ende von Unity. Der Vertrag ändert sich nur gemeinsam mit Cube Escape, dem
+  Roboter-Generator und Toolgen.
 
 ## 8. GitHub Actions in diesem Repo (seit 0.26.0)
 

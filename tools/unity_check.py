@@ -32,7 +32,9 @@ created when missing, never deleted). A waiting run prints who holds it (the hol
 "checkout", "since"}``) and again every five minutes; it holds the lock until the last probe is done. The lock's file
 descriptor is never inherited (``O_CLOEXEC``): Unity or a background child of ``verify.sh`` can't keep it after the
 check. Children get ``CE_HEAVY_HELD=1`` so Cube Escape's own steps don't wait for their parent; ``CE_HEAVY_LOCK=0``
-skips the queue (``CE_HEAVY_LOCK_FILE`` moves the file - tests only).
+skips the queue (``CE_HEAVY_LOCK_FILE`` moves the file - tests only). Each Unity step runs in a process group of its
+own (0.27.0, ``run_in_group``): TERM/HUP/INT for the check go on to the whole group, and the step ends only when the
+group is empty - Unity under ``verify.sh`` keeps the lock even when ``verify.sh`` died first.
 
 The Cube Escape checkout: ``--ce`` or ``$CUBEGEN_CE_ROOT``, else ``~/Claude/Cube Escape``. Without it (or without
 its verify script) the check says so and exits 0 - ``--require`` makes that an error (release check).
@@ -42,10 +44,12 @@ Report: ``output/unity_check/report.json``. Exit code 1 when a probe fails.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -109,6 +113,8 @@ INTEGRATION = re.compile(r"cubegen CLI integration: (\d+) Gameplay / (\d+) stati
 HEAVY_LOCK = os.path.join(os.path.expanduser("~"), "Library", "Caches", "CubeEscape", "heavy-run.lock")
 HEAVY_POLL = 2.0
 HEAVY_REPORT = 300.0  # a waiting run says every five minutes that it still waits
+HEAVY_GROUP_POLL = 0.1  # how often run_in_group looks whether a finished step's process group is empty
+HEAVY_STRAGGLER = 5.0  # after this long it says which process group still keeps the lock
 
 
 def heavy_lock_path() -> str:
@@ -206,6 +212,56 @@ class HeavyLock:
         self.release()
 
 
+def group_alive(pgid: int) -> bool:
+    """True while any process of the group still exists (EPERM: one runs that this user may not signal)."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def run_in_group(argv: List[str], capture_output: bool = False, **popen) -> subprocess.CompletedProcess:
+    """``subprocess.run`` for a heavy step (0.27.0): the command runs in a process group of its own, TERM/HUP/INT for
+    this process go on to the whole group, and it returns only when the group is empty - the heavy-run lock is never
+    free while Unity still runs, also not when ``verify.sh`` above it died first. After a forwarded signal this process
+    ends too (exit 128 + signal; ``HeavyLock`` frees the lock on the way out)."""
+    if capture_output:
+        popen.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    child = subprocess.Popen(argv, start_new_session=True, **popen)  # its pid is the group id
+    received: List[int] = []
+
+    def forward(signum, _frame):
+        received.append(signum)
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(child.pid, signum)
+
+    previous = {}
+    for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        try:
+            previous[sig] = signal.signal(sig, forward)
+        except ValueError:  # not the main thread
+            pass
+    try:
+        out, err = child.communicate()
+        start, told = time.monotonic(), False
+        while group_alive(child.pid):
+            if not told and time.monotonic() - start >= HEAVY_STRAGGLER:
+                print(f"  Schritt beendet (Exit {child.returncode}), die Sperre bleibt bis zum Ende seiner übrigen "
+                      f"Prozesse (Prozessgruppe {child.pid})", flush=True)
+                told = True
+            time.sleep(HEAVY_GROUP_POLL)
+    finally:
+        for sig, handler in previous.items():
+            if handler is not None:
+                signal.signal(sig, handler)
+    if received:
+        raise SystemExit(128 + received[0])
+    return subprocess.CompletedProcess(argv, child.returncode, out, err)
+
+
 def ce_root(explicit: Optional[str] = None) -> str:
     return os.path.abspath(os.path.expanduser(explicit or os.environ.get("CUBEGEN_CE_ROOT")
                                               or "~/Claude/Cube Escape"))
@@ -288,8 +344,8 @@ def _unity(name: str, ce: str, models: str, reference: Optional[str]) -> subproc
     env = dict(os.environ, **{variable: models})
     if reference:
         env["CUBEGEN_PAINT_REFERENCE"] = reference
-    return subprocess.run([os.path.join(ce, VERIFY), "test", "EditMode", test_filter, RUN_NAME], cwd=ce, env=env,
-                          capture_output=True, text=True)
+    return run_in_group([os.path.join(ce, VERIFY), "test", "EditMode", test_filter, RUN_NAME], cwd=ce, env=env,
+                        capture_output=True, text=True)
 
 
 def _generate(name: str, out: str, contract: Optional[int]) -> subprocess.CompletedProcess:
