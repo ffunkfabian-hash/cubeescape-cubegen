@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -170,7 +171,10 @@ class ParallelImageMagickTest(unittest.TestCase):
 @unittest.skipUnless(HAS_MAGICK and HAS_BLENDER, "Blender and ImageMagick required")
 class OverlapTest(unittest.TestCase):
     def test_blender_starts_while_the_textures_are_built(self):
-        with tempfile.TemporaryDirectory() as out:
+        # 0.28.0: an own, empty shared cache - with a warm one (machine cache, or an earlier test of the same
+        # run_tests.py run) the models come from the cache and no Blender worker starts at all
+        with tempfile.TemporaryDirectory() as out, tempfile.TemporaryDirectory() as store, \
+                mock.patch.dict(os.environ, {"CUBEGEN_CACHE": store}):
             lines = []
             args = make_parser().parse_args(["generate", "--seed", "3", "--types", "crate,door", "--textures", "tiled",
                                              "--texture-size", "64", "--no-render", "--no-blend", "--jobs", "2",

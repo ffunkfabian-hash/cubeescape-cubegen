@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.0 „Clean Slate“ – unveröffentlicht
+
+Nur ein Test; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.27.0 (bis auf die Versionsangabe).
+Bericht: [VERSION_0.28.0.md](VERSION_0.28.0.md).
+
+* **`OverlapTest` mit eigenem Cache:** `tests/test_release_0160.py` › `test_blender_starts_while_the_textures_are_built`
+  lief mit dem gemeinsamen Cache des Rechners; sobald seed 3 `crate,door` dort lag, startete kein Blender-Worker und
+  der Test schlug fehl (`python3 -m unittest discover -s tests`, auch auf `main`). Der Test bekommt jetzt einen eigenen,
+  leeren `CUBEGEN_CACHE`-Ordner (wie `BakeTest` seit 0.26.0); das Cache-Verhalten bleibt unverändert.
+
 ## 0.27.0 „Fieldbook“ – unveröffentlicht
 
 Doku und ein Werkzeug: der Entwicklerhintergrund zieht aus `docs/CLI.md` › 16 in ein eigenes Doc, und
