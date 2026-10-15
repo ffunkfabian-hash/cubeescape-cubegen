@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.28.0 „Clean Slate“ – unveröffentlicht
+## 0.28.0 „Clean Slate“ – 2026-10-15
 
 Nur ein Test; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.27.0 (bis auf die Versionsangabe).
 Bericht: [VERSION_0.28.0.md](VERSION_0.28.0.md).
