@@ -520,6 +520,24 @@ class HeavyLockTest(unittest.TestCase):
         self.assertFalse(os.path.exists(self.path))
 
 
+class ReferenceMapsTest(unittest.TestCase):
+    def test_reference_maps_use_a_python_with_numpy(self):
+        import paint_reference
+
+        manifest = {"models": [{"name": "Crate_000"}]}
+        with mock.patch.object(paint_reference, "load_manifest", return_value=manifest), \
+                mock.patch.object(paint_reference, "models_with_maps", return_value=[1]), \
+                mock.patch.object(paint_reference, "write_reference", side_effect=ImportError("numpy")):
+            with mock.patch.object(run_tests, "numpy_python", return_value=("/blender/python3.13", "2.3.4")), \
+                    mock.patch.object(unity_check.subprocess, "run",
+                                      return_value=subprocess.CompletedProcess([], 0, "", "")) as run:
+                self.assertEqual(unity_check.paint_reference("/out"), os.path.join("/out", unity_check.REFERENCE))
+            self.assertEqual(run.call_args[0][0][:2], ["/blender/python3.13",
+                                                       os.path.join(ROOT, "tools", "paint_reference.py")])
+            with mock.patch.object(run_tests, "numpy_python", return_value=(sys.executable, None)):
+                self.assertIsNone(unity_check.paint_reference("/out"))  # no numpy anywhere: said, then skipped
+
+
 class RunTestsTest(unittest.TestCase):
     def test_numpy_modules_get_their_own_group(self):
         plan = run_tests.groups("full")

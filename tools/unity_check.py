@@ -22,7 +22,8 @@ Probe ``neutral`` (0.24.0, "Anstrich neutral") needs contract version 3 (neutral
 Does Cube Escape read version 3, its sidecars must import. Below that it runs twice: written for version 3 the import
 has to reject every model (expected - ``rejected_as_expected``), written for Cube Escape's version (without the neutral
 maps) it has to import. Every probe with ``--paint`` also gets its reference maps (``tools/paint_reference.py``: every
-scheme composed from the neutral maps) in ``<probe>/paint_reference`` - handed to the Unity run as
+scheme composed from the neutral maps; needs numpy - without it here, with Blender's Python like ``run_tests.py``) in
+``<probe>/paint_reference`` - handed to the Unity run as
 ``$CUBEGEN_PAINT_REFERENCE`` for the shader comparison (Cube Escape ``SurfaceRenderTests``, once it exists).
 
 One heavy run at a time (0.25.0, Cube Escape 0.59 "Turnstile"): before its first Unity start the check queues on Cube
@@ -312,9 +313,18 @@ def paint_reference(out: str) -> Optional[str]:
     target = os.path.join(out, REFERENCE)
     try:
         ref.write_reference(out, target, log=lambda _: None)
-    except ImportError:  # numpy: in Blender's Python, not always in the system's
-        print("  Referenzbilder übersprungen: numpy fehlt (python3 -m pip install numpy)", flush=True)
-        return None
+    except ImportError:  # numpy: in Blender's Python, not in the Mac's system Python - use one that has it (0.25.0)
+        import run_tests
+
+        python, version = run_tests.numpy_python()
+        if version is None:
+            print("  Referenzbilder übersprungen: kein Python mit numpy (auch nicht in Blender)", flush=True)
+            return None
+        done = subprocess.run([python, os.path.join(ROOT, "tools", "paint_reference.py"), out, "--out", target],
+                              cwd=ROOT, capture_output=True, text=True)
+        if done.returncode != 0:
+            print(f"  Referenzbilder fehlgeschlagen ({python}): {(done.stdout + done.stderr)[-500:]}", flush=True)
+            return None
     return target
 
 
