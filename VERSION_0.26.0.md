@@ -161,8 +161,9 @@ Cube Escape-Checkout `~/Claude/Cube Escape`:
   lehnt der Import alle 8 wie erwartet ab, mit Version 2 nimmt er sie an. Die Prüfsätze kamen bis auf `neutral` mit
   Vertrag 2 aus dem gemeinsamen Cache (Erzeugen 1,1–1,4 s je Prüfsatz ohne Anstrich-Vergleichsbilder) – der echte
   Import nimmt die umgeschriebenen FBX also genauso an. Sperre frei (0 s gewartet), 3:10 min.
-- **CI:** lokal geprüft (Workflow-Test, Stufen `quick` und `full` laufen hier grün); der Push des Releases auf `main`
-  startet nur den Job `quick`.
+- **CI:** der Push des Releases startete nur den Job `quick` (1:43 min, ein abgerechneter Job statt vier) – rot: ein
+  Test täuschte die Plattform mit `linux`/`x86_64` vor, also genau mit der des Runners. Korrektur (unmögliche
+  Plattform im Test) auf `release/0.26.0` und in `main` nachgezogen, ohne neuen Tag.
 - Keine neuen Typen, keine Änderung an Geometrie oder Kollision – keine eigene Physikprüfung.
 
 ## Offen
