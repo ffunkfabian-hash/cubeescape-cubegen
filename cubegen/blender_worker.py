@@ -354,6 +354,8 @@ def run_job(job_path):
             if baked.get("neutral"):
                 entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"],
                               "neutral_maps": baked["packed"]})
+                if baked.get("zone_map"):  # contract version 4: the paint-zone map and its slots (cubegen/zones.py)
+                    entry.update({"zone_map": baked["zone_map"], "zone_slots": baked["zone_slots"]})
             atlas = baked.get("uvs") or (cached_bake or {}).get("uvs") or {}
             if atlas.get("occupancy") is not None:  # share of the unit square the atlas UVs cover (bake.occupancy)
                 entry["atlas_occupancy"] = atlas["occupancy"]

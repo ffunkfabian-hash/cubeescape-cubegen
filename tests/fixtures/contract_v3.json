@@ -1,0 +1,479 @@
+{
+ "axes": [
+  "right",
+  "up",
+  "forward"
+ ],
+ "baked_maps": {
+  "distinct_files": true,
+  "emission_intensity": 3.0,
+  "keys": [
+   "Albedo",
+   "Normal",
+   "MetallicSmoothness",
+   "Roughness",
+   "AO",
+   "Height",
+   "Emission"
+  ],
+  "material_prefix": "MTA_",
+  "required": [
+   "Albedo",
+   "Normal",
+   "MetallicSmoothness"
+  ],
+  "since": {
+   "Emission": 2
+  },
+  "srgb": [
+   "Albedo",
+   "Emission"
+  ]
+ },
+ "behaviour_keys": [
+  "script",
+  "parts",
+  "fields",
+  "note"
+ ],
+ "behaviours": {
+  "Door": {
+   "fields": {
+    "openOffset": "vec3",
+    "secondOffset": "vec3",
+    "speed": "number",
+    "startsOpen": "bool",
+    "upperFrame": "bool"
+   },
+   "moves": [
+    "panels"
+   ],
+   "optional": [
+    "upperFrame"
+   ],
+   "required": [
+    "panels",
+    "statusLights",
+    "colliders"
+   ]
+  },
+  "ItemPickup": {
+   "fields": {
+    "itemId": "text",
+    "spin": "number"
+   },
+   "moves": [],
+   "optional": [],
+   "required": [
+    "model"
+   ]
+  },
+  "Machine": {
+   "fields": {
+    "needsPower": "bool"
+   },
+   "moves": [],
+   "optional": [
+    "rotor",
+    "damage",
+    "colliders"
+   ],
+   "required": [
+    "body",
+    "glow"
+   ]
+  },
+  "Rotatable": {
+   "fields": {
+    "axis": "axis",
+    "interactive": "bool",
+    "speed": "number",
+    "step": "number",
+    "target": "int"
+   },
+   "moves": [
+    "target"
+   ],
+   "optional": [
+    "body",
+    "colliders"
+   ],
+   "required": [
+    "target",
+    "glow"
+   ]
+  },
+  "Rotator": {
+   "fields": {
+    "arc": "number",
+    "axis": "axis",
+    "speed": "number"
+   },
+   "moves": [
+    "target"
+   ],
+   "optional": [
+    "colliders"
+   ],
+   "required": [
+    "target"
+   ]
+  },
+  "SignalIndicator": {
+   "fields": {
+    "offMaterial": "text",
+    "onMaterial": "text"
+   },
+   "moves": [],
+   "optional": [
+    "body",
+    "colliders"
+   ],
+   "required": [
+    "renderers"
+   ]
+  },
+  "SignalLight": {
+   "fields": {
+    "brightness": "number",
+    "color": "text",
+    "intensity": "number",
+    "lightPosition": "vec3",
+    "mode": "mode",
+    "range": "number",
+    "startsOn": "bool"
+   },
+   "moves": [],
+   "optional": [
+    "rotor",
+    "body",
+    "colliders"
+   ],
+   "required": [
+    "glow"
+   ]
+  }
+ },
+ "colliders": {
+  "box": [
+   "type",
+   "part",
+   "center",
+   "size",
+   "rotation"
+  ],
+  "mesh": [
+   "type",
+   "part",
+   "convex"
+  ],
+  "moving_mesh_must_be_convex": true
+ },
+ "contract": "cubegen-sidecar",
+ "field_types": {
+  "axis": "one of axes",
+  "bool": "true / false",
+  "int": "integer",
+  "mode": "one of signal_modes",
+  "number": "finite number",
+  "text": "non-empty text",
+  "vec3": "three finite numbers (Unity coordinates, metres)"
+ },
+ "file": {
+  "duplicate_keys": false,
+  "max_bytes": 4194304,
+  "max_depth": 64
+ },
+ "history": {
+  "1": "until cubegen 0.21: the importer kept its own list of baked maps (Albedo, Normal, MetallicSmoothness, Roughness, AO, Height)",
+  "2": "cubegen 0.22.0: section baked_maps - the maps of textures.baked, with Emission (paint schemes that glow). python -m cubegen contract --version 1 writes the version-1 file and generate --contract 1 the matching sidecars for an importer that reads version 1 only",
+  "3": "cubegen 0.24.0: neutral maps of --paint for a recolouring shader (textures.neutral, textures.weight_layout, section neutral_maps) and the paint scheme as data (root key paint, section paint_scheme), own material names for what used M_Crystal without being a crystal (section materials). --contract 2 and 1 leave them out (M_Crystal again)"
+ },
+ "materials": {
+  "crystal": "M_Crystal: real crystals only (rock, crystal cluster, hanging crystals ...)",
+  "legacy": "an importer before version 3 knows M_Crystal only: generate --contract 2 or 1 writes M_Crystal for every split name",
+  "like": "M_Crystal",
+  "split": {
+   "M_Accent": "luminous accents of kit pieces (teleporter ring, planet in a window)",
+   "M_Biolume": "glowing organic lights (bulbs, root veins, spore dots)",
+   "M_Hologram": "holograms and energy fields",
+   "M_Lamp": "lamp faces and points of light (floodlight, stars)",
+   "M_Leaf": "alien leaves and fungus patches",
+   "M_Liquid": "liquids: water, slime, lab liquids, food in trays",
+   "M_Optic": "lenses and prisms (laser receiver, laser splitter, lens items)",
+   "M_Signal": "the light colour of a sequence panel"
+  },
+  "values": "every split name has the values of M_Crystal (colour, smoothness, metallic, emission) until the game styles it"
+ },
+ "neutral_maps": {
+  "channels": {
+   "Fields": {
+    "a": "height",
+    "b": "up",
+    "g": "edge",
+    "r": "ambient occlusion"
+   },
+   "Normal": {
+    "rgb": "tangent-space normal (OpenGL, +Y up)"
+   },
+   "W0": {
+    "a": "noise",
+    "rgb": "weights of weight_layout[0]"
+   },
+   "W1": {
+    "a": "detail",
+    "rgb": "weights of weight_layout[1] (black without a second group)"
+   },
+   "W2": {
+    "a": "reserved (1)",
+    "rgb": "weights of weight_layout[2]"
+   }
+  },
+  "detail_range": [
+   0.35,
+   1.8
+  ],
+  "distinct_files": true,
+  "file_prefix": "MTN_",
+  "keys": [
+   "W0",
+   "W1",
+   "W2",
+   "Fields",
+   "Normal"
+  ],
+  "needs": [
+   "weight_layout",
+   "paint"
+  ],
+  "reference": "cubegen/paint.py compose() on the packed values (8 bit / 255) - the MTP_ maps",
+  "required": [
+   "W0",
+   "W1",
+   "Fields",
+   "Normal"
+  ],
+  "srgb": [],
+  "weights": "W<k>.rgb = weights of weight_layout[k]; a missing W<k> or channel weighs 0"
+ },
+ "note": "The rules of the Unity import (CubegenImporter) for <Name>.cubegen.json. cubegen/contract.py checks every export with this file; the Unity import can read the same file (python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json).",
+ "paint_scheme": {
+  "amounts": [
+   "edge_light",
+   "wear",
+   "grime",
+   "rising_grime",
+   "dust",
+   "moss",
+   "edge_glow",
+   "roughness",
+   "metal"
+  ],
+  "builtin": "python -m cubegen catalog --paints (paint_schemes): a sidecar names a built-in scheme by its name",
+  "colors": [
+   "wear_color",
+   "grime_color",
+   "dust_color",
+   "moss_color",
+   "edge_glow_color",
+   "crystal_color"
+  ],
+  "custom": "an object with name (letters, digits, _; not a built-in name) and every key - colours sRGB '#rrggbb', amounts 0..1",
+  "custom_keys": [
+   "name"
+  ],
+  "glow": [
+   "cyan",
+   "red",
+   "orange"
+  ],
+  "keys": [
+   "label",
+   "colors",
+   "glow",
+   "edge_light",
+   "wear",
+   "wear_color",
+   "grime",
+   "grime_color",
+   "rising_grime",
+   "dust",
+   "dust_color",
+   "moss",
+   "moss_color",
+   "edge_glow",
+   "edge_glow_color",
+   "roughness",
+   "metal",
+   "crystal_color"
+  ],
+  "painted": [
+   "M_Ground",
+   "M_Wall",
+   "M_Platform",
+   "M_HazardOrange",
+   "M_RobotBody",
+   "M_RobotDark",
+   "M_Metal",
+   "M_Warning",
+   "M_PortalPanel"
+  ]
+ },
+ "part": {
+  "keys": [
+   "name",
+   "parent",
+   "localPosition",
+   "empty",
+   "materials",
+   "bounds"
+  ],
+  "required": [
+   "name",
+   "parent",
+   "localPosition",
+   "empty",
+   "materials"
+  ]
+ },
+ "root": {
+  "collision_modes": [
+   "envelope",
+   "mesh",
+   "parts",
+   "none"
+  ],
+  "keys": [
+   "model",
+   "type",
+   "category",
+   "pivot",
+   "static",
+   "bounds",
+   "parts",
+   "behaviours",
+   "seed",
+   "masterSeed",
+   "generator",
+   "params",
+   "style",
+   "textures",
+   "collision",
+   "colliders",
+   "paint"
+  ],
+  "pivots": [
+   "floor",
+   "top",
+   "center",
+   "wall"
+  ],
+  "required": [
+   "model",
+   "type",
+   "category",
+   "pivot",
+   "static",
+   "bounds",
+   "parts",
+   "behaviours"
+  ],
+  "reserved_categories": [
+   "Generated"
+  ],
+  "since": {
+   "paint": 3
+  },
+  "texture_modes": [
+   "tiled",
+   "baked",
+   "palette"
+  ]
+ },
+ "rules": {
+  "door_leaves_move_apart": true,
+  "door_panels": [
+   1,
+   2
+  ],
+  "door_speed_positive": true,
+  "door_upper_frame": [
+   "Frame_Top"
+  ],
+  "interactive_rotatable_requires_target_collider": true,
+  "item_pickup_without_id": {
+   "params.kind": "energy_cell",
+   "type": "item"
+  },
+  "one_motion_controller_per_transform": true,
+  "repeatable_behaviours": [
+   "Rotator",
+   "Rotatable"
+  ],
+  "rotatable_step_abs": [
+   1,
+   360
+  ],
+  "rotator_arc_below": 360,
+  "signal_light_fields_together": [
+   "lightPosition",
+   "range",
+   "intensity"
+  ],
+  "signal_light_rotate_needs_rotor": true,
+  "single_part_roles": {
+   "Machine": [
+    "body",
+    "glow",
+    "rotor",
+    "damage"
+   ],
+   "Rotatable": [
+    "target",
+    "glow",
+    "body"
+   ],
+   "Rotator": [
+    "target"
+   ],
+   "SignalIndicator": [
+    "body"
+   ],
+   "SignalLight": [
+    "glow",
+    "rotor",
+    "body"
+   ]
+  }
+ },
+ "signal_modes": [
+  "Steady",
+  "Blink",
+  "Pulse",
+  "Rotate",
+  "Status"
+ ],
+ "source": "Cube Escape Docs/CUBEGEN_IMPORT.md, 6 October 2026",
+ "textures": {
+  "keys": [
+   "mode",
+   "manifest",
+   "baked",
+   "neutral",
+   "weight_layout"
+  ],
+  "since": {
+   "neutral": 3,
+   "weight_layout": 3
+  }
+ },
+ "tolerances": {
+  "bounds_m": 0.025,
+  "bounds_relative": 0.01,
+  "fbx_rotation": 0.001,
+  "fbx_scale": 0.0001,
+  "position_m": 0.01,
+  "quaternion_norm": 0.001
+ },
+ "version": 3
+}

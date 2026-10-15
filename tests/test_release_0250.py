@@ -541,7 +541,7 @@ class ReferenceMapsTest(unittest.TestCase):
 class RunTestsTest(unittest.TestCase):
     def test_numpy_modules_get_their_own_group(self):
         plan = run_tests.groups("full")
-        self.assertEqual(plan[run_tests.NUMPY], ["test_release_0180", "test_release_0240"])
+        self.assertEqual(plan[run_tests.NUMPY], ["test_release_0180", "test_release_0240", "test_release_0300"])
         others = [m for name, members in plan.items() if name != run_tests.NUMPY for m in members]
         self.assertFalse(set(others) & set(plan[run_tests.NUMPY]))
         self.assertEqual(sorted(others + plan[run_tests.NUMPY]), run_tests.modules())

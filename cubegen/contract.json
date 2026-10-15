@@ -1,12 +1,13 @@
 {
   "contract": "cubegen-sidecar",
-  "version": 3,
+  "version": 4,
   "source": "Cube Escape Docs/CUBEGEN_IMPORT.md, 6 October 2026",
   "note": "The rules of the Unity import (CubegenImporter) for <Name>.cubegen.json. cubegen/contract.py checks every export with this file; the Unity import can read the same file (python -m cubegen contract --out <Unity>/Assets/Editor/Cubegen/cubegen_contract.json).",
   "history": {
     "1": "until cubegen 0.21: the importer kept its own list of baked maps (Albedo, Normal, MetallicSmoothness, Roughness, AO, Height)",
     "2": "cubegen 0.22.0: section baked_maps - the maps of textures.baked, with Emission (paint schemes that glow). python -m cubegen contract --version 1 writes the version-1 file and generate --contract 1 the matching sidecars for an importer that reads version 1 only",
-    "3": "cubegen 0.24.0: neutral maps of --paint for a recolouring shader (textures.neutral, textures.weight_layout, section neutral_maps) and the paint scheme as data (root key paint, section paint_scheme), own material names for what used M_Crystal without being a crystal (section materials). --contract 2 and 1 leave them out (M_Crystal again)"
+    "3": "cubegen 0.24.0: neutral maps of --paint for a recolouring shader (textures.neutral, textures.weight_layout, section neutral_maps) and the paint scheme as data (root key paint, section paint_scheme), own material names for what used M_Crystal without being a crystal (section materials). --contract 2 and 1 leave them out (M_Crystal again)",
+    "4": "cubegen 0.30.0: paint zones from part names (textures.zones, section zones: a map MTN_<model>_Zones.png with up to three zone weights and the table of the zones) and the effect materials as data (root key effects, section effects: kind and proposed runtime parameters of every glass, hologram, liquid, glow ... material the model uses). Both are optional: a sidecar without them is unchanged. --contract 3 and below leave them out"
   },
   "file": {
     "max_bytes": 4194304,
@@ -15,8 +16,8 @@
   },
   "root": {
     "keys": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours", "seed", "masterSeed",
-             "generator", "params", "style", "textures", "collision", "colliders", "paint"],
-    "since": {"paint": 3},
+             "generator", "params", "style", "textures", "collision", "colliders", "paint", "effects"],
+    "since": {"paint": 3, "effects": 4},
     "required": ["model", "type", "category", "pivot", "static", "bounds", "parts", "behaviours"],
     "reserved_categories": ["Generated"],
     "pivots": ["floor", "top", "center", "wall"],
@@ -117,8 +118,8 @@
     "distinct_files": true
   },
   "textures": {
-    "keys": ["mode", "manifest", "baked", "neutral", "weight_layout"],
-    "since": {"neutral": 3, "weight_layout": 3}
+    "keys": ["mode", "manifest", "baked", "neutral", "weight_layout", "zones"],
+    "since": {"neutral": 3, "weight_layout": 3, "zones": 4}
   },
   "neutral_maps": {
     "keys": ["W0", "W1", "W2", "Fields", "Normal"],
@@ -137,6 +138,112 @@
     "reference": "cubegen/paint.py compose() on the packed values (8 bit / 255) - the MTP_ maps",
     "needs": ["weight_layout", "paint"],
     "distinct_files": true
+  },
+
+  "zones": {
+    "keys": [
+      "map",
+      "slots"
+    ],
+    "slot_keys": [
+      "channel",
+      "zone",
+      "objects"
+    ],
+    "map": "Zones",
+    "file_prefix": "MTN_",
+    "max_slots": 3,
+    "channels": [
+      "r",
+      "g",
+      "b"
+    ],
+    "channel_meaning": {
+      "r": "weight of slot 0",
+      "g": "weight of slot 1",
+      "b": "weight of slot 2",
+      "a": "1 (reserved)"
+    },
+    "srgb": false,
+    "distinct_files": true,
+    "weights": "0 or 1 inside a zone's faces, grown by the 4 px bake margin; texels in no zone's faces (the rest of the model) are 0 in every channel",
+    "slots": "zones of the painted mesh objects (the name without trailing numbers and side/position tokens: Frame_Left -> Frame), alphabetical, the zone Body (the main body) left out; at most three, the rest stay with the body. Present only with a second zone",
+    "needs": [
+      "neutral"
+    ],
+    "reference": "cubegen/zones.py zone_name / paint_zones; the map is rasterised from the atlas UVs (stylebake.zone_map)"
+  },
+  "effects": {
+    "keys": [
+      "material",
+      "kind",
+      "role",
+      "color",
+      "smoothness",
+      "metallic",
+      "emission",
+      "params"
+    ],
+    "kinds": {
+      "crystal": {
+        "fresnelPower": "number",
+        "alpha": "number",
+        "emissionIntensity": "number",
+        "sparkle": "number"
+      },
+      "emitter": {
+        "emissionIntensity": "number",
+        "bloom": "bool",
+        "pulseAmount": "number"
+      },
+      "foliage": {
+        "translucency": "number",
+        "swayAmplitude": "number",
+        "swayFrequency": "number"
+      },
+      "glass": {
+        "alpha": "number",
+        "fresnelPower": "number",
+        "doubleSided": "bool",
+        "refraction": "number"
+      },
+      "glow": {
+        "emissionIntensity": "number",
+        "pulseAmount": "number",
+        "pulseSpeed": "number"
+      },
+      "hologram": {
+        "alpha": "number",
+        "additive": "bool",
+        "fresnelPower": "number",
+        "scanlineFrequency": "number",
+        "scanlineSpeed": "number",
+        "scanlineStrength": "number",
+        "flicker": "number",
+        "emissionIntensity": "number"
+      },
+      "liquid": {
+        "alpha": "number",
+        "scrollSpeed": "vec2",
+        "waveAmplitude": "number",
+        "waveFrequency": "number",
+        "fresnelPower": "number"
+      },
+      "optic": {
+        "alpha": "number",
+        "fresnelPower": "number",
+        "refraction": "number",
+        "dispersion": "number"
+      }
+    },
+    "param_types": {
+      "number": "finite number",
+      "bool": "true/false",
+      "vec2": "[x, y] of finite numbers"
+    },
+    "materials": "the model's own M_ materials that keep their material in baked, paint and palette mode (glow, crystal, glass and the split names) - each used material once, in the order of cubegen/materials.py",
+    "values": "colour (sRGB 0..1), smoothness, metallic and emission are those of the plain material; params are Cubegen's proposed runtime parameters - Cube Escape implements the effect and may restyle every value, but reads no other key",
+    "reference": "cubegen/effects.py"
   },
   "materials": {
     "split": {

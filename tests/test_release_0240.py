@@ -65,8 +65,11 @@ def _random_inputs(size, layout, seed=1):
 
 class ContractVersion3Test(unittest.TestCase):
     def test_version_3_is_current_and_older_versions_stay_byte_for_byte_what_they_were(self):
-        self.assertEqual(CONTRACT_VERSION, 3)
-        self.assertEqual(sorted(CONTRACT["history"]), ["1", "2", "3"])
+        # 0.30.0: the current version is 4 (test_release_0300) - version 3 is what contract_for(3) gives, unchanged
+        self.assertGreaterEqual(CONTRACT_VERSION, 3)
+        self.assertEqual(sorted(CONTRACT["history"])[:3], ["1", "2", "3"])
+        with open(os.path.join(ROOT, "tests", "fixtures", "contract_v3.json"), "r", encoding="utf-8") as fh:
+            self.assertEqual(contract_for(3), json.load(fh))  # the file of cubegen 0.24 - 0.29
         with open(FIXTURE_V2, "r", encoding="utf-8") as fh:
             self.assertEqual(contract_for(2), json.load(fh))  # the file of cubegen 0.22/0.23
         self.assertNotIn("neutral_maps", contract_for(2))

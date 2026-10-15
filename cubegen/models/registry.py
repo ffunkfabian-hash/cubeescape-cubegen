@@ -126,9 +126,11 @@ def generate_asset(model_type: str, seed: int, name: str = "", scale: float = 1.
         if style.damage == "destroyed":  # old generation ruins used a static envelope
             asset.colliders = []
     if style.shape != "smooth":  # a derived form of the finished model (shapes.py): before the flush-detail pass
+        from ..quality import DEFAULT_TRIANGLE_BUDGET, TRIANGLE_BUDGET
         from ..shapes import apply_shape
 
-        apply_shape(asset, style.shape)
+        budget = int(TRIANGLE_BUDGET.get(entry.category, DEFAULT_TRIANGLE_BUDGET) * (1.5 if style.detail == "high" else 1))
+        apply_shape(asset, style.shape, entry.pivot, budget)
     if style.generation >= 2:
         # flush details would flicker in the game: lift them 2 mm (fragments: split faces need more passes)
         fix_z_fighting(asset, entry.pivot, passes=8 if style.damage == "fractured" else 3,

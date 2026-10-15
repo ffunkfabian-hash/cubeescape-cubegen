@@ -243,6 +243,8 @@ def result_files(result: Dict) -> List[str]:
         files.append(result["preview"])
     for key in ("baked", "neutral_maps"):
         files += list((result.get(key) or {}).values())
+    if result.get("zone_map"):
+        files.append(result["zone_map"])
     for value in (result.get("neutral") or {}).values():
         files += value if isinstance(value, list) else [value]
     return list(dict.fromkeys(files))
@@ -271,7 +273,7 @@ def _from_roles(value: Any, folders: Folders) -> Any:
 #: the worker result's keys that describe the files (timings are this run's, not the entry's); ``engine``: the render
 #: engine of the run that made the preview (manifest ``blender.render_engine`` of a run without a Blender start)
 RESULT_KEYS = ("name", "files", "preview", "baked", "baked_material", "bake_device", "paint", "neutral", "weight_layout",
-               "neutral_maps", "engine")
+               "neutral_maps", "zone_map", "zone_slots", "engine")
 
 
 class ModelCache:

@@ -28,7 +28,7 @@ from .textures import TEXTURE_MODES, build_texture_set, plan_texture_set
 from .paint import BUILTIN_PAINTS, PAINTS, check_paint, load_scheme, register_scheme
 from .variety import pick_unique
 from .contract import (CONTRACT_VERSION, baked_map_keys, check_fbx, check_runtime_budget, check_sidecar, check_version,
-                       texture_keys)
+                       root_keys, texture_keys)
 from .families import join_table, unity_connectors
 from .effects import effects_of
 from .zones import zone_table
@@ -631,8 +631,10 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
                                         for k, v in entry["neutral"].items()}})
             if entry.get("neutral_maps"):
                 res["neutral_maps"] = {k: _abs(v, out) for k, v in entry["neutral_maps"].items()}
+            if entry.get("zone_map"):
+                res.update({"zone_map": _abs(entry["zone_map"], out), "zone_slots": entry.get("zone_slots")})
         paths = list(res["files"].values()) + list(res.get("baked", {}).values()) \
-            + list(res.get("neutral_maps", {}).values())
+            + list(res.get("neutral_maps", {}).values()) + ([res["zone_map"]] if res.get("zone_map") else [])
         for value in (res.get("neutral") or {}).values():  # the neutral maps of a paint scheme (later shader)
             paths += value if isinstance(value, list) else [value]
         if render:
@@ -1233,6 +1235,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                 if res.get("baked_material"):  # every non-glow material became the asset's atlas material
                     asset_map = {m: res["baked_material"] for m in MATERIALS if m not in BAKE_KEEP}
                 rig = rig_data(asset, spec, config.seed, asset_map, lod=lod_of(spec) if spec.get("lod") else None)
+                if "effects" in root_keys(config.contract) and effects_of(asset):  # version 4: effect materials as data
+                    rig["effects"] = effects_of(asset)
                 if textures and not (config.textures == "baked" and not res.get("baked")):
                     # (baked mode, nothing baked - only glow, crystal or glass materials: plain M_* parts, no
                     # textures entry - the importer requires the baked maps in mode baked)
@@ -1251,6 +1255,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                                                       for k, v in res["neutral_maps"].items()}
                         rig["textures"]["weight_layout"] = [list(g) for g in res["weight_layout"]]
                         rig["paint"] = sidecar_paint(config.paint, config.paint_scheme)
+                        if res.get("zone_map") and "zones" in texture_keys(config.contract):
+                            # version 4: the paint-zone map (weights of up to three zones) and its slots
+                            rig["textures"]["zones"] = {"map": _rel(res["zone_map"], spec["models_dir"]),
+                                                        "slots": res["zone_slots"]}
                 elif palette:
                     rig["textures"] = {"mode": "palette",
                                        "manifest": _rel(os.path.join(textures_dir,
@@ -1308,6 +1316,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             # 0.24.0: the packed maps a shader reads (textures.neutral of contract version 3 - here for every version)
             **({"neutral_maps": {k: _rel(v, out) for k, v in res["neutral_maps"].items()}}
                if res.get("neutral_maps") else {}),
+            # 0.30.0: the paint-zone map and its slots (textures.zones of contract version 4 - here for every version)
+            **({"zone_map": _rel(res["zone_map"], out), "zone_slots": res["zone_slots"]} if res.get("zone_map") else {}),
         })
     cfg = asdict(config)
     cfg["style"] = config.style.to_dict()

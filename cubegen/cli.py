@@ -416,7 +416,7 @@ def cmd_params(args) -> int:
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
     print("        --damage intact|damaged|destroyed|fractured  --clutter none|clean|lived-in|chaotic")
-    print("        --shape smooth|voxel")
+    print("        --shape smooth|voxel|facet|holes")
     print("        --generation 1|2|3")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
@@ -750,8 +750,9 @@ def make_parser() -> argparse.ArgumentParser:
                          "fractured: split into fragments Fragment_<n> that Unity drops when it is destroyed")
     st.add_argument("--clutter", choices=["none", "clean", "lived-in", "chaotic"],
                     help="separate small props on explicitly supported table surfaces; deterministic by seed")
-    st.add_argument("--shape", choices=["smooth", "voxel"],
-                    help="voxel: solid decorative parts rebuilt as merged cubes (same parts, colliders, atlas)")
+    st.add_argument("--shape", choices=["smooth", "voxel", "facet", "holes"],
+                    help="derived forms of the finished model (same parts, colliders, atlas): voxel = merged cubes, "
+                         "facet = round solid parts as coarse hulls, holes = small square holes in flat plates")
     st.add_argument("--generation", type=int, choices=list(GENERATIONS),
                     help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
                          "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part; "

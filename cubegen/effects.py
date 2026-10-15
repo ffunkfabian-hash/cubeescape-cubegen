@@ -3,10 +3,11 @@
 Glass, hologram, liquid, glow and the other materials that keep their own ``M_`` material in baked, paint and
 palette mode (``materials.KEEP_OWN``) get a description that the manifest carries per model (``effects``): the kind of
 effect, the values Cubegen gives the plain material (colour, smoothness, emission) and what the material is meant for.
-It is a *description only*: the runtime effect (Fresnel, alpha, scrolling, pulsing) lives in Cube Escape; the numbers
-here are exactly those of ``materials.MATERIALS``, so a viewer and the game can read the same values. Nothing is
-invented that the game does not have; the sidecar and the contract are untouched (the effect block of the sidecar is
-ROADMAP ToDo 28, together with Cube Escape).
+Since 0.30.0 (contract version 4) the description is also the sidecar's ``effects`` block. The base values (colour,
+smoothness, metallic, emission) are exactly those of ``materials.MATERIALS``; ``params`` are Cubegen's *proposed*
+parameters for the runtime effect (``KIND_PARAMS``: a flat set of numbers, flags and 2-vectors per kind) - Cube Escape
+implements the effect (Fresnel, alpha, scrolling, pulsing, ...) and may restyle any value; what it must not do is read a
+key the contract does not list (``contract.json`` section ``effects``).
 """
 
 from __future__ import annotations
@@ -16,6 +17,36 @@ from typing import Dict, List
 from .materials import CRYSTAL_SPLIT, GLOW_MATERIALS, KEEP_OWN, MATERIALS
 
 EFFECT_FORMAT = 1
+
+#: allowed parameter keys per kind and their type: "number", "bool" or "vec2" (the contract's section ``effects``)
+KIND_PARAMS = {
+    "glow": {"emissionIntensity": "number", "pulseAmount": "number", "pulseSpeed": "number"},
+    "crystal": {"fresnelPower": "number", "alpha": "number", "emissionIntensity": "number", "sparkle": "number"},
+    "glass": {"alpha": "number", "fresnelPower": "number", "doubleSided": "bool", "refraction": "number"},
+    "liquid": {"alpha": "number", "scrollSpeed": "vec2", "waveAmplitude": "number", "waveFrequency": "number",
+               "fresnelPower": "number"},
+    "hologram": {"alpha": "number", "additive": "bool", "fresnelPower": "number", "scanlineFrequency": "number",
+                 "scanlineSpeed": "number", "scanlineStrength": "number", "flicker": "number",
+                 "emissionIntensity": "number"},
+    "emitter": {"emissionIntensity": "number", "bloom": "bool", "pulseAmount": "number"},
+    "optic": {"alpha": "number", "fresnelPower": "number", "refraction": "number", "dispersion": "number"},
+    "foliage": {"translucency": "number", "swayAmplitude": "number", "swayFrequency": "number"},
+}
+#: the proposed values per kind; ``emissionIntensity`` follows ``MATERIALS`` (the glow materials differ), a material
+#: may override single keys in ``MATERIAL_PARAMS``
+KIND_DEFAULTS = {
+    "glow": {"pulseAmount": 0.0, "pulseSpeed": 1.0},
+    "crystal": {"fresnelPower": 3.0, "alpha": 0.9, "sparkle": 0.3},
+    "glass": {"alpha": 0.3, "fresnelPower": 2.5, "doubleSided": True, "refraction": 0.0},
+    "liquid": {"alpha": 0.75, "scrollSpeed": [0.03, 0.015], "waveAmplitude": 0.004, "waveFrequency": 3.0,
+               "fresnelPower": 2.0},
+    "hologram": {"alpha": 0.55, "additive": True, "fresnelPower": 3.0, "scanlineFrequency": 90.0,
+                 "scanlineSpeed": 0.6, "scanlineStrength": 0.25, "flicker": 0.05},
+    "emitter": {"bloom": True, "pulseAmount": 0.0},
+    "optic": {"alpha": 0.6, "fresnelPower": 2.0, "refraction": 0.05, "dispersion": 0.02},
+    "foliage": {"translucency": 0.25, "swayAmplitude": 0.01, "swayFrequency": 1.2},
+}
+MATERIAL_PARAMS = {"M_Biolume": {"pulseAmount": 0.2}}
 
 #: kind per material; everything in ``KEEP_OWN`` needs an entry (a test keeps the two in step)
 KINDS = {
@@ -45,7 +76,18 @@ def effect_of(name: str) -> Dict:
     colour, smoothness, metallic, emission = MATERIALS[name]
     return {"material": name, "kind": KINDS[name], "role": ROLES[name],
             "color": [round(c, 4) for c in colour], "smoothness": smoothness, "metallic": metallic,
-            "emission": emission}
+            "emission": emission, "params": params_of(name)}
+
+
+def params_of(name: str) -> Dict:
+    """The proposed runtime parameters of an effect material (keys of ``KIND_PARAMS[kind]`` only)."""
+    kind = KINDS[name]
+    params = {k: (list(v) if isinstance(v, list) else v) for k, v in KIND_DEFAULTS[kind].items()}
+    params.update(MATERIAL_PARAMS.get(name, {}))
+    emission = MATERIALS[name][3]
+    if "emissionIntensity" in KIND_PARAMS[kind] and emission is not None:
+        params["emissionIntensity"] = emission
+    return {k: params[k] for k in KIND_PARAMS[kind] if k in params}
 
 
 def effects_table() -> List[Dict]:

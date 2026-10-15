@@ -46,6 +46,12 @@ CASES = (
 # generation 1 (= cubegen 0.9.0, verified against its golden.json: identical except door's corrected wiring) and
 # generation 2 (= the default before the sound / effect anchors of generation 3: identical to its golden.json)
 CASES += tuple((f"gen{g}_{name}", seed, dict(style, generation=g)) for g in (1, 2) for name, seed, style in CASES)
+# derived forms (0.30.0, --shape): own cases, added after the generation copies so none of the older ones moves
+CASES += (
+    ("shape_voxel", 9, {"shape": "voxel"}),
+    ("shape_facet", 10, {"shape": "facet"}),
+    ("shape_holes", 11, {"shape": "holes"}),
+)
 
 
 def compute():

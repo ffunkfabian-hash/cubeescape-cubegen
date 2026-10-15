@@ -17,12 +17,14 @@ file leaves the generator:
 * ``textures``: only ``mode``, ``manifest`` and ``baked``; baked maps (section ``baked_maps``) only in mode ``baked``,
   the required ones present, one file per map; ``check_export`` also finds the files
 
+* ``textures.zones`` and root key ``effects`` (version 4): paint zones of the painted parts (section ``zones``) and the
+  model's effect materials with proposed runtime parameters (section ``effects``)
 * ``textures.neutral`` (version 3): the packed neutral maps of ``--paint`` (section ``neutral_maps``) with
   ``textures.weight_layout``; root key ``paint``: a built-in scheme's name or a custom scheme as data (section
   ``paint_scheme``)
 
 The contract is versioned (``version``, ``history``): version 2 (0.22.0) adds ``baked_maps`` with ``Emission``,
-version 3 (0.24.0) the neutral maps and the scheme. ``contract_for(v)`` is the file an importer of version ``v``
+version 3 (0.24.0) the neutral maps and the scheme, version 4 (0.30.0) the zone map and the effects block. ``contract_for(v)`` is the file an importer of version ``v``
 reads, ``check_sidecar(data, version=v)`` the sidecar it accepts - ``generate --contract v`` writes such sidecars
 (what a version does not know stays in the manifest only).
 
@@ -74,8 +76,11 @@ NEUTRAL_MAPS = CONTRACT["neutral_maps"]
 PAINT_SCHEME = CONTRACT["paint_scheme"]
 #: material names split off M_Crystal (version 3, cubegen/materials.py CRYSTAL_SPLIT)
 SPLIT_MATERIALS = tuple(CONTRACT["materials"]["split"])
+ZONES = CONTRACT["zones"]
+EFFECTS = CONTRACT["effects"]
 #: what a version added to the file: an importer of an older version rejects unknown sections
-_SECTIONS_SINCE = {2: ("history", "baked_maps"), 3: ("textures", "neutral_maps", "materials", "paint_scheme")}
+_SECTIONS_SINCE = {2: ("history", "baked_maps"), 3: ("textures", "neutral_maps", "materials", "paint_scheme"),
+                   4: ("zones", "effects")}
 
 
 def _since(table: Dict, key: str) -> int:
@@ -113,8 +118,13 @@ def contract_for(version: int = CONTRACT_VERSION) -> Dict:
                 data.pop(key, None)
     root = data["root"]
     root["keys"] = list(root_keys(version))
-    if version < 3:
-        root.pop("since", None)
+    root["since"] = {k: v for k, v in root.get("since", {}).items() if v <= version}
+    if not root["since"]:
+        root.pop("since")
+    if "textures" in data:
+        textures = data["textures"]
+        textures["keys"] = list(texture_keys(version))
+        textures["since"] = {k: v for k, v in textures.get("since", {}).items() if v <= version}
     if "history" in data:
         data["history"] = {k: v for k, v in data["history"].items() if int(k) <= version}
     data["version"] = version
@@ -197,6 +207,8 @@ def check_sidecar(data, file_name: Optional[str] = None,
         errors += _check_textures(data["textures"], version)
     if "paint" in data:
         errors += _check_paint(data["paint"])
+    if "effects" in data:
+        errors += _check_effects(data["effects"])
     if version < 3:  # a behaviour that swaps materials (SignalIndicator onMaterial) names one too
         for b in data["behaviours"] if isinstance(data["behaviours"], list) else []:
             fields = b.get("fields") if isinstance(b, dict) else None
@@ -414,6 +426,88 @@ def _check_textures(tex, version: int) -> List[str]:
         errors.append("textures.baked: every map needs its own file")
     if "neutral" in tex or "weight_layout" in tex:
         errors += _check_neutral(tex.get("neutral"), tex.get("weight_layout"))
+    if "zones" in tex:
+        errors += _check_zones(tex["zones"], tex)
+    return errors
+
+
+def _check_zones(zones, tex) -> List[str]:
+    """``textures.zones`` (version 4): the zone map and its slots (section ``zones``)."""
+    if not isinstance(zones, dict):
+        return ["textures.zones: expected {map: path, slots: [...]}"]
+    errors = [f"textures.zones: unknown key {k!r}" for k in zones if k not in ZONES["keys"]]
+    if not isinstance(zones.get("map"), str) or not zones.get("map"):
+        errors.append("textures.zones.map: expected a file path")
+    elif zones["map"] in (tex.get("baked") or {}).values() or zones["map"] in (tex.get("neutral") or {}).values():
+        errors.append("textures.zones: the zone map needs its own file")
+    if "neutral" not in tex:
+        errors.append("textures.zones needs the neutral maps (textures.neutral)")
+    slots = zones.get("slots")
+    if not isinstance(slots, list) or not 1 <= len(slots) <= ZONES["max_slots"]:
+        return errors + [f"textures.zones.slots: expected 1-{ZONES['max_slots']} slots"]
+    seen = set()
+    for i, slot in enumerate(slots):
+        where = f"textures.zones.slots[{i}]"
+        if not isinstance(slot, dict) or set(slot) != set(ZONES["slot_keys"]):
+            errors.append(f"{where}: expected exactly {', '.join(ZONES['slot_keys'])}")
+            continue
+        if slot["channel"] != ZONES["channels"][i]:
+            errors.append(f"{where}.channel: slot {i} is channel {ZONES['channels'][i]!r}")
+        if not isinstance(slot["zone"], str) or not slot["zone"] or slot["zone"] in seen:
+            errors.append(f"{where}.zone: expected a name, once each")
+        seen.add(slot["zone"])
+        if not isinstance(slot["objects"], list) or not slot["objects"] or \
+                not all(isinstance(o, str) and o for o in slot["objects"]):
+            errors.append(f"{where}.objects: expected a list of part names")
+    return errors
+
+
+def _check_effects(effects) -> List[str]:
+    """Root key ``effects`` (version 4): the model's effect materials (section ``effects``)."""
+    if not isinstance(effects, list) or not effects:
+        return ["effects: expected a non-empty list"]
+    errors, seen = [], set()
+    for i, entry in enumerate(effects):
+        where = f"effects[{i}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{where}: expected an object")
+            continue
+        for key in entry:
+            if key not in EFFECTS["keys"]:
+                errors.append(f"{where}: unknown key {key!r}")
+        for key in ("material", "kind", "params"):
+            if key not in entry:
+                errors.append(f"{where}: missing {key!r}")
+        name, kind = entry.get("material"), entry.get("kind")
+        if name in seen:
+            errors.append(f"{where}.material: {name!r} twice")
+        seen.add(name)
+        if kind not in EFFECTS["kinds"]:
+            errors.append(f"{where}.kind: {kind!r} not in {', '.join(EFFECTS['kinds'])}")
+            continue
+        if not isinstance(name, str) or not name.startswith("M_"):
+            errors.append(f"{where}.material: expected an M_ material name")
+        if "color" in entry and not (_vec(entry["color"]) and all(0.0 <= c <= 1.0 for c in entry["color"])):
+            errors.append(f"{where}.color: expected [r, g, b] in 0..1")
+        for key in ("smoothness", "metallic"):
+            if key in entry and not _num(entry[key]):
+                errors.append(f"{where}.{key}: expected a number")
+        if entry.get("emission") is not None and "emission" in entry and not _num(entry["emission"]):
+            errors.append(f"{where}.emission: expected a number or null")
+        params = entry.get("params")
+        if not isinstance(params, dict):
+            errors.append(f"{where}.params: expected an object")
+            continue
+        for key, value in params.items():
+            kind_type = EFFECTS["kinds"][kind].get(key)
+            if kind_type is None:
+                errors.append(f"{where}.params: {key!r} is no parameter of kind {kind!r}")
+            elif kind_type == "number" and not _num(value):
+                errors.append(f"{where}.params.{key}: expected a number")
+            elif kind_type == "bool" and not isinstance(value, bool):
+                errors.append(f"{where}.params.{key}: expected true/false")
+            elif kind_type == "vec2" and not _vec(value, 2):
+                errors.append(f"{where}.params.{key}: expected [x, y]")
     return errors
 
 
@@ -489,6 +583,9 @@ def _baked_files(data, sidecar_path: str) -> List[str]:
             missing += [f"textures.{section}.{key}: file {path!r} missing"
                         for key, path in sorted(tex[section].items())
                         if isinstance(path, str) and not os.path.isfile(os.path.normpath(os.path.join(folder, path)))]
+    zone_map = tex.get("zones", {}).get("map") if isinstance(tex.get("zones"), dict) else None
+    if isinstance(zone_map, str) and not os.path.isfile(os.path.normpath(os.path.join(folder, zone_map))):
+        missing.append(f"textures.zones.map: file {zone_map!r} missing")
     return missing
 
 
@@ -666,7 +763,7 @@ def check_export(models_dir: str, version: int = CONTRACT_VERSION) -> Dict[str, 
 
 
 __all__ = ["check_sidecar", "check_fbx", "check_export", "read_sidecar", "load_contract", "CONTRACT", "CONTRACT_FILE",
-           "CONTRACT_VERSION", "SUPPORTED_VERSIONS", "BAKED_MAPS", "NEUTRAL_MAPS", "PAINT_SCHEME", "contract_for",
+           "CONTRACT_VERSION", "SUPPORTED_VERSIONS", "BAKED_MAPS", "NEUTRAL_MAPS", "ZONES", "EFFECTS", "PAINT_SCHEME", "contract_for",
            "baked_map_keys", "root_keys", "texture_keys", "check_version",
            "BEHAVIOURS", "ROOT_KEYS", "RUNTIME_BUDGET", "check_runtime_budget", "glb_summary", "texture_bytes"]
 

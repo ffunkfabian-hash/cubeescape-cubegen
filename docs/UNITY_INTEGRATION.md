@@ -394,6 +394,44 @@ Regeln (`check_sidecar`, Version 3): `neutral` nur im Modus `baked`, nur zusamme
 bekannte Karten, Pflichtkarten, `W2` genau bei drei Gruppen, jede Karte eine eigene Datei; `check --export` findet
 fehlende Dateien. Ein Import von Version 2 lehnt `paint`, `textures.neutral` und `textures.weight_layout` ab.
 
+## Vertrag Version 4 (cubegen 0.30.0): Zonenkarte und Effektblock
+
+Beides optional: ein Sidecar ohne sie bleibt gültig, die Dateien der Versionen 1–3 sind unverändert (`contract_for(3)`
+ist byteweise die Datei von 0.24–0.29, Fixture `tests/fixtures/contract_v3.json`). Ein Import von Version 3 lehnt
+`textures.zones` und `effects` als unbekannte Schlüssel ab (`generate --contract 3` lässt sie weg, sie bleiben im
+Manifest). `python3 -m cubegen contract --out <Datei>` schreibt die Version-4-Datei, `--version 3` die alte.
+
+**Lackzonen** (`--paint`, nur Modelle mit mindestens zwei Zonen): Eine Zone ist der Objektname ohne Ziffern- und
+Seiten-Endungen (`Frame_Left`/`Frame_Right` → `Frame`, `Rotor_2` → `Rotor`, `Panel_Outer_B` → `Panel`;
+`cubegen/zones.py`). `textures.zones.map` ist `Textures/MTN_<Modell>_Zones.png` (linear, 8 Bit, nicht sRGB, eigene
+Datei, UV0 = Atlas): R/G/B = Gewicht von Slot 0/1/2 (0 oder 255, am Rand um die 4 px des Backens erweitert), A = 255
+(reserviert); Texel in keiner Zone (der Rest, v. a. `Body`) sind 0 in allen Kanälen. `textures.zones.slots` nennt je
+Slot `channel` (`r`/`g`/`b`), `zone` und `objects` (die Teilnamen): Zonen alphabetisch, `Body` ohne Slot, höchstens drei.
+Die Karte entsteht aus den Atlas-UVs (numpy, kein Cycles-Durchgang), also bytegleich je UV-Satz. Cube Escape entscheidet,
+was die Zone bekommt (z. B. eine zweite Schemafarbe); das Thema selbst (`paint`) kennt noch keine Zonenfarben.
+
+**Effektmaterialien** (Wurzelschlüssel `effects`, nur wenn das Modell welche nutzt): je benutztes eigenes Material
+(`M_Glow*`, `M_Crystal`, `M_Glass` und die abgespaltenen `M_Liquid`, `M_Hologram`, `M_Lamp`, `M_Leaf`, `M_Biolume`,
+`M_Signal`, `M_Accent`, `M_Optic`) ein Eintrag `{material, kind, role, color, smoothness, metallic, emission, params}`.
+Farbe/Glätte/Metall/Emission sind die des einfachen Materials (`materials.MATERIALS`); `params` sind Cubegens
+*vorgeschlagene* Laufzeit-Parameter je `kind` (`glow`, `crystal`, `glass`, `liquid`, `hologram`, `emitter`, `optic`,
+`foliage`; erlaubte Schlüssel und Typen `number`/`bool`/`vec2` im Abschnitt `effects` der Vertragsdatei,
+`cubegen/effects.py`). Cube Escape setzt den Effekt um und darf jeden Wert ändern, liest aber keinen anderen Schlüssel.
+
+```json
+"effects": [{"material": "M_Hologram", "kind": "hologram", "role": "holograms and energy fields",
+             "color": [0.3, 0.9, 1.0], "smoothness": 0.9, "metallic": 0.0, "emission": 2.5,
+             "params": {"alpha": 0.55, "additive": true, "fresnelPower": 3.0, "scanlineFrequency": 90.0,
+                        "scanlineSpeed": 0.6, "scanlineStrength": 0.25, "flicker": 0.05, "emissionIntensity": 2.5}}],
+"textures": {"mode": "baked", "…": "…", "zones": {"map": "Textures/MTN_BreakablePlatform_000_Zones.png",
+             "slots": [{"channel": "r", "zone": "Frame", "objects": ["Frame"]},
+                       {"channel": "g", "zone": "Tile", "objects": ["Tile_1", "Tile_2", "Tile_3", "Tile_4"]}]}}
+```
+
+Regeln (`check_sidecar`, Version 4): `zones` nur zusammen mit `neutral`, 1–3 Slots in Kanalreihenfolge, Zone einmal je
+Slot, Karte eine eigene Datei (`check --export` findet fehlende Dateien); `effects` nicht leer, Material einmal,
+`kind` bekannt, `params` nur Schlüssel des `kind` mit dem passenden Typ, Farbe in 0–1.
+
 **Vergleichsbilder** (Cube Escape `SurfaceRenderTests`): `python3 tools/paint_reference.py <Lauf>` setzt aus den
 `MTN_`-Karten eines Laufs jedes eingebaute Thema (und das eigene des Laufs) ohne Blender zusammen –
 `<Lauf>/paint_reference/<Thema>/MTP_<Modell>_<Thema>_Albedo/Roughness/MetallicSmoothness[/Emission].png` und
@@ -516,10 +554,11 @@ des Backens) und seit 0.24.0 `neutral_maps` (die gepackten `MTN_`-Karten, `{"W0"
 
 **Seit 0.30.0 nur im Manifest** (nie im Sidecar, kein Vertrag): `models[].zones` – Lackzonen aus Teilnamen
 (`[{"zone": "Frame", "objects": ["Frame_Left", …], "painted": ["M_RobotDark"]}]`, `cubegen/zones.py`; eine Zone ohne
-bemalbares Material nimmt keine Schemafarbe); `models[].effects` – Beschreibung der eigenen Effektmaterialien, die das
-Modell nutzt (`kind`, `role`, Farbe/Glätte/Emission aus `materials.MATERIALS`; `cubegen/effects.py`; das Spiel liest sie
-noch nicht, ROADMAP ToDo 28); `models[].atlas_occupancy` – Anteil des Atlas, den die UVs bedecken (nur gebackene
-Modelle); `meta.shape` bei `--shape voxel`.
+bemalbares Material nimmt keine Schemafarbe; die Zonenkarte dazu: Vertrag 4); `models[].effects` – Beschreibung der eigenen Effektmaterialien, die das
+Modell nutzt (`kind`, `role`, Farbe/Glätte/Emission aus `materials.MATERIALS`, `params`; `cubegen/effects.py`; seit
+Vertrag 4 auch als Sidecar-Block `effects`); `models[].atlas_occupancy` – Anteil des Atlas, den die UVs bedecken (nur gebackene
+Modelle); `meta.derived_shape` bei `--shape voxel|facet|holes`. Seit Vertrag 4 stehen `zone_map`/`zone_slots` (Zonenkarte)
+auch hier, `effects` für jede Vertragsversion.
 
 ## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
 

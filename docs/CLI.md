@@ -205,7 +205,7 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--wear` | none / light / heavy | Schutt, lose Platten, Kabel um das Modell |
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
 | `--damage` | intact / damaged / destroyed / fractured | beschädigt, Ruine (statisch, ohne Scripts) oder in Bruchstücke `Fragment_<nn>` zerlegt, die Unity bei Zerstörung herausfallen lässt |
-| `--shape` | smooth / voxel | seit 0.30.0: `voxel` baut feste, nur dekorative Teile als zusammengefasste Würfel neu (gleiche Teile, Kollision, Sidecar, Atlas; nur bei `--damage intact`); Teile, die nicht passen (dünn, nicht konvex, bewegt), bleiben glatt. Manifest: `meta.shape` |
+| `--shape` | smooth / voxel / facet / holes | seit 0.30.0, nur bei `--damage intact`, abgeleitet vom fertigen Modell (gleiche Teile, Kollision, Sidecar, Atlas; nichts ragt über das glatte Modell hinaus): `voxel` = feste, dekorative Teile als zusammengefasste Würfel; `facet` = runde Teile als grobe Hüllen (jeder dritte Eckpunkt); `holes` = kleine quadratische Löcher (≤ 0,15 m) in flachen Platten, solange das Dreiecksbudget reicht, nie in Lauf-Flächen (Pivot `top`). Was nicht passt (dünn, gebogen, bewegt), bleibt glatt. Manifest: `meta.derived_shape` |
 | `--generation` | 1 / 2 / 3 | Modell-Generation (Standard 3 = mit Ankern `Audio_*`/`FX_*` für Ton und Effekte); 2 = ohne Anker, 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
 
 **Text auf Modellen** (Parameter, ohne Angabe bleibt alles wie bisher): `--param sign.text=B-12` (Schild mit
@@ -574,7 +574,7 @@ sets, Anstriche, macOS-App, schwerer Lauf, GitHub Actions) stehen in [`DEVELOPER
 | `--bake-device` | auto | Cycles-Gerät für `--textures baked`: auto (GPU ab 1024 px), cpu, gpu |
 | `--paint` | – | Anstrich (Thema): clean, crystal, dark, ice, industrial, organic, ruin, sand, space, toxic, void – gebackener Atlas aus einem neutralen Back (schaltet `--textures baked` ein) |
 | `--paint-file` | – | eigenes Thema aus einer JSON-Datei (`name`, `base`, abweichende Werte); ersetzt `--paint` |
-| `--contract` | 3 | Vertragsversion des Unity-Imports, für die die Sidecars geschrieben werden; 2 = ohne neutrale Karten und Thema, `M_Crystal` statt der neuen Materialnamen; 1 = zusätzlich ohne Leuchtkarte (alles bleibt im Manifest) |
+| `--contract` | 4 | Vertragsversion des Unity-Imports, für die die Sidecars geschrieben werden; 3 = ohne Zonenkarte (`textures.zones`) und Effektblock (`effects`); 2 = zusätzlich ohne neutrale Karten und Thema, `M_Crystal` statt der neuen Materialnamen; 1 = zusätzlich ohne Leuchtkarte (alles bleibt im Manifest) |
 | `--force` | – | alles neu bauen statt Unverändertes zu übernehmen |
 | `--no-blend` | – | keine Übersichts-.blend |
 | `--no-rig-data` | – | keine `<Name>.cubegen.json` |

@@ -64,7 +64,7 @@ class Style:
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
     damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts) | fractured
     clutter: str = "none"            # none | clean | lived-in | chaotic
-    shape: str = "smooth"            # smooth | voxel (cubegen/shapes.py: solid parts rebuilt as merged cubes, 0.30.0)
+    shape: str = "smooth"            # smooth | voxel | facet | holes (cubegen/shapes.py, 0.30.0)
     theme: Optional[str] = None      # any text: rolls glow, material, wear and warning once for all assets
     generation: int = LATEST_GENERATION  # model generation (GENERATIONS): 1 = as cubegen 0.9.0, 2 = without anchors
 
@@ -78,7 +78,7 @@ class Style:
             ("detail", self.detail, ("low", "normal", "high")),
             ("damage", self.damage, DAMAGE_STATES),
             ("clutter", self.clutter, ("none", "clean", "lived-in", "chaotic")),
-            ("shape", self.shape, ("smooth", "voxel")),
+            ("shape", self.shape, ("smooth", "voxel", "facet", "holes")),
         ]
         for name, value, allowed in checks:
             if value not in allowed:

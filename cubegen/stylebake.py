@@ -313,6 +313,7 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
     packed = write_neutral(pack_maps(maps, seed), name, out_dir)
     packed["Normal"] = os.path.join(out_dir, file_name(name, "Normal"))
     shutil.copyfile(maps["normal"], packed["Normal"])
+    zone_map_path, zone_slots = write_zone_map(collection, name, out_dir, size)
     # the material is named like --textures baked (MTA_<Asset>): Unity's baked import reads exactly that name; the
     # scheme is recorded in the manifest ("paint") and in the map file names (MTP_<Asset>_<scheme>_*.png)
     material = bk._baked_material(f"MTA_{name}", {k: v for k, v in final.items() if k != "Emission"})
@@ -337,7 +338,39 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
         o.data.uv_layers[bk.BAKE_UV].name = "UVMap"
     neutral = {k: v for k, v in maps.items() if k not in ("layout", "device")}
     return {"material": material.name, "maps": final, "device": maps["device"], "neutral": neutral,
-            "layout": maps["layout"], "packed": packed, "uvs": uvs}
+            "layout": maps["layout"], "packed": packed, "uvs": uvs,
+            **({"zone_map": zone_map_path, "zone_slots": zone_slots} if zone_map_path else {})}
+
+
+def write_zone_map(collection, name, out_dir, size):
+    """The zone map ``MTN_<name>_Zones.png`` (cubegen/zones.py, contract version 4) rasterised from the atlas UVs of the
+    painted objects; ``(path, slots)`` or ``(None, [])`` for a model with one zone."""
+    import numpy as np
+
+    from cubegen.neutral import file_name, write_png
+    from cubegen.zones import paint_zones, zone_map, zone_name
+
+    objects = bk._mesh_objects(collection)
+    slots = paint_zones([o.name for o in objects])
+    if not slots:
+        return None, []
+    channel = {zone["zone"]: i for i, zone in enumerate(slots)}
+    triangles = []
+    for o in objects:
+        mesh = o.data
+        layer = mesh.uv_layers.get(bk.BAKE_UV)
+        if layer is None:
+            continue
+        mesh.calc_loop_triangles()
+        uv = np.empty(2 * len(mesh.loops), np.float32)
+        layer.data.foreach_get("uv", uv)
+        uv = uv.reshape(-1, 2)
+        loops = np.empty(3 * len(mesh.loop_triangles), np.int32)
+        mesh.loop_triangles.foreach_get("loops", loops)
+        slot = channel.get(zone_name(o.name), -1)
+        triangles += [(slot, tuple(map(tuple, uv[tri]))) for tri in loops.reshape(-1, 3)]
+    path = write_png(os.path.join(out_dir, file_name(name, "Zones")), zone_map(triangles, size))
+    return path, slots
 
 
 def apply_paint(collection, maps, paint, textures, roughness, base_names=()):

@@ -223,17 +223,21 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Lackzonen** (`zones.py`): Zone = Objektname ohne Ziffern- und Seiten-Endungen. Gemessen (Seed 42, 187 Typen): 108
   Typen haben nur eine bemalbare Zone (`Body`), 63 zwei, 12 drei, 3 mehr – eine Zweitfarbe an Teilgrenzen ist für 78
   Typen möglich, aber 135 von 154 Objektnamen sind `Body`; Teile innerhalb des Körpers sind nicht benannt (alle
-  `part`). Eine Zonen-*Karte* braucht einen neuen Kanal im Vertrag (Version 4) und den Shader in Cube Escape – nicht
-  Teil dieser Version.
+  `part`). Die Zonen-*Karte* (Vertrag Version 4): `stylebake.write_zone_map` rastert die Atlas-UVs der bemalten Objekte
+  (`zones.zone_map`, numpy, hart 0/255, 4 px Rand), kein Cycles-Durchgang – exakt an den Zonengrenzen (ein gebackener
+  Zonenkanal würde dort mischen) und bytegleich je UV-Satz; bis zu drei Slots (alphabetisch, `Body` ohne Slot), nur bei
+  mindestens zwei Zonen. Der Shader mit der Zweitfarbe ist Cube Escapes.
 - **Teilgraphen im Material:** gemessen und verworfen. `M_`-Materialien haben 2–5 Knoten, `MT_` 6; ein Knoten
   anlegen+entfernen kostet 0,012 ms, die Emissions-Ersatzgraphen des Backens (Kante) 0,2 ms je Material – ein Modell
   braucht dafür unter 10 ms gegen Sekunden Backzeit. Anders als im Roboter-Generator (große Material-Bäume) lohnt das
   Zusammenlegen nicht.
 - **Effektmaterialien als Daten** (`effects.py`): Beschreibung je Material aus `KEEP_OWN` (Art, Verwendung, Werte aus
-  `MATERIALS`), im Manifest je Modell; nichts erfunden, was das Spiel nicht hat (Fresnel, Alpha, Pulsieren leben in Cube
-  Escape). Ein Test hält `KINDS`/`ROLES` und `KEEP_OWN` gleich.
+  `MATERIALS`), im Manifest je Modell; Basiswerte aus `MATERIALS`, `params` sind *vorgeschlagene* Laufzeit-Parameter
+  je Art (`KIND_PARAMS`, `KIND_DEFAULTS`: Zahlen, Flags, 2-Vektoren – von Cubegen gewählt, Cube Escape setzt den Effekt um und
+  darf sie ändern). Seit Vertrag 4 auch der Wurzelschlüssel `effects` im Sidecar. Ein Test hält `KINDS`/`ROLES`/`KIND_PARAMS`,
+  den Abschnitt `effects` der Vertragsdatei und `KEEP_OWN` gleich.
 
-## 5b. Formvarianten (`--shape voxel`, seit 0.30.0)
+## 5b. Formvarianten (`--shape voxel|facet|holes`, seit 0.30.0)
 
 `shapes.voxelize` leitet nach dem Bau, vor der Z-Fighting-Korrektur, die Voxelform ab: geschlossene, konvexe Teile in
 Objekten aus `DECORATIVE_PARTS` (kein ItemPickup), mindestens 3 Zellen dick; die Zelle ist die längste Seite / 24 (0,06
@@ -244,7 +248,16 @@ Z-Fighting). Nur Flächen zur Luft bleiben, benachbarte Flächen einer Richtung/
 werden zu Rechtecken verschmolzen (greedy); die Rolle je Richtung ist die der größten Originalfläche in dieser Richtung
 (Oberseite behält ihre Rolle). Gemessen (187 Typen, Seed 42): 108 Teile in 66 Typen werden Voxel, Dreiecke gesamt 75 104 →
 75 136 (Stufen kosten so viel wie Verschmelzen spart; ein Quader bleibt ein Quader). Die Atlas-UVs entstehen wie sonst
-aus der Geometrie. Nicht umgesetzt: Facettenform (gibt es als `--detail low` und `crystal_cut`) und Lochform;
+aus der Geometrie. **Facette** (`shapes.facet_part`): geschlossene konvexe Teile mit ≥ 12 Ecken, nicht flach (dünnste Seite ≥ 0,35 × mittlere:
+Scheiben und Platten werden mit wenigen Ecken zu Splittern und bleiben): die konvexe Hülle (`_hull`, inkrementell) von jedem dritten
+Eckpunkt (Farthest-Point-Auswahl, mindestens 8) – liegt wegen der Konvexität im Original; Rolle je Hüllfläche = die des
+Originals mit der ähnlichsten Normale. Seed 42: 514 Teile in 114 Typen, 75 104 → 64 472 Dreiecke. **Löcher**
+(`shapes.holes_part`): Platten (≤ 0,12 m dick, die anderen Seiten ≥ 4 × Dicke und ≥ 8 Löcher breit, beide Großflächen entlang
+der Dickenachse) bekommen ein Gitter quadratischer Löcher (Zelle 0,06–0,15 m, Rand und jedes zweite Feld voll, eine Zellschicht
+von 0,8 × Dicke, damit Fasen draußen bleiben); Löcher kosten Dreiecke (Seed 42: +45 %), deshalb nur solange das
+Dreiecksbudget der Kategorie reicht, und nie bei Pivot `top` (Lauf-Flächen). Die Kollision bleibt die der glatten Form: ein
+Collider-Quader über einer Platte füllt so kleine Löcher (nichts passt hindurch), das ist der einzige Unterschied zur Geometrie.
+Meta-Schlüssel `derived_shape` (die Modelle nutzen `shape` selbst).
 Voxel für gekrümmte, nicht konvexe oder dünne Teile bleibt glatt.
 
 ## 6. macOS-App (`app/`)

@@ -22,8 +22,8 @@ mit dem, was fehlt. Entwicklerhintergrund zu den vorhandenen Teilen: [`DEVELOPER
 |---|---|---|---|
 | Looks als versionierte Daten | §1 | teilweise: `paint.PAINTS` (Python), `--paint-file` mit `paint.load_scheme`/`check_scheme`, Vertrag versioniert (`cubegen/contract.json`, `contract_for`); kein Look-Format mit Migration und Fixture | Themen ohne Code, sichere Formatänderungen |
 | Einmal backen, linear zusammensetzen | §2 | schon da: `stylebake.py` (`bake_masks`, `compose_paint`), `paint.compose`, Gewichtskarten (DEVELOPER 2); Gegenprobe gegen direktes Backen: `tools/paint_reference.py` | jede Farbgebung in Sekundenbruchteilen |
-| Maskenkanäle statt Textursatz je Variante | §3 | teilweise: gepackte neutrale Karten `MTN_` (`cubegen/neutral.py`), Shader in Cube Escape rechnet nach (ROADMAP ToDo 27); keine Zonen-/Abzeichen-/Leuchtlinien-Kanäle | Varianten zur Laufzeit statt Dateien |
-| Lackzonen aus Teilnamen | §3 | teilweise (0.30.0): Zonentabelle je Modell im Manifest (`cubegen/zones.py`, `zones`); keine Zonenkarte – braucht Vertragsversion 4 und den Shader in Cube Escape; 135 von 154 Objektnamen sind `Body` (DEVELOPER 5a) | Zweitfarbe exakt an Teilgrenzen |
+| Maskenkanäle statt Textursatz je Variante | §3 | teilweise: gepackte neutrale Karten `MTN_` (`cubegen/neutral.py`), Shader in Cube Escape rechnet nach (ROADMAP ToDo 27); Zonenkarte seit 0.30.0 (Vertrag 4); keine Abzeichen-/Leuchtlinien-Kanäle | Varianten zur Laufzeit statt Dateien |
+| Lackzonen aus Teilnamen | §3 | Cubegen-Seite fertig (0.30.0): Zonentabelle im Manifest und Zonenkarte `MTN_<Modell>_Zones.png` mit `textures.zones` im Sidecar, Vertrag 4 (`cubegen/zones.py`, UNITY_INTEGRATION „Vertrag Version 4“); der Shader mit der Zweitfarbe liegt bei Cube Escape; 135 von 154 Objektnamen sind `Body` (DEVELOPER 5a) | Zweitfarbe exakt an Teilgrenzen |
 | Decal-Anker je Modellfamilie | §3 | teilweise: Anker für Klang und Effekte (`cubegen/models/anchors.py`); keine Decals | Abzeichen/Kennungen auf jedem Typ |
 | Normierte Verwitterungsfelder | §3 | teilweise: `wear`, `grime`, `dust`, `moss` als Regler je Thema (`paint.SCHEME_KEYS`); keine Rangfolge-Normierung | gleich empfindliche Regler |
 | Gemeinsame Teilgraphen im Material | §4 | gemessen, lohnt nicht (0.30.0): 2–6 Knoten je Material, 0,012 ms je Knoten (DEVELOPER 5a) | – |
@@ -33,7 +33,7 @@ mit dem, was fehlt. Entwicklerhintergrund zu den vorhandenen Teilen: [`DEVELOPER
 | Viewer: Daten-Texturen roh, Uniform-Grenzen | §8 | geprüft (0.30.0): `ModelScene` lädt nur `map_Kd` (Albedo, PNG24 ohne Alpha), keine Shader, keine Daten-Texturen – nicht betroffen; Regel für später in DEVELOPER 6 | keine stillen Vorschaufehler |
 | Atlas nachpacken, Belegung messen | §16 | schon da (0.30.0): `bake.occupancy`, `pack_islands` konkav nach Smart UV Project (Belegung 0,50–0,72 → 0,67–0,79), Manifest `atlas_occupancy` | kleinere Atlanten, schärfere Texel |
 | Unity-Testprojekt, Prüfung in einem Start | §9, §11 | teilweise: `tools/unity_check.py` läuft in der Cube-Escape-Testkopie, Prüfsätze, eigene Prozessgruppe je Schritt; kein eigenes Testprojekt | Import, Kollision, Screenshots automatisch |
-| Effektmaterialien als Daten | §11 | teilweise (0.30.0): Beschreibung je Effektmaterial (`cubegen/effects.py`, Manifest `effects`); das Spiel liest sie noch nicht, keine Laufzeit-Formeln (ROADMAP ToDo 28) | gleiche Formeln in Vorschau und Spiel |
+| Effektmaterialien als Daten | §11 | Cubegen-Seite fertig (0.30.0): Effektblock `effects` im Sidecar (Vertrag 4) und im Manifest mit Art und vorgeschlagenen Parametern (`cubegen/effects.py`); die Laufzeit-Effekte setzt Cube Escape um (ROADMAP ToDo 28) | gleiche Formeln in Vorschau und Spiel |
 | LOD automatisch | §11 | teilweise: `--lods`, LOD1 als Neubau mit `style.detail = low` (`blender_worker.py` `build_asset`), geprüft je Stufe; kein Decimate, keine Dreiecksbudgets je Stufe | Detailstufen je Modell |
 | Kollisionsformen aus Geometrie | §11 | teilweise: Rezepte und Prüfung (`collision.py`, `quality.uncovered_geometry`, `quality.needs_collider`); keine gemessenen Hüllen | passende Kollision (AGENTS.md) |
 | QA-Ergebnis-Cache | §12 | schon da (0.30.0): `quality.check_cached` (Schlüssel: `Asset.digest` + Prüfcode), von `report` und `validate_batch` genutzt; 7,1 → 4,6 s für 187 Typen × 10 (Rest = Modellbau) | Prüflauf in Sekunden |
@@ -41,7 +41,7 @@ mit dem, was fehlt. Entwicklerhintergrund zu den vorhandenen Teilen: [`DEVELOPER
 | Render-Cache nach Szenen-Abdruck | §12 | teilweise: `modelcache.py` schlüsselt das ganze Worker-Paket samt Code, die Vorschau gehört zur Einheit; kein Abdruck der Szene | Treffer auch nach unwirksamen Codeänderungen |
 | Ausgaben-Cache nach Inhalt | §17 | schon da: `cache.py` (`OutputCache`, `Store`), `modelcache.py`; Schlüssel mit `pipeline.image_code` | nichts schreiben, was gleich bleibt |
 | Kanonische Reihenfolge | §12, §17 | teilweise: Schlüssel und FBX-Pfade kanonisch (`modelcache.py`, `fbxpath.py`, `asset.py` `digest`); keine reihenfolgeabhängige Operation wie Decimate | bitgleiche Ergebnisse je Prozess |
-| Voxel-/Facetten-/Loch-Formvarianten | §15 | teilweise (0.30.0): `--shape voxel` (`cubegen/shapes.py`, Style `shape`), gleiche Teile/Collider, Atlas aus der Geometrie; Facette = `--detail low`/`crystal_cut`, Loch offen | Stilvarianten ohne neue Texturen |
+| Voxel-/Facetten-/Loch-Formvarianten | §15 | schon da (0.30.0): `--shape voxel\|facet\|holes` (`cubegen/shapes.py`, Style `shape`), gleiche Teile/Collider, Atlas aus der Geometrie, Golden-Fälle `shape_*`, Unity-Prüfsätze `shape_*` | Stilvarianten ohne neue Texturen |
 | Voxel-Flächen verschmelzen | §17 | schon da (0.30.0): greedy je Richtung und Schicht in `shapes._merged_faces` (75 104 → 75 136 Dreiecke über alle Typen: Stufen kosten, was Verschmelzen spart) | weniger Dreiecke |
 | Zeitband statt festes Budget | §17 | schon da: `tools/perf_band.py`, `STAGE_BUDGETS`, Lasterkennung (DEVELOPER 2) | keine Fehlalarme unter Last |
 | Standard im Zielumfeld messen, alte Werte als neue ID | §19 | teilweise: Rückweg alter Namen (`materials.LEGACY_NAMES`, Vertragsversionen); keine Messung der Standardoberfläche in der dunklen Station | Standard sieht im Spiel richtig aus |
@@ -98,10 +98,10 @@ liegt (bei einem Viertel ragten Würfel bis 7 mm heraus); Gelenke und dünne Tei
 Nachbarflächen werden zu Rechtecken verschmolzen (17 136 → 11 348 Dreiecke).
 **Cubegen heute:** Variantensets mit gleichem Umriss und anderem Innenleben (`--set`, DEVELOPER 4), Kristallschliff
 (`crystal_cut`); keine Formableitung.
-**Umgesetzt in 0.30.0:** Stilachse `shape = smooth | voxel` (`--shape`), Voxelform und Verschmelzen in `cubegen/shapes.py`
-(DEVELOPER 5b). **Offen:** Facettenform (vorhanden als `--detail low`/`crystal_cut`), Lochform, eine Golden-Gruppe für
-die Voxelform (heute prüft ein Test Bounding-Box, Collider und Qualität gegen die glatte Form) und der Unity-Import
-von Voxelmodellen (Stufe 2).
+**Umgesetzt in 0.30.0:** Stilachse `shape = smooth | voxel | facet | holes` (`--shape`), Verschmelzen in
+`cubegen/shapes.py` (DEVELOPER 5b), Golden-Fälle `shape_voxel/facet/holes`, Test gegen die glatte Form (Bounding-Box,
+Collider, Qualität, Budget), Unity-Prüfsätze. **Offen:** der Unity-Import und die Physik der abgeleiteten Formen auf
+einem Lauf in der Cube-Escape-Testkopie (Stufe 2).
 
 ## 5. Vorschau, Katalog, Icons (RG §5, §6, §7, §8)
 
@@ -215,11 +215,12 @@ Abgehakt nur, was Cubegen nachweislich ganz hat; bei „teilweise“ steht, was 
       `check_scheme`, aber eingebaute Themen im Quelltext (`paint.py`), keine Formatversion/Migration
 - [x] Farbvarianten aus einmal gebackenen Gewichtskarten zusammensetzen – `cubegen/stylebake.py`, `paint.compose`;
       die Referenzformel prüft `tools/paint_reference.py` (eine Gegenprobe im Volllauf ist nicht belegt)
-- [ ] Maskenkanäle (Zonen, Abzeichen, Leuchtlinien) statt Textursatz je Variante – teilweise: `MTN_`-Karten (`neutral.py`)
-- [ ] Formvarianten (facettiert, Voxel, Lochung) als Ableitung mit gleichem Atlas und gleicher QA – teilweise: Voxel
-      (`--shape voxel`), Facette nur als `--detail low`, Lochung offen
-- [ ] Lackzonen über benannte Teile → Flächenattribut → Attribute-Node – teilweise: Zonentabelle im Manifest, keine
-      Zonenkarte (Vertrag 4 und Shader in Cube Escape)
+- [ ] Maskenkanäle (Zonen, Abzeichen, Leuchtlinien) statt Textursatz je Variante – teilweise: `MTN_`-Karten (`neutral.py`),
+      Zonenkarte (0.30.0); Abzeichen und Leuchtlinien offen
+- [x] Formvarianten (facettiert, Voxel, Lochung) als Ableitung mit gleichem Atlas und gleicher QA – `--shape`
+      (`cubegen/shapes.py`); Unity-Import der Formen: Stufe 2
+- [ ] Lackzonen über benannte Teile → Flächenattribut → Attribute-Node – Cubegen-Seite fertig (Zonenkarte aus den
+      Atlas-UVs statt Attribute-Node, Vertrag 4); Shader in Cube Escape offen
 - [ ] Decal-Anker je Modellfamilie, Decal-Bibliothek per ImageMagick – teilweise: nur Klang-/Effektanker
 - [x] Gemeinsame Teilgraphen in Materialien (Knotenzahl messen) – gemessen: 2–6 Knoten je Material, lohnt nicht
 - [ ] Präsentationskarten mit Dreiviertel-Kamera, Randlicht, Bloom nur auf Emission – teilweise: Kontaktbögen
@@ -234,7 +235,7 @@ Abgehakt nur, was Cubegen nachweislich ganz hat; bei „teilweise“ steht, was 
       Emitter als Daten (`models/anchors.py`), Anbauten (`models/dressing.py`); kein Anschmiegen per Strahl
 - [ ] Nachschwingen gebacken, Requisiten per Matrix-Kette – nicht übertragbar (kein Rig)
 - [ ] Effektmaterialien als Laufzeit-Effekt mit Zielbeschreibung; Masken für die Engine packen – teilweise: Masken
-      gepackt (`neutral.py`), Beschreibung im Manifest (`effects.py`), Laufzeit-Effekt und Sidecar-Block offen
+      gepackt (`neutral.py`), Effektblock im Sidecar (Vertrag 4, `effects.py`); der Laufzeit-Effekt liegt bei Cube Escape
 - [ ] LOD-Stufen und Kollisionsformen automatisch erzeugen und in der Engine prüfen – teilweise: `--lods`, Rezepte und
       Unity-Check; keine Dreiecksbudgets je Stufe
 - [ ] Prüfergebnisse cachen, Bilder nach Szenen-Abdruck, Prüfer parallel, Engine-Prüfung in einem Prozess – teilweise:
