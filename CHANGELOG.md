@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.0 „Crossflow“ – 2026-10-15
+
+Nur Doku; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.28.0 (bis auf die Versionsangabe).
+Bericht: [VERSION_0.29.0.md](VERSION_0.29.0.md).
+
+* **Neu: `docs/TECHNIK.md`:** Techniken des Roboter-Generators (Robogen 1.20.6) mit Stand in Cubegen (schon da /
+  teilweise / offen), Aufwand und empfohlener Reihenfolge; die Checkliste für den Modell-Editor ist abgehakt, wo
+  Cubegen die Technik schon hat. Verweise aus `AGENTS.md` und `docs/DEVELOPER.md`.
+
 ## 0.28.0 „Clean Slate“ – 2026-10-15
 
 Nur ein Test; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.27.0 (bis auf die Versionsangabe).

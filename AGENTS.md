@@ -1,7 +1,7 @@
 # Cubegen · verbindliche Arbeitsregeln für KI-Agenten
 
 Langform, Begründungen und Messwerte zu den Abschnitten unten: `docs/DEVELOPER.md` (ein Abschnitt je
-Verweis). Versionsgeschichte: `CHANGELOG.md` und `VERSION_<Version>.md`.
+Verweis). Techniken des Roboter-Generators und ihr Stand in Cubegen: `docs/TECHNIK.md`. Versionsgeschichte: `CHANGELOG.md` und `VERSION_<Version>.md`.
 
 ## Passende Kollision für jedes Modell
 
