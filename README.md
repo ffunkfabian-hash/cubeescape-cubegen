@@ -127,7 +127,9 @@ Lasterkennung, CPU-Zeit).
 `python3 tools/unity_check.py` schickt feste Prüfsätze durch den echten Import von Cube Escape – Editor-Import (FBX)
 und Laufzeitpfad der Werkbank (GLB aller Typen) – in dessen Testkopie. Etwa 3 Minuten, Bericht unter
 `output/unity_check/report.json`; nur lokal, wo Cube Escape und Unity liegen (`--ce <Pfad>`, sonst
-`~/Claude/Cube Escape`). Teil jedes Releases.
+`~/Claude/Cube Escape`). Teil jedes Releases. Vor dem ersten Unity-Start wartet er auf die Sperre für schwere Läufe,
+die Cube Escape seit 0.59 für den ganzen Rechner führt (`~/Library/Caches/CubeEscape/heavy-run.lock`, zeigt den
+Halter; `CE_HEAVY_LOCK=0` überspringt sie).
 
 ```bash
 python3 tools/unity_check.py --list     # die Prüfsätze
@@ -985,7 +987,8 @@ Koordinaten sind immer im Asset-Raum (Front = −Y); der Pivot eines Teils besti
 Für Teile an der Decke gibt es `@model(..., pivot="wall", view="below")`: Previews und Icons zeigen sie dann von unten.
 Danach `python -m unittest discover -s tests` – die Tests prüfen jeden Typ auf gültige Materialien, nach außen
 zeigende Normalen, Pivot-Konvention, Collider und Determinismus. Schneller: `python3 tools/run_tests.py` startet
-die Tests in vier Gruppen parallel (`--list` zeigt sie); die CI läuft genauso, eine Gruppe pro Job. Teststufen wie
+die Tests in Gruppen parallel (`--list` zeigt sie und die Interpreter; die Module mit numpy laufen mit einem Python,
+das es hat – auf dem Mac Blenders); die CI läuft genauso, alle Gruppen in einem Job. Teststufen wie
 im Roboter-Generator: `--tier quick` (ohne Blender und ohne die Durchläufe über alle Typen, rund 30 s) nach jeder
 Änderung, `--tier standard` (alle Module ohne Blender), `full` (Standard, alles) vor dem Release.
 
@@ -1003,6 +1006,8 @@ cubegen/
 ├── quality.py        Qualitätsbericht (Dreiecke, Draw Calls, Z-Fighting)
 ├── variety.py        ähnliche Varianten erkennen (--unique)
 ├── pipeline.py       Batch: Seeds -> Blender -> ImageMagick -> manifest.json
+├── cache.py          Bild-Cache: Ordnerindex + gemeinsamer Speicher (~/Library/Caches/Cubegen/cache)
+├── migrate.py        einmalige Übernahme der Ordner-Caches von 0.24
 ├── seeds.py          deterministische Seed-Ableitung
 ├── geometry.py       reine Python-Geometrie (Box, gefaste Box, Lathe, Zylinder, Prisma …)
 ├── asset.py          Asset = benannte Objekte mit Pivots / Parents
@@ -1021,7 +1026,7 @@ cubegen/
 └── objwriter.py      OBJ/MTL-Fallback ohne Blender
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
-tools/run_tests.py    Tests in vier Gruppen parallel (wie die CI), Stufen quick / standard / full
+tools/run_tests.py    Tests in Gruppen parallel (wie die CI), Stufen quick / standard / full
 tools/profile_run.py  cProfile um einen cubegen-Befehl (die teuersten Funktionen)
 app/                  macOS-App: Sources/*.swift, build.sh, test_app.sh, make_icons.sh (ImageMagick), tests/
 recipes/              Beispiel-Batches

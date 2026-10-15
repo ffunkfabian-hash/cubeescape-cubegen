@@ -169,6 +169,12 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Rauschen und Detail als Kanal) im Sidecar, Thema als Daten (`paint`, `catalog --paints`), Vertrag Version 3,
   eigene Materialnamen statt `M_Crystal` für Nicht-Kristalle, Vergleichsbilder (`tools/paint_reference.py`),
   Unity-Check-Prüfsatz `neutral` – Format in [UNITY_INTEGRATION.md](UNITY_INTEGRATION.md).
+- [x] **Gemeinsamer Cache, Tests ohne Auslassen, ein schwerer Lauf zur Zeit** (0.25.0): Bilder inhaltsadressiert in
+  `~/Library/Caches/Cubegen/cache` für alle Checkouts (Schlüssel ohne Pfade, Bildcode statt Generator-Hash, LRU mit
+  4 GB, einmalige Übernahme der 0.24-Caches); `run_tests.py` nimmt für die numpy-Module Blenders Python; der Unity-Check
+  wartet auf Cube Escapes Sperre für schwere Läufe.
+- [ ] **Blender-Ergebnisse gemeinsam cachen:** Backen ist der teure Teil eines frischen Ordners (Anstrich-Lauf: 3,5 von
+  3,7 s). Geht nur mit den UVs zusammen und einem FBX ohne absolute Texturpfade (0.25.0 bewusst offen gelassen).
 - [ ] **Neutrale Karten im GLB-Laufzeitpfad** (Cube Escape Zuarbeit 5, ToDo 29): Paket neben dem GLB oder `extras`.
 - [ ] **Unveränderte Modelle nicht neu bauen:** Ein Lauf ganz aus dem Cache baut alle Modelle trotzdem (Vertrag,
   Manifest; Katalog 561 Modelle: 2,2 s Bauen, 2,8 s Manifest). Manifest-Einträge und Vertragsprüfung unveränderter
