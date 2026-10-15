@@ -185,7 +185,7 @@ class ModelKeyTest(unittest.TestCase):
             "tile textures": self.key(extra=dict(EXTRA, texture_key="u" * 64)),
             "textures folder": self.key(f=folders("/runs/a", textures="tex")),
         }
-        with mock.patch.object(modelcache, "host", lambda: ["linux", "x86_64"]):
+        with mock.patch.object(modelcache, "host", lambda: ["plan9", "mips"]):  # no machine this runs on
             variants["host"] = self.key()
         with mock.patch.object(modelcache, "model_code", lambda: "c" * 64):
             variants["code"] = self.key()
