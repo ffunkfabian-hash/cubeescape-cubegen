@@ -3,6 +3,14 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## 0.30.1 „Common Ground“ – unveröffentlicht
+
+* Nur Werkzeuge und Doku; Generator, Geometrie, Materialien und Sidecars unverändert (bis auf die Versionsangabe).
+* Gemeinsamer Standard: `.ce-repo.json`, eingebettete Werkzeuge `tools/ce_tools/`, Wrapper `./check` und `./release`.
+* `AGENTS.md` auf 150 Zeilen in Standard-Gliederung (Langfassung: `docs/DEVELOPER.md` 9); neu `docs/ENTSCHEIDUNGEN.md`.
+
+Bericht: [Cubegen 0.30.1](docs/versions/0.30.md#cubegen-0301--common-ground).
+
 ## 0.30.0 „Lattice“ – unveröffentlicht
 
 * Atlas konkav nachgepackt, Belegung im Manifest (`atlas_occupancy`); QA-Cache (`quality.check_cached`).

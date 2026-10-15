@@ -1,0 +1,7 @@
+#!/bin/sh
+# Thin wrapper: ./check = quick checks, ./check --full = full suite (commands: .ce-repo.json > check).
+# Uses the embedded copy of the shared tools (tools/ce_tools), never the plugin.
+d=$(cd "$(dirname "$0")" && pwd)
+mode=quick
+[ "$1" = "--full" ] && { mode=full; shift; }
+exec python3 "$d/tools/ce_tools/ce_check.py" "$mode" --repo "$d" "$@"

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Thin wrapper: dry run of the shared release check (needs --execute to act; Cubegen's own flow: tools/release.py).
+d=$(cd "$(dirname "$0")" && pwd)
+exec python3 "$d/tools/ce_tools/ce_release.py" --repo "$d" "$@"

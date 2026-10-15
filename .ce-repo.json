@@ -1,0 +1,14 @@
+{
+  "name": "cubegen",
+  "version": {"file": "cubegen/__init__.py", "pattern": "__version__\\s*=\\s*\"([^\"]+)\""},
+  "check": {
+    "quick": [["python3", "tools/run_tests.py", "--tier", "quick"]],
+    "full": [["python3", "tools/run_tests.py", "--tier", "full"]]
+  },
+  "docs": {"versions": "docs/versions", "archive": "docs/archive/versions", "changelog": "CHANGELOG.md",
+           "decisions": "docs/ENTSCHEIDUNGEN.md"},
+  "limits": {"AGENTS.md": 150, "CLAUDE.md": 20},
+  "release": {"branch_prefix": "release/", "tag_prefix": "v"},
+  "tools_dir": "tools/ce_tools",
+  "heavy_lock": true
+}
