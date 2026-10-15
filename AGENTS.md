@@ -51,8 +51,10 @@ GitHub Actions sparsam);
 und 0.22.0 „Beacon“ (14. Oktober 2026, `VERSION_0.22.0.md`: Leuchtkarte im Vertrag Version 2, Manifestformat 2
 für Cube Escape) sowie 0.23.0 „Wingman“ (14. Oktober 2026, `VERSION_0.23.0.md`: Subagents, gemeinsames Plugin
 `ce-shared`), 0.24.0 „Primer“ (14. Oktober 2026, `VERSION_0.24.0.md`: neutrale Karten, Thema und eigene
-Materialnamen im Vertrag Version 3, Vergleichsbilder) und 0.25.0 „Quartermaster“ (15. Oktober 2026,
-`VERSION_0.25.0.md`: gemeinsamer Cache, numpy-Tests ohne Auslassen, Sperre für schwere Läufe) sind veröffentlicht.
+Materialnamen im Vertrag Version 3, Vergleichsbilder), 0.25.0 „Quartermaster“ (15. Oktober 2026,
+`VERSION_0.25.0.md`: gemeinsamer Cache, numpy-Tests ohne Auslassen, Sperre für schwere Läufe) und 0.26.0 „Stockpile“
+(15. Oktober 2026, `VERSION_0.26.0.md`: Blender-Ergebnisse im gemeinsamen Cache, ein CI-Job je Lauf, Release-Befehl)
+sind veröffentlicht.
 Veröffentlichte Berichte bleiben historisch.
 Fund, Ursache, Korrektur, geprüfte Varianten und verbleibende Grenzen festhalten.
 Diese Regel gilt auch in allen späteren Integrationsphasen.
@@ -71,10 +73,13 @@ pausierter Befehl kann in die Zeitgrenze seines Werkzeugs laufen – dann führt
 Die Regel steht global in `~/.claude/CLAUDE.md` (Codex: `~/.codex/AGENTS.md`, ein Link darauf) und gilt für alle Repos
 des Kontos: 2.000 min im Monat, Budget 0 $ – leer heißt, kein Workflow läuft mehr bis zum Monatsanfang. Kurz: `push`
 nur auf `main`, sonst über den PR; `concurrency` mit `cancel-in-progress`; `paths-ignore` für Doku; wenige volle Jobs;
-große Matrix nur auf `main`; `timeout-minutes`; lokal zuerst testen. Umsetzung hier seit 0.21.3
-(`.github/workflows/tests.yml`): ein Job `test` je Python-Version mit `tools/run_tests.py --tier standard` (alle
-Gruppen parallel), ein PR testet 3.11 und Blender, 3.9/3.11/3.13 laufen auf `main` und über „Run workflow“. Hook
-`actions-sparsam` (Plugin `ce-shared`) warnt beim Bearbeiten eines Workflows.
+große Matrix nur auf Wunsch; `timeout-minutes`; lokal zuerst testen. Umsetzung hier seit 0.26.0
+(`.github/workflows/tests.yml`, **ein Job je Lauf**): ein Push auf `main` startet nur `quick` (Stufe `quick`, Python 3.11,
+etwa 2 min – ein Release kommt erst nach der vollen lokalen Suite mit Blender und Unity auf `main`), ein PR den Job
+`full` (ganze Suite mit Blender, `tools/run_tests.py --tier full`, Python 3.11, etwa 7 min); „Run workflow“ wählt
+`quick`, `standard` (wie ein PR) oder `full` (dazu 3.9 und 3.13 mit Stufe `standard`, für `test_golden`). Vorher (0.21.3
+bis 0.25.0) kostete ein Push auf `main` vier Jobs, gemessen 17–19 abgerechnete Minuten. `app/**` löst keinen Lauf aus
+(die App wird lokal geprüft). Hook `actions-sparsam` (Plugin `ce-shared`) warnt beim Bearbeiten eines Workflows.
 
 ## Versionen, Branches und Worktrees
 
@@ -90,6 +95,13 @@ einem Folge-Worktree fort, behält sie deren Version. Gleich zu Beginn, nicht er
 - Release (nur auf Wunsch des Nutzers): Datum statt „unveröffentlicht“, Tests grün, `git merge --no-ff` in `main`
   („Cubegen <Version> – Release übernehmen“), Tag `v<Version>`, Push von `main`, `release/<Version>` und Tag.
   `main` ist der Standard-Branch auf GitHub (ffunkfabian-hash/cubeescape-cubegen).
+- **Release-Befehl** (seit 0.26.0): `python3 tools/release.py` im Release-Worktree prüft alles und zeigt den Plan
+  (Probelauf, ändert nichts); `--apply --trailer "Co-Authored-By: …"` führt ihn aus. Geprüft wird der Release-Zweig, wie
+  er committet ist: Version an allen drei Stellen, Changelog mit Datum, `VERSION_<Version>.md` ohne „ungeprüft“,
+  Worktree und Haupt-Checkout sauber, `main` = `origin/main` und im Release-Zweig enthalten, Tag frei, keine Datei
+  über 100 MB und keine Zugangsdaten in dem, was der Push sendet. Dann im Haupt-Checkout Merge, annotierter Tag und
+  `git push --atomic origin main release/<Version> v<Version>` – nie `--force`; zum Schluss die Links. Den Haupt-Checkout
+  findet er über `git worktree list` (der mit `main`); er wechselt nie dessen Zweig.
 
 Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getrennt nach derselben Regel.
 
@@ -201,8 +213,8 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
   "what", "checkout", "since"}`, schreibt der Halter hinein) und meldet sich alle fünf Minuten. Der Deskriptor wird
   nie vererbt (`O_CLOEXEC`), Kinder bekommen `CE_HEAVY_HELD=1` (Cube Escapes Schritte darunter warten nicht auf
   ihren Elternprozess); `CE_HEAVY_LOCK=0` überspringt die Schlange. Der Vertrag ändert sich nur gemeinsam mit Cube Escape.
-- **GitHub Actions:** Job `test` (eine Python-Version je Job, alle Gruppen parallel, Stufe `standard`) und Job
-  `blender` (neueste Blender-LTS der Reihe, Matrix `series`, nur die Testmodule mit Blender). Minuten sparen: siehe
+- **GitHub Actions:** Job `quick` (Push auf `main`) oder Job `full` (PR, „Run workflow“; neueste Blender-LTS der Reihe
+  `BLENDER_SERIES`, aus dem Actions-Cache) – je Lauf ein Job, alle Gruppen darin parallel. Minuten sparen: siehe
   „GitHub Actions sparsam“.
 
 ## Plugins und Hooks (Claude Code)
@@ -324,10 +336,22 @@ schaltet ihn ab. `python3 -m cubegen cache` zeigt Ort und Größe (`--prune`, `-
 - **Übernahme alter Caches:** einmal je Cache (`migrated.json`) aus `output/` des Haupt-Checkouts und des eigenen –
   nur Einträge, deren alter Schlüssel sich aus dem Manifest exakt nachrechnen lässt und deren Generator denselben
   Bildcode hatte (`migrate.MIGRATABLE`, heute 0.24.0). Ändert sich der Bildcode, Eintrag dort und im Test entfernen.
-- **Nicht im Cache, bewusst:** Blender-Ergebnisse (FBX/GLB/OBJ, Vorschauen, Backen). Das FBX enthält absolute
-  Texturpfade und Zeitstempel (bytegleich nur im eigenen Ordner – dort übernimmt `build_key` wie bisher); gebackene
-  Karten passen nur zu den UVs desselben Exports (Robogen: UVs mitcachen); Vorschauen kosten mit Workbench wenige
-  Zehntelsekunden. Wer das ändert: Schlüssel mit **jeder** Eingabe, UVs und Bilder gemeinsam.
+- **Blender-Ergebnisse** (seit 0.26.0, `cubegen/modelcache.py`): ein Modell ist eine **Einheit** aus Export(en) mit
+  Nebendateien (MTL, glTF-Puffer), Backen bzw. Anstrich-Karten (`MTA_`/`MTP_`/`MTN_`, `Neutral/`) und Vorschau – alles
+  aus demselben Blender-Lauf, die Karten passen also immer zu den UVs des FBX. Der Schlüssel ist der ganze Auftrag
+  des Workers samt Spec (Ordner als Rollen, der Texturordner relativ zum Modellordner, die Kacheltexturen über ihren
+  `texture_key`), dazu `modelcache.model_code()` (das ganze Paket ohne die Versionszeile), Blender- und
+  ImageMagick-Version und Plattform; bleibt ein absoluter Pfad übrig, wird das Modell nicht gecacht. **Nur das FBX ist
+  ordnergebunden** (absolute Texturpfade in `Texture.FileName`, `Video.Filename`/`Path`): der Cache hält es kanonisch
+  (`cubegen/fbxpath.py`, `<cubegen:textures>/…`), ein Treffer setzt den neuen Ordner ein – jedes andere Byte bleibt,
+  wie Blender es schrieb (Zeitstempel und Objekt-IDs sind ohnehin je Export neu; Cube Escape liest die Texturen über
+  den Sidecar, Unity-Check). Verfehlt die Einheit (andere Formate, Vorschau-Einstellungen, Anstrich mit gleichem
+  Leuchtton), hilft der **Back-Cache** (`bake`): Karten des Backens samt **Atlas-UVs** (`bake.read_uvs`/`apply_uvs`,
+  float32); der Worker setzt die UVs statt Smart UV Project und überspringt Cycles, Export, Anstrich und Vorschau laufen
+  neu. Smart UV Project ist hier deterministisch (`test_release_0150`), der Cache verlässt sich nicht darauf. Nicht im
+  Cache: die Übersichts-`.blend` (absolute Bildpfade) – ein voller Treffer startet Blender nur noch für sie
+  (`--no-blend`: gar nicht). Neue Worker-Ausgaben gehören in die Einheit (`modelcache.result_files`), neue Eingaben in
+  den Auftrag (dann automatisch im Schlüssel).
 - **Tests** laufen mit einem eigenen, frischen Cache je `run_tests.py`-Lauf (nie mit dem des Rechners).
 
 ## Aufträge an andere Sitzungen

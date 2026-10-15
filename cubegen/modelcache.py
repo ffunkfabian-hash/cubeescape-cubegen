@@ -9,11 +9,15 @@ Since 0.26.0 a model's Blender results are an entry of the shared ``Store`` (``c
   name, parameters, style, LOD, set, ...), the folder-bound parts replaced: the textures folder relative to the
   models folder (``RelativeFilename`` in the FBX, ``map_*`` in an MTL), the tile textures by their own cache key
   (``pipeline.texture_key``: size, set, image code, ImageMagick), plus the code that makes the files
-  (:func:`model_code`: ``blender_worker`` and everything it imports, the package's data files), Blender's version,
+  (:func:`model_code`: the whole package and its data files without the version line), Blender's version,
   ImageMagick's version (the grime of ``--textures baked``) and the platform (CPU and GPU bakes differ). A key that
   would still hold an absolute path is not used - that model is built as before.
 * **One unit:** export, bake and preview of a model come from the same Blender run, so the baked maps always match
   the UVs of the cached FBX (Smart UV Project is deterministic here - test - but the unit does not rely on it).
+* **The bake alone** (:func:`bake_key`, :class:`BakeCache`): when the unit misses because only what comes after the
+  bake changed (formats, preview camera, a paint scheme with the same glow), the maps of the bake and the atlas UVs
+  they lie on (``bake.read_uvs``) go to the worker, which applies the UVs instead of Smart UV Project and skips Cycles
+  (``bake.apply_uvs``); compose, export and preview run as usual.
 * **Only the FBX is folder-bound:** Blender writes the absolute path of every texture into it. The entry keeps a
   canonical FBX (``cubegen/fbxpath.py``: ``<cubegen:textures>/...``) and a hit writes the new folder in - every
   other byte as Blender wrote it (time stamps and object IDs differ between any two exports anyway). GLB, OBJ, MTL,
@@ -66,7 +70,7 @@ def code_files(root: str) -> List[str]:
 
 def model_code(root: Optional[str] = None) -> str:
     """Hash of the code that makes a model's Blender files: the whole package - the Blender worker imports nearly
-    all of it (``pipeline.module_closure("blender_worker")`` names 68 of 72 modules) and reading the closure from the
+    all of it (``pipeline.module_closure("blender_worker")`` names 70 of 73 modules) and reading the closure from the
     sources costs 0.4 s per run, hashing every file 5 ms. Left out: ``__main__.py`` and the version line of
     ``cubegen/__init__.py`` - a release that leaves the code alone keeps the cache warm (the version is written by the
     pipeline into the sidecars, never into a Blender file)."""

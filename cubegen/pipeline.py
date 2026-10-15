@@ -49,6 +49,9 @@ STAGE_BUDGETS = {
     "export": {"per_model": 1.5},                        # FBX + contract check: 0.2-0.4 s
     "render": {"per_model": 3.0, "scale": "render"},     # Workbench, 384 px
     "images": {"per_model": 0.5},                        # icon (+ share of the contact sheet)
+    # 0.26.0: shared cache of Blender results - keys, copying units in, recording what was built (all models of the
+    # run, so no per-model budget: built = 0 on a full hit); measured 0.04-0.26 s for 6-187 models
+    "cache": {"total": 3.0, "scale": "texture"},
 }
 
 
