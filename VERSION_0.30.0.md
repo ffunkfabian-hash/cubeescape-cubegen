@@ -1,7 +1,9 @@
 # Cubegen 0.30.0 – Lattice
 
-*ungeprüft: Blender-/Unity-Abnahme offen* – Python-Suite und echte Blender-Läufe der Änderungen liefen lokal; der
-Unity-Import (`tools/unity_check.py --require`) und der Import von Voxelmodellen in der Cube-Escape-Testkopie stehen aus.
+*Abnahme teilweise: Unity-Import bestanden, Physik und Sichtprüfung offen* – Python-Suite, echte Blender-Läufe und
+`tools/unity_check.py --require` (14 Prüfsätze, 293 Modelle, Cube Escape 0.61.4, Version 2 des Vertrags) liefen lokal. Offen:
+Laufzeit-/Physiktests der Formen `--shape voxel|facet|holes` in der Testkopie (Skill `ce-cubegen` dort), Sichtprüfung des Atlas
+im Blender-Plugin.
 
 Unveröffentlicht; Arbeitszweig `claude/practical-gould-a305b7` (Release-Zweig `release/0.30.0` erst beim Release);
 vorherige Version [0.29.0](VERSION_0.29.0.md).
@@ -18,14 +20,21 @@ Vertragsänderung und ohne Cube Escape geht, misst den Rest und schreibt das Erg
   Läufe ändern sich (neue Atlas-Anordnung); Geometrie, Sidecars, IDs nicht.
 - **QA-Cache (TECHNIK 8a):** `quality.check_cached` (Schlüssel: `Asset.digest` + Hash der Prüfmodule). Von
   `quality.report` und `cubegen check`/`validate_batch` genutzt. 187 Typen × 10 Varianten: 7,1 s kalt, 4,6 s warm.
-- **Lackzonen (TECHNIK 3):** `cubegen/zones.py`, Manifest `models[].zones`. Keine Zonenkarte (braucht Vertragsversion 4
-  und Cube Escape). Messung: 135 von 154 Objektnamen sind `Body`; 78 von 187 Typen hätten zwei oder mehr bemalbare Zonen.
+- **Lackzonen (TECHNIK 3):** `cubegen/zones.py`, Manifest `models[].zones`, und seit **Vertrag 4** die Zonenkarte
+  `MTN_<Modell>_Zones.png` (aus den Atlas-UVs gerastert, bis zu drei Slots) mit `textures.zones` im Sidecar. Messung: 135
+  von 154 Objektnamen sind `Body`; 78 von 187 Typen haben zwei oder mehr bemalbare Zonen.
 - **Teilgraphen im Material (TECHNIK 4):** gemessen – 2–6 Knoten je Material, 0,012 ms je Knoten: kein Gewinn, nicht umgesetzt.
-- **Effektmaterialien als Daten (TECHNIK 7):** `cubegen/effects.py`, Manifest `models[].effects` (Art, Verwendung, Werte
-  aus `materials.MATERIALS`); reine Beschreibung, das Spiel liest sie noch nicht.
-- **Formvarianten (TECHNIK 4/15/17):** `--shape smooth|voxel` (Style `shape`, `cubegen/shapes.py`): feste, konvexe,
-  dekorative Teile werden als verschmolzene Würfel neu gebaut; gleiche Teile, Collider, Behaviours, Sidecar. Facette
-  (= `--detail low`) und Loch nicht umgesetzt. `catalog`/App zeigen die Option („Form“).
+- **Effektmaterialien als Daten (TECHNIK 7):** `cubegen/effects.py`, Manifest `models[].effects` und seit **Vertrag 4**
+  der Sidecar-Wurzelschlüssel `effects` (Art, Verwendung, Werte aus `materials.MATERIALS`, vorgeschlagene `params`).
+- **Vertrag Version 4:** `contract.json` (Abschnitte `zones`, `effects`, Verlauf 4), `contract_for(3)` byteweise die alte
+  Datei (Fixture `tests/fixtures/contract_v3.json`), Regeln in `check_sidecar`, `generate --contract 3` lässt beides weg.
+  **Wichtig:** der Standard von `--contract` ist jetzt 4; Cube Escape liest heute Version 2 und lehnt `effects`/`zones` ab, bis
+  es Version 4 kann (`unity_check` erzeugt mit der Version des Spiels).
+- **Formvarianten (TECHNIK 4/15/17):** `--shape smooth|voxel|facet|holes` (Style `shape`, `cubegen/shapes.py`): voxel =
+  verschmolzene Würfel in festen konvexen Teilen, facet = konvexe Hülle von jedem dritten Eckpunkt runder Teile, holes =
+  quadratische Löcher (≤ 0,15 m) in flachen Platten innerhalb des Dreiecksbudgets; gleiche Teile, Collider, Behaviours,
+  Sidecar, nichts ragt über das glatte Modell. Golden-Fälle `shape_voxel/facet/holes` (neue Schlüssel, bestehende
+  unverändert), Unity-Prüfsätze `shape_*` und `zones`. `catalog`/App zeigen die Option („Form“).
 - **Viewer (TECHNIK 8):** geprüft, nicht betroffen (lädt nur Albedo ohne Alpha, keine Shader); Regel in DEVELOPER 6.
 - **Gestrichen:** `app/notarize.sh` und alle Hinweise auf Developer ID/Notarisierung.
 
@@ -35,12 +44,18 @@ Vertragsänderung und ohne Cube Escape geht, misst den Rest und schreibt das Erg
   Voxelform über alle 187 Typen (Bounding-Box innen, gleiche Collider/Behaviours/Objekte, nicht mehr ungedeckte Teile,
   kein neues Z-Fighting), Verschmelzen, CLI-Katalog.
 - Echte Läufe: `--textures baked` mit und ohne `--shape voxel` (5 Typen, Seed 7), Vorschau gesichtet; `app/test_app.sh` grün.
+- Unity-Check (`--require`): alle 14 Prüfsätze bestanden, darunter `shape_voxel`, `shape_facet`, `shape_holes` (Import mit
+  Collidern wie beim glatten Modell, 0 Fehler) und `zones` (Vertrag 4: Cube Escape 0.61.4 lehnt wie erwartet ab, der Lauf mit
+  Version 2 wird importiert).
+- Codex-Gegenlauf (gpt-6-luna, read-only, Diff per Stdin): 3 Befunde, alle behoben (TypeError bei unhashbaren Werten in
+  `_check_zones`/`_check_effects`, `np.roll` trug Zonenränder über die Atlaskante) und mit Tests belegt.
 - `python3 tools/run_tests.py --tier full` (mit Blender und ImageMagick, unter der gemeinsamen Sperre): 455 Tests, alle
   Gruppen OK, 1 übersprungen (echter Unity-Lauf, `CUBEGEN_UNITY_CHECK`). Ein Codex-Gegenlauf kam nicht zustande.
 
 ## Offen
 
-- Stufe 2: `unity_check.py --require`, Unity-Import und Physik von `--shape voxel`-Modellen; Sichtprüfung des neuen Atlas
-  im Blender-Plugin; eigener Prüfsatz für `--shape voxel`.
-- Zonenkarte und Effektblock im Sidecar (Vertrag, Cube Escape); Facette/Loch; Golden-Gruppe für die Voxelform.
+- Stufe 2: Laufzeit-/Physiktests der abgeleiteten Formen in der Cube-Escape-Testkopie; Sichtprüfung des neuen Atlas im
+  Blender-Plugin; Sichtprüfung der Formen in Unity.
+- Cube Escape: Vertrag 4 lesen (`textures.zones`, `effects`), Zonen-Shader, Effekt-Materialien – Auftrag in
+  `side-session-notes/…/cube-escape-vertrag-4.md`. Bis dahin Standard `--contract` auf die Version des Spiels stellen (2).
 - `--shape` fehlt im Blender-Add-on und in `cubegen/gui.py` (nur CLI, Rezepte, App über den Katalog).

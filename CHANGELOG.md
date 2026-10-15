@@ -2,13 +2,19 @@
 
 ## 0.30.0 „Lattice“ – unveröffentlicht
 
-Neu: Atlas nachpacken und Belegung messen, QA-Cache, Lackzonen-Tabelle, Effektmaterial-Daten, `--shape voxel`.
+Neu: Atlas nachpacken und Belegung messen, QA-Cache, `--shape voxel|facet|holes`, Vertrag Version 4 (Zonenkarte,
+Effektblock).
 Bericht: [VERSION_0.30.0.md](VERSION_0.30.0.md).
 
 * **Atlas:** konkaves Nachpacken nach Smart UV Project, Belegung im Manifest (`atlas_occupancy`); gebackene Texturen ändern sich.
 * **QA-Cache:** `quality.check_cached` (Schlüssel `Asset.digest` + Prüfcode).
-* **Manifest:** `zones` (Lackzonen aus Teilnamen), `effects` (Effektmaterialien als Daten), `meta.shape`.
-* **`--shape smooth|voxel`:** feste, konvexe, dekorative Teile als verschmolzene Würfel; Collider und Teile bleiben.
+* **Vertrag Version 4** (rückwärtskompatibel, `--contract 3` schreibt die alte Form): `textures.zones` mit der Zonenkarte
+  `MTN_<Modell>_Zones.png` (Lackzonen aus Teilnamen, bis zu drei Slots, aus den Atlas-UVs gerastert) und der Wurzelschlüssel
+  `effects` (Glas/Hologramm/Flüssigkeit/Leuchten … mit Art und vorgeschlagenen Laufzeit-Parametern). Cube Escape muss
+  beides lesen und umsetzen, bevor es Version 4 anfordert.
+* **Manifest:** `zones`, `effects`, `zone_map`/`zone_slots`, `atlas_occupancy`, `meta.derived_shape`.
+* **`--shape smooth|voxel|facet|holes`:** abgeleitete Formen des fertigen Modells (Würfel mit verschmolzenen Flächen,
+  grobe Hüllen runder Teile, Löcher in flachen Platten); Collider, Teile, Sidecar bleiben; Golden-Fälle `shape_*`.
 * **Entfernt:** `app/notarize.sh` und die Hinweise auf Developer ID/Notarisierung.
 
 ## 0.29.0 „Crossflow“ – 2026-10-15

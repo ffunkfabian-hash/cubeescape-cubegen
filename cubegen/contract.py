@@ -455,7 +455,8 @@ def _check_zones(zones, tex) -> List[str]:
             errors.append(f"{where}.channel: slot {i} is channel {ZONES['channels'][i]!r}")
         if not isinstance(slot["zone"], str) or not slot["zone"] or slot["zone"] in seen:
             errors.append(f"{where}.zone: expected a name, once each")
-        seen.add(slot["zone"])
+        elif isinstance(slot["zone"], str):
+            seen.add(slot["zone"])
         if not isinstance(slot["objects"], list) or not slot["objects"] or \
                 not all(isinstance(o, str) and o for o in slot["objects"]):
             errors.append(f"{where}.objects: expected a list of part names")
@@ -479,9 +480,10 @@ def _check_effects(effects) -> List[str]:
             if key not in entry:
                 errors.append(f"{where}: missing {key!r}")
         name, kind = entry.get("material"), entry.get("kind")
-        if name in seen:
-            errors.append(f"{where}.material: {name!r} twice")
-        seen.add(name)
+        if isinstance(name, str):
+            if name in seen:
+                errors.append(f"{where}.material: {name!r} twice")
+            seen.add(name)
         if kind not in EFFECTS["kinds"]:
             errors.append(f"{where}.kind: {kind!r} not in {', '.join(EFFECTS['kinds'])}")
             continue

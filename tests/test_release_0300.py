@@ -229,6 +229,8 @@ class ContractVersion4Test(unittest.TestCase):
         self.assertTrue(any("twice" in e for e in check_sidecar(rig)[0]))
         rig["effects"] = []
         self.assertTrue(any("non-empty" in e for e in check_sidecar(rig)[0]))
+        rig["effects"] = [{"material": ["M_Glass"], "kind": "glass", "params": {}}]  # no TypeError on odd values
+        self.assertTrue(check_sidecar(rig)[0])
 
     def test_zone_rules(self):
         from tests.test_release_0240 import neutral_rig
@@ -291,6 +293,8 @@ class ZoneMapTest(unittest.TestCase):
         plain = zones.zone_map(tris, 64, margin=0)
         self.assertGreater(int((a[..., 0] > 0).sum()), int((plain[..., 0] > 0).sum()))  # the margin grows it
         self.assertEqual(a.tobytes(), zones.zone_map(tris, 64, margin=4).tobytes())  # deterministic
+        edge = zones.zone_map([(0, ((0.0, 0.0), (0.2, 0.0), (0.0, 0.2)))], 32, margin=4)  # at the atlas corner ...
+        self.assertEqual(int(edge[-4:, :, 0].sum() + edge[:, -4:, 0].sum()), 0)  # ... nothing wraps to the far edges
         self.assertEqual(int((a[8:20, 40:60, :3] > 0).sum() == 0), 1)  # the plain face's neighbourhood stays 0 in zones
 
 

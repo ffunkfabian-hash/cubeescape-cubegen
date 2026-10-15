@@ -79,6 +79,17 @@ def painted_object_names(asset) -> List[str]:
     return [o.name for o in asset.meshes() if any(r not in KEEP_OWN for r in o.mesh.roles)]
 
 
+def _shift(array, dy: int, dx: int):
+    """``array`` moved by (dy, dx) rows/columns, zeros coming in (np.roll would carry a texel across the atlas edge)."""
+    import numpy as np
+
+    out = np.zeros_like(array)
+    h, w = array.shape[:2]
+    out[max(dy, 0):h + min(dy, 0), max(dx, 0):w + min(dx, 0)] = array[max(-dy, 0):h - max(dy, 0),
+                                                                    max(-dx, 0):w - max(dx, 0)]
+    return out
+
+
 def zone_map(triangles, size: int, margin: int = 4):
     """The zone map (``size`` x ``size`` x 4 uint8, bottom-up rows) from ``triangles``: ``[(slot, ((u, v) x 3))]`` with
     ``slot`` 0..2 for a zone's channel and -1 for every other face (they only mark texels as used). Texels whose centre
@@ -114,8 +125,8 @@ def zone_map(triangles, size: int, margin: int = 4):
         grown = np.zeros_like(used)
         value = np.zeros_like(weights)
         for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            src_used = np.roll(used, (dy, dx), (0, 1))
-            src_val = np.roll(weights, (dy, dx), (0, 1))
+            src_used = _shift(used, dy, dx)
+            src_val = _shift(weights, dy, dx)
             take = empty & src_used & ~grown
             value[take] = src_val[take]
             grown |= take
