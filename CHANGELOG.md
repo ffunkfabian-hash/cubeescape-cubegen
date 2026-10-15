@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.27.0 „Fieldbook“ – unveröffentlicht
+## 0.27.0 „Fieldbook“ – 2026-10-15
 
 Doku und ein Werkzeug: der Entwicklerhintergrund zieht aus `docs/CLI.md` › 16 in ein eigenes Doc, und
 `tools/unity_check.py` hält die Sperre für schwere Läufe bis zum letzten Enkelprozess. Code der Generierung, Geometrie,
