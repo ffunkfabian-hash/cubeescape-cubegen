@@ -25,6 +25,14 @@ maps) it has to import. Every probe with ``--paint`` also gets its reference map
 scheme composed from the neutral maps) in ``<probe>/paint_reference`` - handed to the Unity run as
 ``$CUBEGEN_PAINT_REFERENCE`` for the shader comparison (Cube Escape ``SurfaceRenderTests``, once it exists).
 
+One heavy run at a time (0.25.0, Cube Escape 0.59 "Turnstile"): before its first Unity start the check queues on Cube
+Escape's machine-wide lock - an exclusive ``flock`` on ``~/Library/Caches/CubeEscape/heavy-run.lock`` (``HeavyLock``;
+created when missing, never deleted). A waiting run prints who holds it (the holder's JSON line ``{"pid", "what",
+"checkout", "since"}``) and again every five minutes; it holds the lock until the last probe is done. The lock's file
+descriptor is never inherited (``O_CLOEXEC``): Unity or a background child of ``verify.sh`` can't keep it after the
+check. Children get ``CE_HEAVY_HELD=1`` so Cube Escape's own steps don't wait for their parent; ``CE_HEAVY_LOCK=0``
+skips the queue (``CE_HEAVY_LOCK_FILE`` moves the file - tests only).
+
 The Cube Escape checkout: ``--ce`` or ``$CUBEGEN_CE_ROOT``, else ``~/Claude/Cube Escape``. Without it (or without
 its verify script) the check says so and exits 0 - ``--require`` makes that an error (release check).
 Report: ``output/unity_check/report.json``. Exit code 1 when a probe fails.
@@ -40,7 +48,7 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERIFY = os.path.join(".agents", "skills", "ce-testing", "scripts", "verify.sh")
@@ -94,6 +102,107 @@ RESULT = re.compile(r"(Passed|Failed)(?:\([^)]*\))?\s*\|\s*bestanden\s+(\d+)\s*\
 LOG = re.compile(r"Log:\s*(\S.*?\.log)")
 INTEGRATION = re.compile(r"cubegen CLI integration: (\d+) Gameplay / (\d+) statisch / (\d+) Item-Zuordnungen offen / "
                          r"(\d+) ungültige Exporte abgelehnt / (\d+) Fehler\.")
+
+
+#: Cube Escape's queue for heavy runs - the contract is this path plus an exclusive flock (see the module docstring)
+HEAVY_LOCK = os.path.join(os.path.expanduser("~"), "Library", "Caches", "CubeEscape", "heavy-run.lock")
+HEAVY_POLL = 2.0
+HEAVY_REPORT = 300.0  # a waiting run says every five minutes that it still waits
+
+
+def heavy_lock_path() -> str:
+    return os.environ.get("CE_HEAVY_LOCK_FILE") or HEAVY_LOCK
+
+
+def describe_holder(text: str) -> str:
+    """The holder line of the lock file in words (whatever tool wrote it)."""
+    try:
+        info = json.loads(text)
+        return (f"{info.get('what', '?')} (PID {info.get('pid', '?')}, {info.get('checkout', '?')}, "
+                f"seit {info.get('since', '?')})")
+    except (ValueError, AttributeError):
+        return text.strip() or "unbekannt"
+
+
+class HeavyLock:
+    """Waits for and holds Cube Escape's lock for heavy runs; ``acquire`` may be called often (the first call waits),
+    ``release`` frees it. Skipped with ``CE_HEAVY_LOCK=0``, inside a holder (``CE_HEAVY_HELD=1``) and without flock."""
+
+    def __init__(self, what: str, checkout: str = ROOT, out: Callable[[str], None] = None,
+                 poll: float = HEAVY_POLL, report: float = HEAVY_REPORT):
+        self.what, self.checkout, self.poll, self.report = what, checkout, poll, report
+        self.out = out or (lambda line: print(line, flush=True))
+        self.fd: Optional[int] = None
+        self.skipped: Optional[str] = None
+        self.waited = 0.0
+        self._previous_held: Optional[str] = None
+
+    def acquire(self) -> None:
+        if self.fd is not None or self.skipped:
+            return
+        if os.environ.get("CE_HEAVY_LOCK", "1").strip() == "0":
+            self.skipped = "CE_HEAVY_LOCK=0"
+        elif os.environ.get("CE_HEAVY_HELD") == "1":
+            self.skipped = "der Elternprozess hält die Sperre (CE_HEAVY_HELD=1)"
+        try:
+            import fcntl
+        except ImportError:  # pragma: no cover - Windows: no Unity check there anyway
+            self.skipped = self.skipped or "kein flock auf diesem System"
+        if self.skipped:
+            return
+        path = heavy_lock_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)  # never inherited (PEP 446 + O_CLOEXEC)
+        start = last = time.monotonic()
+        announced = False
+        try:
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    holder = describe_holder(os.pread(fd, 4096, 0).decode("utf-8", "replace"))
+                    now = time.monotonic()
+                    if not announced:
+                        self.out(f"Warte auf die Sperre für schwere Läufe ({path}): belegt von {holder} - "
+                                 "CE_HEAVY_LOCK=0 überspringt")
+                        announced = True
+                    elif now - last >= self.report:
+                        self.out(f"... wartet seit {(now - start) / 60:.0f} min auf {holder}")
+                        last = now
+                    time.sleep(self.poll)
+        except BaseException:
+            os.close(fd)
+            raise
+        self.waited = time.monotonic() - start
+        if announced:
+            self.out(f"Sperre für schwere Läufe frei nach {self.waited:.0f} s")
+        info = {"pid": os.getpid(), "what": self.what, "checkout": self.checkout,
+                "since": time.strftime("%Y-%m-%d %H:%M:%S")}
+        os.ftruncate(fd, 0)
+        os.pwrite(fd, (json.dumps(info) + "\n").encode(), 0)
+        self.fd = fd
+        self._previous_held = os.environ.get("CE_HEAVY_HELD")
+        os.environ["CE_HEAVY_HELD"] = "1"  # verify.sh / testplan.py below us must not wait for their own parent
+
+    def release(self) -> None:
+        if self.fd is None:
+            return
+        if self._previous_held is None:
+            os.environ.pop("CE_HEAVY_HELD", None)
+        else:
+            os.environ["CE_HEAVY_HELD"] = self._previous_held
+        try:
+            os.ftruncate(self.fd, 0)  # still holding it: nobody reads an old holder afterwards
+        finally:
+            os.close(self.fd)  # releases the lock
+            self.fd = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
 
 
 def ce_root(explicit: Optional[str] = None) -> str:
@@ -229,7 +338,8 @@ def legs(name: str, contract: Optional[int]) -> List[Dict]:
     return [{"contract": need, "expect": "reject"}, {"contract": contract, "expect": "import"}]
 
 
-def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] = None) -> Dict:
+def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] = None,
+              lock: Optional[HeavyLock] = None) -> Dict:
     probe = PROBES[name]
     entry = {"name": name, "about": probe["about"], "test": probe["test"], "seconds": {}}
     runs = legs(name, contract)
@@ -245,6 +355,8 @@ def run_probe(name: str, ce: str, work: str, log=print, contract: Optional[int] 
         models = os.path.join(out, "models")
         names = sorted(f[: -len(".cubegen.json")] for f in os.listdir(models) if f.endswith(".cubegen.json"))
         reference = paint_reference(out)
+        if lock is not None:
+            lock.acquire()  # the first Unity start of the check waits for the machine-wide queue
         start = time.time()
         unity = _unity(name, ce, models, reference)
         entry["seconds"]["unity" + tag] = round(time.time() - start, 1)
@@ -319,15 +431,17 @@ def main(argv=None) -> int:
     contract = ce_contract_version(ce)
     report = {"cubegen": _version(), "ce": ce, "ce_commit": _git_head(ce), "contract": contract, "probes": []}
     print(f"Vertrag von Cube Escape: Version {contract if contract is not None else '? (Standard von cubegen)'}")
-    for name in names:
-        print(f"> {name}: {PROBES[name]['about']} …", flush=True)
-        entry = run_probe(name, ce, args.out, contract=contract)
-        report["probes"].append(entry)
-        print("  " + summary_line(entry), flush=True)
-        if entry["ok"] and not args.keep:
-            for folder in os.listdir(args.out):
-                if folder == name or folder.startswith(name + "_v"):
-                    shutil.rmtree(os.path.join(args.out, folder), ignore_errors=True)
+    with HeavyLock(f"Cubegen tools/unity_check.py ({', '.join(names)})") as lock:
+        for name in names:
+            print(f"> {name}: {PROBES[name]['about']} …", flush=True)
+            entry = run_probe(name, ce, args.out, contract=contract, lock=lock)
+            report["probes"].append(entry)
+            print("  " + summary_line(entry), flush=True)
+            if entry["ok"] and not args.keep:
+                for folder in os.listdir(args.out):
+                    if folder == name or folder.startswith(name + "_v"):
+                        shutil.rmtree(os.path.join(args.out, folder), ignore_errors=True)
+    report["heavy_lock"] = {"skipped": lock.skipped} if lock.skipped else {"waited_s": round(lock.waited, 1)}
     report["ok"] = all(p["ok"] for p in report["probes"])
     with open(os.path.join(args.out, "report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)

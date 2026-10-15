@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -17,7 +18,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from . import __version__
 from .blender import BlenderError, blender_version, find_blender, resolve_engine, run_job
 from .imagemagick import ImageMagick, ImageMagickError
-from .cache import OutputCache, input_key
+from .cache import OutputCache, Store, input_key
 from .asset import to_unity
 from .models import REGISTRY, asset_name, generate_asset, model_types
 from .objwriter import write_mtl, write_obj
@@ -485,6 +486,114 @@ def code_fingerprint() -> str:
     return _CODE_FINGERPRINT[0]
 
 
+def _module_source(root: str, name: str) -> Optional[str]:
+    """The file of the cubegen module ``name`` below ``root``; None for a name that is no module (``from . import
+    __version__``). Exact case: macOS would open ``models/REGISTRY.py`` as ``models/registry.py``."""
+    parts = name.split(".")
+    folder = os.path.join(root, *parts[:-1])
+    try:
+        names = set(os.listdir(folder))
+    except OSError:
+        return None
+    if parts[-1] + ".py" in names:
+        return os.path.join(folder, parts[-1] + ".py")
+    if parts[-1] in names and os.path.isfile(os.path.join(folder, parts[-1], "__init__.py")):
+        return os.path.join(folder, parts[-1], "__init__.py")
+    return None
+
+
+def module_closure(*modules: str, root: Optional[str] = None) -> List[str]:
+    """``modules`` (names inside the cubegen package, e.g. ``"textures"``) and every cubegen module they import,
+    anywhere in their code (also inside functions) - found by reading the sources, sorted."""
+    root = root or os.path.dirname(os.path.abspath(__file__))
+    seen, todo = set(), list(modules)
+    while todo:
+        name = todo.pop()
+        path = _module_source(root, name)
+        if name in seen or path is None:
+            continue
+        seen.add(name)
+        package = name.split(".")[:-1] if not path.endswith("__init__.py") else name.split(".")
+        with open(path, "r", encoding="utf-8") as fh:
+            tree = ast.parse(fh.read(), path)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if node.level:
+                    base = package[:len(package) - (node.level - 1)] if node.level > 1 else package
+                    prefix = ".".join(base + ([node.module] if node.module else []))
+                elif node.module == "cubegen" or (node.module or "").startswith("cubegen."):
+                    prefix = node.module[len("cubegen."):] if node.module != "cubegen" else ""
+                else:
+                    continue
+                if prefix:
+                    todo.append(prefix)
+                todo.extend(f"{prefix}.{a.name}" if prefix else a.name for a in node.names)
+            elif isinstance(node, ast.Import):
+                todo.extend(a.name[len("cubegen."):] for a in node.names if a.name.startswith("cubegen."))
+    return sorted(seen)
+
+
+def module_fingerprint(*modules: str, root: Optional[str] = None) -> str:
+    """Hash of the sources of ``module_closure(*modules)`` (names and bytes)."""
+    root = root or os.path.dirname(os.path.abspath(__file__))
+    h = hashlib.sha256()
+    for name in module_closure(*modules, root=root):
+        h.update(name.encode() + b"\0")
+        with open(_module_source(root, name), "rb") as fh:
+            h.update(fh.read())
+    return h.hexdigest()
+
+
+#: the code that makes the ImageMagick outputs (texture sets, icons, contact sheet, swatch, set rows): these modules
+#: and what they import. Its hash replaces the whole generator's in the image keys (0.25.0) - a change elsewhere keeps
+#: the shared cache warm; the few ImageMagick arguments written in this file are part of their keys (``SET_ROW_*``).
+IMAGE_MODULES = ("imagemagick", "textures")
+_IMAGE_CODE: List[str] = []
+
+
+def image_code() -> str:
+    if not _IMAGE_CODE:
+        _IMAGE_CODE.append(module_fingerprint(*IMAGE_MODULES))
+    return _IMAGE_CODE[0]
+
+
+SET_ROW_EACH = ("-resize", "320x320")  # per preview of a set row
+SET_ROW_TAIL = ("-background", "#1e1e24", "-gravity", "south", "+append")
+
+
+# Keys of the image steps. ``code`` defaults to ``image_code()``; the migration of 0.24 caches passes the old
+# generator hash (``source_hash`` of a manifest) to recompute a key exactly as 0.24 did (``legacy``).
+def swatch_key(magick_version: str, code: Optional[str] = None) -> str:
+    return input_key("swatch", code or image_code(), magick_version)
+
+
+def icon_key(preview: str, size: int, background, magick_version: str, code: Optional[str] = None) -> str:
+    return input_key("icon", preview, size, background, code or image_code(), magick_version)
+
+
+def sheet_key(labels, sources, title: str, magick_version: str, code: Optional[str] = None) -> str:
+    return input_key("sheet", list(labels), list(sources), title, code or image_code(), magick_version)
+
+
+def set_row_key(previews, magick_version: str, code: Optional[str] = None, legacy: bool = False) -> str:
+    if legacy:
+        return input_key("set", list(previews), code, magick_version)
+    return input_key("set", list(previews), [list(SET_ROW_EACH), list(SET_ROW_TAIL)], code or image_code(),
+                     magick_version)
+
+
+def texture_key(size: int, texture_set: str, magick_version: str, code: Optional[str] = None,
+                legacy_dir: Optional[str] = None) -> str:
+    """0.24 put the textures folder into the key (its data held absolute paths); the data is relative now."""
+    if legacy_dir:
+        return input_key("textures", size, texture_set, legacy_dir, code, magick_version)
+    return input_key("textures", size, texture_set, code or image_code(), magick_version)
+
+
+def sheet_title(seed, family: Optional[Dict]) -> str:
+    return f"Cube Escape - {family['name'] + ' - ' if family else ''}seed {seed}"
+
+
 def build_key(spec: Dict, settings: Dict) -> str:
     """Everything an asset's exported files depend on: its spec, the export / render settings, the code."""
     data = {k: v for k, v in spec.items() if k != "build_key"}
@@ -706,11 +815,11 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
         row = None
         if len(previews) > 1:
             row = os.path.join(out, f"set_{members[0]['type']}.png")
-            key = input_key("set", [images.digest(p) for p in previews], code_fingerprint(), magick_version)
-            if not images.get("set:" + row, key):
-                im.run([arg for p in previews for arg in ("(", p, "-resize", "320x320", ")")]
-                       + ["-background", "#1e1e24", "-gravity", "south", "+append", row])
-                images.put("set:" + row, key, [row])
+            key = set_row_key([images.digest(p) for p in previews], magick_version)
+            name = "set:" + images.rel(row)
+            if not images.get(name, key, place={"out": row}):
+                im.run([arg for p in previews for arg in ("(", p, *SET_ROW_EACH, ")")] + [*SET_ROW_TAIL, row])
+                images.put(name, key, [row], place={"out": row})
         lo, hi = boxes[0]  # the outline every member keeps (variant 0's), Unity coordinates like a sidecar's bounds
         sets.append({"name": name, "type": members[0]["type"], "members": [s["name"] for s in members],
                      "pinned": members[0]["set"]["pinned"], "faces": list(faces),
@@ -722,19 +831,33 @@ def _variant_sets(specs, results, asset_of, out, im, images, magick_version) -> 
     return sets
 
 
+def _relative_textures(textures: Dict[str, Dict], textures_dir: str) -> Dict[str, Dict]:
+    return {m: dict(info, paths={k: os.path.relpath(v, textures_dir).replace(os.sep, "/")
+                                 for k, v in info["paths"].items()}) for m, info in textures.items()}
+
+
+def _absolute_textures(textures: Dict[str, Dict], textures_dir: str) -> Dict[str, Dict]:
+    return {m: dict(info, paths={k: os.path.join(textures_dir, *v.split("/")) for k, v in info["paths"].items()})
+            for m, info in textures.items()}
+
+
 def _texture_set(im: ImageMagick, textures_dir: str, config: BatchConfig, magick_version: str,
-                 log: Callable[[str], None]) -> Dict[str, Dict]:
-    """The tile textures of a set - rebuilt only when an input or a written file changed (``--force``: always)."""
-    cache = OutputCache(textures_dir, enabled=not config.force)
-    key = input_key("textures", config.texture_size, config.texture_set, textures_dir, code_fingerprint(),
-                    magick_version)
-    hit = cache.get("texture_set", key)
+                 log: Callable[[str], None], store: Optional[Store] = None) -> Dict[str, Dict]:
+    """The tile textures of a set - rebuilt only when an input or a written file changed (``--force``: always);
+    copied from the shared store when another folder or checkout built the same set."""
+    cache = OutputCache(textures_dir, enabled=not config.force, store=store)
+    key = texture_key(config.texture_size, config.texture_set, magick_version)
+    hit = cache.get("texture_set", key, place=textures_dir)
     if hit:
-        log(f"textures unchanged ({len(hit['data'])} materials) -> {textures_dir}")
-        return hit["data"]
+        where = f"from the shared cache {store.root}" if cache.shared else "unchanged"
+        log(f"textures {where} ({len(hit['data'])} materials) -> {textures_dir}")
+        if cache.shared:
+            cache.save()
+        return _absolute_textures(hit["data"], textures_dir)
     textures = build_texture_set(im, textures_dir, config.texture_size, config.texture_set, log=log)
     files = [p for info in textures.values() for p in info["paths"].values()]
-    cache.put("texture_set", key, files + [os.path.join(textures_dir, "CubeEscape_Textures.json")], textures)
+    cache.put("texture_set", key, files + [os.path.join(textures_dir, "CubeEscape_Textures.json")],
+              _relative_textures(textures, textures_dir), place=textures_dir)
     cache.save()
     return textures
 
@@ -808,12 +931,17 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
 
     im = ImageMagick(config.magick)
     magick_version = im.version()
-    images = OutputCache(out, enabled=not config.force)  # swatch, icons, contact sheet
+    store = Store.default()  # shared by every output folder and checkout (CUBEGEN_CACHE=0: this folder only)
+    if store is not None:
+        from .migrate import migrate_once
+
+        migrate_once(store, log)
+    images = OutputCache(out, enabled=not config.force, store=store)  # swatch, icons, contact sheet, set rows
     swatch = os.path.join(out, "materials.png")
-    swatch_key = input_key("swatch", code_fingerprint(), magick_version)
-    if not images.get("swatch", swatch_key):
+    key = swatch_key(magick_version)
+    if not images.get("swatch", key, place={"out": swatch}):
         im.material_swatch(swatch)
-        images.put("swatch", swatch_key, [swatch])
+        images.put("swatch", key, [swatch], place={"out": swatch})
     lap("plan")
 
     textures: Dict[str, Dict] = {}
@@ -830,10 +958,10 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         # and wait for the "ready" file before they load the images (robot generator: workers start before the bake)
         textures = plan_texture_set(textures_dir, config.texture_set)
         ready_dir = tempfile.mkdtemp(prefix="cubegen_ready_")
-        texture_job = _Background(lambda: _texture_set(im, textures_dir, config, magick_version, log),
+        texture_job = _Background(lambda: _texture_set(im, textures_dir, config, magick_version, log, store),
                                   os.path.join(ready_dir, "textures"))
     elif config.textures != "none":
-        textures = _texture_set(im, textures_dir, config, magick_version, log)
+        textures = _texture_set(im, textures_dir, config, magick_version, log, store)
     material_map = {plain: info["name"] for plain, info in textures.items()}
     if config.textures != "none" and texture_job is None:
         lap("textures")
@@ -966,9 +1094,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
         if res.get("preview") and os.path.isfile(res["preview"]):
             icon = os.path.join(dirs["icons"], f"Icon_{spec['name']}.png")
             preview_hash = images.digest(res["preview"])  # read only if the preview changed (cache index)
-            key = input_key("icon", preview_hash, config.icon_size, config.icon_background, code_fingerprint(),
-                            magick_version)
-            if not images.get(f"icon:{icon}", key):
+            key = icon_key(preview_hash, config.icon_size, config.icon_background, magick_version)
+            if not images.get(f"icon:{images.rel(icon)}", key, place={"out": icon}):
                 icon_todo.append((res["preview"], icon, key))
             res["icon"] = icon
             previews.append(res["preview"])
@@ -981,16 +1108,16 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             list(pool.map(lambda t: single.make_icon(t[0], t[1], config.icon_size, config.icon_background),
                           icon_todo))
         for _, icon, key in icon_todo:
-            images.put(f"icon:{icon}", key, [icon])
-    images.prune("icon:", [os.path.join(dirs["icons"], f"Icon_{n}.png") for n in labels])
+            images.put(f"icon:{images.rel(icon)}", key, [icon], place={"out": icon})
+    images.prune("icon:", [images.rel(os.path.join(dirs["icons"], f"Icon_{n}.png")) for n in labels])
     sheet = None
     if previews:
         sheet = os.path.join(out, "contact_sheet.png")
-        title = f"Cube Escape - {config.family['name'] + ' - ' if config.family else ''}seed {config.seed}"
-        key = input_key("sheet", labels, sources, title, code_fingerprint(), magick_version)
-        if not images.get("contact_sheet", key):
+        title = sheet_title(config.seed, config.family)
+        key = sheet_key(labels, sources, title, magick_version)
+        if not images.get("contact_sheet", key, place={"out": sheet}):
             im.contact_sheet(previews, labels, sheet, title=title)
-            images.put("contact_sheet", key, [sheet])
+            images.put("contact_sheet", key, [sheet], place={"out": sheet})
             log(f"contact sheet -> {sheet}")
         else:
             log(f"contact sheet unchanged -> {sheet}")
@@ -998,6 +1125,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
     images.save()
     if previews:
         log(f"icons: {made} new, {len(previews) - made} reused")
+    if images.shared:
+        log(f"shared cache: {images.shared} image(s) copied from {store.root}")
     lap("images")
 
     # --- manifest + rig data ----------------------------------------------------

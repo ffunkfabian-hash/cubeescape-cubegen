@@ -680,6 +680,31 @@ def cmd_doctor(args) -> int:
     return 0 if ok else 1
 
 
+def cmd_cache(args) -> int:
+    """The shared cache (0.25.0): where it is and how full, ``--prune``, ``--migrate DIR`` (old output folders)."""
+    from .cache import Store, store_root
+
+    store = Store.default()
+    if store is None:
+        print("shared cache  off (CUBEGEN_CACHE=0): every output folder keeps only its own .cubegen_cache.json")
+        return 0
+    if args.migrate:
+        from .migrate import find_folders, migrate_folder
+
+        for folder in find_folders(args.migrate) or args.migrate:
+            result = migrate_folder(folder, store, log=print)
+            print(f"{folder}: {result['migrated']} migrated, {result['skipped']} skipped"
+                  + (f" ({result['reason']})" if result.get("reason") else ""))
+    if args.prune:
+        result = store.prune()
+        print("prune: " + ", ".join(f"{k} {v}" for k, v in result.items()))
+    info = store.usage()
+    print(f"shared cache  {store_root()}")
+    print(f"  {info['entries']} entries, {info['objects']} files, {info['bytes'] / 2 ** 20:.1f} MiB "
+          f"of {info['limit'] / 2 ** 30:.1f} GiB (CUBEGEN_CACHE_LIMIT_GB)")
+    return 0
+
+
 def cmd_gui(args) -> int:
     from .gui import main as gui_main
 
@@ -853,6 +878,12 @@ def make_parser() -> argparse.ArgumentParser:
     d.add_argument("--blender")
     d.add_argument("--magick")
     d.set_defaults(func=cmd_doctor)
+
+    ca = sub.add_parser("cache", help="the shared cache of image work (CUBEGEN_CACHE, CUBEGEN_CACHE_LIMIT_GB)")
+    ca.add_argument("--prune", action="store_true", help="shrink it to the limit now (least recently used first)")
+    ca.add_argument("--migrate", nargs="+", metavar="DIR",
+                    help="take over the caches of output folders made by an older version (where they match)")
+    ca.set_defaults(func=cmd_cache)
 
     ui = sub.add_parser("gui", help="open the desktop interface")
     ui.set_defaults(func=cmd_gui)
