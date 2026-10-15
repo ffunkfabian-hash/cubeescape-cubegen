@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.29.0 „Crossflow“ – unveröffentlicht
+## 0.29.0 „Crossflow“ – 2026-10-15
 
 Nur Doku; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.28.0 (bis auf die Versionsangabe).
 Bericht: [VERSION_0.29.0.md](VERSION_0.29.0.md).

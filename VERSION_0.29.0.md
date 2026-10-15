@@ -1,6 +1,6 @@
 # Cubegen 0.29.0 – Crossflow
 
-Release-Zweig `release/0.29.0` (unveröffentlicht); vorherige Version [0.28.0](VERSION_0.28.0.md).
+Veröffentlicht am 15. Oktober 2026; Release-Zweig `release/0.29.0`; vorherige Version [0.28.0](VERSION_0.28.0.md).
 Nur Doku; kein Code, keine Ausgabe geändert – nur die Versionsangabe im Sidecar.
 
 ## Anlass
