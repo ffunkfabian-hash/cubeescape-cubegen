@@ -2,7 +2,8 @@
 
 `AGENTS.md` hält die knappen Regeln; hier stehen die Begründungen, Messwerte und Einzelheiten dazu. Die Abschnitte
 tragen dieselben Namen wie die Verweise in `AGENTS.md`. Die Bedienung der Kommandozeile steht in
-[`CLI.md`](CLI.md).
+[`CLI.md`](CLI.md). Techniken des Roboter-Generators, die Cubegen übernehmen kann (mit Stand und Aufwand):
+[`TECHNIK.md`](TECHNIK.md).
 
 ## 1. Leistung und Grenzen (Erkenntnisse aus Cube Escape 0.49, seit 0.21.0)
 
