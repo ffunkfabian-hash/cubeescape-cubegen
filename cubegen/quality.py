@@ -12,6 +12,7 @@ All checks are pure Python and work on the assets as built (asset space).
 
 from __future__ import annotations
 
+import json
 import math
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -406,6 +407,43 @@ def check(asset, category: str, pivot: str = "", budget_scale: float = 1.0, pale
             "warning" if warnings else "pass", "errors": errors, "warnings": warnings}
 
 
+#: modules whose code decides the result of ``check`` (and everything they import) - their hash is part of the QA key
+QA_MODULES = ("quality", "families", "collision", "palette")
+_QA_CODE: List[str] = []
+QA_STEP = "qa"
+
+
+def qa_code() -> str:
+    if not _QA_CODE:
+        from .pipeline import module_fingerprint
+
+        _QA_CODE.append(module_fingerprint(*QA_MODULES))
+    return _QA_CODE[0]
+
+
+def check_cached(asset, category: str, pivot: str = "", budget_scale: float = 1.0, palette: bool = False,
+                 store="default") -> Dict:
+    """``check`` through the shared cache (0.30.0): the key is the asset's digest (geometry, colliders, behaviours),
+    the parameters and the source of the checking code - a hit costs a JSON read instead of the ray tests. The result
+    is the JSON form of ``check`` (tuples become lists); a cache problem never fails a check."""
+    from .cache import Store, input_key
+
+    if store == "default":
+        store = Store.default()
+    if store is None:
+        return check(asset, category, pivot, budget_scale, palette)
+    key = input_key(QA_STEP, asset.digest(), category, pivot, budget_scale, palette, qa_code())
+    entry = store.lookup(key)
+    if entry is not None and isinstance(entry.get("data"), dict):
+        return entry["data"]
+    result = check(asset, category, pivot, budget_scale, palette)
+    try:
+        store.put_entry(key, {}, data=result, step=QA_STEP)
+    except (OSError, TypeError, ValueError):
+        pass
+    return json.loads(json.dumps(result))
+
+
 def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_scale: float = 1.0,
            palette: bool = False) -> Dict[str, Dict]:
     """Per type over ``seeds`` variants: max triangles, max draw calls, z-fighting, solid geometry without a
@@ -418,7 +456,7 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
     result = {}
     for t in model_types:
         entry = registry[t]
-        rows = [check(build(t, i), entry.category, entry.pivot, budget_scale, palette) for i in range(seeds)]
+        rows = [check_cached(build(t, i), entry.category, entry.pivot, budget_scale, palette) for i in range(seeds)]
         fights = [len(r["z_fighting"]) for r in rows]
         severity = "error" if any(r["errors"] for r in rows) else "warning" if any(
             r["warnings"] for r in rows
@@ -441,6 +479,6 @@ def report(model_types: Sequence[str], build, registry, seeds: int = 10, budget_
     return result
 
 
-__all__ = ["check", "report", "z_fighting", "uncovered_geometry", "needs_collider", "fix_z_fighting", "draw_calls",
+__all__ = ["check", "check_cached", "report", "z_fighting", "uncovered_geometry", "needs_collider", "fix_z_fighting", "draw_calls",
            "TRIANGLE_BUDGET", "DRAW_CALL_BUDGET",
            "draw_call_budget"]

@@ -308,17 +308,19 @@ def run_job(job_path):
 
             t = time.time()
             base_of = {info["name"]: plain for plain, info in textures.items()}
+            cached_bake = _cached_bake(spec)
             baked = paint_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
                                 job["paint"], spec["seed"], base_of, device=job.get("bake_device", "cpu"),
-                                cached=_cached_bake(spec))
+                                cached=cached_bake)
             timings["bake"] = time.time() - t
         elif job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
 
+            cached_bake = _cached_bake(spec)
             t = time.time()
             baked = bake_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
                                job["magick"], seed=spec["seed"], device=job.get("bake_device", "cpu"),
-                               cached=_cached_bake(spec))
+                               cached=cached_bake)
             timings["bake"] = time.time() - t
         t = time.time()
         files = {}
@@ -352,6 +354,9 @@ def run_job(job_path):
             if baked.get("neutral"):
                 entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"],
                               "neutral_maps": baked["packed"]})
+            atlas = baked.get("uvs") or (cached_bake or {}).get("uvs") or {}
+            if atlas.get("occupancy") is not None:  # share of the unit square the atlas UVs cover (bake.occupancy)
+                entry["atlas_occupancy"] = atlas["occupancy"]
             if baked.get("uvs") and job.get("uv_dir"):  # a new bake: its atlas UVs for the shared cache
                 entry["bake_uvs"] = os.path.join(job["uv_dir"], f"{asset.name}.uvs.json")
                 with open(entry["bake_uvs"], "w", encoding="utf-8") as fh:

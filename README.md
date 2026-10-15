@@ -156,7 +156,6 @@ Thema“ ein eigenes Thema mit Farbwählern und Reglern, mit echter Vorschau auf
 ```bash
 app/build.sh            # -> output/app/Cubegen.app (universal, macOS 13+)
 app/test_app.sh         # 25 Prüfungen ohne Fenster: Version, Katalog, Kommandozeile, 3D, Fenster, Themen-Editor, Läufe
-app/notarize.sh         # Weitergabe: Developer-ID-Signatur und Notarisierung (eigenes Apple-Konto nötig)
 open output/app/Cubegen.app
 ```
 

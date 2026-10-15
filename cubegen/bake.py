@@ -28,6 +28,11 @@ from .materials import KEEP_OWN
 KEEP = set(KEEP_OWN)  # glow, crystal, glass and (0.24) the names split off M_Crystal keep their own material
 BAKE_UV = "BakeUV"
 DEVICES = ("auto", "cpu", "gpu")
+#: how the atlas is packed after Smart UV Project: ``off`` (0.29 and older: its own packing), ``concave`` (default
+#: since 0.30.0: ``pack_islands`` with a concave outline, rotation allowed; measured 0.67-0.79 filled against
+#: 0.50-0.72 before) or ``convex``/``aabb`` (for measuring)
+PACK_MODE = os.environ.get("CUBEGEN_ATLAS_PACK", "concave").lower()  # env: experiments only (CUBEGEN_CACHE=0)
+PACK_MARGIN = float(os.environ.get("CUBEGEN_ATLAS_MARGIN", "0.008"))
 GPU_FROM = 1024  # auto: GPU from this atlas size; measured 0.15.0 (M5, Metal): 512 px CPU faster, 1024 px GPU ~1.8x
 GPU_TYPES = ("METAL", "OPTIX", "CUDA", "HIP", "ONEAPI")
 
@@ -79,7 +84,33 @@ def _atlas_uvs(objects):
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.02)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.mode_set(mode="OBJECT")  # edit-mode UVs reach the mesh data on leaving edit mode
+    before = occupancy(objects) if os.environ.get("CUBEGEN_ATLAS_MEASURE") else None
+    if PACK_MODE != "off":
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.select_all(action="SELECT")
+        # smart_project's own margin (0.02) is far wider than the 4 px bake margin needs; pack again, tighter
+        bpy.ops.uv.pack_islands(rotate=True, margin=PACK_MARGIN, shape_method=PACK_MODE.upper(), scale=True)
+        bpy.ops.object.mode_set(mode="OBJECT")
+    if before is not None:
+        print(f"ATLAS_MEASURE smart={before:.4f} packed={occupancy(objects):.4f} mode={PACK_MODE} margin={PACK_MARGIN}")
+
+
+def occupancy(objects):
+    """Share of the unit square the atlas UVs (``BakeUV``) cover: summed UV polygon areas (Robogen 1.20: Smart UV
+    Project alone filled 18 %). A measure for the manifest - texel density follows from it, nothing decides on it."""
+    total = 0.0
+    for o in objects:
+        mesh = o.data
+        layer = mesh.uv_layers.get(BAKE_UV)
+        if layer is None:
+            continue
+        uv = layer.data
+        for poly in mesh.polygons:
+            pts = [uv[i].uv for i in poly.loop_indices]
+            total += abs(sum(a.x * b.y - b.x * a.y for a, b in zip(pts, pts[1:] + pts[:1]))) / 2.0
+    return total
 
 
 UV_FORMAT = 1  # file of a bake's atlas UVs (0.26.0, shared cache): {"format", "objects": {name: base64 float32}}
@@ -99,7 +130,7 @@ def read_uvs(objects):
         values = array.array("f", [0.0]) * (2 * len(o.data.loops))
         layer.data.foreach_get("uv", values)
         found[o.name] = base64.b64encode(values.tobytes()).decode("ascii")
-    return {"format": UV_FORMAT, "objects": found}
+    return {"format": UV_FORMAT, "objects": found, "occupancy": round(occupancy(objects), 4)}
 
 
 def apply_uvs(objects, data):

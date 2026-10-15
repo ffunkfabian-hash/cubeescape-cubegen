@@ -139,6 +139,13 @@ schaltet ihn ab. `python3 -m cubegen cache` zeigt Ort und Größe (`--prune`, `-
   Cache: die Übersichts-`.blend` (absolute Bildpfade) – ein voller Treffer startet Blender nur noch für sie
   (`--no-blend`: gar nicht). Neue Worker-Ausgaben gehören in die Einheit (`modelcache.result_files`), neue Eingaben in
   den Auftrag (dann automatisch im Schlüssel).
+- **QA-Cache** (seit 0.30.0, `quality.check_cached`): Eintrag `qa` mit dem Ergebnis-JSON von `check` (keine Dateien).
+  Schlüssel: `Asset.digest()` (Geometrie, Collider, Behaviours), Kategorie, Pivot, Budget-Faktor, Palette und der Hash
+  der Prüfmodule samt Importen (`QA_MODULES`: quality, families, collision, palette; `pipeline.module_fingerprint`) –
+  jede Änderung am Prüfcode macht alle Einträge ungültig, ohne Zutun. Ein Treffer ersetzt Z-Fighting-Test und
+  Innenpunkt-Strahlen. Gemessen (golden_cases.quality, 187 Typen × 10 Varianten): kalt 7,1 s, warm 4,6 s – der Rest ist
+  der Modellbau; der Cache lohnt sich für `cubegen check` und Gate-Läufe, nicht für einzelne Modelle. Das Ergebnis ist
+  die JSON-Form (Tupel werden Listen).
 - **Tests** laufen mit einem eigenen, frischen Cache je `run_tests.py`-Lauf (nie mit dem des Rechners).
 
 ## 4. Variantensets (Variation ohne Wiederholung)
@@ -202,6 +209,44 @@ aussehen. Ein Set sind Varianten mit **gleichem Umriss** und **anderem Innenlebe
 - **Prüfen:** `tools/style_test.py --paints all --concept <Konzeptbogen>` (Vergleich mit dem Konzept) und der echte
   Import in der Cube-Escape-Testkopie (`CubegenCliIntegrationTests` mit `CUBEGEN_TEST_EXPORTS`).
 
+## 5a. Atlas, Zonen, Effektdaten (seit 0.30.0)
+
+- **Atlas packen:** `bake._atlas_uvs` packt nach Smart UV Project mit `pack_islands(rotate, margin=0.008,
+  shape_method=CONCAVE)` nach (0,008 ≈ die 4 px Bake-Rand bei 512 px; Smart UV Projects eigener Rand von 0,02 war
+  breiter als nötig). Gemessen an 6 Typen (Blender 5.2.2, M-Klasse Mac): Belegung 0,50–0,72 → 0,67–0,79, bei einem
+  Modell mit schon dichtem Atlas ±0 (0,720 → 0,717). `occupancy` = Summe der UV-Polygonflächen; im Manifest
+  `models[].atlas_occupancy`, im Back-Cache neben den UVs gespeichert. Die Texturen gebackener Läufe ändern sich damit
+  (Cache-Schlüssel enthält den Code, kalte Läufe einmalig); `CUBEGEN_ATLAS_PACK=off|convex|aabb` und
+  `CUBEGEN_ATLAS_MARGIN` nur für Messungen (zusammen mit `CUBEGEN_CACHE=0`, der Schlüssel kennt sie nicht),
+  `CUBEGEN_ATLAS_MEASURE=1` druckt vorher/nachher. Smart UV Project selbst schwankt zwischen Läufen (0,57 gegen 0,82
+  bei gleichem Modell nach Seedwechsel), darum bleiben die UVs im Cache.
+- **Lackzonen** (`zones.py`): Zone = Objektname ohne Ziffern- und Seiten-Endungen. Gemessen (Seed 42, 187 Typen): 108
+  Typen haben nur eine bemalbare Zone (`Body`), 63 zwei, 12 drei, 3 mehr – eine Zweitfarbe an Teilgrenzen ist für 78
+  Typen möglich, aber 135 von 154 Objektnamen sind `Body`; Teile innerhalb des Körpers sind nicht benannt (alle
+  `part`). Eine Zonen-*Karte* braucht einen neuen Kanal im Vertrag (Version 4) und den Shader in Cube Escape – nicht
+  Teil dieser Version.
+- **Teilgraphen im Material:** gemessen und verworfen. `M_`-Materialien haben 2–5 Knoten, `MT_` 6; ein Knoten
+  anlegen+entfernen kostet 0,012 ms, die Emissions-Ersatzgraphen des Backens (Kante) 0,2 ms je Material – ein Modell
+  braucht dafür unter 10 ms gegen Sekunden Backzeit. Anders als im Roboter-Generator (große Material-Bäume) lohnt das
+  Zusammenlegen nicht.
+- **Effektmaterialien als Daten** (`effects.py`): Beschreibung je Material aus `KEEP_OWN` (Art, Verwendung, Werte aus
+  `MATERIALS`), im Manifest je Modell; nichts erfunden, was das Spiel nicht hat (Fresnel, Alpha, Pulsieren leben in Cube
+  Escape). Ein Test hält `KINDS`/`ROLES` und `KEEP_OWN` gleich.
+
+## 5b. Formvarianten (`--shape voxel`, seit 0.30.0)
+
+`shapes.voxelize` leitet nach dem Bau, vor der Z-Fighting-Korrektur, die Voxelform ab: geschlossene, konvexe Teile in
+Objekten aus `DECORATIVE_PARTS` (kein ItemPickup), mindestens 3 Zellen dick; die Zelle ist die längste Seite / 24 (0,06
+bis 0,2 m). Ein Würfel entsteht nur, wenn er ganz im Teil liegt (Zellmitte mindestens eine halbe Zelle innen, exakt für
+konvexe Teile: Stützabstand des Würfels je Fläche) – nichts ragt heraus, die Collider der glatten Form bleiben gültig
+(Test: Bounding-Box innen, gleiche Collider/Behaviours/Objektnamen, nicht mehr ungedeckte Teile, kein neues
+Z-Fighting). Nur Flächen zur Luft bleiben, benachbarte Flächen einer Richtung/Schicht mit gleichem Material
+werden zu Rechtecken verschmolzen (greedy); die Rolle je Richtung ist die der größten Originalfläche in dieser Richtung
+(Oberseite behält ihre Rolle). Gemessen (187 Typen, Seed 42): 108 Teile in 66 Typen werden Voxel, Dreiecke gesamt 75 104 →
+75 136 (Stufen kosten so viel wie Verschmelzen spart; ein Quader bleibt ein Quader). Die Atlas-UVs entstehen wie sonst
+aus der Geometrie. Nicht umgesetzt: Facettenform (gibt es als `--detail low` und `crystal_cut`) und Lochform;
+Voxel für gekrümmte, nicht konvexe oder dünne Teile bleibt glatt.
+
 ## 6. macOS-App (`app/`)
 
 Gebaut wie der Robot Viewer des Roboter-Generators: SwiftUI + SceneKit, `swiftc` ohne Xcode-Projekt, universal,
@@ -221,10 +266,11 @@ ad-hoc signiert; Kommandozeilen-Modi statt UI-Automation für die Tests.
 - **Eigenes Thema mit Farbwählern** (`PaintEditor.swift`): Vorlagen und Schlüssel aus dem Katalog
   (`paint_schemes`, `paint_fields`), gespeichert als Datei für `--paint-file`; „Vorschau“ ist ein echter kleiner Lauf
   (vier Teile, 256 px). Testmodi `--paint-roundtrip`, `--paint-preview`, `--ui-snapshot --paint-editor`.
-- **Weitergabe:** `app/notarize.sh` signiert mit einer Developer ID und notarisiert – nur der Nutzer führt es aus
-  (Zertifikat „Developer ID Application“ und `notarytool`-Profil im Schlüsselbund; nie Zugangsdaten im Skript).
 - **Prüfen:** `app/build.sh` und `app/test_app.sh` nach jeder Änderung an `app/` oder an CLI-Optionen, die die App
-  anbietet; Sichtprüfung über `--ui-snapshot` (Fenster offscreen; die SceneKit-Fläche bleibt dort leer) und
+  anbietet; seit 0.30.0 geprüft (TECHNIK 5b): der Viewer liest nur `map_Kd` (Albedo, PNG24 ohne Alpha) per `NSImage`
+  und hat keine Shader – Daten-Texturen (Normal, `MetallicSmoothness` mit Alpha als Datenkanal, `MTN_`) und
+  Uniform-Grenzen treffen ihn nicht; kommt ein Shader oder eine Daten-Textur dazu: roh laden, Uniforms packen.
+  Sichtprüfung über `--ui-snapshot` (Fenster offscreen; die SceneKit-Fläche bleibt dort leer) und
   `--snapshot` (3D-Ansicht).
 
 ## 7. Neural Engine und Unity-Check: ein schwerer Lauf zur Zeit

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.30.0 „Lattice“ – unveröffentlicht
+
+Neu: Atlas nachpacken und Belegung messen, QA-Cache, Lackzonen-Tabelle, Effektmaterial-Daten, `--shape voxel`.
+Bericht: [VERSION_0.30.0.md](VERSION_0.30.0.md).
+
+* **Atlas:** konkaves Nachpacken nach Smart UV Project, Belegung im Manifest (`atlas_occupancy`); gebackene Texturen ändern sich.
+* **QA-Cache:** `quality.check_cached` (Schlüssel `Asset.digest` + Prüfcode).
+* **Manifest:** `zones` (Lackzonen aus Teilnamen), `effects` (Effektmaterialien als Daten), `meta.shape`.
+* **`--shape smooth|voxel`:** feste, konvexe, dekorative Teile als verschmolzene Würfel; Collider und Teile bleiben.
+* **Entfernt:** `app/notarize.sh` und die Hinweise auf Developer ID/Notarisierung.
+
 ## 0.29.0 „Crossflow“ – 2026-10-15
 
 Nur Doku; Code, Geometrie, Materialien und Sidecars bleiben wie in 0.28.0 (bis auf die Versionsangabe).

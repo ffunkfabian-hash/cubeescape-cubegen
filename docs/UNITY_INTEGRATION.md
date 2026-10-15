@@ -514,6 +514,13 @@ verschoben ist (ausgefahrene Brücke).
 des Backens) und seit 0.24.0 `neutral_maps` (die gepackten `MTN_`-Karten, `{"W0": "models/Textures/MTN_Crate_000_W0.png",
 …}`, bei jeder Vertragsversion).
 
+**Seit 0.30.0 nur im Manifest** (nie im Sidecar, kein Vertrag): `models[].zones` – Lackzonen aus Teilnamen
+(`[{"zone": "Frame", "objects": ["Frame_Left", …], "painted": ["M_RobotDark"]}]`, `cubegen/zones.py`; eine Zone ohne
+bemalbares Material nimmt keine Schemafarbe); `models[].effects` – Beschreibung der eigenen Effektmaterialien, die das
+Modell nutzt (`kind`, `role`, Farbe/Glätte/Emission aus `materials.MATERIALS`; `cubegen/effects.py`; das Spiel liest sie
+noch nicht, ROADMAP ToDo 28); `models[].atlas_occupancy` – Anteil des Atlas, den die UVs bedecken (nur gebackene
+Modelle); `meta.shape` bei `--shape voxel`.
+
 ## cubegen 0.9: Vertrag, neue Typen und Integrationsbedarf
 
 Abgeglichen mit `Docs/CUBEGEN_IMPORT.md` des Spiels (Stand 6. Oktober 2026). cubegen prüft jeden Sidecar

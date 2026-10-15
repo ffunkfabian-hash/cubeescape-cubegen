@@ -29,7 +29,7 @@ _RECIPE_FIELDS = ("formats", "prefix", "scale", "blend", "rig_data", "render", "
 RECIPE_KEYS = ("seed", "models", "params", "style", "out", "family", "dims", "description") + _RECIPE_FIELDS
 # global style options: CLI flag -> Style field
 _STYLE_FLAGS = {"size": "size", "snap": "snap", "glow": "glow", "material_style": "material", "warning": "warning",
-                "wear": "wear", "detail": "detail", "damage": "damage", "clutter": "clutter",
+                "wear": "wear", "detail": "detail", "damage": "damage", "clutter": "clutter", "shape": "shape",
                 "theme": "theme", "generation": "generation"}
 
 
@@ -331,7 +331,7 @@ def validate_batch(config: BatchConfig, specs: List[Dict], *, strict: bool = Fal
     from datetime import datetime, timezone
 
     from .pipeline import build_spec, code_fingerprint, family_fit
-    from .quality import asset_quality_report, check
+    from .quality import asset_quality_report, check_cached as check
     from .variety import signature, similar
 
     if not specs:
@@ -416,6 +416,7 @@ def cmd_params(args) -> int:
     print("        --material-style metal|wall|dark|light")
     print("        --warning none|always  --wear none|light|heavy  --detail low|normal|high")
     print("        --damage intact|damaged|destroyed|fractured  --clutter none|clean|lived-in|chaotic")
+    print("        --shape smooth|voxel")
     print("        --generation 1|2|3")
     print("        --icon-angle AZIMUT,ELEVATION  --icon-zoom 1.2")
     return 0
@@ -423,7 +424,7 @@ def cmd_params(args) -> int:
 
 #: generate options a game UI may offer (style and textures); everything else is batch plumbing
 CATALOG_OPTIONS = ("theme", "size", "snap", "glow", "material_style", "warning", "wear", "detail", "damage", "clutter",
-                   "generation", "textures", "texture_size", "palette")
+                   "shape", "generation", "textures", "texture_size", "palette")
 
 
 def catalog_data() -> Dict[str, object]:
@@ -749,6 +750,8 @@ def make_parser() -> argparse.ArgumentParser:
                          "fractured: split into fragments Fragment_<n> that Unity drops when it is destroyed")
     st.add_argument("--clutter", choices=["none", "clean", "lived-in", "chaotic"],
                     help="separate small props on explicitly supported table surfaces; deterministic by seed")
+    st.add_argument("--shape", choices=["smooth", "voxel"],
+                    help="voxel: solid decorative parts rebuilt as merged cubes (same parts, colliders, atlas)")
     st.add_argument("--generation", type=int, choices=list(GENERATIONS),
                     help=f"model generation (default {LATEST_GENERATION}): 1 rebuilds models exported with cubegen "
                          "0.9.0 bit for bit; 2 lifts flush details against flickering, two materials per moving part; "

@@ -205,6 +205,7 @@ python3 -m cubegen generate --seed 7 --theme labor-3 --glow cyan     # einzeln f
 | `--wear` | none / light / heavy | Schutt, lose Platten, Kabel um das Modell |
 | `--detail` | low / normal / high | weniger oder mehr Polygone |
 | `--damage` | intact / damaged / destroyed / fractured | beschädigt, Ruine (statisch, ohne Scripts) oder in Bruchstücke `Fragment_<nn>` zerlegt, die Unity bei Zerstörung herausfallen lässt |
+| `--shape` | smooth / voxel | seit 0.30.0: `voxel` baut feste, nur dekorative Teile als zusammengefasste Würfel neu (gleiche Teile, Kollision, Sidecar, Atlas; nur bei `--damage intact`); Teile, die nicht passen (dünn, nicht konvex, bewegt), bleiben glatt. Manifest: `meta.shape` |
 | `--generation` | 1 / 2 / 3 | Modell-Generation (Standard 3 = mit Ankern `Audio_*`/`FX_*` für Ton und Effekte); 2 = ohne Anker, 1 = Modelle wie mit cubegen 0.9.0 exportiert, bitgleich |
 
 **Text auf Modellen** (Parameter, ohne Angabe bleibt alles wie bisher): `--param sign.text=B-12` (Schild mit

@@ -64,6 +64,7 @@ class Style:
     detail: str = "normal"           # low (no bevels, fewer sides) | normal | high (rounder cylinders)
     damage: str = "intact"           # intact | damaged | destroyed (ruin: static, no scripts) | fractured
     clutter: str = "none"            # none | clean | lived-in | chaotic
+    shape: str = "smooth"            # smooth | voxel (cubegen/shapes.py: solid parts rebuilt as merged cubes, 0.30.0)
     theme: Optional[str] = None      # any text: rolls glow, material, wear and warning once for all assets
     generation: int = LATEST_GENERATION  # model generation (GENERATIONS): 1 = as cubegen 0.9.0, 2 = without anchors
 
@@ -77,6 +78,7 @@ class Style:
             ("detail", self.detail, ("low", "normal", "high")),
             ("damage", self.damage, DAMAGE_STATES),
             ("clutter", self.clutter, ("none", "clean", "lived-in", "chaotic")),
+            ("shape", self.shape, ("smooth", "voxel")),
         ]
         for name, value, allowed in checks:
             if value not in allowed:
@@ -87,6 +89,8 @@ class Style:
             raise ValueError("style snap must be >= 0")
         if self.theme is not None and not str(self.theme).strip():
             raise ValueError("style theme must not be empty")
+        if self.shape != "smooth" and self.damage != "intact":
+            raise ValueError("style shape requires damage='intact'; fragments keep the shape of the smooth model")
         if self.clutter != "none" and self.damage != "intact":
             raise ValueError(
                 "style clutter requires damage='intact'; clutter surfaces are not validated on damaged assets"

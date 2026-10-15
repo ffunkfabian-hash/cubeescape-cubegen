@@ -25,7 +25,7 @@ enum Names {
                              "tech": "Technik"]
     static let options = ["clutter": "Kleinkram", "damage": "Schaden", "detail": "Detail", "generation": "Generation",
                           "glow": "Leuchtfarbe", "material_style": "Material", "size": "Größe",
-                          "warning": "Warnstreifen", "wear": "Abnutzung", "theme": "Thema", "snap": "Raster"]
+                          "shape": "Form", "warning": "Warnstreifen", "wear": "Abnutzung", "theme": "Thema", "snap": "Raster"]
 
     static func category(_ key: String) -> String { categories[key] ?? key }
     static func option(_ key: String) -> String {

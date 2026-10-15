@@ -30,6 +30,8 @@ from .variety import pick_unique
 from .contract import (CONTRACT_VERSION, baked_map_keys, check_fbx, check_runtime_budget, check_sidecar, check_version,
                        texture_keys)
 from .families import join_table, unity_connectors
+from .effects import effects_of
+from .zones import zone_table
 from . import palette as palette_mod
 
 BAKE_KEEP = set(KEEP_OWN)  # = bake.KEEP
@@ -621,7 +623,8 @@ def _previous_results(out: str, specs: List[Dict], render: bool) -> Dict[str, Di
                "preview": _abs(entry.get("preview"), out), "icon": _abs(entry.get("icon"), out), "reused": True}
         if entry.get("baked"):
             res.update({"baked": {k: _abs(v, out) for k, v in entry["baked"].items()},
-                        "baked_material": entry.get("baked_material"), "bake_device": entry.get("bake_device")})
+                        "baked_material": entry.get("baked_material"), "bake_device": entry.get("bake_device"),
+                        "atlas_occupancy": entry.get("atlas_occupancy")})
             if entry.get("neutral"):
                 res.update({"paint": entry.get("paint"), "weight_layout": entry.get("weight_layout"),
                             "neutral": {k: (_abs(v, out) if isinstance(v, str) else [_abs(x, out) for x in v])
@@ -1283,6 +1286,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
             "renderers": sum(1 for o in asset.objects if o.mesh is not None),  # Cube Escape: 1 = flat copy possible
             **({"runtime_budget": res["runtime_budget"]} if res.get("runtime_budget") else {}),
             "asset_hash": asset.digest(),
+            "zones": zone_table(asset),  # paint zones from part names (zones.py) - manifest only
+            **({"effects": effects_of(asset)} if effects_of(asset) else {}),  # effects.py: described, not applied
             **({"lods": lod_data(asset, lod_of(spec))} if spec.get("lod") else {}),
             "meta": {k: v for k, v in asset.meta.items() if k not in ("type", "seed")},
             **({"family": spec["family"]} if spec.get("family") else {}),
@@ -1294,7 +1299,8 @@ def generate_batch(config: BatchConfig, log: Callable[[str], None] = print) -> D
                if dressing_params(spec["type"]) else {}),
             **({"build_key": spec["build_key"]} if spec.get("build_key") else {}),
             **({"baked": {k: _rel(v, out) for k, v in res["baked"].items()},
-                "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device")}
+                "baked_material": res.get("baked_material"), "bake_device": res.get("bake_device"),
+                **({"atlas_occupancy": res["atlas_occupancy"]} if res.get("atlas_occupancy") is not None else {})}
                if res.get("baked") else {}),
             **({"paint": res["paint"], "weight_layout": res.get("weight_layout"),
                 "neutral": {k: (_rel(v, out) if isinstance(v, str) else [_rel(x, out) for x in v])

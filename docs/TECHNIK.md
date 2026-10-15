@@ -1,6 +1,6 @@
 # Techniken aus dem Roboter-Generator – Übertrag auf Cubegen
 
-Stand: Roboter-Generator 1.20.6, Cubegen 0.29.0 „Crossflow“. Quelle ist `docs/TECHNIK.md` im Repo
+Stand: Roboter-Generator 1.20.6, Cubegen 0.30.0 „Lattice“. Quelle ist `docs/TECHNIK.md` im Repo
 `cubeescape-robogen` (Abschnittsnummern „RG §n“ unten beziehen sich darauf). Diese Datei sagt, welche dieser Techniken
 Cubegen schon hat, welche nur teilweise und welche fehlen, und wie man sie für Cubegen umsetzt. Sie wiederholt die
 Robogen-Abschnitte nicht; Hintergründe und Messwerte stehen dort. Zahlen in dieser Datei sind Messwerte des
@@ -23,26 +23,26 @@ mit dem, was fehlt. Entwicklerhintergrund zu den vorhandenen Teilen: [`DEVELOPER
 | Looks als versionierte Daten | §1 | teilweise: `paint.PAINTS` (Python), `--paint-file` mit `paint.load_scheme`/`check_scheme`, Vertrag versioniert (`cubegen/contract.json`, `contract_for`); kein Look-Format mit Migration und Fixture | Themen ohne Code, sichere Formatänderungen |
 | Einmal backen, linear zusammensetzen | §2 | schon da: `stylebake.py` (`bake_masks`, `compose_paint`), `paint.compose`, Gewichtskarten (DEVELOPER 2); Gegenprobe gegen direktes Backen: `tools/paint_reference.py` | jede Farbgebung in Sekundenbruchteilen |
 | Maskenkanäle statt Textursatz je Variante | §3 | teilweise: gepackte neutrale Karten `MTN_` (`cubegen/neutral.py`), Shader in Cube Escape rechnet nach (ROADMAP ToDo 27); keine Zonen-/Abzeichen-/Leuchtlinien-Kanäle | Varianten zur Laufzeit statt Dateien |
-| Lackzonen aus Teilnamen | §3 | offen: Teile sind benannt (`asset.py`), aber ohne Flächenattribut/Zonenkarte | Zweitfarbe exakt an Teilgrenzen |
+| Lackzonen aus Teilnamen | §3 | teilweise (0.30.0): Zonentabelle je Modell im Manifest (`cubegen/zones.py`, `zones`); keine Zonenkarte – braucht Vertragsversion 4 und den Shader in Cube Escape; 135 von 154 Objektnamen sind `Body` (DEVELOPER 5a) | Zweitfarbe exakt an Teilgrenzen |
 | Decal-Anker je Modellfamilie | §3 | teilweise: Anker für Klang und Effekte (`cubegen/models/anchors.py`); keine Decals | Abzeichen/Kennungen auf jedem Typ |
 | Normierte Verwitterungsfelder | §3 | teilweise: `wear`, `grime`, `dust`, `moss` als Regler je Thema (`paint.SCHEME_KEYS`); keine Rangfolge-Normierung | gleich empfindliche Regler |
-| Gemeinsame Teilgraphen im Material | §4 | offen (nicht gemessen) | schnellerer Materialaufbau |
+| Gemeinsame Teilgraphen im Material | §4 | gemessen, lohnt nicht (0.30.0): 2–6 Knoten je Material, 0,012 ms je Knoten (DEVELOPER 5a) | – |
 | Präsentationskarten | §5 | teilweise: Kontaktbögen und Set-Reihen (`pipeline.py` `SHEET_ROWS`, `imagemagick.py`), Konzeptvergleich `tools/style_test.py --concept`; keine Dreiviertel-/Bloom-Karte | Kataloge im Stil der Konzepte |
 | Konzeptbögen auslesen | §6 | schon da: `tools/style_test.py --concept` | Paletten aus Referenzbildern |
 | Icons mit Lesbarkeitsprüfung | §7 | teilweise: Icons je Modell (`imagemagick.make_icon`); Prüfung nur als Hinweis über Apple Vision (`tools/vision_report.py`) | Werkbank-Palette ohne Fehlgriffe |
-| Viewer: Daten-Texturen roh, Uniform-Grenzen | §8 | offen (nicht geprüft): `app/Sources`, `ModelScene` liest MTL selbst | keine stillen Vorschaufehler |
-| Atlas nachpacken, Belegung messen | §16 | offen: nur Smart UV Project (`cubegen/bake.py` `_atlas_uvs`) | kleinere Atlanten, schärfere Texel |
+| Viewer: Daten-Texturen roh, Uniform-Grenzen | §8 | geprüft (0.30.0): `ModelScene` lädt nur `map_Kd` (Albedo, PNG24 ohne Alpha), keine Shader, keine Daten-Texturen – nicht betroffen; Regel für später in DEVELOPER 6 | keine stillen Vorschaufehler |
+| Atlas nachpacken, Belegung messen | §16 | schon da (0.30.0): `bake.occupancy`, `pack_islands` konkav nach Smart UV Project (Belegung 0,50–0,72 → 0,67–0,79), Manifest `atlas_occupancy` | kleinere Atlanten, schärfere Texel |
 | Unity-Testprojekt, Prüfung in einem Start | §9, §11 | teilweise: `tools/unity_check.py` läuft in der Cube-Escape-Testkopie, Prüfsätze, eigene Prozessgruppe je Schritt; kein eigenes Testprojekt | Import, Kollision, Screenshots automatisch |
-| Effektmaterialien als Daten | §11 | offen: Glas/Hologramm/Leuchten sind Materialnamen (`materials.py`), Effekt liegt in Cube Escape | gleiche Formeln in Vorschau und Spiel |
+| Effektmaterialien als Daten | §11 | teilweise (0.30.0): Beschreibung je Effektmaterial (`cubegen/effects.py`, Manifest `effects`); das Spiel liest sie noch nicht, keine Laufzeit-Formeln (ROADMAP ToDo 28) | gleiche Formeln in Vorschau und Spiel |
 | LOD automatisch | §11 | teilweise: `--lods`, LOD1 als Neubau mit `style.detail = low` (`blender_worker.py` `build_asset`), geprüft je Stufe; kein Decimate, keine Dreiecksbudgets je Stufe | Detailstufen je Modell |
 | Kollisionsformen aus Geometrie | §11 | teilweise: Rezepte und Prüfung (`collision.py`, `quality.uncovered_geometry`, `quality.needs_collider`); keine gemessenen Hüllen | passende Kollision (AGENTS.md) |
-| QA-Ergebnis-Cache | §12 | offen: `quality.report` rechnet jedes Mal | Prüflauf in Sekunden |
+| QA-Ergebnis-Cache | §12 | schon da (0.30.0): `quality.check_cached` (Schlüssel: `Asset.digest` + Prüfcode), von `report` und `validate_batch` genutzt; 7,1 → 4,6 s für 187 Typen × 10 (Rest = Modellbau) | Prüflauf in Sekunden |
 | Prüfer parallel | §12 | schon da: `tools/run_tests.py` (Gruppen parallel), `ThreadPoolExecutor` in `pipeline.py`, `textures.py`, `imagemagick.py` | Wanduhrzeit = langsamster Prüfer |
 | Render-Cache nach Szenen-Abdruck | §12 | teilweise: `modelcache.py` schlüsselt das ganze Worker-Paket samt Code, die Vorschau gehört zur Einheit; kein Abdruck der Szene | Treffer auch nach unwirksamen Codeänderungen |
 | Ausgaben-Cache nach Inhalt | §17 | schon da: `cache.py` (`OutputCache`, `Store`), `modelcache.py`; Schlüssel mit `pipeline.image_code` | nichts schreiben, was gleich bleibt |
 | Kanonische Reihenfolge | §12, §17 | teilweise: Schlüssel und FBX-Pfade kanonisch (`modelcache.py`, `fbxpath.py`, `asset.py` `digest`); keine reihenfolgeabhängige Operation wie Decimate | bitgleiche Ergebnisse je Prozess |
-| Voxel-/Facetten-/Loch-Formvarianten | §15 | offen: Sets variieren das Innenleben (DEVELOPER 4), keine Formableitung mit gleichem Atlas | Stilvarianten ohne neue Texturen |
-| Voxel-Flächen verschmelzen | §17 | offen (hängt an Voxel-Form) | weniger Dreiecke |
+| Voxel-/Facetten-/Loch-Formvarianten | §15 | teilweise (0.30.0): `--shape voxel` (`cubegen/shapes.py`, Style `shape`), gleiche Teile/Collider, Atlas aus der Geometrie; Facette = `--detail low`/`crystal_cut`, Loch offen | Stilvarianten ohne neue Texturen |
+| Voxel-Flächen verschmelzen | §17 | schon da (0.30.0): greedy je Richtung und Schicht in `shapes._merged_faces` (75 104 → 75 136 Dreiecke über alle Typen: Stufen kosten, was Verschmelzen spart) | weniger Dreiecke |
 | Zeitband statt festes Budget | §17 | schon da: `tools/perf_band.py`, `STAGE_BUDGETS`, Lasterkennung (DEVELOPER 2) | keine Fehlalarme unter Last |
 | Standard im Zielumfeld messen, alte Werte als neue ID | §19 | teilweise: Rückweg alter Namen (`materials.LEGACY_NAMES`, Vertragsversionen); keine Messung der Standardoberfläche in der dunklen Station | Standard sieht im Spiel richtig aus |
 | Ein Cache für alle Checkouts | §20 | schon da: `~/Library/Caches/Cubegen/cache` (`cache.default_root`), atomar (`atomic_write`/`atomic_copy`), Aufräumen nach Größe (`Store.prune`), Übernahme (`migrate.py`); Dateikopie statt APFS-Klon | neuer Worktree startet warm |
@@ -75,6 +75,7 @@ Material entscheidet den Aufbau (rund 1 ms je Knoten; gemeinsame Projektionen: 2
 gepackten neutralen Karten sind die Eingabe für den Shader in Cube Escape. Es gibt keine Zonen- und Decal-Kanäle.
 **Umsetzung:** (a) Zonenkanal: beim Zusammenfügen ein Int-Attribut je Fläche aus dem Teilnamen (Name ohne `_L/_R`),
 als Maske backen und in den Sidecar schreiben – neuer Kanal am Ende der Kartenliste, Vertragsversion +1 mit Rückweg.
+**Stand 0.30.0:** statt des Kanals eine Zonentabelle im Manifest (`zones.py`), (c) ist gemessen (kein Gewinn, siehe DEVELOPER 5a).
 (b) Decal-Anker je Modellfamilie neben den Klang-/Effektankern (`models/anchors.py`), Decal-Bibliothek per
 ImageMagick. (c) Knotenzahl der Material-Bäume im Bericht messen, bevor optimiert wird. **Aufwand: L** (a, b), **S** (c).
 
@@ -97,9 +98,10 @@ liegt (bei einem Viertel ragten Würfel bis 7 mm heraus); Gelenke und dünne Tei
 Nachbarflächen werden zu Rechtecken verschmolzen (17 136 → 11 348 Dreiecke).
 **Cubegen heute:** Variantensets mit gleichem Umriss und anderem Innenleben (`--set`, DEVELOPER 4), Kristallschliff
 (`crystal_cut`); keine Formableitung.
-**Umsetzung:** Als eigene Stilachse `shape = smooth | voxel | facet` des Stils, abgeleitet nach dem Bau und vor dem
-Atlas, Kollisionsrezept der Grundform übernehmen (innen rastern, Kleinteile glatt). Erst nach Atlas-Nachpacken (§6)
-und mit eigener Golden-Gruppe. **Aufwand: L.**
+**Umgesetzt in 0.30.0:** Stilachse `shape = smooth | voxel` (`--shape`), Voxelform und Verschmelzen in `cubegen/shapes.py`
+(DEVELOPER 5b). **Offen:** Facettenform (vorhanden als `--detail low`/`crystal_cut`), Lochform, eine Golden-Gruppe für
+die Voxelform (heute prüft ein Test Bounding-Box, Collider und Qualität gegen die glatte Form) und der Unity-Import
+von Voxelmodellen (Stufe 2).
 
 ## 5. Vorschau, Katalog, Icons (RG §5, §6, §7, §8)
 
@@ -122,11 +124,9 @@ als Hinweis im Manifest – ersetzt das Neural-Engine-Werkzeug nicht, läuft abe
 (`pack_islands(shape_method="CONCAVE", rotate=True, …)`; bei Tausenden Inseln bestimmt der Inselabstand die Belegung:
 0,003 → 0,002 ergab 41 → 51 %); Bake-Ränder höchstens den halben Inselabstand dilatieren, wenn mehrere Durchgänge in
 einen Atlas schreiben.
-**Cubegen heute:** `bake._atlas_uvs` ruft `smart_project(angle_limit=66°, island_margin=0.02)` auf, kein Nachpacken,
-keine Belegungskennzahl. Die Atlas-UVs werden gecacht (`bake.read_uvs`/`apply_uvs`).
-**Umsetzung:** Belegung (UV-Polygonfläche je Atlas) im Manifest als Kennzahl ausgeben; danach Nachpacken als Option
-mit eigenem Cache-Schlüsselanteil (ändert Texturen und damit `modelcache.model_code`). Atlas-Größe nur ändern, wenn
-das Texturbudget (`CubegenTextures`) es verlangt. **Aufwand: S (Kennzahl), M (Nachpacken).**
+**Cubegen heute (seit 0.30.0):** `bake._atlas_uvs` ruft `smart_project` auf und packt konkav nach (Rand 0,008); `bake.occupancy` misst die Belegung. Die Atlas-UVs werden gecacht (`bake.read_uvs`/`apply_uvs`, mit der Belegung).
+**Erledigt in 0.30.0** (Messwerte DEVELOPER 5a). Offen: Atlas-Größe nur ändern, wenn das Texturbudget
+(`CubegenTextures`) es verlangt; Inselabstand je Größe (bei 1024/2048 px den Rand in Pixeln halten).
 
 ## 7. Effektmaterialien, LOD, Kollision (RG §11)
 
@@ -154,10 +154,7 @@ geänderte Standardoberfläche unbemerkt); absolute Pfade im Schlüssel (nie ein
 **Cubegen heute:** der Cache-Teil ist weitgehend da (`cache.py`, `modelcache.py`, `migrate.py`, `pipeline.image_code`;
 DEVELOPER 3). Offen: QA-Ergebnisse (`quality.report`, `uncovered_geometry` – teuer, rein aus Geometrie und Code
 bestimmt), Bildabdruck der Szene, APFS-Klone (`atomic_copy` kopiert).
-**Umsetzung:** (a) QA-Cache in `cache.Store`: Schlüssel = `Asset.digest` + Quelltext der Prüffunktionen
-(`inspect.getsource`, wie `pipeline.image_code`) + Prüfparameter; Treffer liefert das Ergebnis-JSON.
-Erwartung: spart den Großteil der Prüfzeit warmer Läufe; Messung nach Einführung mit `tools/perf_band.py`.
-**Aufwand: M.** (b) APFS-Klon unter macOS im Kopierpfad (`cp -c` bzw. `clonefile`), Rückfall auf Kopieren. **Aufwand: S.**
+**Umsetzung:** (a) **erledigt in 0.30.0** (`quality.check_cached`, DEVELOPER 3). (b) APFS-Klon unter macOS im Kopierpfad (`cp -c` bzw. `clonefile`), Rückfall auf Kopieren. **Aufwand: S.**
 (c) Szenen-Abdruck erst, wenn Vorschau-Fehltreffer nach unwirksamen Änderungen in `modelcache` messbar stören; die
 Fallen oben vorher in einem Test festhalten. **Aufwand: L.**
 
@@ -219,13 +216,16 @@ Abgehakt nur, was Cubegen nachweislich ganz hat; bei „teilweise“ steht, was 
 - [x] Farbvarianten aus einmal gebackenen Gewichtskarten zusammensetzen – `cubegen/stylebake.py`, `paint.compose`;
       die Referenzformel prüft `tools/paint_reference.py` (eine Gegenprobe im Volllauf ist nicht belegt)
 - [ ] Maskenkanäle (Zonen, Abzeichen, Leuchtlinien) statt Textursatz je Variante – teilweise: `MTN_`-Karten (`neutral.py`)
-- [ ] Formvarianten (facettiert, Voxel, Lochung) als Ableitung mit gleichem Atlas und gleicher QA – offen
-- [ ] Lackzonen über benannte Teile → Flächenattribut → Attribute-Node – offen
+- [ ] Formvarianten (facettiert, Voxel, Lochung) als Ableitung mit gleichem Atlas und gleicher QA – teilweise: Voxel
+      (`--shape voxel`), Facette nur als `--detail low`, Lochung offen
+- [ ] Lackzonen über benannte Teile → Flächenattribut → Attribute-Node – teilweise: Zonentabelle im Manifest, keine
+      Zonenkarte (Vertrag 4 und Shader in Cube Escape)
 - [ ] Decal-Anker je Modellfamilie, Decal-Bibliothek per ImageMagick – teilweise: nur Klang-/Effektanker
-- [ ] Gemeinsame Teilgraphen in Materialien (Knotenzahl messen) – offen
+- [x] Gemeinsame Teilgraphen in Materialien (Knotenzahl messen) – gemessen: 2–6 Knoten je Material, lohnt nicht
 - [ ] Präsentationskarten mit Dreiviertel-Kamera, Randlicht, Bloom nur auf Emission – teilweise: Kontaktbögen
 - [ ] Icons je Modell/Variante mit Lesbarkeitsprüfung – teilweise: Icons da, Prüfung nur als Hinweis (`vision_report.py`)
-- [ ] Vorschau-App: Daten-Texturen roh laden, Uniforms packen, A/B-Vergleich, GIF/MP4-Export – offen (nicht geprüft)
+- [ ] Vorschau-App: Daten-Texturen roh laden, Uniforms packen, A/B-Vergleich, GIF/MP4-Export – Fallen geprüft (der
+      Viewer ist nicht betroffen), A/B-Vergleich und GIF/MP4 offen
 - [ ] Bericht-Gate: Kennzahlen vor und nach jeder Änderung vergleichen – teilweise: feste Golden-Daten (`tests/golden.json`),
       `tests/quality_baseline.json`, `tests/test_golden.py`, `tests/test_quality.py`
 - [ ] Unity-Testprojekt je Generator – teilweise: `tools/unity_check.py` in der Cube-Escape-Testkopie, kein eigenes Projekt
@@ -234,19 +234,18 @@ Abgehakt nur, was Cubegen nachweislich ganz hat; bei „teilweise“ steht, was 
       Emitter als Daten (`models/anchors.py`), Anbauten (`models/dressing.py`); kein Anschmiegen per Strahl
 - [ ] Nachschwingen gebacken, Requisiten per Matrix-Kette – nicht übertragbar (kein Rig)
 - [ ] Effektmaterialien als Laufzeit-Effekt mit Zielbeschreibung; Masken für die Engine packen – teilweise: Masken
-      gepackt (`neutral.py`), Effekte offen
+      gepackt (`neutral.py`), Beschreibung im Manifest (`effects.py`), Laufzeit-Effekt und Sidecar-Block offen
 - [ ] LOD-Stufen und Kollisionsformen automatisch erzeugen und in der Engine prüfen – teilweise: `--lods`, Rezepte und
       Unity-Check; keine Dreiecksbudgets je Stufe
 - [ ] Prüfergebnisse cachen, Bilder nach Szenen-Abdruck, Prüfer parallel, Engine-Prüfung in einem Prozess – teilweise:
-      parallel (`run_tests.py`) und Modell-Cache da; QA-Cache und Szenen-Abdruck offen
+      parallel (`run_tests.py`), Modell-Cache und QA-Cache (0.30.0) da; Szenen-Abdruck offen
 
 ## Empfohlene Reihenfolge (Nutzen/Aufwand)
 
 1. **Sperre für die volle Suite** (§9a, S): `run_tests.py --tier full` an die gemeinsame Sperre; verhindert Überlast
    bei parallelen Sitzungen, kein Einfluss auf die Ausgabe.
-2. **QA-Cache** (§8a, M): größter Zeitgewinn warmer Läufe, keine Änderung der Modelle; Schlüssel mit Prüfcode.
-3. **Atlas-Belegung messen, dann nachpacken** (§6, S/M): zuerst nur die Kennzahl, Nachpacken danach mit bewusst
-   aktualisierten Texturen und Golden-Daten.
+2. ~~QA-Cache~~ (§8a) – erledigt in 0.30.0.
+3. ~~Atlas-Belegung messen, dann nachpacken~~ (§6) – erledigt in 0.30.0.
 4. **Prüfplan aus dem Diff** (§9b, M): spart tägliche Prüfzeit und Fehlgriffe bei der Stufenwahl.
 5. **Icon-Lesbarkeit als Bildmessung** (§5a, S): deterministisch, läuft in jedem Lauf, ersetzt das Rätselraten nach
    Sichtprüfung; danach Looks als versionierte Daten (§1, M) als Grundlage für Zonen und Decals (§2, L).

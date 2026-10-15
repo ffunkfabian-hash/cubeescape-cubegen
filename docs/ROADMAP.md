@@ -188,9 +188,7 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   Sets so, wie das Spiel sie zeigt). Die vorhandene Probe (`CubegenShotProbeTests`) nutzt Werkbank-Fixtures; nötig ist
   eine Probe, die die Prefabs des Editor-Imports aufstellt – gemeinsam mit Cube Escape.
 - [ ] **Unity-Check: Anstrich im Laufzeitpfad,** sobald die Werkbank gebackene Karten im GLB liest (ToDo 29).
-- [ ] **App weiter:** Notarisierung ist vorbereitet (`app/notarize.sh`), braucht aber ein Zertifikat „Developer ID
-  Application“ (Apple Developer Program) – auf dem Mac liegt nur „Apple Development“. Dazu Parameter je Typ
-  (`--param`) und Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
+- [ ] **App weiter:** Parameter je Typ (`--param`) und Familienmaße in der App, Kontaktbogen und Qualitätsbericht als eigene Ansicht.
 
 ## 3. Erweiterungen
 

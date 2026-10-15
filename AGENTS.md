@@ -268,8 +268,7 @@ und **anderem Innenleben** (`--set`, Manifest `sets`).
 SwiftUI + SceneKit, `swiftc` ohne Xcode-Projekt. **Eine Quelle:** die App startet das mitgelieferte Paket und liest alles
 aus `cubegen catalog`, keine eigenen Listen; ihre Kommandozeile folgt `cubegen/gui.py` (ändert sich dort etwas, ändert
 sich `GenerateSettings.arguments` mit). Neue Kategorie oder Aktion → neues Symbol (`app/make_icons.sh`). Gespeicherte
-Einstellungen lesen fehlende Schlüssel mit Standardwerten. `app/notarize.sh` führt nur der Nutzer aus (nie
-Zugangsdaten im Skript). **Prüfen:** `app/build.sh` und `app/test_app.sh` nach jeder Änderung an `app/` oder an
+Einstellungen lesen fehlende Schlüssel mit Standardwerten. **Prüfen:** `app/build.sh` und `app/test_app.sh` nach jeder Änderung an `app/` oder an
 CLI-Optionen, die die App anbietet.
 
 ## Ausrichtung gerichteter Modelle
