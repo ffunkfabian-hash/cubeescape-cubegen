@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.26.0 „Stockpile“ – 2026-10-15
+
+Cache, Werkzeuge und CI; Geometrie, Materialien und Sidecars bleiben wie in 0.25.0 (bis auf die Versionsangabe).
+Bericht: [VERSION_0.26.0.md](VERSION_0.26.0.md).
+
+* **Blender-Ergebnisse im gemeinsamen Cache:** Export(e), gebackene und angestrichene Karten und Vorschau eines Modells
+  sind eine Einheit im Cache von 0.25.0 – ein neuer Ordner oder Worktree bekommt sie von dort, statt Blender bauen zu
+  lassen (Anstrich, sechs Modelle, 512 px: 13,4–15,1 s → 1,8–2,0 s). Schlüssel aus jeder Eingabe des Blender-Workers
+  (Auftrag und Spec, Ordner als Rollen, Code ohne Versionszeile, Blender, ImageMagick, Plattform). Nur das FBX ist
+  ordnergebunden: der Cache hält es mit `<cubegen:textures>` statt des Texturordners (`cubegen/fbxpath.py`), ein Treffer
+  setzt den neuen ein. Weichen nur Formate, Vorschau oder Anstrich-Farben ab, kommt wenigstens das Backen samt
+  Atlas-UVs aus dem Cache. `--force` und `CUBEGEN_CACHE=0` wie bisher.
+* **GitHub Actions:** ein Job je Lauf – Push auf `main`: Stufe `quick` (vorher vier Jobs, 17–19 min), PR: die ganze
+  Suite mit Blender in einem Job, „Run workflow“ mit Wahl `quick`/`standard`/`full`; `app/**` löst keinen Lauf aus.
+* **Release-Befehl** `tools/release.py`: Probelauf mit allen Prüfungen (Versionen, Changelog-Datum, saubere Checkouts,
+  `main` aktuell, Tag frei, keine Datei über 100 MB, keine Zugangsdaten), `--apply` merged, taggt und pusht atomar.
+* Repo-Name `cubeescape-cubegen` in `AGENTS.md`, `README.md`, `docs/CLI.md` und `tools/install.sh`.
+
 ## 0.25.0 „Quartermaster“ – 2026-10-15
 
 Test- und Cache-Werkzeuge; Geometrie, Materialien und Sidecars bleiben wie in 0.24.0 (bis auf die Versionsangabe).

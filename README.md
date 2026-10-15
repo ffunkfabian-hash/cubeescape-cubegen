@@ -222,7 +222,7 @@ entfernt beides wieder.
 ## Herunterladen (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior/HEAD/tools/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ffunkfabian-hash/cubeescape-cubegen/HEAD/tools/install.sh | bash
 ```
 
 Das Script ([`tools/install.sh`](tools/install.sh)) lädt das Projekt nach `~/cubegen` (mit git, sonst als Archiv),
@@ -1007,6 +1007,8 @@ cubegen/
 ├── variety.py        ähnliche Varianten erkennen (--unique)
 ├── pipeline.py       Batch: Seeds -> Blender -> ImageMagick -> manifest.json
 ├── cache.py          Bild-Cache: Ordnerindex + gemeinsamer Speicher (~/Library/Caches/Cubegen/cache)
+├── modelcache.py     Blender-Ergebnisse im gemeinsamen Speicher: Modell als Einheit, Backen mit Atlas-UVs
+├── fbxpath.py        ordnergebundene Pfade eines binären FBX umschreiben (Cache), vergleichbare Form
 ├── migrate.py        einmalige Übernahme der Ordner-Caches von 0.24
 ├── seeds.py          deterministische Seed-Ableitung
 ├── geometry.py       reine Python-Geometrie (Box, gefaste Box, Lathe, Zylinder, Prisma …)
@@ -1027,6 +1029,7 @@ cubegen/
 blender_addon/        Blender-Add-on (GUI)
 tools/build_addon.py  baut dist/cubegen_blender_addon.zip
 tools/run_tests.py    Tests in Gruppen parallel (wie die CI), Stufen quick / standard / full
+tools/release.py      Release: Prüfungen, Merge, Tag, Push (Probelauf ohne --apply)
 tools/profile_run.py  cProfile um einen cubegen-Befehl (die teuersten Funktionen)
 app/                  macOS-App: Sources/*.swift, build.sh, test_app.sh, make_icons.sh (ImageMagick), tests/
 recipes/              Beispiel-Batches

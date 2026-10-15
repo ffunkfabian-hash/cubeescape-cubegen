@@ -82,6 +82,62 @@ def _atlas_uvs(objects):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+UV_FORMAT = 1  # file of a bake's atlas UVs (0.26.0, shared cache): {"format", "objects": {name: base64 float32}}
+
+
+def read_uvs(objects):
+    """The atlas UVs (``BakeUV``) of ``objects`` as JSON-ready data: per object its loops' (u, v) as float32 bytes
+    (base64) - stored with a cached bake, so a reused bake always lies on exactly its UVs (Roboter-Generator 1.8:
+    Blender's UV packing can differ between runs; Cubegen's is stable, test_release_0150 - the cache does not rely
+    on it)."""
+    import array
+    import base64
+
+    found = {}
+    for o in objects:
+        layer = o.data.uv_layers[BAKE_UV]
+        values = array.array("f", [0.0]) * (2 * len(o.data.loops))
+        layer.data.foreach_get("uv", values)
+        found[o.name] = base64.b64encode(values.tobytes()).decode("ascii")
+    return {"format": UV_FORMAT, "objects": found}
+
+
+def apply_uvs(objects, data):
+    """Give ``objects`` the atlas UVs ``read_uvs`` recorded (instead of Smart UV Project); False - nothing changed -
+    when the objects or their loop counts are not the recorded ones."""
+    import array
+    import base64
+
+    stored = data.get("objects") if isinstance(data, dict) and data.get("format") == UV_FORMAT else None
+    if not stored or set(stored) != {o.name for o in objects}:
+        return False
+    values = {}
+    for o in objects:
+        values[o.name] = array.array("f")
+        values[o.name].frombytes(base64.b64decode(stored[o.name]))
+        if len(values[o.name]) != 2 * len(o.data.loops):
+            return False
+    for o in objects:
+        layer = o.data.uv_layers.get(BAKE_UV) or o.data.uv_layers.new(name=BAKE_UV)
+        o.data.uv_layers.active = layer
+        layer.data.foreach_set("uv", values[o.name])
+    # the same mode switch and selection as _atlas_uvs: edit mode writes the mesh back once (the export must not see
+    # a difference)
+    _select(objects)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    return True
+
+
+def bake_settings(scene, samples, device, size):
+    """Cycles settings a bake leaves behind (they stay for the rest of the Blender process - a Cycles preview after
+    a bake renders with them): a reused bake sets them too, so what follows is the same as after a real bake."""
+    scene.cycles.samples = samples
+    scene.cycles.use_denoising = False
+    return use_device(scene, device, size)
+
+
 def _joined_copy(objects):
     """One temporary object with the parts' meshes in world space (same atlas UVs, same material slots)."""
     scene = bpy.context.scene
@@ -206,18 +262,21 @@ def _magick(cmd, args):
         strip_png_dates(target)
 
 
-def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, seed=0, device="cpu"):
-    """Bake one asset; returns ``{"material": name, "maps": {kind: path}, "device": "CPU" | "METAL" ...}``
-    or None (nothing to bake). ``device``: auto | cpu | gpu (see :func:`use_device`)."""
+def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, seed=0, device="cpu", cached=None):
+    """Bake one asset; returns ``{"material": name, "maps": {kind: path}, "device": "CPU" | "METAL" ..., "uvs"}``
+    or None (nothing to bake). ``device``: auto | cpu | gpu (see :func:`use_device`). ``cached`` (0.26.0, shared
+    cache): ``{"uvs", "maps", "device"}`` of an earlier bake with exactly these inputs - its maps are already in
+    ``out_dir``, the atlas UVs are applied instead of baking; ignored when they do not fit the objects."""
     objects = _mesh_objects(collection)
     if not objects:
         return None
+    if cached and apply_uvs(objects, cached["uvs"]):
+        bake_settings(bpy.context.scene, samples, device, size)
+        return _finish(objects, f"MTA_{asset_name}", dict(cached["maps"]), cached["device"], None)
     scene = bpy.context.scene
     engine = scene.render.engine
     scene.render.engine = "CYCLES"
-    scene.cycles.samples = samples
-    scene.cycles.use_denoising = False
-    used = use_device(scene, device, size)
+    used = bake_settings(scene, samples, device, size)
     os.makedirs(out_dir, exist_ok=True)
     base = os.path.join(out_dir, f"{asset_name}_Bake")
     paths = {k: f"{base}{k}.png" for k in ("Color", "AO", "Surface")}
@@ -277,18 +336,21 @@ def bake_asset(collection, asset_name, out_dir, size, magick_cmd, samples=16, se
         os.remove(p)
     for img in images.values():
         bpy.data.images.remove(img)
+    return _finish(objects, f"MTA_{asset_name}", final, used, read_uvs(objects))
 
-    material = _baked_material(f"MTA_{asset_name}", final)
+
+def _finish(objects, name, final, used, uvs):
+    """One material ``name`` on the maps for every non-glow slot; the atlas becomes the only UV map (UV0 in Unity)."""
+    material = _baked_material(name, final)
     for o in objects:
         for slot in o.material_slots:
             if slot.material and slot.material.name not in KEEP:
                 slot.material = material
-        # the atlas becomes the only UV map -> UV0 in Unity
         tiled = o.data.uv_layers.get("UVMap")
         if tiled is not None:
             o.data.uv_layers.remove(tiled)
         o.data.uv_layers[BAKE_UV].name = "UVMap"
-    return {"material": material.name, "maps": final, "device": used}
+    return {"material": material.name, "maps": final, "device": used, "uvs": uvs}
 
 
 def _baked_material(name, maps):

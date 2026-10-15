@@ -1,84 +1,101 @@
 name: tests
 
-# Actions minutes are a budget (private repo, 2,000 min/month, billed per job and rounded up to whole minutes;
-# AGENTS.md › GitHub Actions sparsam): pushes only on main, every other branch is checked through its pull request
-# (push + pull_request would run twice), a newer push cancels the older run, docs-only changes do not run, and a
-# pull request tests one Python - the full matrix runs on main and on demand (Actions › tests › Run workflow).
+# Actions minutes are a budget (private repo: 2,000 min/month with a $0 budget - empty means no workflow runs in any
+# repo until the month resets; billed per job and rounded up to whole minutes; ~/.claude/CLAUDE.md, AGENTS.md ›
+# GitHub Actions sparsam). Since 0.26.0 every run is a single job unless asked for more:
+#   push to main  -> "quick": the quick tier on Python 3.11 (about 2 min). A release merges into main only after the
+#                    full suite ran locally with Blender and Unity (AGENTS.md › Abschluss in zwei Stufen, Stufe 2).
+#   pull request  -> "full": the whole suite with Blender (tools/run_tests.py --tier full) on Python 3.11, one job.
+#   Run workflow  -> tier quick | standard (= the pull request job) | full (+ Python 3.9 and 3.13, standard tier).
+# Other branches are checked through their pull request (push + pull_request would run twice), a newer push cancels
+# the older run, docs-only changes do not run. Before 0.26.0 a push to main ran four jobs (3 Pythons + Blender,
+# about 18 billed minutes).
 on:
   push:
     branches: [main]
-    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**"]
+    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**", "app/**"]
   pull_request:
-    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**"]
+    paths-ignore: ["**.md", "docs/**", "IDEEN.md", ".claude/**", "app/**"]
   workflow_dispatch:
+    inputs:
+      tier:
+        description: "quick (~2 min) | standard (the pull request job, ~7 min) | full (+ Python 3.9 and 3.13, ~15 min)"
+        type: choice
+        options: [quick, standard, full]
+        default: standard
 
 concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: test (${{ matrix.python-version }})
+  quick:
+    if: github.event_name == 'push' || inputs.tier == 'quick'
+    name: quick (3.11)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        # 3.11 = Blender's Python; the others must build bit-identical models (tests/test_golden.py).
-        # One job per Python runs all groups in parallel (tools/run_tests.py): each job costs its setup and is
-        # rounded up, so four group jobs cost about twice as much as one.
-        python-version: ${{ fromJSON(github.event_name == 'pull_request' && '["3.11"]' || '["3.9", "3.11", "3.13"]') }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
-      - name: Run tests (standard tier; the Blender tests run in the job "blender")
-        run: python tools/run_tests.py --tier standard
-
-  blender:
-    # the tests that need Blender (FBX export, add-on smoke test, baking, paint schemes) skip in the jobs above;
-    # this job installs a Blender LTS and runs exactly those modules (headless: previews fall back to Cycles CPU)
-    name: blender (${{ matrix.series }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        series: ["4.5"]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install ImageMagick and Blender's system libraries
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick
+      - name: Run tests (quick tier, without Blender and the sweeps)
+        run: python tools/run_tests.py --tier quick
+
+  full:
+    if: github.event_name == 'pull_request' || inputs.tier == 'standard' || inputs.tier == 'full'
+    # 3.11 = Blender's Python: the job with Blender runs the whole suite; 3.9 / 3.13 only on request (tier "full") -
+    # they must build bit-identical models (tests/test_golden.py)
+    name: ${{ matrix.python-version == '3.11' && 'full (3.11 + Blender)' || format('standard ({0})', matrix.python-version) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.tier == 'full' && '["3.11", "3.9", "3.13"]' || '["3.11"]') }}
+    env:
+      BLENDER_SERIES: "4.5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install ImageMagick (and Blender's system libraries)
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+          if [ "${{ matrix.python-version }}" = "3.11" ]; then
+            sudo apt-get install -y --no-install-recommends imagemagick libxrender1 libxxf86vm1 libxfixes3 libxi6 \
+              libxkbcommon0 libsm6 libgl1 libegl1
+          else
+            sudo apt-get install -y --no-install-recommends imagemagick
+          fi
       - name: Find the newest Blender of the series
+        if: matrix.python-version == '3.11'
         id: blender
         run: |
-          file=$(curl -fsSL "https://download.blender.org/release/Blender${{ matrix.series }}/" \
-            | grep -o 'blender-${{ matrix.series }}\.[0-9]*-linux-x64\.tar\.xz' | sort -V | tail -1)
+          file=$(curl -fsSL "https://download.blender.org/release/Blender${BLENDER_SERIES}/" \
+            | grep -o "blender-${BLENDER_SERIES}\.[0-9]*-linux-x64\.tar\.xz" | sort -V | tail -1)
           echo "file=$file" >> "$GITHUB_OUTPUT"
       - name: Cache Blender
+        if: matrix.python-version == '3.11'
         uses: actions/cache@v4
         with:
           path: ~/blender
           key: ${{ steps.blender.outputs.file }}
       - name: Install Blender
+        if: matrix.python-version == '3.11'
         run: |
           if [ ! -x ~/blender/blender ]; then
             mkdir -p ~/blender
-            curl -fsSL "https://download.blender.org/release/Blender${{ matrix.series }}/${{ steps.blender.outputs.file }}" \
+            curl -fsSL "https://download.blender.org/release/Blender${BLENDER_SERIES}/${{ steps.blender.outputs.file }}" \
               | tar -xJ -C ~/blender --strip-components=1
           fi
           ~/blender/blender --version | head -1
-      - name: Run the Blender tests
-        run: |
-          export CUBEGEN_BLENDER="$HOME/blender/blender"
-          modules=$(grep -l "HAS_BLENDER\|HAS_TOOLS\|find_blender()" tests/test_*.py | sed 's#tests/##; s#\.py$##' | sort)
-          echo "modules: $modules"
-          python -m unittest -v $(for m in $modules; do echo "tests.$m"; done)
+      - name: Run tests (full tier with Blender; headless previews fall back to Cycles on the CPU)
+        if: matrix.python-version == '3.11'
+        run: CUBEGEN_BLENDER="$HOME/blender/blender" python tools/run_tests.py --tier full
+      - name: Run tests (standard tier, without Blender)
+        if: matrix.python-version != '3.11'
+        run: python tools/run_tests.py --tier standard

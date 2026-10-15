@@ -91,20 +91,24 @@ def _height_socket(z_min, z_max):
     return socket
 
 
-def bake_masks(collection, name, out_dir, size, samples=16, device="cpu", base_of=None):
-    """Bake the neutral maps of one model; returns ``{"layout", "weights", "ao", "edge", "up", "device"}`` (paths)
-    or None, with tile textures (``base_of``: material name -> game material, e.g. ``MT_Metal`` -> ``M_Metal``) also
-    ``"diffuse"`` and ``"normal"``. The parts keep the atlas as UV map ``BakeUV`` for ``apply_paint``."""
+def bake_masks(collection, name, out_dir, size, samples=16, device="cpu", base_of=None, cached=None):
+    """Bake the neutral maps of one model; returns ``{"layout", "weights", "ao", "edge", "up", "device", "uvs"}``
+    (paths; ``uvs``: the atlas, ``bake.read_uvs``) or None, with tile textures (``base_of``: material name -> game
+    material, e.g. ``MT_Metal`` -> ``M_Metal``) also ``"diffuse"`` and ``"normal"``. The parts keep the atlas as UV
+    map ``BakeUV`` for ``apply_paint``. ``cached`` (0.26.0, shared cache): ``{"uvs", "maps"}`` of an earlier bake
+    with exactly these inputs - its maps are already in ``out_dir``, only the UVs are applied (ignored when they do
+    not fit the objects)."""
     base_of = base_of or {}
     objects = bk._mesh_objects(collection)
     if not objects:
         return None
     scene = bpy.context.scene
+    if cached and bk.apply_uvs(objects, cached["uvs"]):
+        bk.bake_settings(scene, samples, device, size)
+        return dict(cached["maps"], uvs=None)
     engine = scene.render.engine
     scene.render.engine = "CYCLES"
-    scene.cycles.samples = samples
-    scene.cycles.use_denoising = False
-    used = bk.use_device(scene, device, size)
+    used = bk.bake_settings(scene, samples, device, size)
     os.makedirs(out_dir, exist_ok=True)
     hidden_colls = {c: c.hide_render for c in bpy.data.collections if c != collection}
     hidden_objs = {o: o.hide_render for o in collection.all_objects}
@@ -158,7 +162,7 @@ def bake_masks(collection, name, out_dir, size, samples=16, device="cpu", base_o
             c.hide_render = state
         for o, state in hidden_objs.items():
             o.hide_render = state
-    return dict(paths, layout=[list(g) for g in layout], weights=weights, device=used)
+    return dict(paths, layout=[list(g) for g in layout], weights=weights, device=used, uvs=bk.read_uvs(objects))
 
 
 def _save(image, path):
@@ -275,13 +279,14 @@ def _crystal_material(paint):
     return base
 
 
-def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=16, device="cpu"):
+def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=16, device="cpu", cached=None):
     """``--paint``: bake the neutral maps once, compose ``paint`` and give the model one material on the atlas (the
     atlas becomes UV0, like ``--textures baked``). Returns ``bake.bake_asset``'s shape - ``{"material", "maps",
     "device"}`` with Albedo, Normal, Roughness, MetallicSmoothness and, for a scheme with glowing edges
     (``edge_glow`` > 0), Emission (contract ``baked_maps``, strength ``emission_intensity``) - plus ``"neutral"``: the
     raw neutral bake (``Textures/Neutral``) and ``"packed"``: the five maps a recolouring shader reads
-    (``MTN_<model>_W0..W2/Fields/Normal.png``, ``cubegen/neutral.py``). None without paintable parts."""
+    (``MTN_<model>_W0..W2/Fields/Normal.png``, ``cubegen/neutral.py``) and ``"uvs"`` (the atlas of a new bake, for
+    the shared cache). None without paintable parts. ``cached``: a reused neutral bake (``bake_masks``)."""
     import shutil
 
     from cubegen.contract import BAKED_MAPS
@@ -289,9 +294,11 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
 
     neutral_dir = os.path.join(out_dir, "Neutral")
     os.makedirs(neutral_dir, exist_ok=True)
-    maps = bake_masks(collection, name, neutral_dir, size, samples=samples, device=device, base_of=base_of)
+    maps = bake_masks(collection, name, neutral_dir, size, samples=samples, device=device, base_of=base_of,
+                      cached=cached)
     if maps is None:
         return None
+    uvs = maps.pop("uvs", None)
     glows = scheme_glows(paint)
     painted = compose_paint(maps, name, paint, out_dir, seed, prefix="MTP_", emission=glows)
     final = {"Albedo": painted["albedo"], "Roughness": painted["roughness"],
@@ -330,7 +337,7 @@ def paint_asset(collection, name, out_dir, size, paint, seed, base_of, samples=1
         o.data.uv_layers[bk.BAKE_UV].name = "UVMap"
     neutral = {k: v for k, v in maps.items() if k not in ("layout", "device")}
     return {"material": material.name, "maps": final, "device": maps["device"], "neutral": neutral,
-            "layout": maps["layout"], "packed": packed}
+            "layout": maps["layout"], "packed": packed, "uvs": uvs}
 
 
 def apply_paint(collection, maps, paint, textures, roughness, base_names=()):

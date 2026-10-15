@@ -9,8 +9,8 @@ Voraussetzungen: **Python ≥ 3.9**, **[Blender](https://www.blender.org/downloa
 **[ImageMagick](https://imagemagick.org)** (macOS: `brew install imagemagick`). Python-Pakete braucht es keine.
 
 ```bash
-git clone https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior.git
-cd lowpoly_cubeescape_model_generatior
+git clone https://github.com/ffunkfabian-hash/cubeescape-cubegen.git
+cd cubeescape-cubegen
 python3 -m cubegen doctor
 ```
 
@@ -24,7 +24,7 @@ Die Desktop-GUI startest du mit `cubegen gui` oder dem installierten Befehl `cub
 Alternativ als Befehl `cubegen` installieren (dann ohne `python3 -m`, aber ohne die Rezepte aus `recipes/`):
 
 ```bash
-pip install "git+https://github.com/ffunkfabian-hash/lowpoly_cubeescape_model_generatior.git"
+pip install "git+https://github.com/ffunkfabian-hash/cubeescape-cubegen.git"
 cubegen doctor
 ```
 
@@ -441,7 +441,17 @@ oder die App bekommen dieselben Bilder von dort (`textures from the shared cache
 statt ImageMagick laufen zu lassen. `CUBEGEN_CACHE=<Ordner>` verlegt ihn, `CUBEGEN_CACHE=0` schaltet ihn ab,
 `CUBEGEN_CACHE_LIMIT_GB` begrenzt ihn (Standard 4; am längsten Unbenutztes geht zuerst, nichts aus den letzten zwei
 Stunden). `python3 -m cubegen cache` zeigt Ort und Größe, `--prune` kürzt sofort, `--migrate DIR` übernimmt die
-Bilder eines Ausgabeordners von 0.24.0. Exporte, Vorschauen und gebackene Karten (Blender) bleiben ordnergebunden.
+Bilder eines Ausgabeordners von 0.24.0.
+
+**Blender-Ergebnisse im gemeinsamen Cache (seit 0.26.0):** Auch Exporte (FBX/GLB/glTF/OBJ), gebackene und angestrichene
+Karten und Vorschauen kommen aus dem Cache, wenn ein anderer Ordner oder Checkout dasselbe Modell mit denselben
+Einstellungen schon gebaut hat (`shared cache: 6 model(s) copied (export, bake, preview)`): Blender baut sie nicht
+noch einmal, ein Anstrich-Lauf mit sechs Modellen in einem neuen Worktree braucht 2 statt 14 s. Gilt nur, wenn
+wirklich alles gleich ist – Modell, Parameter, Stil, Formate, Texturen, Anstrich, Vorschau-Einstellungen, Blender,
+ImageMagick und der Generator-Code. Weichen nur Formate, Vorschau oder Anstrich-Farben ab, bleibt wenigstens das Backen
+gespart (`shared cache: 2 bake(s) reused (maps and atlas UVs)`). Im FBX setzt cubegen dabei die Texturpfade des
+neuen Ordners ein. Nur die Übersichts-`.blend` entsteht immer neu. `--force` baut neu (und legt das Ergebnis ab),
+`CUBEGEN_CACHE=0` schaltet auch das ab.
 
 **Parallel:** Ohne `--jobs` (oder mit `--jobs auto`) entscheidet cubegen selbst: bis Kerne − 1 Blender-Prozesse, aber
 nur so viele, wie sich lohnen – jeder soll mindestens 2 s Arbeit bekommen (ein Start kostet etwa 0,6 s). Beim Backen

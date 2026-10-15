@@ -173,8 +173,10 @@ Restliche Erfahrungen des Roboter-Generators, umgesetzt in 0.16.0 (Messwerte in
   `~/Library/Caches/Cubegen/cache` für alle Checkouts (Schlüssel ohne Pfade, Bildcode statt Generator-Hash, LRU mit
   4 GB, einmalige Übernahme der 0.24-Caches); `run_tests.py` nimmt für die numpy-Module Blenders Python; der Unity-Check
   wartet auf Cube Escapes Sperre für schwere Läufe.
-- [ ] **Blender-Ergebnisse gemeinsam cachen:** Backen ist der teure Teil eines frischen Ordners (Anstrich-Lauf: 3,5 von
-  3,7 s). Geht nur mit den UVs zusammen und einem FBX ohne absolute Texturpfade (0.25.0 bewusst offen gelassen).
+- [x] **Blender-Ergebnisse gemeinsam cachen** (0.26.0): Modell als Einheit (Export, Backen, Vorschau) mit kanonischem
+  FBX (Texturpfade umgeschrieben), Back-Cache mit Atlas-UVs für andere Formate, Vorschauen und Anstrich-Farben;
+  Anstrich-Lauf mit sechs Modellen in einem frischen Worktree 13,4–15,1 → 1,8–2,0 s. Dazu CI mit einem Job je Lauf und
+  der Release-Befehl `tools/release.py`.
 - [ ] **Neutrale Karten im GLB-Laufzeitpfad** (Cube Escape Zuarbeit 5, ToDo 29): Paket neben dem GLB oder `extras`.
 - [ ] **Unveränderte Modelle nicht neu bauen:** Ein Lauf ganz aus dem Cache baut alle Modelle trotzdem (Vertrag,
   Manifest; Katalog 561 Modelle: 2,2 s Bauen, 2,8 s Manifest). Manifest-Einträge und Vertragsprüfung unveränderter

@@ -233,6 +233,16 @@ def _claim(queue, name):
         return False
 
 
+def _cached_bake(spec):
+    """The reused bake the host found in the shared cache for this model (0.26.0): ``{"uvs", "maps", "device"}`` -
+    its maps already copied into the textures folder, the UVs in a file of the host's temporary folder."""
+    found = spec.get("bake_cache")
+    if not found:
+        return None
+    with open(found["uvs"], "r", encoding="utf-8") as fh:
+        return dict(found, uvs=json.load(fh))
+
+
 def wait_ready(path, timeout=1800.0):
     """The host builds the tile textures while this process starts: wait for its ``ok`` (or its error)."""
     end = time.time() + timeout
@@ -299,14 +309,16 @@ def run_job(job_path):
             t = time.time()
             base_of = {info["name"]: plain for plain, info in textures.items()}
             baked = paint_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
-                                job["paint"], spec["seed"], base_of, device=job.get("bake_device", "cpu"))
+                                job["paint"], spec["seed"], base_of, device=job.get("bake_device", "cpu"),
+                                cached=_cached_bake(spec))
             timings["bake"] = time.time() - t
         elif job.get("texture_mode") == "baked" and textures:
             from cubegen.bake import bake_asset
 
             t = time.time()
             baked = bake_asset(collection, asset.name, job["textures_dir"], job.get("texture_size", 512),
-                               job["magick"], seed=spec["seed"], device=job.get("bake_device", "cpu"))
+                               job["magick"], seed=spec["seed"], device=job.get("bake_device", "cpu"),
+                               cached=_cached_bake(spec))
             timings["bake"] = time.time() - t
         t = time.time()
         files = {}
@@ -340,6 +352,12 @@ def run_job(job_path):
             if baked.get("neutral"):
                 entry.update({"paint": job["paint"], "neutral": baked["neutral"], "weight_layout": baked["layout"],
                               "neutral_maps": baked["packed"]})
+            if baked.get("uvs") and job.get("uv_dir"):  # a new bake: its atlas UVs for the shared cache
+                entry["bake_uvs"] = os.path.join(job["uv_dir"], f"{asset.name}.uvs.json")
+                with open(entry["bake_uvs"], "w", encoding="utf-8") as fh:
+                    json.dump(baked["uvs"], fh)
+            elif spec.get("bake_cache") and not baked.get("uvs"):
+                entry["bake_reused"] = True
         results.append(entry)
         counter = "" if queue else f"({i}/{total}) "
         log(f"{counter}{asset.name}: {asset.stats()['triangles']} tris, {time.time() - t0:.1f}s")
