@@ -50,6 +50,7 @@ HOLE_MAX = 0.15        # m: the largest hole - nothing (a player capsule, a robo
 HOLE_MIN = 0.06
 HOLE_THIN = 0.12       # m: a plate is at most this thick ...
 HOLE_RATIO = 4.0       # ... and its other two sides at least this many times its thickness, and 8 holes wide
+LID_FACTOR = 3        # a top slab may cost this many triangles per face of its part
 TOP_STEP = 0.05        # m: the top of a part is matched to this (voxel caps in fine layers, facet vertices added)
 HOLE_LAYER = 0.8       # the single layer of cells is this share of the thickness (bevelled edges stay outside the cells)
 
@@ -103,7 +104,7 @@ def _direction_roles(planes, fallback: str) -> Dict[Tuple[int, int], str]:
     return roles
 
 
-def _cells(planes, lo: Vec, hi: Vec, cell: Vec, origin: Vec = (0.0, 0.0, 0.0)) -> Optional[Set[Tuple[int, int, int]]]:
+def _cells(planes, lo: Vec, hi: Vec, cell: Vec, origin: Vec = (0.0, 0.0, 0.0), max_cells: int = MAX_CELLS) -> Optional[Set[Tuple[int, int, int]]]:
     """Cells (a grid of ``cell`` sized boxes, index i = centre ``origin + (i + 0.5) * cell``) lying wholly inside the
     convex part: the box's reach along a plane normal n is ``sum(|n_i| * half_i)``, the exact support of a box."""
     half = tuple(c / 2 for c in cell)
@@ -112,7 +113,7 @@ def _cells(planes, lo: Vec, hi: Vec, cell: Vec, origin: Vec = (0.0, 0.0, 0.0)) -
     count = 1
     for i in range(3):
         count *= max(0, last[i] - first[i] + 1)
-    if count == 0 or count > MAX_CELLS:
+    if count == 0 or count > max_cells:
         return None
     reach = [sum(abs(n[i]) * half[i] for i in range(3)) for n, _, _, _ in planes]
     found = set()
@@ -144,19 +145,20 @@ def _top_z(planes, x: float, y: float) -> Optional[float]:
     return top
 
 
-def _cap_layers(cells, planes, cell: float, layers: int):
+def _cap_layers(cells, planes, cell: float, layers: int, side: Optional[float] = None):
     """Fine layers above the top cell of each column: the cells are ``layers`` fine layers high (``cell / layers`` <=
     ``TOP_STEP``), and above the top cell of a column as many whole fine layers are added as stay inside the part at
     every corner of the column. The top of the voxel form then lies at most one fine layer (or the slope across one
     column) under the smooth part instead of up to a whole cell."""
     fine = cell / layers
+    side = side or cell
     columns: Dict[Tuple[int, int], int] = {}
     for ix, iy, iz in cells:
         if columns.get((ix, iy), iz - 1) < iz:
             columns[(ix, iy)] = iz
     out = set()
     for (ix, iy), iz in columns.items():
-        corners = [_top_z(planes, (ix + a) * cell, (iy + b) * cell) for a in (0, 1) for b in (0, 1)]
+        corners = [_top_z(planes, (ix + a) * side, (iy + b) * side) for a in (0, 1) for b in (0, 1)]
         if any(c is None for c in corners):
             continue
         room = min(corners) - (iz + 1) * cell
@@ -209,6 +211,40 @@ def _merged_faces(cells: Set[Tuple[int, int, int]], roles: Dict[Tuple[int, int],
     return quads
 
 
+def _lid(mesh, part: Part, planes, top: float, cell: float, fallback: str):
+    """``(split height, quads)`` of a lid: the exact top slab of a closed convex part, from the last grid layer under
+    ``top - TOP_STEP`` up to the top - the part's own vertices above that height plus where its edges cross it, as a
+    convex hull (so round rims, bevels and domes stay as smooth as the smooth model, inside it by construction).
+    The slab's bottom face is left out (the cubes end there). None when the part is too low or the slab costs more
+    than ``LID_FACTOR`` triangles per face of the part."""
+    split = math.floor((top - TOP_STEP) / cell + EPS) * cell
+    if split <= cell:
+        return None
+    points = set()
+    for fi in part.face_indices():
+        pts = [mesh.verts[i] for i in mesh.faces[fi]]
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            for q in (a, b):
+                if q[2] >= split - 1e-6:
+                    points.add(tuple(round(c, 6) + 0.0 for c in (q[0], q[1], max(q[2], split))))
+            if (a[2] - split) * (b[2] - split) < -1e-12:
+                t = (split - a[2]) / (b[2] - a[2])
+                points.add(tuple(round(a[i] + (b[i] - a[i]) * t, 6) + 0.0 for i in range(2)) + (split,))
+    points = sorted(points)
+    triangles = _hull(points)
+    if not triangles or len(triangles) > LID_FACTOR * len(part.face_indices()):
+        return None
+    quads = []
+    for tri in triangles:
+        corners = [points[i] for i in tri]
+        if all(abs(c[2] - split) < 1e-6 for c in corners):
+            continue  # the bottom of the slab: under it the cubes end
+        nrm = v_norm(v_cross(v_sub(corners[1], corners[0]), v_sub(corners[2], corners[0])))
+        best = max(planes, key=lambda pl: (v_dot(pl[0], nrm), pl[2]))
+        quads.append((corners, best[3] if best else fallback))
+    return split, quads
+
+
 def voxelize_part(mesh, part: Part, cell: float):
     """Quads of the voxel form of one closed part, or None when it must stay smooth."""
     if not part.closed or part.v1 - part.v0 < 4:
@@ -225,10 +261,20 @@ def voxelize_part(mesh, part: Part, cell: float):
     if not cells:
         return None
     fallback = Counter(mesh.roles[fi] for fi in part.face_indices()).most_common(1)[0][0]
+    roles = _direction_roles(planes, fallback)
     layers = max(1, math.ceil(cell / TOP_STEP - EPS))
-    caps = _cap_layers(cells, planes, cell, layers)
+    lid = _lid(mesh, part, planes, hi[2], cell, fallback)
+    if lid:  # the exact top slab of the part; the cubes end under it
+        split, lid_quads = lid
+        cells = {c for c in cells if (c[2] + 1) * cell <= split + EPS}
+        caps = set()
+    else:
+        lid_quads = []
+        caps = _cap_layers(cells, planes, cell, layers)
+    if not cells:
+        return None
     fine = {(ix, iy, iz * layers + k) for ix, iy, iz in cells for k in range(layers)} | caps
-    return _merged_faces(fine, _direction_roles(planes, fallback), (cell, cell, cell / layers))
+    return _merged_faces(fine, roles, (cell, cell, cell / layers)) + lid_quads
 
 
 def _replace(mesh, replaced: Sequence[Tuple[Part, list]]) -> None:

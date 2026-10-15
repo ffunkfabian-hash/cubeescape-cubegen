@@ -99,6 +99,8 @@ PROBES: Dict[str, Dict] = {
                              "--shape", "facet"]},
     "shape_round": {"seed": "34", "test": "cli", "about": "Form facet an runden Teilen: Oberseite wie glatt (0.30.2)",
                     "args": ["--types", "tank,fan,turbine,vent,pressure_tank", "--count", "1", "--shape", "facet"]},
+    "shape_round_voxel": {"seed": "31", "test": "cli", "about": "Form voxel an runden Teilen: Oberseite wie glatt (0.30.2)",
+                          "args": ["--types", "tank,fan,turbine,vent,pressure_tank", "--count", "3", "--shape", "voxel"]},
     "shape_holes": {"seed": "33", "test": "cli", "about": "Form holes (--shape): Löcher in flachen Platten",
                     "args": ["--types", "cage,cargo_container,battery_bank,locker,generator", "--count", "1",
                              "--shape", "holes"]},

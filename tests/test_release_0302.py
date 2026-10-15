@@ -44,6 +44,21 @@ def top_map(asset, step=STEP):
     return heights
 
 
+def foot_level(heights, x, y, radius=0.2, step=0.02):
+    """Height a sphere of ``radius`` rests at over (x, y) on a ``top_map`` made with ``step``."""
+    best, k = -math.inf, int(radius / step)
+    ix, iy = int(math.floor(x / step)), int(math.floor(y / step))
+    for i in range(-k, k + 1):
+        for j in range(-k, k + 1):
+            z = heights.get((ix + i, iy + j))
+            if z is None:
+                continue
+            d2 = ((i + .5 - (x / step - ix)) ** 2 + (j + .5 - (y / step - iy)) ** 2) * step * step
+            if d2 <= radius * radius:
+                best = max(best, z + math.sqrt(radius * radius - d2) - radius)
+    return best
+
+
 def sag(smooth, derived, reach, step=STEP):
     """Largest amount by which the derived top lies under the smooth top, where the derived form may be taken from
     anywhere within ``reach`` metres sideways (an inset rim of cubes moves an edge, it does not sink a surface)."""
@@ -91,6 +106,21 @@ class ShapeTopTest(unittest.TestCase):
         self.assertEqual(sorted(c[2] for c in caps), [8, 9])
         self.assertEqual(shapes._top_z(planes, 0.3, 0.3), 0.5)
         self.assertIsNone(shapes._top_z(planes, 1.5, 0.0))
+
+    def test_a_foot_sphere_finds_the_same_ground_on_a_round_voxel_tank(self):
+        # Cube Escape's shape test (SphereCast, radius 0.2, 7 x 7 probes): the rim of the lid must not step down
+        for t, seed in (("tank", 963211038), ("tank", 42), ("tank", 7), ("pressure_tank", 42), ("turbine", 7)):
+            smooth = generate_asset(t, seed)
+            derived = generate_asset(t, seed, style=Style(shape="voxel"))
+            lo, hi = smooth.bbox()
+            sm, dm = top_map(smooth, 0.02), top_map(derived, 0.02)
+            for i in range(7):
+                for j in range(7):
+                    x = lo[0] + (hi[0] - lo[0]) * (i + .5) / 7
+                    y = lo[1] + (hi[1] - lo[1]) * (j + .5) / 7
+                    ground = foot_level(sm, x, y)
+                    if ground > -math.inf:
+                        self.assertLessEqual(ground - foot_level(dm, x, y), 0.08, f"{t} {seed} {i},{j}")
 
     def test_a_flat_top_is_unchanged_by_the_voxel_form(self):
         for t in ("crate", "locker"):

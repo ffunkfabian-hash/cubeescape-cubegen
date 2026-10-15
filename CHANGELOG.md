@@ -6,9 +6,9 @@ Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 
 ## 0.30.2 „Lattice“ – unveröffentlicht
 
 * Formen `--shape voxel|facet` behalten die begehbare Oberseite: Voxel setzen über der obersten Zelle Feinschichten (0,05 m) auf,
-  Facetten nehmen Eckpunkte hinzu, bis keiner mehr als 0,05 m über der Hülle liegt (Tank, Ventilator, Turbine sanken um bis zu 1,2 m).
+  Voxel bauen die oberste Platte exakt als Deckel, Facetten nehmen Eckpunkte hinzu, bis keiner mehr als 0,05 m über der Hülle liegt (Tank, Ventilator, Turbine sanken um bis zu 1,2 m).
 * Glatte Modelle, Collider, Teile, IDs, Atlas und Dreiecksbudget unverändert; Golden-Werte nur `shape_voxel`/`shape_facet`.
-* Neuer Test `tests/test_release_0302.py`, Unity-Prüfsatz `shape_round`.
+* Neuer Test `tests/test_release_0302.py`, Unity-Sätze `shape_round`, `shape_round_voxel`.
 
 Bericht: [Cubegen 0.30.2](docs/versions/0.30.md#cubegen-0302--lattice).
 
