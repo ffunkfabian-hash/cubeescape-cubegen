@@ -371,7 +371,7 @@ pausierter Befehl kann in die Zeitgrenze seines Werkzeugs laufen – dann führt
 ### 9.3 GitHub Actions sparsam (globale Regel)
 
 
-Die Regel steht global in `~/.claude/CLAUDE.md` (Codex: `~/.codex/AGENTS.md`) und gilt für alle Repos des Kontos:
+Die Regel steht global im Repo `~/Claude/cubeescape-rules` (`~/.claude/CLAUDE.md` und `~/.codex/AGENTS.md` sind Links darauf) und gilt für alle Repos des Kontos:
 2.000 min im Monat, Budget 0 $ – leer heißt, kein Workflow läuft mehr bis zum Monatsanfang. Kurz: `push` nur auf
 `main`, sonst über den PR; `concurrency` mit `cancel-in-progress`; `paths-ignore` für Doku; wenige volle Jobs; große
 Matrix nur auf Wunsch; `timeout-minutes`; lokal zuerst testen. Hier **ein Job je Lauf** (`.github/workflows/tests.yml`):

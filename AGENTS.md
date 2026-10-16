@@ -55,7 +55,7 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
   Themen für alle Typen prüfen (9.15). **App:** eine Quelle `cubegen catalog`, nach Änderungen `app/build.sh` + `app/test_app.sh` (9.16).
 - **Ausrichtung gerichteter Modelle:** tatsächliche Funktionsfläche prüfen, nicht nur Rotation oder Bounds (9.17).
 - **Texturen/ImageMagick:** reproduzierbar über `ImageMagick.run`, nie `magick` fest aufrufen (Linux hat IM 6) (9.9).
-- **GitHub Actions sparsam** (globale Regel `~/.claude/CLAUDE.md`): hier ein Job je Lauf in `.github/workflows/tests.yml`,
+- **GitHub Actions sparsam** (globale Regel `~/.claude/CLAUDE.md`, Repo `~/Claude/cubeescape-rules`): hier ein Job je Lauf in `.github/workflows/tests.yml`,
   `push` nur auf `main`, `app/**` und Doku lösen nichts aus (9.3, DEVELOPER 8).
 - Aufträge an andere Sitzungen: Art der Änderung, Prüfweg, erwartete Unterschiede, Release ja/nein, Bericht ≤ 15 Zeilen (9.13).
 
