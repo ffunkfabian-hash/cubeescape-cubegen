@@ -21,6 +21,9 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
    den Versionsbericht der Arbeitsversion; veröffentlichte Berichte bleiben historisch.
 4. Ganze Leistung des Geräts: andere Sitzungen nur mit Cube Escapes `pause_sessions.py run -- <Befehl>` pausieren, so kurz wie
    nötig, im Bericht nennen (9.2).
+5. **Erfahrungen** (Lehren, Fallen, Messwerte, Techniken) stehen in `docs/DEVELOPER.md` und `docs/ENTSCHEIDUNGEN.md`; vor dem Bauen, das
+   ein Schwesterprojekt berührt, dessen Stelle lesen (Cube Escape `Docs/QUALITY.md`/`Docs/ARCHITECTURE.md`, Robogen/Toolgen
+   `docs/TECHNIK.md`, cubeescape-design `docs/`), Regel: `~/.claude/CLAUDE.md` › Erfahrungen festhalten und querlesen.
 
 ## Befehle
 
