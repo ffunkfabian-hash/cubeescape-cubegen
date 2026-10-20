@@ -99,7 +99,8 @@ Jeder neue Branch, Worktree oder Auftrag ist eine **neue Version**: Minor +1 mit
 ## Werkzeuge: ImageMagick und Blender-Plugin
 
 `magick` (v7, `python3 -m cubegen doctor`) erzeugt Texturen und darf zum Gestalten und Prüfen dienen; reproduzierbar, über
-`ImageMagick.run`. Das Blender-MCP steuert nur das laufende Blender des Nutzers als Prüfstand (eigene Szene, nichts speichern).
+`ImageMagick.run`. Das Blender-MCP ist ausdrücklich erwünscht (Nutzer, 20.10.2026; globale Regel › Blender-MCP): ohne Nachfrage, wenn
+Blender läuft – nachmessen, Sichtprüfung, UV/Material, Probe-Bakes, Ansichten rendern; nur in eigener Szene, die Quelle bleibt der Generator.
 `tools/unity_check.py` läuft nur lokal über Cube Escapes `verify.sh` in der Testkopie, nie auf einem Checkout, und wartet auf
 `~/Library/Caches/CubeEscape/heavy-run.lock` (nie löschen, `CE_HEAVY_LOCK=0` überspringt). Vollständig: 9.9, DEVELOPER 7.
 
