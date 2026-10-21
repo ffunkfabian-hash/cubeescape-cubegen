@@ -488,10 +488,13 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
 - **Texturen sind erlaubt** (seit Cube Escape 0.35): Standard bleibt `none` (einfarbige `M_…`-Materialien); die Option
   gibt es in CLI, Blender-Add-on, Desktop-Fenster und in der Cube-Escape-Werkbank. Glow-/Status-, Glas- und
   Kristallmaterialien bleiben untexturiert (`docs/UNITY_INTEGRATION.md`).
-- **Blender-Plugin** (MCP, `mcp__Blender__*`): steuert das **laufende** Blender des Nutzers (Port 9876) als Prüfstand:
-  Exporte laden und nachmessen (Maße, Pivot, Vorderseite, Teil-/Materialnamen, Öffnungen für die Kollision), Texturen
-  ansehen, Ansichten rendern. Immer in einer eigenen Szene, nichts speichern – die Quelle bleibt der Generator. Ohne
-  laufendes Blender (Cloud, Batch) gilt nur der Batch-Export.
+- **Blender-Plugin** (MCP, `mcp__Blender__*`): steuert das **laufende** Blender des Nutzers (Port 9876). Ausdrücklich erwünscht
+  (Nutzer, 19./20.10.2026; globale Regel `~/.claude/CLAUDE.md` › Blender-MCP): ohne Nachfrage nutzen, wenn Blender läuft – es ist der
+  schnellste Weg zu belastbaren Befunden. Exporte laden und nachmessen (Maße, Pivot, Vorderseite, Teil-/Materialnamen, Öffnungen für die
+  Kollision), UV und Material prüfen, Probe-Bakes, Texturen ansehen, Ansichten rendern. Immer in einer eigenen Szene, nie im geöffneten
+  Nutzerprojekt; die Quelle bleibt der Generator (Befunde werden im Generator behoben). Eigene Szenen nur über `wm.save_as_mainfile`
+  speichern (`bpy.data.libraries.write` mit neuer Szene ließ Blender 5.2.2 abstürzen); schwere Bakes über `heavy_lock`. Ohne laufendes
+  Blender (Cloud, Batch) gilt nur der Batch-Export.
 - **Neural Engine (nur macOS):** `tools/vision_report.py <Ausgabeordner>` ist nur ein Hinweis, entscheidet nie über
   ausgegebene Varianten und läuft nie im normalen Lauf (DEVELOPER.md 7).
 - **Unity-Check** (`tools/unity_check.py`, nur lokal mit Cube Escape und Unity): feste Prüfsätze (Bau-Kit-Sets,
