@@ -481,20 +481,18 @@ class WorkflowTest(unittest.TestCase):
         self.assertNotIn("schedule", self.text)
         self.assertNotIn("tags:", on)
 
-    def test_one_job_per_run_unless_asked(self):
+    def test_one_logic_job_and_image_stages_stay_on_mac(self):
+        # Nexogen rollout: PRs and main use the same quick command; image/golden tiers stay on the Mac.
         self.assertRegex(self.text, r"concurrency:\n  group: tests-\$\{\{ github.ref \}\}\n  cancel-in-progress: true")
-        jobs = re.findall(r"^  (\w+):\n    if: (.*)$", self.text, re.MULTILINE)
-        self.assertEqual([name for name, _ in jobs], ["quick", "full"])
-        conditions = dict(jobs)
-        self.assertEqual(conditions["quick"], "github.event_name == 'push' || inputs.tier == 'quick'")
-        self.assertNotIn("push", conditions["full"])  # a push to main runs the quick job only
-        self.assertIn("inputs.tier == 'full' && '[\"3.11\", \"3.9\", \"3.13\"]' || '[\"3.11\"]'", self.text)
-        for name in ("quick", "full"):
-            body = self.section(name)
-            self.assertRegex(body, r"timeout-minutes: \d+")
-            self.assertIn("runs-on: ubuntu-latest", body)
-        self.assertIn("--tier quick", self.section("quick"))
-        self.assertIn("uses: actions/cache@v4", self.section("full"))  # the Blender download
+        jobs = self.text.split("\njobs:\n", 1)[1]
+        self.assertEqual(re.findall(r"^  (\w+):$", jobs, re.MULTILINE), ["quick"])
+        body = self.section("quick")
+        self.assertRegex(body, r"timeout-minutes: \d+")
+        self.assertIn("runs-on: ubuntu-latest", body)
+        self.assertIn("run: ./ce check", body)
+        self.assertNotIn("--tier full", jobs)
+        self.assertNotIn("CUBEGEN_BLENDER", jobs)
+        self.assertNotIn("strategy:", jobs)
 
 
 def git(cwd, *args):
