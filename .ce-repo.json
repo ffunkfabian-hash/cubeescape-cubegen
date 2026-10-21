@@ -1,14 +1,59 @@
 {
   "name": "cubegen",
-  "version": {"file": "cubegen/__init__.py", "pattern": "__version__\\s*=\\s*\"([^\"]+)\""},
-  "check": {
-    "quick": [["python3", "tools/run_tests.py", "--tier", "quick"]],
-    "full": [["python3", "tools/run_tests.py", "--tier", "full"]]
+  "version": {
+    "file": "cubegen/__init__.py",
+    "pattern": "__version__\\s*=\\s*\"([^\"]+)\""
   },
-  "docs": {"versions": "docs/versions", "archive": "docs/archive/versions", "changelog": "CHANGELOG.md",
-           "decisions": "docs/ENTSCHEIDUNGEN.md"},
-  "limits": {"AGENTS.md": 150, "CLAUDE.md": 20},
-  "release": {"branch_prefix": "release/", "tag_prefix": "v"},
+  "check": {
+    "quick": [
+      [
+        "python3",
+        "tools/run_tests.py",
+        "--tier",
+        "quick"
+      ]
+    ],
+    "full": [
+      [
+        "python3",
+        "tools/run_tests.py",
+        "--tier",
+        "full"
+      ]
+    ],
+    "nightly": [
+      [
+        "python3",
+        "tools/ce_tools/heavy_lock.py",
+        "run",
+        "--resource",
+        "gpu",
+        "--",
+        "python3",
+        "tools/run_tests.py",
+        "--tier",
+        "full"
+      ]
+    ]
+  },
+  "docs": {
+    "versions": "docs/versions",
+    "archive": "docs/archive/versions",
+    "changelog": "CHANGELOG.md",
+    "decisions": "docs/ENTSCHEIDUNGEN.md"
+  },
+  "limits": {
+    "AGENTS.md": 150,
+    "CLAUDE.md": 20
+  },
+  "release": {
+    "branch_prefix": "release/",
+    "tag_prefix": "v"
+  },
   "tools_dir": "tools/ce_tools",
-  "heavy_lock": true
+  "heavy_lock": true,
+  "coordination": {
+    "repo": "ffunkfabian-hash/cubeescape-nexogen",
+    "registry": "https://github.com/ffunkfabian-hash/cubeescape-nexogen/blob/main/repos.json"
+  }
 }

@@ -1,5 +1,7 @@
 # Cube Escape – Model Generator Seed (`cubegen`)
 
+Zentraler Repo-Einstieg: [Nexogen](https://github.com/ffunkfabian-hash/cubeescape-nexogen) – Repo-Links, Zuständigkeiten, Abhängigkeiten und Live-Status über `repos.json` / `./status`. Globale Regeln dort, Fachwissen und Prüfbelege hier.
+
 Aktuelle Version: **0.12.0** (10. Oktober 2026). Release-Zweig: `release/0.12.0`.
 Paket, CLI und Blender-Quell-Add-on verwenden dieselbe Version. 0.12.0 veröffentlicht die bisher
 unveröffentlichten Arbeitsstände 0.11.1–0.11.4: erste Asset-Welle (elf Typen, drei Varianten, genaue

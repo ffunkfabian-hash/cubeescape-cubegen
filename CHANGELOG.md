@@ -3,6 +3,13 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## 0.31.0 „Crosscurrent“ – unveröffentlicht
+
+- Gemeinsame Agentenwerkzeuge, `./ce`, Suchserver-Konfiguration und kurze Lehren angebunden.
+- Nachtlauf verwendet die vorhandene volle Testsuite mit exklusiver Ressourcensperre.
+- Generator, Modelle und Sidecar-Format unverändert; keine neuen Bild-Ausgaben erzeugt.
+- [Versionsbericht](docs/versions/0.31.md).
+
 ## 0.30.2 „Lattice“ – unveröffentlicht
 
 * Formen `--shape voxel|facet` behalten die begehbare Oberseite: Voxel setzen über der obersten Zelle Feinschichten (0,05 m) auf,

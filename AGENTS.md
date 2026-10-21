@@ -1,5 +1,9 @@
 # Cubegen · verbindliche Arbeitsregeln für KI-Agenten
 
+Zentraler Repo-Einstieg: [Nexogen](https://github.com/ffunkfabian-hash/cubeescape-nexogen) – Repo-Links, Zuständigkeiten, Abhängigkeiten und Live-Status über `repos.json` / `./status`. Globale Regeln dort, Fachwissen und Prüfbelege hier.
+
+**Werkzeuge:** `./ce check` · `./ce search query "Begriff"` · `./ce session topics` · `./ce codex quota|judge` · `./ce evidence clip|sheet|still|diff` · `./ce lock unity|blender|gpu -- <Befehl>` · `./ce report --since 7d`.
+
 Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begründungen und Messwerte jedes Abschnitts liefert
 `docs/DEVELOPER.md` (Teil 9 = frühere Langfassung dieser Datei, 1–8 = Hintergründe). Entscheidungen des Nutzers:
 `docs/ENTSCHEIDUNGEN.md`. Techniken des Roboter-Generators: `docs/TECHNIK.md`.
@@ -108,3 +112,5 @@ Testkopie), `hookify` (Repo-Regeln `.claude/hookify.*.local.md`, mit `git add -f
 `precommit`, Profile `.claude/agent-guard.json`), Blender-MCP. Hooks blockieren Unity auf einem Checkout, nacktes `git stash`,
 Force-Push, Handarbeit an `output/`; sie warnen bei Commit/Merge/Tag/Push, Golden-Daten, Versionsdateien, Workflows.
 Subagents `cg-test-runner` und `cg-doc-keeper`. Tabelle und Einzelheiten: 9.10.
+
+Werkzeug-Erfahrungen: [docs/LESSONS.md](docs/LESSONS.md); die verlinkte Systemdokumentation bleibt die Langform.
