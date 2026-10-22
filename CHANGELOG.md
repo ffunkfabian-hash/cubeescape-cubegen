@@ -3,6 +3,12 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## 0.32.0 „Relaywake“ – 2026-10-22
+
+- Eingebettete gemeinsame Werkzeuge von der geprüften Quelle Agent Tools 0.11 „Wayfinder“ synchronisiert: FTS-Korrektur, öffentliche Such-Aliase, risikobasierter Richter und budgetierter API-Einstieg.
+- Nur Werkzeug-Rollout auf Basis 0.31.0; fachliche Daten, Generator-Ausgabe und Verträge unverändert. Hash-Abgleich und repo-eigener Quick sind die Abnahme.
+- [Versionsbericht](docs/versions/0.32.md).
+
 ## 0.31.0 „Crosscurrent“ – unveröffentlicht
 
 - Gemeinsame Agentenwerkzeuge, `./ce`, Suchserver-Konfiguration und kurze Lehren angebunden.
