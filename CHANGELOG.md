@@ -3,6 +3,12 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## tools-0.13.0 „Glasshouse“ – 2026-10-22
+
+- Gemeinsame Werkzeuge über `ce_sync.py` aus dem geprüften Agent-Tools-Quellstand 0.13 synchronisiert: Dashboard, Belegvergleich, Vorprüfung, Durchlaufmessung und strengere Cloud-/Vertragsprüfungen.
+- Eigenständiger Werkzeugpaket-Stand; fachliche Versionen und Ausgaben unverändert, bestehende Gatehouse-Hooks werden nicht neu installiert.
+- Abnahme über [Tools #11](https://github.com/ffunkfabian-hash/ce-agent-tools/pull/11), Quellhash-Abgleich, Repo-Quick und Doku-Prüfung.
+
 ## tools-0.12.0 „Gatehouse“ – 2026-10-22
 
 - Gemeinsame Werkzeuge über `ce_sync.py` aus der freigegebenen Quelle Agent Tools 0.12 synchronisiert, einschließlich der Korrektur für ältere Toolgen-Prüfschnittstellen aus 0.11.1.
