@@ -509,8 +509,7 @@ klein, statisch, weg von beweglichen Teilen und Spielpunkten (Strahlhöhe, Linse
 ### 9.10 Plugins und Hooks (Claude Code)
 
 
-`CLAUDE.md` importiert diese Datei. Nur Claude Code hat die Plugins; andere Agenten befolgen dieselben Regeln aus dem
-Text. Gemeinsam mit Cube Escape und dem Roboter-Generator (dort je eine eigene Tabelle in `AGENTS.md`).
+`CLAUDE.md` importiert diese Datei. Die folgende Plugin-Liste und die repo-eigenen Hooks gelten für Claude Code. Der gemeinsame Wächter seit Agent Tools 0.12 wird für Codex nach `/hooks`-Vertrauen und Antigravity auf den gemessenen Oberflächen über Nexogen eingebaut; das Git-Netz ergänzt ihn unabhängig vom Client. Umfang und Grenzen: [Werkzeuge und Durchsetzung](https://github.com/ffunkfabian-hash/cubeescape-nexogen/blob/main/templates/regeln-details.md#werkzeuge-und-durchsetzung). Gemeinsam mit Cube Escape und dem Roboter-Generator (dort je eine eigene Tabelle in `AGENTS.md`).
 
 | Plugin | Einsatz in Cubegen |
 |---|---|
