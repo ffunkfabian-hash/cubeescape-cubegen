@@ -108,9 +108,9 @@ Blender läuft – nachmessen, Sichtprüfung, UV/Material, Probe-Bakes, Ansichte
 `tools/unity_check.py` läuft nur lokal über Cube Escapes `verify.sh` in der Testkopie, nie auf einem Checkout, und wartet auf
 `~/Library/Caches/CubeEscape/heavy-run.lock` (nie löschen, `CE_HEAVY_LOCK=0` überspringt). Vollständig: 9.9, DEVELOPER 7.
 
-## Plugins und Hooks (Claude Code)
+## Plugins und Hooks
 
-`CLAUDE.md` importiert diese Datei; andere Agenten befolgen dieselben Regeln aus dem Text. Plugins: `quick-gate-python` (schnelle
+`CLAUDE.md` importiert diese Datei. Der gemeinsame Wächter (Agent Tools 0.12) wird über Nexogen für Codex nach `/hooks`-Vertrauen und für Antigravity auf den gemessenen Oberflächen installiert; das reversible Git-Netz ergänzt ihn für alle Clients. Die begrenzte Commit-Vorabprüfung, Einbau und Grenzen stehen zentral in [Werkzeuge und Durchsetzung](https://github.com/ffunkfabian-hash/cubeescape-nexogen/blob/main/templates/regeln-details.md#werkzeuge-und-durchsetzung). Die folgende Liste nennt Claude-Plugins und repo-eigene Claude-Hooks. Plugins: `quick-gate-python` (schnelle
 Prüfung, verbindlich bleibt die Suite), `code-review` vor jedem Release-Merge, `github`/`gh`, `unity` (Kollision in der
 Testkopie), `hookify` (Repo-Regeln `.claude/hookify.*.local.md`, mit `git add -f`), `ce-shared` (gemeinsame Regeln, Hooks wie
 `precommit`, Profile `.claude/agent-guard.json`), Blender-MCP. Hooks blockieren Unity auf einem Checkout, nacktes `git stash`,
