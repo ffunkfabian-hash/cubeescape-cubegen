@@ -32,8 +32,10 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
 ## Befehle
 
 - `./check` – schnelle Prüfung (`tools/run_tests.py --tier quick`, rund 30 s, ohne Blender); `./check --full` – ganze Suite
-  (Blender, ImageMagick nötig). Befehle stehen in `.ce-repo.json`; die Werkzeuge liegen eingebettet in `tools/ce_tools/`
-  (`ce_sync.py` im Plugin `ce-shared` schreibt sie, nie von Hand ändern). `python3 tools/ce_tools/ce_lint.py` prüft Längen/Gliederung.
+  (Blender, ImageMagick nötig). Befehle stehen in `.ce-repo.json`. Keine eingebettete Werkzeugkopie (seit 0.33): `./ce` ist
+  der Lader der gemeinsamen Werkzeuge (Plugin `ce-shared`, Repo ffunkfabian-hash/ce-agent-tools) und führt den Stand aus
+  `.ce-repo.json` › `tools_version` aus (`./ce tools where|fetch`); neuer Stand nur per `./ce tools pin <Commit>`. `./ce docs` prüft
+  Längen/Gliederung, `./ce tidy` zeigt Reste (Probelauf); `.mcp.json` startet `ce_search` über `./ce search serve`.
 - Tests: `python3 tools/run_tests.py [--tier quick|standard|full]` (gleiches Ergebnis wie `python3 -m unittest discover -s tests`,
   nur schneller); `quick` vor Abschluss jeder Änderung, vor dem Release die volle Suite.
 - Unity-Check (nur lokal): `python3 tools/unity_check.py [--quick] [--require]`; Sperre für schwere Läufe siehe 9.9/DEVELOPER 7.
@@ -71,7 +73,7 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
 1. Umsetzung ohne Duplikate; Golden-Daten und Prüfsätze nur bewusst und begründet geändert.
 2. `./check` grün; bei Generator-Code, Geometrie, Kollision, Texturen, Sidecar/Vertrag oder Add-on zusätzlich die volle Suite
    mit Blender und `unity_check.py --require` (Stufe 2) – sonst nur als „ungeprüft“ abschließen.
-3. Betroffene `docs/` und der Versionsabschnitt aktuell; `python3 tools/ce_tools/ce_lint.py` ohne Fehler.
+3. Betroffene `docs/` und der Versionsabschnitt aktuell; `./ce docs` ohne Fehler.
 4. Abschlussbericht auf Deutsch: was geändert, wie geprüft (Tests, Anzahl, übersprungen mit Grund), Merge-/Tag-/PR-Stand, Offenes.
    Eine Sitzung ohne Blender/Unity, die Generator-Code änderte, endet mit dem Prompt für den lokalen Test (Vorlage 9.6).
 5. Committen, taggen, mergen und pushen nur auf Wunsch des Nutzers; nie `--force`; den Haupt-Checkout nie ungefragt ändern.

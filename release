@@ -1,4 +1,8 @@
 #!/bin/sh
 # Thin wrapper: dry run of the shared release check (needs --execute to act; Cubegen's own flow: tools/release.py).
+# Tools: pinned shared tools (./ce tools where).
 d=$(cd "$(dirname "$0")" && pwd)
-exec python3 "$d/tools/ce_tools/ce_release.py" --repo "$d" "$@"
+tools="$("$d/ce" tools where | sed 's/ (.*//')" || exit 2
+[ -f "$tools/ce_release.py" ] || { echo "release: $tools/ce_release.py missing - ./ce tools fetch" >&2; exit 2; }
+# no bytecode inside the checked tools cache (read-only does not stop root)
+PYTHONDONTWRITEBYTECODE=1 exec python3 "$tools/ce_release.py" --repo "$d" "$@"
