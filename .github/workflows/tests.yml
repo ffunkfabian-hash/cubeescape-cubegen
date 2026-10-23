@@ -25,6 +25,7 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: .ce-repo.json
+      - uses: ffunkfabian-hash/ce-agent-tools/.github/actions/ce-tools@6e9e8235dd046d45f4691905b65e1c2094c3a73d
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick
       - name: check.quick aus .ce-repo.json

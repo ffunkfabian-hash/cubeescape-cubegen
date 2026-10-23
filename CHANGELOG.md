@@ -3,6 +3,15 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## 0.33.0 „Unhitched“ – unveröffentlicht
+
+Nur Werkzeuge, Generator und Ausgabe unverändert.
+
+- Keine eingebettete Werkzeugkopie mehr: `tools/ce_tools/` entfällt, `./ce` ist der Lader aus Agent Tools 0.20 „Lodestar“, `.ce-repo.json` › `tools_version` pinnt Commit `6e9e8235dd04` (statt `tools_dir`). Wie Motiongen 0.13 und Robogen 1.23.
+- `./check`, `./release`, `.mcp.json` (`ce-search` über `./ce search serve`), `check.nightly` (`./ce lock gpu`) und `tests.yml` (Aktion `ce-tools@6e9e823`) nutzen den Lader; die `ce-*`-Profile in `.claude/agents/` kommen mit dem Plugin, `cg-*` bleiben.
+- Neu `.ce-repo.json` › `tidy` für alte Seeds `output/seed_*` und Vision-Prüfbauten.
+- [Versionsbericht](docs/versions/0.33.md).
+
 ## tools-0.13.0 „Glasshouse“ – 2026-10-22
 
 - Gemeinsame Werkzeuge über `ce_sync.py` aus dem geprüften Agent-Tools-Quellstand 0.13 synchronisiert: Dashboard, Belegvergleich, Vorprüfung, Durchlaufmessung und strengere Cloud-/Vertragsprüfungen.
