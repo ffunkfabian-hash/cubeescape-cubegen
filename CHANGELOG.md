@@ -3,6 +3,10 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
+## Patch doku-panorama (ohne Versionsänderung)
+
+- `AGENTS.md`, `docs/DEVELOPER.md`: globale Regeln in Nexogen statt `cubeescape-rules`; Versionsangaben des Wächters als „seit …“. Nur Markdown.
+
 ## 0.33.1 – 2026-10-24
 
 - Werkzeug-Pin auf ce-agent-tools 0.22.0 „Tollgate“ (`9f1ed12`, vorher 0.20.0 `6e9e823`): `./ce session say/mail` mit Courier-Verbesserungen (Modellzeile, Kopie an Sightline bei PR/Merge, `ce-freigabe`-Erkennung, `--follow`), Merge-Sperre im Plugin; `.ce-repo.json`, `./ce`, PR-Check-Schritt. Kein Verhalten des Generators geändert.
