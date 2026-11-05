@@ -3,9 +3,9 @@
 Einzige Übersicht der Versionen: je Version 3–5 Zeilen und ein Link auf den Bericht (`docs/versions/` für die letzten drei
 Hauptversionen, `docs/archive/versions/` für ältere). Ausführliche Texte vor 0.30 stehen in der Git-Historie dieser Datei.
 
-## Patch kern-sweep (ohne Versionsänderung)
+## 0.33.2 – 2026-11-05
 
-- `AGENTS.md` an den harten Kern (Nexogen `kern.md`) angeglichen, alte Sperr- und „jeder Auftrag = Minor“-Texte ersetzt, drei wirkungslose hookify-Dateien entfernt, Pin 0.35.0, `core_paths` gesetzt.
+- `AGENTS.md` an den harten Kern (Nexogen `kern.md`) angeglichen, alte Sperr- und „jeder Auftrag = Minor“-Texte ersetzt, drei wirkungslose hookify-Dateien entfernt, Pin 0.35.0, `core_paths` gesetzt; Workflow-Pin der Werkzeuge auf 0.35.0. Kein Verhalten des Generators geändert.
 
 ## Patch doku-panorama (ohne Versionsänderung)
 
