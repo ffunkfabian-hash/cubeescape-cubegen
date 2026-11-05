@@ -1,12 +1,21 @@
 # Cubegen · verbindliche Arbeitsregeln für KI-Agenten
 
-Zentraler Repo-Einstieg: [Nexogen](https://github.com/ffunkfabian-hash/cubeescape-nexogen) – Repo-Links, Zuständigkeiten, Abhängigkeiten und Live-Status über die Status-CLI im Nexogen-Repo. Globale Regeln dort, Fachwissen und Prüfbelege hier.
+Einstieg und globale Regeln: [Nexogen](https://github.com/ffunkfabian-hash/cubeescape-nexogen). Den vollen Wortlaut, Begründungen und
+Messwerte der Abschnitte liefert `docs/DEVELOPER.md` (Teil 9 = frühere Langfassung dieser Datei); Entscheidungen des Nutzers
+`docs/ENTSCHEIDUNGEN.md`; Techniken des Roboter-Generators `docs/TECHNIK.md`.
 
-**Werkzeuge:** `./ce check` · `./ce search query "Begriff"` · `./ce session topics` · `./ce codex quota|judge` · `./ce evidence clip|sheet|still|diff` · `./ce lock unity|blender|gpu -- <Befehl>` · `./ce report --since 7d`.
+## Harter Kern
 
-Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begründungen und Messwerte jedes Abschnitts liefert
-`docs/DEVELOPER.md` (Teil 9 = frühere Langfassung dieser Datei, 1–8 = Hintergründe). Entscheidungen des Nutzers:
-`docs/ENTSCHEIDUNGEN.md`. Techniken des Roboter-Generators: `docs/TECHNIK.md`.
+Quelle: Nexogen `templates/kern.md`, nur dort ändern; gilt auch in Cloud-Sitzungen.
+
+1. Kein Commit direkt auf `main`.
+2. Kein Force-Push, keine überschriebenen Branches oder Tags.
+3. Nichts Fremdes anfassen oder löschen: andere Sitzungen, Worktrees, Stash, Haupt-Checkout.
+4. Merge nach `main` nur mit Ja des Nutzers, außer Patch bis 100 Zeilen ohne Format, Vertrag, Kernpfad bei grünem `merge-check`; Tag, Release, Repo öffentlich machen immer nur mit Ja.
+5. Tests nie löschen oder abschwächen, um grün zu werden.
+6. Keine Zugangsdaten, kein fremdes Material, keine großen Binärdaten nach außen (öffentliche Repos, fremde APIs).
+7. Formate, Verträge und IDs nur mit Migration; IDs sind ewig.
+8. Nichts als fertig melden, was nicht geprüft ist.
 
 ## Projekt
 
@@ -18,31 +27,19 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
 
 ## Wahrheit und Aktualität
 
-1. **Code ist die Wahrheit**, dann `docs/`, dann Erinnerungen und alte Prompts; ein widersprechendes Doc im selben Zuge korrigieren.
-2. Nichts Veränderliches auswendig annehmen: Version `cubegen/__init__.py` (`.ce-repo.json`), Stand `git log --oneline -15`,
-   Versionsgeschichte `CHANGELOG.md` (einzige Übersicht) und `docs/versions/<Hauptversion>.md`; Typen `python3 -m cubegen catalog`.
-3. Parallele Sitzungen arbeiten in eigenen Worktrees (`git worktree list`); fremde Worktrees nur lesen. Neue Befunde gehören in
-   den Versionsbericht der Arbeitsversion; veröffentlichte Berichte bleiben historisch.
-4. Ganze Leistung des Geräts: andere Sitzungen nur mit Cube Escapes `pause_sessions.py run -- <Befehl>` pausieren, so kurz wie
-   nötig, im Bericht nennen (9.2).
-5. **Erfahrungen** (Lehren, Fallen, Messwerte, Techniken) stehen in `docs/DEVELOPER.md` und `docs/ENTSCHEIDUNGEN.md`; vor dem Bauen, das
-   ein Schwesterprojekt berührt, dessen Stelle lesen (Cube Escape `Docs/QUALITY.md`/`Docs/ARCHITECTURE.md`, Robogen/Toolgen
-   `docs/TECHNIK.md`, cubeescape-design `docs/`), Regel: `~/.claude/CLAUDE.md` › Erfahrungen festhalten und querlesen.
+Version `cubegen/__init__.py`, Versionsgeschichte `CHANGELOG.md` und `docs/versions/<Hauptversion>.md`, Typen `python3 -m cubegen catalog`.
+Erfahrungen stehen in `docs/DEVELOPER.md` und `docs/ENTSCHEIDUNGEN.md`; vor dem Bauen, das ein Schwesterprojekt berührt, dessen Stelle
+lesen (Cube Escape `Docs/QUALITY.md`/`Docs/ARCHITECTURE.md`, Robogen/Toolgen `docs/TECHNIK.md`, cubeescape-design `docs/`).
 
 ## Befehle
 
 - `./check` – schnelle Prüfung (`tools/run_tests.py --tier quick`, rund 30 s, ohne Blender); `./check --full` – ganze Suite
-  (Blender, ImageMagick nötig). Befehle stehen in `.ce-repo.json`. Keine eingebettete Werkzeugkopie (seit 0.33): `./ce` ist
-  der Lader der gemeinsamen Werkzeuge (Plugin `ce-shared`, Repo ffunkfabian-hash/ce-agent-tools) und führt den Stand aus
-  `.ce-repo.json` › `tools_version` aus (`./ce tools where|fetch`); neuer Stand nur per `./ce tools pin <Commit>`. `./ce docs` prüft
-  Längen/Gliederung, `./ce tidy` zeigt Reste (Probelauf); `.mcp.json` startet `ce_search` über `./ce search serve`.
+  (Blender, ImageMagick nötig). Befehle stehen in `.ce-repo.json`; `./ce` lädt die gemeinsamen Werkzeuge, `./ce docs` prüft Längen/Gliederung.
 - Tests: `python3 tools/run_tests.py [--tier quick|standard|full]` (gleiches Ergebnis wie `python3 -m unittest discover -s tests`,
   nur schneller); `quick` vor Abschluss jeder Änderung, vor dem Release die volle Suite.
-- Unity-Check (nur lokal): `python3 tools/unity_check.py [--quick] [--require]`; Sperre für schwere Läufe siehe 9.9/DEVELOPER 7.
+- Unity-Check (nur lokal): `python3 tools/unity_check.py [--quick] [--require]`; schwere Läufe nur mit `./ce lock unity|blender|gpu -- <Befehl>`.
 - Erzeugen: `python3 -m cubegen generate …` (`docs/CLI.md`); App: `app/build.sh`, `app/test_app.sh`.
 - Release (nur auf Wunsch): `./release` = Trockenlauf des gemeinsamen Standards, Cubegens eigener Ablauf `python3 tools/release.py`.
-- Vor jedem Commit mit geänderten `*.md`: Hook `precommit` des Plugins `ce-shared` ruft `ce_lint.py` und warnt (blockiert nie).
-- Berichte schreibt eine Sitzung nach `report.md` im Worktree (ungetrackt, `info/exclude`); an den Auftraggeber geht eine Zeile.
 
 ## Regeln
 
@@ -64,9 +61,8 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
   Themen für alle Typen prüfen (9.15). **App:** eine Quelle `cubegen catalog`, nach Änderungen `app/build.sh` + `app/test_app.sh` (9.16).
 - **Ausrichtung gerichteter Modelle:** tatsächliche Funktionsfläche prüfen, nicht nur Rotation oder Bounds (9.17).
 - **Texturen/ImageMagick:** reproduzierbar über `ImageMagick.run`, nie `magick` fest aufrufen (Linux hat IM 6) (9.9).
-- **GitHub Actions sparsam** (globale Regel `~/.claude/CLAUDE.md`, Repo `~/Claude/cubeescape-nexogen`): hier ein Job je Lauf in `.github/workflows/tests.yml`,
-  `push` nur auf `main`, `app/**` und Doku lösen nichts aus (9.3, DEVELOPER 8).
-- Aufträge an andere Sitzungen: Art der Änderung, Prüfweg, erwartete Unterschiede, Release ja/nein, Bericht ≤ 15 Zeilen (9.13).
+- **Actions:** ein Job je Lauf in `.github/workflows/tests.yml`; `app/**` und Doku lösen nichts aus (9.3, DEVELOPER 8).
+- Aufträge an andere Sitzungen: Vorlage `~/.claude/templates/auftrag.md`; dazu Art der Änderung, Prüfweg, erwartete Unterschiede, Release ja/nein (9.13).
 
 ## Definition of Done
 
@@ -74,20 +70,21 @@ Kurzfassung in der Standard-Gliederung aller Repos. Den vollen Wortlaut, Begrün
 2. `./check` grün; bei Generator-Code, Geometrie, Kollision, Texturen, Sidecar/Vertrag oder Add-on zusätzlich die volle Suite
    mit Blender und `unity_check.py --require` (Stufe 2) – sonst nur als „ungeprüft“ abschließen.
 3. Betroffene `docs/` und der Versionsabschnitt aktuell; `./ce docs` ohne Fehler.
-4. Abschlussbericht auf Deutsch: was geändert, wie geprüft (Tests, Anzahl, übersprungen mit Grund), Merge-/Tag-/PR-Stand, Offenes.
+4. Abschlussbericht: was geändert, wie geprüft (Tests, Anzahl, übersprungen mit Grund), Merge-/Tag-/PR-Stand, Offenes.
    Eine Sitzung ohne Blender/Unity, die Generator-Code änderte, endet mit dem Prompt für den lokalen Test (Vorlage 9.6).
-5. Committen, taggen, mergen und pushen nur auf Wunsch des Nutzers; nie `--force`; den Haupt-Checkout nie ungefragt ändern.
 
 ## Versionen, Branches und Worktrees
 
-Jeder neue Branch, Worktree oder Auftrag ist eine **neue Version**: Minor +1 mit eigenem, ausgedachtem englischem Namen
-(cool, nie beschreibend deutsch); eine Fortsetzung derselben Arbeit behält ihre Version. Gleich zu Beginn:
+Generatorversionen sind keine Cube-Escape-Versionen; beide Projekte zählen getrennt. Der Weg folgt den globalen Regeln
+(Nexogen `templates/regeln-details.md` › Patch-Aufträge, › Sitzungsnamen und Versionsregister):
 
-- Version in `pyproject.toml`, `cubegen/__init__.py` und `blender_addon/cubegen_addon/__init__.py` gemeinsam anheben
-  (`tests/test_versions.py`).
-- Branch `release/<Version>`; Bericht `docs/versions/<Haupt>.md` (Titel „# Cubegen <Haupt> – <Name>“, Abschnitt
-  „## Cubegen <Version> – <Name>“; ein Patch ergänzt den Bericht seiner Hauptversion); CHANGELOG-Eintrag „## <Version> „<Name>“
-  – unveröffentlicht“ mit 3–5 Zeilen und Link. Die letzten drei Hauptversionen in `docs/versions/`, ältere in `docs/archive/versions/`.
+- **Patch** (bis etwa 100 Zeilen Diff ohne Format-, Vertrags- oder Kernsystemänderung): `./ce session patch <kurzname>`, keine neue
+  Minor-Version, 1–3 Zeilen im CHANGELOG-Eintrag der laufenden Version, kein Richter.
+- **Version** (alles darüber): Minor +1 mit eigenem, ausgedachtem englischem Namen (cool, nie beschreibend deutsch),
+  `./ce session reserve <Name> --about … --model …`, Branch `release/<Version>`, Versionsbericht, Richter vor Merge.
+  Version in `pyproject.toml`, `cubegen/__init__.py` und `blender_addon/cubegen_addon/__init__.py` gemeinsam anheben (`tests/test_versions.py`).
+- Bericht `docs/versions/<Haupt>.md` (Titel „# Cubegen <Haupt> – <Name>“, Abschnitt „## Cubegen <Version> – <Name>“); CHANGELOG-Eintrag
+  „## <Version> „<Name>“ – unveröffentlicht“ mit 3–5 Zeilen und Link. Die letzten drei Hauptversionen in `docs/versions/`, ältere in `docs/archive/versions/`.
 - Hauptordner schlank: nur `README.md`, `AGENTS.md`, `CLAUDE.md`, `CHANGELOG.md` und Konfiguration (keine `VERSION_*`, Notizen).
 - Release nur auf Wunsch: Datum statt „unveröffentlicht“, Tests grün, `python3 tools/release.py` (Probelauf), `--apply` merged,
   taggt `v<Version>` und pusht atomar nach `origin`
@@ -105,18 +102,14 @@ Jeder neue Branch, Worktree oder Auftrag ist eine **neue Version**: Minor +1 mit
 ## Werkzeuge: ImageMagick und Blender-Plugin
 
 `magick` (v7, `python3 -m cubegen doctor`) erzeugt Texturen und darf zum Gestalten und Prüfen dienen; reproduzierbar, über
-`ImageMagick.run`. Das Blender-MCP ist ausdrücklich erwünscht (Nutzer, 20.10.2026; globale Regel › Blender-MCP): ohne Nachfrage, wenn
-Blender läuft – nachmessen, Sichtprüfung, UV/Material, Probe-Bakes, Ansichten rendern; nur in eigener Szene, die Quelle bleibt der Generator.
-`tools/unity_check.py` läuft nur lokal über Cube Escapes `verify.sh` in der Testkopie, nie auf einem Checkout, und wartet auf
-`~/Library/Caches/CubeEscape/heavy-run.lock` (nie löschen, `CE_HEAVY_LOCK=0` überspringt). Vollständig: 9.9, DEVELOPER 7.
+`ImageMagick.run`. Blender-MCP: globale Regel (nur in eigener Szene, die Quelle bleibt der Generator).
+`tools/unity_check.py` läuft nur lokal über Cube Escapes `verify.sh` in der Testkopie, nie auf einem Checkout, und nur unter
+`./ce lock unity -- <Befehl>` (Sperre je Ressource, Details Nexogen `templates/regeln-details.md` › Schwere Läufe und Sperren). Vollständig: 9.9, DEVELOPER 7.
 
 ## Plugins und Hooks
 
-`CLAUDE.md` importiert diese Datei. Der gemeinsame Wächter (seit Agent Tools 0.12) wird über Nexogen für Codex nach `/hooks`-Vertrauen und für Antigravity auf den gemessenen Oberflächen installiert; das reversible Git-Netz ergänzt ihn für alle Clients. Die begrenzte Commit-Vorabprüfung, Einbau und Grenzen stehen zentral in [Werkzeuge und Durchsetzung](https://github.com/ffunkfabian-hash/cubeescape-nexogen/blob/main/templates/regeln-details.md#werkzeuge-und-durchsetzung). Postfach (seit ce-shared 0.15.1, nur Claude Code mit installiertem Plugin): Für eine reservierte Sitzung (`./ce session reserve|patch`) startet ein Stop-Hook den Wächter selbst und weckt sie bei Nachrichten; läuft keiner, hält ein zweiter Stop-Hook das Ende einmal an (höchstens alle 2 h). Versionen (seit ce-shared 0.16): Claude Code führt je Checkout und Worktree einen eigenen Plugin-Eintrag, den `claude plugin update` nicht sicher erreicht – nach einem Update `./ce plugins check`, bei Abweichung `./ce plugins fix --apply`; eine Sitzung mit älterem ce-shared warnt beim Start. Die folgende Liste nennt Claude-Plugins und repo-eigene Claude-Hooks. Plugins: `quick-gate-python` (schnelle
-Prüfung, verbindlich bleibt die Suite), `code-review` vor jedem Release-Merge, `github`/`gh`, `unity` (Kollision in der
-Testkopie), `hookify` (Repo-Regeln `.claude/hookify.*.local.md`, mit `git add -f`), `ce-shared` (gemeinsame Regeln, Hooks wie
-`precommit`, Profile `.claude/agent-guard.json`), Blender-MCP. Hooks blockieren Unity auf einem Checkout, nacktes `git stash`,
-Force-Push, Handarbeit an `output/`; sie warnen bei Commit/Merge/Tag/Push, Golden-Daten, Versionsdateien, Workflows.
-Subagents `cg-test-runner` und `cg-doc-keeper`. Tabelle und Einzelheiten: 9.10.
-
-Werkzeug-Erfahrungen: [docs/LESSONS.md](docs/LESSONS.md); die verlinkte Systemdokumentation bleibt die Langform.
+`CLAUDE.md` importiert diese Datei. Repo-eigen: `.claude/agent-guard.json` (Profile), `.claude/hookify.ausgabe-nie-von-hand.local.md` und
+`hookify.tests-vor-abschluss.local.md` (mit `git add -f`), Subagents `cg-test-runner` und `cg-doc-keeper`. Die Hookify-Warnungen
+`git-nur-auf-wunsch`, `golden-daten` und `versionen-gemeinsam` entfielen (wirkungslos; das Git-Netz und `tests/test_versions.py`
+tragen das). Vor einem Commit mit geänderten `*.md` warnt der Hook `precommit` (`ce_lint.py`, blockiert nie). Einzelheiten: 9.10;
+globale Durchsetzung: Nexogen `templates/regeln-details.md` › Werkzeuge und Durchsetzung.
